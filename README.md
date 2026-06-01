@@ -1,6 +1,6 @@
 # grove
 
-SEO blog engine on autopilot — Vercel + Supabase + Anthropic.
+SEO blog engine on autopilot — Vercel + Supabase + Gemini 2.0 Flash (with grounded Google Search).
 
 This repo holds:
 - The marketing landing page (`app/page.tsx`, `components/Landing.tsx`)

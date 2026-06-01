@@ -1,9 +1,8 @@
 /**
- * Brand voice extractor — runs once at provisioning. Reads the customer's
- * home page + a couple of about/blog pages, asks the model to distill a
- * voice profile, and caches it as JSON on the domain row.
+ * Brand voice extractor — reads the customer's home/about/blog pages, asks
+ * the model to distill a voice profile, caches it as JSON on the domain row.
  */
-import { anthropic, MODEL } from '../anthropic';
+import { geminiCall } from '../gemini';
 import type { Voice } from './writer';
 
 async function fetchText(url: string): Promise<string> {
@@ -40,23 +39,20 @@ export async function profileVoice(hostname: string): Promise<Voice> {
     };
   }
 
-  const res = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: 800,
-    system: 'You distill a brand voice profile from website copy. Output ONLY a JSON object.',
-    messages: [{
-      role: 'user',
-      content: `Read the corpus below and produce a JSON voice profile:
+  const { text } = await geminiCall({
+    system: 'You distill a brand voice profile from website copy. Output ONLY a JSON object inside a ```json block.',
+    user: `Read the corpus below and produce a JSON voice profile:
 { "persona": "...", "tone": "...", "register": "...", "vocabulary": ["distinctive word", "..."] }
 
 Be specific — not "professional" but "engineer-to-engineer, blunt about trade-offs".
 
 CORPUS:
 ${corpus}`,
-    }],
+    maxTokens: 800,
   });
-  const text = res.content.filter((b: any) => b.type === 'text').map((b: any) => b.text).join('');
-  const m = text.match(/\{[\s\S]*\}/);
-  if (!m) throw new Error('voice: no JSON');
-  return JSON.parse(m[0]);
+
+  const fenced = text.match(/```json\s*([\s\S]*?)```/);
+  const raw = fenced ? fenced[1] : (text.match(/\{[\s\S]*\}/)?.[0] ?? '');
+  if (!raw) throw new Error('voice: no JSON');
+  return JSON.parse(raw);
 }
