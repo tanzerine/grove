@@ -34,6 +34,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
         status={p.status}
         published={p.status === 'published'}
         publicUrl={p.status === 'published' ? `/b/${domain?.blog_slug}/${p.slug}` : null}
+        hasSocial={!!(social.x || social.linkedin || social.instagram)}
       />
 
       {p.status === 'failed' && (

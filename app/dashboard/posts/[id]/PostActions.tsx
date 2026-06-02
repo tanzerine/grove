@@ -3,10 +3,21 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 export default function PostActions({
-  id, status, published, publicUrl,
-}: { id: string; status: string; published: boolean; publicUrl: string | null }) {
+  id, status, published, publicUrl, hasSocial,
+}: { id: string; status: string; published: boolean; publicUrl: string | null; hasSocial: boolean }) {
   const r = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
+
+  async function genSocial() {
+    setBusy('social');
+    const res = await fetch(`/api/posts/${id}/social`, { method: 'POST' });
+    setBusy(null);
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      alert(`Social generation failed: ${j.error ?? 'unknown'}`);
+    }
+    r.refresh();
+  }
 
   async function approve() {
     setBusy('approve');
@@ -36,6 +47,11 @@ export default function PostActions({
       {status === 'review' && (
         <button className="btn btn-primary btn-sm" onClick={approve} disabled={!!busy}>
           {busy === 'approve' ? 'Publishing…' : 'Approve & publish'}
+        </button>
+      )}
+      {(status === 'review' || status === 'published') && (
+        <button className="btn btn-ghost btn-sm" onClick={genSocial} disabled={!!busy}>
+          {busy === 'social' ? 'Adapting…' : hasSocial ? 'Regenerate social posts' : 'Generate social posts'}
         </button>
       )}
       {(status === 'failed' || status === 'review' || status === 'published') && (

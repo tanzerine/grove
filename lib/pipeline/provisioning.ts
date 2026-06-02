@@ -1,12 +1,14 @@
 /**
- * After domain verification: profile voice + enqueue first topic.
- * Designed to be fire-and-forget on Vercel's serverless runtime.
+ * After domain verification:
+ *   1. Deep-crawl the site and store a rich SiteProfile JSON
+ *   2. Enqueue a first "intro" post topic
+ *
+ * Fire-and-forget on Vercel — must not block the verify response.
  */
 import { supabaseAdmin } from '../supabase/admin';
-import { profileVoice } from './voice';
+import { profileSite } from './site-profile';
 
 export async function kickoffProvisioning(domainId: string) {
-  // not awaited on purpose — voice profiling can take 5-15s; we kick off and return
   setTimeout(() => provisionInner(domainId).catch(console.error), 0);
 }
 
@@ -15,13 +17,16 @@ async function provisionInner(domainId: string) {
   const { data: domain } = await sb.from('domains').select('*').eq('id', domainId).single();
   if (!domain) return;
 
-  const voice = await profileVoice(domain.hostname).catch(() => null);
-  if (voice) await sb.from('domains').update({ brand_voice: voice }).eq('id', domainId);
-
-  // queue a first-post topic based on the domain — the cron worker will pick it up immediately
-  await sb.from('posts').insert({
-    domain_id: domainId,
-    status: 'queued',
-    topic: `introductory post for ${domain.hostname} — overview of what we do and who we help`,
+  const profile = await profileSite(domain.hostname).catch((e) => {
+    console.error('profileSite failed', e);
+    return null;
   });
+  if (profile) await sb.from('domains').update({ site_profile: profile }).eq('id', domainId);
+
+  // queue an intro topic that uses the profile we just built
+  const topic = profile?.business?.description
+    ? `Introducing ${profile.business.name}: how we help ${profile.business.target_audience}`
+    : `Introductory post for ${domain.hostname}`;
+
+  await sb.from('posts').insert({ domain_id: domainId, status: 'queued', topic });
 }

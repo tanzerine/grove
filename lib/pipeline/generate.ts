@@ -1,15 +1,18 @@
 /**
  * End-to-end generation for a single queued post:
- * 1. research (web_search tool)
- * 2. write (web_search tool, voice-aware)
- * 3. validate
- * 4. persist; if domain.auto_publish, schedule for next publish slot; else 'review'.
+ *   1. ensure we have a site profile for the domain (lazy on first post)
+ *   2. research (Tavily web search → LLM brief)
+ *   3. write article + SEO meta (site profile injected as deep context)
+ *   4. validate prose rules
+ *   5. land in 'review' (or 'scheduled' if domain.auto_publish is on)
+ *
+ * Social variants are NOT generated here — that's on-demand after approval.
  */
 import { supabaseAdmin } from '../supabase/admin';
 import { runResearch } from './research';
 import { runWriter } from './writer';
 import { validatePost } from './validator';
-import { DEFAULT_VOICE } from './writer';
+import { profileSite, type SiteProfile } from './site-profile';
 
 function slugify(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
@@ -23,12 +26,24 @@ export async function generatePost(postId: string) {
 
   await sb.from('posts').update({ status: 'researching' }).eq('id', postId);
 
-  const research = await runResearch(post.topic ?? domain.hostname, `Site: ${domain.hostname}`);
+  // ensure site_profile exists — profile lazily on the first post if not done yet
+  let profile: SiteProfile = domain.site_profile;
+  if (!profile?.business?.name) {
+    profile = await profileSite(domain.hostname);
+    await sb.from('domains').update({ site_profile: profile }).eq('id', domain.id);
+  }
+
+  // research with rich business context — much better keyword interpretation
+  const research = await runResearch(
+    post.topic ?? domain.hostname,
+    `Business: ${profile.business.name} — ${profile.business.description}. ` +
+    `Industry: ${profile.business.industry}. ` +
+    `Target audience: ${profile.business.target_audience}.`
+  );
 
   await sb.from('posts').update({ status: 'writing', research }).eq('id', postId);
 
-  const voice = (domain.brand_voice as any) ?? DEFAULT_VOICE;
-  const writer = await runWriter(research, voice);
+  const writer = await runWriter(research, profile);
   const validation = validatePost(writer.blog_post);
 
   const title = writer.meta_title || research.winning_angle.slice(0, 60);
@@ -44,11 +59,7 @@ export async function generatePost(postId: string) {
     body_md: writer.blog_post,
     meta_title: writer.meta_title,
     meta_description: writer.meta_description,
-    social: {
-      x: writer.x_thread,
-      linkedin: writer.linkedin_post,
-      instagram: writer.instagram_caption,
-    },
+    social: null,           // generated on demand after approval
     validation,
     scheduled_at,
   }).eq('id', postId);
