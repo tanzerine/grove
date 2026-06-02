@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
@@ -42,8 +43,8 @@ export default function PostRow({ p }: { p: any }) {
   return (
     <div className="post-row">
       <div className="pthumb" />
-      <div className="pbody">
-        <div className="ptitle">{p.title ?? p.topic ?? '(no title yet)'}</div>
+      <Link href={`/dashboard/posts/${p.id}`} className="pbody" style={{ textDecoration: 'none', color: 'inherit' }}>
+        <div className="ptitle" style={{ cursor: 'pointer' }}>{p.title ?? p.topic ?? '(no title yet)'}</div>
         <div className="pmeta">
           {p.status === 'published' ? `Published · ${p.reads} reads` :
            p.status === 'review' ? `${p.validation?.stats?.word_count ?? '—'} words · awaiting your review` :
@@ -52,7 +53,7 @@ export default function PostRow({ p }: { p: any }) {
            p.status === 'failed' ? <span style={{ color: '#c33' }}>Failed: {String(errorMsg).slice(0, 90)}</span> :
            p.topic}
         </div>
-      </div>
+      </Link>
       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
         {p.status === 'failed' && (
           <>
