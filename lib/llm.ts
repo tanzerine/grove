@@ -1,40 +1,37 @@
 /**
- * Replicate-hosted LLM client. Defaults to google/gemini-3.1-pro.
+ * Generic OpenAI-compatible LLM client. Defaults to Groq (free Llama 3.3 70B).
  *
- * Note: Replicate's wrapper is plain text-in/text-out — there's no equivalent
- * of Google AI Studio's googleSearch tool. So research/writer agents rely on
- * model training data only. The validator will flag drafts lacking inline
- * citations; those land in the review queue for human editing.
+ * Swap providers with env vars — no code change:
+ *   - Groq:       LLM_BASE_URL=https://api.groq.com/openai/v1
+ *   - OpenRouter: LLM_BASE_URL=https://openrouter.ai/api/v1
+ *   - Together:   LLM_BASE_URL=https://api.together.xyz/v1
+ *   - DeepSeek:   LLM_BASE_URL=https://api.deepseek.com/v1
+ *   - OpenAI:     LLM_BASE_URL=https://api.openai.com/v1
  */
-import Replicate from 'replicate';
+import OpenAI from 'openai';
 
-const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN });
-export const MODEL = (process.env.REPLICATE_MODEL ?? 'google/gemini-3.1-pro') as `${string}/${string}`;
+const client = new OpenAI({
+  apiKey: process.env.LLM_API_KEY || 'placeholder',
+  baseURL: process.env.LLM_BASE_URL || 'https://api.groq.com/openai/v1',
+});
+
+export const MODEL = process.env.LLM_MODEL ?? 'llama-3.3-70b-versatile';
 
 export async function llmCall(opts: {
   system: string;
   user: string;
   maxTokens?: number;
+  json?: boolean;     // request JSON-mode output if provider supports it
 }): Promise<{ text: string }> {
-  // Compose a single prompt — most Replicate text models accept system + user
-  // in the `prompt` field. google/gemini-3.1-pro also accepts `system_prompt`.
-  const input: Record<string, unknown> = {
-    prompt: opts.user,
-    system_prompt: opts.system,
+  const res = await client.chat.completions.create({
+    model: MODEL,
     max_tokens: opts.maxTokens ?? 4000,
     temperature: 0.7,
-  };
-
-  // replicate.run streams the model and returns the final aggregated output.
-  // For text models this is typically an array of string chunks; join them.
-  const output = await replicate.run(MODEL, { input });
-  let text = '';
-  if (Array.isArray(output)) text = (output as unknown[]).map(String).join('');
-  else if (typeof output === 'string') text = output;
-  else if (output && typeof (output as any)[Symbol.asyncIterator] === 'function') {
-    for await (const chunk of output as AsyncIterable<unknown>) text += String(chunk);
-  } else {
-    text = String(output ?? '');
-  }
-  return { text };
+    messages: [
+      { role: 'system', content: opts.system },
+      { role: 'user', content: opts.user },
+    ],
+    ...(opts.json ? { response_format: { type: 'json_object' as const } } : {}),
+  });
+  return { text: res.choices[0]?.message?.content ?? '' };
 }

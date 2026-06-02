@@ -34,13 +34,11 @@ Register: ${voice.register}
 
 ${qualityRulesPrompt()}
 
-NO LIVE WEB ACCESS — use only the citations provided in the research brief.
-If a fact needs verification you can't confirm, omit it. Never fabricate URLs.
-
-WORKFLOW
-Write the post section by section. After each section, silently check:
-did I use any AI-pattern sentences? Adjust the next section.
-Cite the provided sources inline as markdown links: [text](https://...)
+CITATIONS
+You have a research brief with citations attached. Use ONLY the URLs in the brief
+when you need to cite — never invent a URL. If a fact needs verification you
+can't confirm from the brief, drop it.
+Cite inline as markdown: [text](url)
 
 If a customer knowledge base is provided, weave specific facts/quotes from it.`;
 

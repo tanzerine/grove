@@ -40,21 +40,19 @@ export async function profileVoice(hostname: string): Promise<Voice> {
   }
 
   const { text } = await llmCall({
-    system: 'You distill a brand voice profile from website copy. Output ONLY a JSON object inside a ```json block.',
+    system: 'You distill a brand voice profile from website copy. Output ONLY a JSON object.',
     user: `Read the corpus below and produce a JSON voice profile:
-\`\`\`json
 { "persona": "...", "tone": "...", "register": "...", "vocabulary": ["distinctive word", "..."] }
-\`\`\`
 
 Be specific — not "professional" but "engineer-to-engineer, blunt about trade-offs".
 
 CORPUS:
 ${corpus}`,
     maxTokens: 800,
+    json: true,
   });
 
-  const fenced = text.match(/```json\s*([\s\S]*?)```/);
-  const raw = fenced ? fenced[1] : (text.match(/\{[\s\S]*\}/)?.[0] ?? '');
+  const raw = text.match(/\{[\s\S]*\}/)?.[0] ?? '';
   if (!raw) throw new Error('voice: no JSON');
   return JSON.parse(raw);
 }
