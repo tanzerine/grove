@@ -1,52 +1,129 @@
 /**
- * DNS TXT + HTTP file-based domain ownership verification.
- * Tolerant of apex/www variants: we'll find the token if it lives at either.
+ * Multi-method domain ownership verification — works with any web stack.
+ *
+ * Verification methods, in order of robustness:
+ *   1. DNS TXT     — most reliable. DNS lives above the web framework, so no
+ *                    middleware (Clerk, NextAuth, Cloudflare Access) can block it.
+ *   2. HTML meta   — easy for non-technical users. Survives most auth setups
+ *                    because homepages are usually public.
+ *   3. HTTP file   — convenient when DNS access is hard. Can be broken by auth
+ *                    middleware that protects /.well-known/ (Clerk, etc.).
+ *
+ * We check ALL methods in parallel and accept the first match. Customers only
+ * need to do ONE — pick whichever is easiest for their setup.
  */
 import { promises as dns } from 'node:dns';
 
-export type VerifyResult = { ok: true; via: 'dns' | 'http'; matched: string } | { ok: false; reason: string };
+export type VerifyMethod = 'dns' | 'meta' | 'http';
+export type VerifyResult =
+  | { ok: true; via: VerifyMethod; matched: string }
+  | { ok: false; reason: string; tried: string[] };
 
 const HTTP_PATH = '/.well-known/grove-verify.txt';
+const META_NAME = 'grove-verify';
+const FETCH_TIMEOUT_MS = 6000;
 
-/** Given user input "oveners.com" or "www.oveners.com", return both variants. */
 function hostVariants(host: string): string[] {
   const apex = host.replace(/^www\./, '');
   return Array.from(new Set([host, apex, `www.${apex}`]));
 }
 
-export async function verifyDomainOwnership(host: string, token: string): Promise<VerifyResult> {
-  const hosts = hostVariants(host);
+async function withTimeout<T>(p: Promise<T>, ms = FETCH_TIMEOUT_MS): Promise<T | null> {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  try { return await p; } catch { return null; } finally { clearTimeout(t); }
+}
 
-  // 1) DNS TXT on apex, www, OR _grove.<apex> — covers every common spot
-  for (const h of [...hosts, ...hosts.map((x) => `_grove.${x}`)]) {
+// ─── method 1: DNS TXT (apex, www, _grove.apex, _grove.www) ──────────────────
+async function checkDns(host: string, token: string): Promise<{ matched: string } | null> {
+  const variants = hostVariants(host);
+  const probes = [...variants, ...variants.map((h) => `_grove.${h}`)];
+  for (const h of probes) {
     try {
       const records = await dns.resolveTxt(h);
       const flat = records.map((r) => r.join('')).join(' ');
-      if (flat.includes(`grove-verify=${token}`)) return { ok: true, via: 'dns', matched: h };
+      if (flat.includes(`grove-verify=${token}`)) return { matched: `DNS TXT @ ${h}` };
     } catch { /* keep trying */ }
   }
+  return null;
+}
 
-  // 2) HTTP file at /.well-known/grove-verify.txt on either variant, either scheme.
-  //    We follow redirects, so www→apex (or apex→www) is also fine as long as
-  //    the file is served on whichever side the redirect lands.
-  for (const h of hosts) {
+// ─── method 2: HTML meta tag in homepage HEAD ────────────────────────────────
+async function fetchHtml(url: string): Promise<string | null> {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, {
+      signal: ctrl.signal,
+      redirect: 'follow',
+      headers: { 'user-agent': 'grove-verifier/1.0 (+https://grove.so/verify)' },
+    });
+    if (!res.ok) return null;
+    // we only need the HEAD, but cheap to read whole thing for small homepages
+    return await res.text();
+  } catch { return null; } finally { clearTimeout(t); }
+}
+
+async function checkMeta(host: string, token: string): Promise<{ matched: string } | null> {
+  for (const h of hostVariants(host)) {
     for (const scheme of ['https', 'http'] as const) {
-      try {
-        const ctrl = new AbortController();
-        const t = setTimeout(() => ctrl.abort(), 5000);
-        const res = await fetch(`${scheme}://${h}${HTTP_PATH}`, { signal: ctrl.signal, redirect: 'follow' });
-        clearTimeout(t);
-        if (res.ok) {
-          const body = (await res.text()).trim();
-          if (body === token) return { ok: true, via: 'http', matched: `${scheme}://${h}` };
-        }
-      } catch { /* keep trying */ }
+      const html = await fetchHtml(`${scheme}://${h}/`);
+      if (!html) continue;
+      // tolerant regex: any quoting, any attribute order
+      const re = new RegExp(
+        `<meta[^>]*name=["']${META_NAME}["'][^>]*content=["']${token}["']|` +
+        `<meta[^>]*content=["']${token}["'][^>]*name=["']${META_NAME}["']`,
+        'i'
+      );
+      if (re.test(html)) return { matched: `meta tag @ ${scheme}://${h}` };
     }
+  }
+  return null;
+}
+
+// ─── method 3: HTTP file at /.well-known/grove-verify.txt ────────────────────
+async function checkHttpFile(host: string, token: string): Promise<{ matched: string } | null> {
+  for (const h of hostVariants(host)) {
+    for (const scheme of ['https', 'http'] as const) {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
+      try {
+        const res = await fetch(`${scheme}://${h}${HTTP_PATH}`, {
+          signal: ctrl.signal, redirect: 'follow',
+          headers: { 'user-agent': 'grove-verifier/1.0' },
+        });
+        if (!res.ok) continue;
+        const ct = res.headers.get('content-type') ?? '';
+        // reject HTML responses — that means an auth middleware intercepted us
+        if (ct.includes('text/html')) continue;
+        const body = (await res.text()).trim();
+        if (body === token) return { matched: `file @ ${scheme}://${h}${HTTP_PATH}` };
+      } catch { /* keep trying */ } finally { clearTimeout(t); }
+    }
+  }
+  return null;
+}
+
+export async function verifyDomainOwnership(host: string, token: string): Promise<VerifyResult> {
+  // Race all three methods in parallel; first hit wins.
+  const tried: string[] = [];
+  const results = await Promise.allSettled([
+    checkDns(host, token).then((r) => ({ method: 'dns' as const, r })),
+    checkMeta(host, token).then((r) => ({ method: 'meta' as const, r })),
+    checkHttpFile(host, token).then((r) => ({ method: 'http' as const, r })),
+  ]);
+
+  for (const settled of results) {
+    if (settled.status !== 'fulfilled') continue;
+    const { method, r } = settled.value;
+    tried.push(method);
+    if (r) return { ok: true, via: method, matched: r.matched };
   }
 
   return {
     ok: false,
-    reason: `No matching DNS TXT or verification file found on ${hosts.join(', ')}. DNS can take up to 24h to propagate.`,
+    reason: `No matching DNS TXT, meta tag, or verification file found for ${host} (or its www/apex variants). DNS changes can take a few minutes to propagate.`,
+    tried,
   };
 }
 
