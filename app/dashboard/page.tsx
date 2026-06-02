@@ -1,15 +1,6 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import PipelineActions from './PipelineActions';
-
-const STATUS_BADGE: Record<string, { cls: string; label: string }> = {
-  queued: { cls: 'queue', label: 'QUEUED' },
-  researching: { cls: 'queue', label: 'RESEARCHING' },
-  writing: { cls: 'writing', label: 'WRITING' },
-  review: { cls: 'writing', label: 'REVIEW' },
-  scheduled: { cls: 'writing', label: 'SCHEDULED' },
-  published: { cls: 'live', label: 'LIVE' },
-  failed: { cls: 'queue', label: 'FAILED' },
-};
+import PostRow from './PostRow';
 
 export default async function Page() {
   const sb = await supabaseServer();
@@ -26,27 +17,9 @@ export default async function Page() {
       </div>
       <PipelineActions domainId={domain?.id} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 24 }}>
-        {(posts ?? []).map((p) => {
-          const b = STATUS_BADGE[p.status] ?? STATUS_BADGE.queued;
-          return (
-            <div className="post-row" key={p.id}>
-              <div className="pthumb" />
-              <div className="pbody">
-                <div className="ptitle">{p.title ?? p.topic ?? '(no title yet)'}</div>
-                <div className="pmeta">
-                  {p.status === 'published' ? `Published · ${p.reads} reads` :
-                   p.status === 'review' ? `${p.validation?.stats?.word_count ?? '—'} words · awaiting your review` :
-                   p.status === 'writing' ? 'Drafting…' :
-                   p.status === 'researching' ? 'Gathering sources…' :
-                   p.topic}
-                </div>
-              </div>
-              <span className={`badge ${b.cls}`}><span className="d" />{b.label}</span>
-            </div>
-          );
-        })}
+        {(posts ?? []).map((p) => <PostRow key={p.id} p={p} />)}
         {(!posts || posts.length === 0) && (
-          <p className="lede">No posts yet. The first draft will appear here shortly after voice profiling completes.</p>
+          <p className="lede">No posts yet. Queue a topic above — the pipeline runs immediately.</p>
         )}
       </div>
     </>
