@@ -1,39 +1,36 @@
 /**
- * Gemini wrapper (Google AI Studio).
+ * Replicate-hosted LLM wrapper. Defaults to google/gemini-3.1-pro.
  *
- * Two model tiers:
- *   - MODEL      → Pro, used for article writing (highest quality)
- *   - FAST_MODEL → Flash, used for cheap structured-extraction tasks (site profile)
- *
- * Tavily handles web search separately, so we deliberately do NOT pass the
- * googleSearch tool here — gives us tighter control over citations and avoids
- * surprise tool-use billing.
+ * Replicate is a single text-in / text-out wrapper — no built-in web search,
+ * no tool use. We pair it with Tavily for citations (lib/search.ts).
  */
-import { GoogleGenAI } from '@google/genai';
+import Replicate from 'replicate';
 
-const apiKey = process.env.GEMINI_API_KEY || '';
-export const gemini = new GoogleGenAI({ apiKey });
+const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN });
 
-export const MODEL = process.env.GEMINI_MODEL ?? 'gemini-2.5-pro';
-export const FAST_MODEL = process.env.GEMINI_FAST_MODEL ?? 'gemini-2.5-flash';
+export const MODEL = (process.env.REPLICATE_MODEL ?? 'google/gemini-3.1-pro') as `${string}/${string}`;
 
 export async function llmCall(opts: {
   system: string;
   user: string;
   maxTokens?: number;
-  fast?: boolean;       // use the cheap Flash model
-  json?: boolean;       // ask for JSON-only output (we still parse defensively)
+  fast?: boolean;  // accepted for API compatibility; same model under the hood on Replicate
+  json?: boolean;  // accepted but enforced via prompt, not provider flag
 }): Promise<{ text: string }> {
-  const model = opts.fast ? FAST_MODEL : MODEL;
-  const response = await gemini.models.generateContent({
-    model,
-    contents: opts.user,
-    config: {
-      systemInstruction: opts.system,
-      maxOutputTokens: opts.maxTokens ?? 4000,
-      temperature: 0.7,
-      ...(opts.json ? { responseMimeType: 'application/json' } : {}),
-    },
-  });
-  return { text: response.text ?? '' };
+  const input: Record<string, unknown> = {
+    prompt: opts.user,
+    system_prompt: opts.system,
+    max_tokens: opts.maxTokens ?? 4000,
+    temperature: 0.7,
+  };
+
+  // Use streaming to support long outputs (Replicate's `run` can time out on big responses).
+  let text = '';
+  for await (const event of replicate.stream(MODEL, { input })) {
+    // event from Replicate stream is a ServerSentEvent — text payload on .data for "output" events
+    const chunk: any = event;
+    if (chunk?.event === 'output' || chunk?.data) text += String(chunk.data ?? '');
+    else if (typeof chunk === 'string') text += chunk;
+  }
+  return { text };
 }
