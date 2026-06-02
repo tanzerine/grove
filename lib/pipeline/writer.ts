@@ -1,4 +1,4 @@
-import { geminiCall } from '../gemini';
+import { llmCall } from '../llm';
 import { qualityRulesPrompt } from './quality-rules';
 import type { Research } from './research';
 
@@ -34,13 +34,13 @@ Register: ${voice.register}
 
 ${qualityRulesPrompt()}
 
+NO LIVE WEB ACCESS — use only the citations provided in the research brief.
+If a fact needs verification you can't confirm, omit it. Never fabricate URLs.
+
 WORKFLOW
 Write the post section by section. After each section, silently check:
 did I use any AI-pattern sentences? Adjust the next section.
-
-You have Google Search available. Before writing any numeric claim, search to verify it.
-Never publish an unverified number. If you can't verify, drop the claim.
-Cite verified sources inline as markdown links: [text](https://...)
+Cite the provided sources inline as markdown links: [text](https://...)
 
 If a customer knowledge base is provided, weave specific facts/quotes from it.`;
 
@@ -78,17 +78,8 @@ Format response EXACTLY:
 ---INSTAGRAM_CAPTION---
 [caption + hashtags]`;
 
-  const { text, sources } = await geminiCall({ system, user, withSearch: true, maxTokens: 8000 });
-  const out = parseSections(text);
-
-  // If the model didn't inline-cite, append a "Sources" section from grounding metadata
-  // so the validator's LOW_CITATIONS check has a chance to pass.
-  const linkCount = (out.blog_post.match(/\[[^\]]+\]\(https?:\/\/[^\)]+\)/g) || []).length;
-  if (linkCount < 3 && sources.length) {
-    const list = sources.slice(0, 5).map((s) => `- [${s.title}](${s.uri})`).join('\n');
-    out.blog_post = `${out.blog_post}\n\n## Sources\n${list}`;
-  }
-  return out;
+  const { text } = await llmCall({ system, user, maxTokens: 8000 });
+  return parseSections(text);
 }
 
 function parseSections(text: string): WriterOutput {

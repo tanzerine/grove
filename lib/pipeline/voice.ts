@@ -2,7 +2,7 @@
  * Brand voice extractor — reads the customer's home/about/blog pages, asks
  * the model to distill a voice profile, caches it as JSON on the domain row.
  */
-import { geminiCall } from '../gemini';
+import { llmCall } from '../llm';
 import type { Voice } from './writer';
 
 async function fetchText(url: string): Promise<string> {
@@ -39,10 +39,12 @@ export async function profileVoice(hostname: string): Promise<Voice> {
     };
   }
 
-  const { text } = await geminiCall({
+  const { text } = await llmCall({
     system: 'You distill a brand voice profile from website copy. Output ONLY a JSON object inside a ```json block.',
     user: `Read the corpus below and produce a JSON voice profile:
+\`\`\`json
 { "persona": "...", "tone": "...", "register": "...", "vocabulary": ["distinctive word", "..."] }
+\`\`\`
 
 Be specific — not "professional" but "engineer-to-engineer, blunt about trade-offs".
 
