@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
 import { llmCall } from '@/lib/llm';
 
+export const maxDuration = 120;
+
 export async function GET(req: Request) {
   const sb = await supabaseServer();
   const { data: { user } } = await sb.auth.getUser();
@@ -47,10 +49,15 @@ Mix formats: how-to, comparison, mistakes-to-avoid, behind-the-scenes, trend ana
 
   try {
     const { text } = await llmCall({ fast: true, maxTokens: 400, system, user: user_msg });
-    const raw = text.trim().replace(/^```(?:json)?\n?|```$/gm, '').trim();
-    const suggestions: string[] = JSON.parse(raw);
+
+    // Robust array extraction — find the first '[' ... ']' block regardless of surrounding text
+    const arrayMatch = text.match(/\[[\s\S]*?\]/);
+    if (!arrayMatch) throw new Error('no JSON array in response');
+    const suggestions: string[] = JSON.parse(arrayMatch[0]);
+    if (!Array.isArray(suggestions)) throw new Error('not an array');
     return NextResponse.json({ suggestions: suggestions.slice(0, 6) });
-  } catch {
+  } catch (err: any) {
+    console.error('[topics/suggest] failed:', err?.message ?? err);
     return NextResponse.json({ error: 'generation failed' }, { status: 500 });
   }
 }
