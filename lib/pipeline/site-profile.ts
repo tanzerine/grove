@@ -5,7 +5,7 @@
  * This is the context EVERY article writer call uses. Without it, the model
  * has no idea what the business does and produces generic, off-topic drafts.
  */
-import { llmCall } from '../llm';
+import { llmCall, extractJson } from '../llm';
 
 export type SiteProfile = {
   business: {
@@ -101,7 +101,11 @@ export async function profileSite(hostname: string): Promise<SiteProfile> {
     system: `You analyze a website and extract structured business intelligence.
 Be specific. "professional" is useless — "engineer-to-engineer, blunt about trade-offs" is useful.
 If a field is genuinely unknown, write "unknown" — never invent.
-Output ONLY a JSON object.`,
+
+CRITICAL OUTPUT RULES:
+- Output ONE raw JSON object. Nothing else.
+- No markdown. No backticks. No code fences.
+- All string values must be plain text — never embed code blocks.`,
     user: `Read the crawled pages below from ${hostname}.
 
 Return JSON:
@@ -127,11 +131,14 @@ CRAWLED PAGES:
 ${corpus}`,
   });
 
-  const raw = text.match(/\{[\s\S]*\}/)?.[0] ?? '';
-  if (!raw) return emptyProfile(hostname, crawledUrls, hasBlog, hasPricing);
+  let parsed: any;
+  try {
+    parsed = extractJson(text);
+  } catch {
+    return emptyProfile(hostname, crawledUrls, hasBlog, hasPricing);
+  }
 
   try {
-    const parsed = JSON.parse(raw);
     return {
       business: {
         name: parsed.business?.name ?? hostname,

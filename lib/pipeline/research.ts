@@ -1,4 +1,4 @@
-import { llmCall } from '../llm';
+import { llmCall, extractJson } from '../llm';
 import { webSearch } from '../search';
 
 export type Research = {
@@ -20,7 +20,11 @@ Job:
 3. Use only the provided search results for citations — never invent URLs
 4. Reject recycled stats and generic angles
 
-Output ONLY a JSON object. No preamble.`;
+CRITICAL OUTPUT RULES:
+- Output ONE raw JSON object. Nothing else.
+- No markdown. No backticks. No code fences.
+- No preamble like "Here is the JSON".
+- All string values must be plain text — never embed code blocks or backticks.`;
 
 export async function runResearch(keyword: string, customerContext = ''): Promise<Research> {
   // Live search via Tavily; falls back to empty list if no API key.
@@ -35,19 +39,18 @@ export async function runResearch(keyword: string, customerContext = ''): Promis
 WEB SEARCH RESULTS:
 ${searchBlock}
 
-Output JSON in this exact shape:
-{
-  "keyword": "...",
-  "search_intent": "informational|commercial|navigational",
-  "common_structure": ["section 1", "section 2"],
-  "information_gain_hooks": [{ "angle": "...", "why_it_matters": "...", "strength": "high|medium" }],
-  "citations": [{ "claim": "...", "url": "from the search results above", "source_type": "primary|secondary" }],
-  "outline": [{ "h2": "...", "subsections": ["..."], "covers": "table_stakes|info_gain" }],
-  "winning_angle": "one-sentence thesis"
-}`;
+Return one JSON object with these exact keys (plain text values only, no markdown):
+keyword, search_intent, common_structure, information_gain_hooks, citations, outline, winning_angle.
+
+Shape:
+keyword: string
+search_intent: "informational" | "commercial" | "navigational"
+common_structure: string[]
+information_gain_hooks: array of { angle, why_it_matters, strength: "high" | "medium" }
+citations: array of { claim, url, source_type: "primary" | "secondary" } — URL must come from the search results above
+outline: array of { h2, subsections: string[], covers: "table_stakes" | "info_gain" }
+winning_angle: string (one-sentence thesis)`;
 
   const { text } = await llmCall({ system: SYSTEM, user, maxTokens: 4000, json: true });
-  const raw = text.match(/\{[\s\S]*\}/)?.[0] ?? '';
-  if (!raw) throw new Error(`research: no JSON in response. Got: ${text.slice(0, 300)}`);
-  return JSON.parse(raw) as Research;
+  return extractJson<Research>(text);
 }
