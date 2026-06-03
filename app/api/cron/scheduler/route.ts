@@ -6,9 +6,10 @@
  *
  * Guarded by CRON_SECRET (Vercel sets x-vercel-cron header; we also accept bearer).
  */
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { generatePost } from '@/lib/pipeline/generate';
+import { runCoverForPost } from '@/lib/pipeline/cover-image';
 
 export const maxDuration = 300;
 
@@ -37,8 +38,10 @@ export async function GET(req: Request) {
     .from('posts').select('id').eq('status', 'queued').limit(3);
 
   for (const p of queued ?? []) {
-    try { await generatePost(p.id); }
-    catch (e: any) {
+    try {
+      await generatePost(p.id);
+      after(async () => { await runCoverForPost(p.id); });
+    } catch (e: any) {
       await sb.from('posts').update({ status: 'failed', validation: { error: String(e?.message ?? e) } }).eq('id', p.id);
     }
   }

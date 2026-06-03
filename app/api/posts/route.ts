@@ -1,8 +1,9 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { z } from 'zod';
 import { supabaseServer } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { generatePost } from '@/lib/pipeline/generate';
+import { runCoverForPost } from '@/lib/pipeline/cover-image';
 
 export const maxDuration = 300;
 
@@ -19,21 +20,25 @@ export async function POST(req: Request) {
   const { data: domain } = await sb.from('domains').select('id').eq('id', parsed.data.domain_id).single();
   if (!domain) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
-  // insert via user session so RLS records the ownership
   const { data, error } = await sb.from('posts').insert({
     domain_id: parsed.data.domain_id, status: 'queued', topic: parsed.data.topic,
   }).select('id').single();
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
-  // kick off generation immediately so the user doesn't wait on the daily cron
   try {
     await generatePost(data.id);
   } catch (e: any) {
-    // mark failed but don't error the request — the row exists and user can Retry from UI
     const admin = supabaseAdmin();
     await admin.from('posts').update({
       status: 'failed', validation: { error: String(e?.message ?? e) },
     }).eq('id', data.id);
+    return NextResponse.json({ id: data.id, error: 'generation failed' }, { status: 500 });
   }
+
+  // Cover image runs AFTER the response. Vercel keeps the function alive
+  // up to maxDuration to complete `after()` callbacks — unlike a plain
+  // fire-and-forget Promise which dies when the function terminates.
+  after(async () => { await runCoverForPost(data.id); });
+
   return NextResponse.json({ id: data.id });
 }

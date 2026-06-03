@@ -8,7 +8,6 @@ import { validatePost } from './validator';
 import { profileSite, type SiteProfile } from './site-profile';
 import { gatherContext } from './research-context';
 import { refineTopic } from './topic-refiner';
-import { fetchCoverImage } from './cover-image';
 import { appendLog, resetLog } from './log';
 
 function slugify(s: string) {
@@ -111,20 +110,10 @@ export async function generatePost(postId: string) {
       validation.passed ? 'validator passed' : `validator: ${validation.issues.length} flags`);
   } catch (e) { await failAt(postId, 'persist', e); return; }
 
-  // 6. COVER IMAGE — background, never blocks response
-  appendLog(postId, 'cover_image', 'start').catch(() => {});
-  fetchCoverImage(title, profile.business.industry)
-    .then((cover) => {
-      if (!cover) {
-        appendLog(postId, 'cover_image', 'done', 'no image found').catch(() => {});
-        return;
-      }
-      return sb.from('posts').update({
-        cover_image_url: cover.url,
-        cover_image_credit: cover.credit,
-      }).eq('id', postId).then(() => appendLog(postId, 'cover_image', 'done', cover.credit.name));
-    })
-    .catch((err) => appendLog(postId, 'cover_image', 'fail', String(err)).catch(() => {}));
+  // NOTE: cover image is intentionally NOT triggered here.
+  // It's scheduled by the API route via Next's after() so it actually runs
+  // past the response (fire-and-forget here would die when Vercel terminates
+  // the serverless function).
 }
 
 function nextPublishSlot(perWeek: number): string {

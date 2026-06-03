@@ -51,6 +51,45 @@ async function composePrompt(title: string, industry: string): Promise<string> {
   }
 }
 
+/**
+ * Full cover-image workflow for a single post: fetch via Flux Schnell,
+ * upload to Supabase Storage, update the post row, append log entries.
+ *
+ * Designed to be called from a route handler via Next's after() so it
+ * runs past the HTTP response (fire-and-forget in plain code dies on
+ * Vercel serverless because the function terminates).
+ */
+export async function runCoverForPost(postId: string): Promise<void> {
+  const sb = supabaseAdmin();
+  const { appendLog } = await import('./log');
+
+  await appendLog(postId, 'cover_image', 'start');
+
+  const { data: post } = await sb
+    .from('posts').select('title, meta_title, domains(site_profile)')
+    .eq('id', postId).single();
+
+  if (!post) { await appendLog(postId, 'cover_image', 'fail', 'post not found'); return; }
+  const title = (post as any).meta_title || (post as any).title || '';
+  const industry = (post as any).domains?.site_profile?.business?.industry ?? '';
+  if (!title) { await appendLog(postId, 'cover_image', 'fail', 'no title'); return; }
+
+  try {
+    const cover = await fetchCoverImage(title, industry);
+    if (!cover) {
+      await appendLog(postId, 'cover_image', 'done', 'no image generated');
+      return;
+    }
+    await sb.from('posts').update({
+      cover_image_url: cover.url,
+      cover_image_credit: cover.credit,
+    }).eq('id', postId);
+    await appendLog(postId, 'cover_image', 'done', cover.credit.name);
+  } catch (err: any) {
+    await appendLog(postId, 'cover_image', 'fail', String(err?.message ?? err));
+  }
+}
+
 export async function fetchCoverImage(title: string, industry = ''): Promise<Cover | null> {
   const apiKey = process.env.REPLICATE_API_TOKEN;
   if (!apiKey) return null;
