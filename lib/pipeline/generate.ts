@@ -1,18 +1,12 @@
 /**
- * Simplified single-pass generation:
- *   1. Ensure site profile exists (one LLM call, JSON)
- *   2. Tavily search for the topic
- *   3. Writer (one LLM call, delimited-section output — no JSON)
- *   4. Validate + persist
- *
- * Each step is independently try/catch'd. Failures land in `failed` status
- * with `validation.error` and `validation.failed_at` for diagnosis.
+ * Linear 4-step pipeline. Each step is independently try/catch'd so a failure
+ * never leaves a post stuck — it lands in `failed` with the precise step.
  */
 import { supabaseAdmin } from '../supabase/admin';
 import { runWriter } from './writer';
 import { validatePost } from './validator';
 import { profileSite, type SiteProfile } from './site-profile';
-import { webSearch } from '../search';
+import { gatherContext } from './research-context';
 
 function slugify(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
@@ -36,7 +30,7 @@ export async function generatePost(postId: string) {
   const domain = (post as any).domains;
   const topic: string = post.topic ?? domain.hostname;
 
-  // ─── 1. SITE PROFILE ────────────────────────────────────────────────
+  // 1. site profile
   let profile: SiteProfile = domain.site_profile;
   if (!profile?.business?.name) {
     await sb.from('posts').update({ status: 'researching' }).eq('id', postId);
@@ -46,30 +40,33 @@ export async function generatePost(postId: string) {
     } catch (e) { await failAt(postId, 'site_profile', e); return; }
   }
 
-  // ─── 2. SEARCH ──────────────────────────────────────────────────────
+  // 2. layered research context (primary + competitor + pain in parallel)
   await sb.from('posts').update({ status: 'researching' }).eq('id', postId);
-  let sources;
-  try {
-    sources = await webSearch(topic, 6);
-  } catch (e) { await failAt(postId, 'search', e); return; }
+  let context;
+  try { context = await gatherContext(topic, profile); }
+  catch (e) { await failAt(postId, 'research', e); return; }
 
   await sb.from('posts').update({
     status: 'writing',
-    research: { topic, sources: sources.map((s) => ({ url: s.url, title: s.title })) },
+    research: {
+      topic,
+      primary: context.primary.map((s) => ({ url: s.url, title: s.title })),
+      competitor: context.competitor.map((s) => ({ url: s.url, title: s.title })),
+      pain: context.pain.map((s) => ({ url: s.url, title: s.title })),
+    },
   }).eq('id', postId);
 
-  // ─── 3. WRITE ───────────────────────────────────────────────────────
+  // 3. writer
   let writer;
-  try {
-    writer = await runWriter({ topic, profile, sources });
-  } catch (e) { await failAt(postId, 'writer', e); return; }
+  try { writer = await runWriter({ topic, profile, context }); }
+  catch (e) { await failAt(postId, 'writer', e); return; }
 
   if (!writer.blog_post || writer.blog_post.length < 200) {
     await failAt(postId, 'writer_output', new Error(`writer returned ${writer.blog_post.length} chars — too short`));
     return;
   }
 
-  // ─── 4. VALIDATE + PERSIST ──────────────────────────────────────────
+  // 4. validate + persist
   const validation = validatePost(writer.blog_post);
   const title = writer.meta_title || topic.slice(0, 60);
   const slug = slugify(title);
@@ -79,8 +76,7 @@ export async function generatePost(postId: string) {
   try {
     await sb.from('posts').update({
       status: nextStatus,
-      title,
-      slug,
+      title, slug,
       body_md: writer.blog_post,
       meta_title: writer.meta_title,
       meta_description: writer.meta_description,

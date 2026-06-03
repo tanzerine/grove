@@ -1,11 +1,9 @@
 /**
- * Replicate-hosted LLM wrapper. Defaults to google/gemini-3.1-pro.
- * Tavily handles search separately (lib/search.ts).
+ * Replicate via predictions.create() + wait() — NOT streaming.
  *
- * IMPORTANT — stream filtering: Replicate's SSE stream emits multiple event
- * types (`output`, `logs`, `done`, `error`), all with a `.data` field. We MUST
- * only concatenate `output` events; including `logs` pollutes the text and
- * causes downstream JSON parse failures.
+ * Streaming was duplicating output (each event re-emitted cumulative text
+ * sometimes, plus our concat could double-count). The non-streaming path is
+ * bulletproof: create the prediction, poll until done, take .output once.
  */
 import Replicate from 'replicate';
 
@@ -24,20 +22,21 @@ export async function llmCall(opts: {
     prompt: opts.user,
     system_prompt: opts.system,
     max_tokens: opts.maxTokens ?? 4000,
-    temperature: 0.7,
+    temperature: 0.6,
   };
 
-  let text = '';
-  for await (const event of replicate.stream(MODEL, { input })) {
-    const e: any = event;
-    // Only output events carry model text. Logs/done/error are metadata.
-    if (e?.event === 'output' && typeof e.data === 'string') {
-      text += e.data;
-    } else if (e?.event === 'error') {
-      throw new Error(`Replicate stream error: ${String(e.data ?? 'unknown')}`);
-    }
-    // ignore: logs, done, ping, anything else
+  const prediction = await replicate.predictions.create({
+    model: MODEL,
+    input,
+    stream: false,
+  } as any);
+
+  const finished = await replicate.wait(prediction, { interval: 1000 });
+  if (finished.status !== 'succeeded') {
+    throw new Error(`Replicate prediction ${finished.status}: ${finished.error ?? 'unknown'}`);
   }
+  const out = finished.output;
+  const text = Array.isArray(out) ? out.join('') : String(out ?? '');
   if (!text.trim()) throw new Error('Replicate returned empty output');
   return { text };
 }
@@ -46,26 +45,16 @@ export async function llmCall(opts: {
 
 export function extractJson<T = unknown>(text: string): T {
   if (!text || !text.trim()) throw new Error('extractJson: empty response');
-
   let c = text.trim();
-
   const fenced = c.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fenced) c = fenced[1].trim();
-
-  const first = c.indexOf('{');
-  const last = c.lastIndexOf('}');
-  if (first === -1 || last === -1 || last < first) {
-    throw new Error(`extractJson: no JSON braces. Got: ${text.slice(0, 200)}…`);
-  }
-  c = c.slice(first, last + 1);
-  c = c.replace(/```json/gi, '').replace(/```/g, '');
-  c = c.replace(/[‘’]/g, "'").replace(/[“”]/g, '"');
-
+  const first = c.indexOf('{'); const last = c.lastIndexOf('}');
+  if (first === -1 || last === -1 || last < first) throw new Error(`extractJson: no JSON braces. Got: ${text.slice(0, 200)}…`);
+  c = c.slice(first, last + 1).replace(/```json/gi, '').replace(/```/g, '').replace(/[‘’]/g, "'").replace(/[“”]/g, '"');
   try { return JSON.parse(c) as T; } catch (e: any) {
     let cleaned = c.replace(/,(\s*[}\]])/g, '$1');
     cleaned = escapeControlChars(cleaned);
-    try { return JSON.parse(cleaned) as T; }
-    catch (e2: any) {
+    try { return JSON.parse(cleaned) as T; } catch (e2: any) {
       throw new Error(`extractJson: ${e2?.message ?? e?.message}. First 300: ${cleaned.slice(0, 300)}…`);
     }
   }
