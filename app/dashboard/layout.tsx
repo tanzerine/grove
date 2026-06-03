@@ -2,6 +2,7 @@ import Link from 'next/link';
 import GroveMark from '@/components/GroveMark';
 import { supabaseServer } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
+import SideNav from './SideNav';
 
 export default async function DashLayout({ children }: { children: React.ReactNode }) {
   const sb = await supabaseServer();
@@ -20,12 +21,7 @@ export default async function DashLayout({ children }: { children: React.ReactNo
           <span className="mark"><svg viewBox="0 0 32 32"><use href="#grove-mark" /></svg></span>
           grove<span className="dot">.</span>
         </Link>
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 20 }}>
-          <Link className="sb-item on" href="/dashboard">Pipeline</Link>
-          <Link className="sb-item" href="/dashboard/published">Published</Link>
-          <Link className="sb-item" href="/dashboard/voice">Brand voice</Link>
-          <Link className="sb-item" href="/dashboard/analytics">Analytics</Link>
-        </nav>
+        <SideNav />
         {verified && (
           <div style={{ marginTop: 'auto', paddingTop: 24 }}>
             <div className="verified-chip"><span className="v">✓</span>{verified.hostname} verified</div>

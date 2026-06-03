@@ -1,0 +1,27 @@
+'use client';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+
+const ITEMS = [
+  { href: '/dashboard',           label: 'Pipeline',    match: (p: string) => p === '/dashboard' || p.startsWith('/dashboard/posts') },
+  { href: '/dashboard/published', label: 'Published',   match: (p: string) => p.startsWith('/dashboard/published') },
+  { href: '/dashboard/voice',     label: 'Brand voice', match: (p: string) => p.startsWith('/dashboard/voice') },
+  { href: '/dashboard/analytics', label: 'Analytics',   match: (p: string) => p.startsWith('/dashboard/analytics') },
+];
+
+export default function SideNav() {
+  const pathname = usePathname() ?? '';
+  return (
+    <nav style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 20 }}>
+      {ITEMS.map((it) => {
+        const active = it.match(pathname);
+        return (
+          <Link key={it.href} href={it.href} className={`sb-item ${active ? 'on' : ''}`}>
+            <span className="ic" />
+            {it.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}

@@ -80,10 +80,25 @@ a { color: inherit; text-decoration: none; }
 .sb-brand { display: flex; align-items: center; gap: 6px; font-family: 'Clash Display'; font-weight: 600; font-size: 16px; margin-bottom: 14px; }
 .sb-brand .mark { width: 20px; height: 20px; }
 .sb-brand .dot { color: var(--moss); }
-.sb-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--clay); padding: 7px 10px; border-radius: 8px; }
-.sb-item .ic { width: 12px; height: 12px; background: var(--line); border-radius: 3px; }
-.sb-item.on { background: white; color: var(--ink); }
+.sb-item {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 14px; font-weight: 500; color: var(--clay);
+  padding: 9px 12px; border-radius: 8px;
+  cursor: pointer; text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+  user-select: none;
+}
+.sb-item .ic {
+  width: 14px; height: 14px; background: var(--line);
+  border-radius: 3px; flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+.sb-item:hover { background: rgba(255,255,255,0.6); color: var(--ink); }
+.sb-item:hover .ic { background: var(--clay); }
+.sb-item:active { transform: scale(0.98); }
+.sb-item.on { background: white; color: var(--ink); box-shadow: 0 1px 3px rgba(26,46,31,0.06); }
 .sb-item.on .ic { background: var(--moss); }
+.sb-item.on:hover { background: white; }
 .sb-foot { margin-top: auto; }
 .verified-chip { background: white; padding: 8px 10px; border-radius: 8px; font-size: 11px; color: var(--ink); display: flex; align-items: center; gap: 6px; }
 .verified-chip .v { color: var(--moss); font-weight: 700; }
