@@ -47,14 +47,43 @@ export function extractJson<T = unknown>(text: string): T {
   try {
     return JSON.parse(candidate) as T;
   } catch (e: any) {
-    // 5) last-resort: strip trailing commas before } or ]
-    const cleaned = candidate.replace(/,(\s*[}\]])/g, '$1');
+    // 5) strip trailing commas before } or ]
+    let cleaned = candidate.replace(/,(\s*[}\]])/g, '$1');
+    // 6) escape unescaped control characters inside string values
+    cleaned = escapeControlCharsInStrings(cleaned);
     try {
       return JSON.parse(cleaned) as T;
-    } catch {
-      throw new Error(`extractJson: parse failed: ${e?.message}. First 300 chars: ${candidate.slice(0, 300)}…`);
+    } catch (e2: any) {
+      throw new Error(`extractJson: parse failed: ${e2?.message ?? e?.message}. First 300 chars: ${cleaned.slice(0, 300)}…`);
     }
   }
+}
+
+/**
+ * Walks the string in single pass tracking quote state, escapes raw control
+ * characters only inside JSON string values. Handles \" within strings too.
+ */
+function escapeControlCharsInStrings(s: string): string {
+  let out = '';
+  let inString = false;
+  let escapeNext = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (escapeNext) { out += c; escapeNext = false; continue; }
+    if (inString && c === '\\') { out += c; escapeNext = true; continue; }
+    if (c === '"') { inString = !inString; out += c; continue; }
+    if (inString && c.charCodeAt(0) < 0x20) {
+      if (c === '\n') out += '\\n';
+      else if (c === '\r') out += '\\r';
+      else if (c === '\t') out += '\\t';
+      else if (c === '\b') out += '\\b';
+      else if (c === '\f') out += '\\f';
+      else out += '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0');
+      continue;
+    }
+    out += c;
+  }
+  return out;
 }
 
 export async function llmCall(opts: {
