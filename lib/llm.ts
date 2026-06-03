@@ -25,13 +25,30 @@ export async function llmCall(opts: {
     temperature: 0.6,
   };
 
+  // Hard 120s ceiling per call. Without this, Vercel's parent function can
+  // hang past 300s if Replicate stalls, leaving posts stuck in 'writing'.
+  const TIMEOUT_MS = 120_000;
+
   const prediction = await replicate.predictions.create({
     model: MODEL,
     input,
     stream: false,
   } as any);
 
-  const finished = await replicate.wait(prediction, { interval: 1000 });
+  let finished: any;
+  try {
+    finished = await Promise.race([
+      replicate.wait(prediction, { interval: 1000 }),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`Replicate timeout after ${TIMEOUT_MS / 1000}s`)), TIMEOUT_MS)
+      ),
+    ]);
+  } catch (err) {
+    // best-effort cancel so we don't keep paying for orphaned predictions
+    replicate.predictions.cancel(prediction.id).catch(() => {});
+    throw err;
+  }
+
   if (finished.status !== 'succeeded') {
     throw new Error(`Replicate prediction ${finished.status}: ${finished.error ?? 'unknown'}`);
   }

@@ -78,11 +78,8 @@ export async function generatePost(postId: string) {
     return;
   }
 
-  // 5. cover image (best-effort, never blocks persist)
+  // 5. validate + persist (cover image goes to background after this)
   const title = writer.meta_title || brief.title || topic.slice(0, 60);
-  const cover = await fetchCoverImage(title, profile.business.industry).catch(() => null);
-
-  // 6. validate + persist
   const validation = validatePost(writer.blog_post);
   const slug = slugify(title);
   const nextStatus: 'review' | 'scheduled' = domain.auto_publish ? 'scheduled' : 'review';
@@ -95,14 +92,24 @@ export async function generatePost(postId: string) {
       body_md: writer.blog_post,
       meta_title: writer.meta_title,
       meta_description: writer.meta_description,
-      cover_image_url: cover?.url ?? null,
-      cover_image_credit: cover?.credit ?? null,
       social: null,
       validation,
       scheduled_at,
     }).eq('id', postId);
     await sb.from('topic_memory').insert({ domain_id: domain.id, keyword: topic });
-  } catch (e) { await failAt(postId, 'persist', e); }
+  } catch (e) { await failAt(postId, 'persist', e); return; }
+
+  // 6. cover image — background. Failure is non-fatal; the article is already
+  // visible in review and the user can refresh once the image lands.
+  fetchCoverImage(title, profile.business.industry)
+    .then((cover) => {
+      if (!cover) return;
+      return sb.from('posts').update({
+        cover_image_url: cover.url,
+        cover_image_credit: cover.credit,
+      }).eq('id', postId);
+    })
+    .catch((err) => console.error('cover image fetch failed (non-fatal):', err));
 }
 
 function nextPublishSlot(perWeek: number): string {

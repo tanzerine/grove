@@ -13,8 +13,9 @@ const STATUS_BADGE: Record<string, { cls: string; label: string }> = {
   failed: { cls: 'queue', label: 'FAILED' },
 };
 
-// posts in these statuses for > STUCK_MIN minutes are almost certainly stuck.
-const STUCK_MIN = 5;
+// posts in-flight > STUCK_MIN minutes are almost certainly stuck
+// (Vercel function ceiling is 300s; if it's been > 3 min something died)
+const STUCK_MIN = 3;
 const IN_FLIGHT = new Set(['queued', 'researching', 'writing']);
 
 export default function PostRow({ p }: { p: any }) {
