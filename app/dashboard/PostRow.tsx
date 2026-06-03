@@ -28,6 +28,21 @@ export default function PostRow({ p }: { p: any }) {
   const ageMin = (Date.now() - new Date(p.created_at).getTime()) / 60_000;
   const stuck = IN_FLIGHT.has(p.status) && ageMin > STUCK_MIN;
 
+  // surface latest log step so users see progress without clicking in
+  const STEP_LABELS: Record<string, string> = {
+    site_profile: 'Crawling your site…',
+    research: 'Searching the web…',
+    topic_refiner: 'Picking an angle…',
+    writer: 'Drafting the article…',
+    persist: 'Saving draft…',
+    cover_image: 'Finding cover image…',
+  };
+  const log = (p.generation_log ?? []) as { step: string; event: string; message?: string }[];
+  const latest = log.length ? log[log.length - 1] : null;
+  const currentStep = IN_FLIGHT.has(p.status) && latest && latest.event === 'start'
+    ? STEP_LABELS[latest.step] ?? latest.step
+    : null;
+
   async function retry() {
     if (busy) return;
     setBusy('retry');
@@ -60,9 +75,10 @@ export default function PostRow({ p }: { p: any }) {
           {p.status === 'published' ? `Published · ${p.reads} reads` :
            p.status === 'review' ? `${p.validation?.stats?.word_count ?? '—'} words · awaiting your review` :
            stuck ? <span style={{ color: '#c33' }}>Stuck at {p.status} for {Math.round(ageMin)}m — click Retry</span> :
+           p.status === 'failed' ? <span style={{ color: '#c33' }}>Failed{failedAt ? ` at ${failedAt}` : ''}: {String(errorMsg).slice(0, 80)}</span> :
+           currentStep ? <><span style={{ color: 'var(--moss)' }}>● </span>{currentStep}</> :
            p.status === 'writing' ? 'Drafting…' :
            p.status === 'researching' ? 'Gathering sources…' :
-           p.status === 'failed' ? <span style={{ color: '#c33' }}>Failed{failedAt ? ` at ${failedAt}` : ''}: {String(errorMsg).slice(0, 80)}</span> :
            p.topic}
         </div>
       </Link>

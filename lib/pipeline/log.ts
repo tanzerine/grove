@@ -1,0 +1,37 @@
+/**
+ * Append-only per-post pipeline log.
+ *
+ * Read-modify-write is safe here because all log writes inside generate.ts
+ * happen sequentially in one function call. We never have two callers
+ * appending to the same post concurrently.
+ */
+import { supabaseAdmin } from '../supabase/admin';
+
+export type LogEvent = 'start' | 'done' | 'fail';
+export type LogStep =
+  | 'queued' | 'site_profile' | 'research' | 'topic_refiner'
+  | 'writer' | 'persist' | 'cover_image' | 'social';
+
+export type LogEntry = {
+  ts: number;          // ms epoch
+  step: LogStep;
+  event: LogEvent;
+  message?: string;
+};
+
+export async function appendLog(postId: string, step: LogStep, event: LogEvent, message?: string) {
+  const sb = supabaseAdmin();
+  const { data } = await sb.from('posts').select('generation_log').eq('id', postId).single();
+  const log: LogEntry[] = (data?.generation_log as LogEntry[]) ?? [];
+  log.push({ ts: Date.now(), step, event, ...(message ? { message } : {}) });
+  await sb.from('posts').update({ generation_log: log }).eq('id', postId);
+  // also mirror to stdout for Vercel logs
+  const tag = `[generate ${postId}] ${step}:${event}${message ? ' — ' + message : ''}`;
+  if (event === 'fail') console.error(tag);
+  else console.log(tag);
+}
+
+export async function resetLog(postId: string) {
+  const sb = supabaseAdmin();
+  await sb.from('posts').update({ generation_log: [] }).eq('id', postId);
+}

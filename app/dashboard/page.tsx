@@ -9,6 +9,10 @@ export default async function Page() {
   const { data: posts } = await sb
     .from('posts').select('*').eq('domain_id', domain?.id).order('created_at', { ascending: false }).limit(20);
 
+  // Note: dashboard auto-refreshes via the PipelineTimeline component on the
+  // detail page. The pipeline list itself is a server component; refresh manually
+  // (or we can add a similar polling refresher here if needed).
+
   return (
     <>
       <div className="dm-top">

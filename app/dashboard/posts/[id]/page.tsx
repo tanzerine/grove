@@ -2,6 +2,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { mdToHtml } from '@/lib/markdown';
 import { notFound } from 'next/navigation';
 import PostActions from './PostActions';
+import PipelineTimeline from './PipelineTimeline';
 import Link from 'next/link';
 
 export default async function PostPage({ params }: { params: Promise<{ id: string }> }) {
@@ -43,6 +44,10 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
           <div className="mono" style={{ fontSize: 12, marginTop: 6 }}>{validation?.error ?? 'Unknown error'}</div>
         </div>
       )}
+
+      <div style={{ marginTop: 24 }}>
+        <PipelineTimeline log={(p.generation_log ?? []) as any} status={p.status} />
+      </div>
 
       {validation?.issues && validation.issues.length > 0 && (
         <div style={{ background: '#fef9e8', border: '1px solid #f0d674', padding: 16, borderRadius: 10, marginTop: 20 }}>

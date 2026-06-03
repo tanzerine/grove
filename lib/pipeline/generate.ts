@@ -1,12 +1,6 @@
 /**
- * 5-step pipeline. Each step independently try/catch'd — failures land in
- * `failed` with `validation.failed_at` so we always know exactly where it died.
- *
- *   1. Site profile          (lazy, one-time per domain)
- *   2. Layered research      (Tavily: primary + competitor + pain)
- *   3. Topic refinement      (NEW — turn raw keyword into a sharp editorial brief)
- *   4. Article write         (executes on the brief)
- *   5. Validate + persist
+ * 5-step pipeline. Each step writes start/done/fail to posts.generation_log
+ * so the UI can render a live timeline (no Vercel-logs dig required).
  */
 import { supabaseAdmin } from '../supabase/admin';
 import { runWriter } from './writer';
@@ -15,14 +9,15 @@ import { profileSite, type SiteProfile } from './site-profile';
 import { gatherContext } from './research-context';
 import { refineTopic } from './topic-refiner';
 import { fetchCoverImage } from './cover-image';
+import { appendLog, resetLog } from './log';
 
 function slugify(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
 }
 
-async function failAt(postId: string, step: string, err: any) {
+async function failAt(postId: string, step: any, err: any) {
   const msg = String(err?.message ?? err);
-  console.error(`generate.${step} failed for ${postId}:`, msg);
+  await appendLog(postId, step, 'fail', msg);
   const sb = supabaseAdmin();
   await sb.from('posts').update({
     status: 'failed', validation: { error: msg, failed_at: step },
@@ -31,40 +26,44 @@ async function failAt(postId: string, step: string, err: any) {
 }
 
 export async function generatePost(postId: string) {
-  const t0 = Date.now();
-  const log = (step: string) => console.log(`[generate ${postId}] +${Date.now() - t0}ms ${step}`);
-
   const sb = supabaseAdmin();
+  await resetLog(postId);
+  await appendLog(postId, 'queued', 'done');
+
   const { data: post } = await sb.from('posts').select('*, domains(*)').eq('id', postId).single();
   if (!post) throw new Error('post not found');
   const domain = (post as any).domains;
   const topic: string = post.topic ?? domain.hostname;
-  log(`start, topic="${topic}"`);
 
-  // 1. site profile (lazy)
+  // 1. SITE PROFILE (lazy)
   let profile: SiteProfile = domain.site_profile;
   if (!profile?.business?.name) {
     await sb.from('posts').update({ status: 'researching' }).eq('id', postId);
+    await appendLog(postId, 'site_profile', 'start', `crawling ${domain.hostname}`);
     try {
-      log('site_profile START');
       profile = await profileSite(domain.hostname);
       await sb.from('domains').update({ site_profile: profile }).eq('id', domain.id);
-      log('site_profile DONE');
+      await appendLog(postId, 'site_profile', 'done', profile.business.name);
     } catch (e) { await failAt(postId, 'site_profile', e); return; }
   }
 
-  // 2. layered research
+  // 2. RESEARCH
   await sb.from('posts').update({ status: 'researching' }).eq('id', postId);
-  log('research START');
+  await appendLog(postId, 'research', 'start', `Tavily x3 for "${topic}"`);
   let context;
-  try { context = await gatherContext(topic, profile); log('research DONE'); }
-  catch (e) { await failAt(postId, 'research', e); return; }
+  try {
+    context = await gatherContext(topic, profile);
+    await appendLog(postId, 'research', 'done',
+      `${context.primary.length} primary, ${context.competitor.length} competitor, ${context.pain.length} pain`);
+  } catch (e) { await failAt(postId, 'research', e); return; }
 
-  // 3. topic refinement — turn the keyword into a sharp editorial brief
-  log('topic_refiner START');
+  // 3. TOPIC REFINER
+  await appendLog(postId, 'topic_refiner', 'start', 'picking angle + title');
   let brief;
-  try { brief = await refineTopic(topic, profile, context); log('topic_refiner DONE'); }
-  catch (e) { await failAt(postId, 'topic_refiner', e); return; }
+  try {
+    brief = await refineTopic(topic, profile, context);
+    await appendLog(postId, 'topic_refiner', 'done', `${brief.format}: ${brief.title}`);
+  } catch (e) { await failAt(postId, 'topic_refiner', e); return; }
 
   await sb.from('posts').update({
     status: 'writing',
@@ -76,18 +75,20 @@ export async function generatePost(postId: string) {
     },
   }).eq('id', postId);
 
-  // 4. write the article from the brief
-  log('writer START');
+  // 4. WRITER
+  await appendLog(postId, 'writer', 'start', `drafting ${brief.format}`);
   let writer;
-  try { writer = await runWriter({ brief, profile, context }); log('writer DONE'); }
-  catch (e) { await failAt(postId, 'writer', e); return; }
+  try {
+    writer = await runWriter({ brief, profile, context });
+    await appendLog(postId, 'writer', 'done', `${writer.blog_post.split(/\s+/).length} words`);
+  } catch (e) { await failAt(postId, 'writer', e); return; }
 
   if (!writer.blog_post || writer.blog_post.length < 200) {
-    await failAt(postId, 'writer_output', new Error(`writer returned ${writer.blog_post.length} chars — too short`));
+    await failAt(postId, 'writer', new Error(`writer returned ${writer.blog_post.length} chars`));
     return;
   }
 
-  // 5. validate + persist (cover image goes to background after this)
+  // 5. PERSIST
   const title = writer.meta_title || brief.title || topic.slice(0, 60);
   const validation = validatePost(writer.blog_post);
   const slug = slugify(title);
@@ -106,20 +107,24 @@ export async function generatePost(postId: string) {
       scheduled_at,
     }).eq('id', postId);
     await sb.from('topic_memory').insert({ domain_id: domain.id, keyword: topic });
-    log('persist DONE');
+    await appendLog(postId, 'persist', 'done',
+      validation.passed ? 'validator passed' : `validator: ${validation.issues.length} flags`);
   } catch (e) { await failAt(postId, 'persist', e); return; }
 
-  // 6. cover image — background. Failure is non-fatal; the article is already
-  // visible in review and the user can refresh once the image lands.
+  // 6. COVER IMAGE — background, never blocks response
+  appendLog(postId, 'cover_image', 'start').catch(() => {});
   fetchCoverImage(title, profile.business.industry)
     .then((cover) => {
-      if (!cover) return;
+      if (!cover) {
+        appendLog(postId, 'cover_image', 'done', 'no image found').catch(() => {});
+        return;
+      }
       return sb.from('posts').update({
         cover_image_url: cover.url,
         cover_image_credit: cover.credit,
-      }).eq('id', postId);
+      }).eq('id', postId).then(() => appendLog(postId, 'cover_image', 'done', cover.credit.name));
     })
-    .catch((err) => console.error('cover image fetch failed (non-fatal):', err));
+    .catch((err) => appendLog(postId, 'cover_image', 'fail', String(err)).catch(() => {}));
 }
 
 function nextPublishSlot(perWeek: number): string {
