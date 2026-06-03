@@ -1,14 +1,18 @@
 /**
- * End-to-end generation for a single queued post.
- * Each step is independently try/catch'd so we never leave a post stuck
- * silently — if any phase dies, the post lands in `failed` with a precise
- * `validation.error` and `validation.failed_at` step name.
+ * Simplified single-pass generation:
+ *   1. Ensure site profile exists (one LLM call, JSON)
+ *   2. Tavily search for the topic
+ *   3. Writer (one LLM call, delimited-section output — no JSON)
+ *   4. Validate + persist
+ *
+ * Each step is independently try/catch'd. Failures land in `failed` status
+ * with `validation.error` and `validation.failed_at` for diagnosis.
  */
 import { supabaseAdmin } from '../supabase/admin';
-import { runResearch } from './research';
 import { runWriter } from './writer';
 import { validatePost } from './validator';
 import { profileSite, type SiteProfile } from './site-profile';
+import { webSearch } from '../search';
 
 function slugify(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
@@ -30,35 +34,34 @@ export async function generatePost(postId: string) {
   const { data: post } = await sb.from('posts').select('*, domains(*)').eq('id', postId).single();
   if (!post) throw new Error('post not found');
   const domain = (post as any).domains;
+  const topic: string = post.topic ?? domain.hostname;
 
-  // ─── 1. SITE PROFILE (lazy on first article) ────────────────────────
+  // ─── 1. SITE PROFILE ────────────────────────────────────────────────
   let profile: SiteProfile = domain.site_profile;
   if (!profile?.business?.name) {
     await sb.from('posts').update({ status: 'researching' }).eq('id', postId);
     try {
       profile = await profileSite(domain.hostname);
       await sb.from('domains').update({ site_profile: profile }).eq('id', domain.id);
-    } catch (e) { await failAt(postId, 'site_profile', e); }
+    } catch (e) { await failAt(postId, 'site_profile', e); return; }
   }
 
-  // ─── 2. RESEARCH ────────────────────────────────────────────────────
+  // ─── 2. SEARCH ──────────────────────────────────────────────────────
   await sb.from('posts').update({ status: 'researching' }).eq('id', postId);
-  let research;
+  let sources;
   try {
-    research = await runResearch(
-      post.topic ?? domain.hostname,
-      `Business: ${profile.business.name} — ${profile.business.description}. ` +
-      `Industry: ${profile.business.industry}. ` +
-      `Target audience: ${profile.business.target_audience}.`
-    );
-  } catch (e) { await failAt(postId, 'research', e); return; }
+    sources = await webSearch(topic, 6);
+  } catch (e) { await failAt(postId, 'search', e); return; }
 
-  await sb.from('posts').update({ status: 'writing', research }).eq('id', postId);
+  await sb.from('posts').update({
+    status: 'writing',
+    research: { topic, sources: sources.map((s) => ({ url: s.url, title: s.title })) },
+  }).eq('id', postId);
 
-  // ─── 3. WRITER ──────────────────────────────────────────────────────
+  // ─── 3. WRITE ───────────────────────────────────────────────────────
   let writer;
   try {
-    writer = await runWriter(research, profile);
+    writer = await runWriter({ topic, profile, sources });
   } catch (e) { await failAt(postId, 'writer', e); return; }
 
   if (!writer.blog_post || writer.blog_post.length < 200) {
@@ -68,7 +71,7 @@ export async function generatePost(postId: string) {
 
   // ─── 4. VALIDATE + PERSIST ──────────────────────────────────────────
   const validation = validatePost(writer.blog_post);
-  const title = writer.meta_title || research.winning_angle.slice(0, 60);
+  const title = writer.meta_title || topic.slice(0, 60);
   const slug = slugify(title);
   const nextStatus: 'review' | 'scheduled' = domain.auto_publish ? 'scheduled' : 'review';
   const scheduled_at = domain.auto_publish ? nextPublishSlot(domain.posts_per_week) : null;
@@ -85,7 +88,7 @@ export async function generatePost(postId: string) {
       validation,
       scheduled_at,
     }).eq('id', postId);
-    await sb.from('topic_memory').insert({ domain_id: domain.id, keyword: research.keyword });
+    await sb.from('topic_memory').insert({ domain_id: domain.id, keyword: topic });
   } catch (e) { await failAt(postId, 'persist', e); }
 }
 
