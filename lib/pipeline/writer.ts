@@ -40,6 +40,16 @@ THE ARTICLE MUST:
 - Reference at least one of their products/services where natural
 - Not feel like a generic article that could be on anyone's blog
 
+FORMATTING — write rich, scannable markdown:
+- Use ## for major sections, ### for subsections
+- Mix in **bold** for key terms and *italic* for emphasis (sparingly — 3-6 per article)
+- Use bulleted lists for parallel ideas, numbered lists for steps or rankings
+- Drop in occasional > blockquotes for quoted advice, customer wisdom, or punchy one-liners
+- Use horizontal rules (---) between major shifts in argument (max 2 per article)
+- Inline \`code\` spans for product names, technical terms, or short snippets when natural
+- Tables are welcome for comparisons — keep them simple (2-4 columns)
+- Vary structure — don't make every section the same shape
+
 ${qualityRulesPrompt()}
 
 CITATIONS

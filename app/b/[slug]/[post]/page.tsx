@@ -36,8 +36,8 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
       <h1 className="display" style={{ fontSize: 46, marginTop: 18 }}>{p.title}</h1>
       <p className="mono" style={{ color: 'var(--clay)', fontSize: 12 }}>{new Date(p.published_at!).toLocaleDateString()}</p>
       <article
-        className="prose-demo"
-        style={{ marginTop: 30, padding: '40px 36px', background: 'white', lineHeight: 1.7 }}
+        className="prose"
+        style={{ marginTop: 30, padding: '40px 36px', background: 'white', border: '1px solid var(--line)', borderRadius: 14, maxWidth: 'none' }}
         dangerouslySetInnerHTML={{ __html: html }}
       />
     </main>

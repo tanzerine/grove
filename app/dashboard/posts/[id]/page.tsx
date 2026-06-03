@@ -55,7 +55,8 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
 
       {bodyHtml && (
         <article
-          style={{ marginTop: 28, padding: '32px 36px', background: 'white', border: '1px solid var(--line)', borderRadius: 14, lineHeight: 1.7, fontSize: 16 }}
+          className="prose"
+          style={{ marginTop: 28, padding: '36px 44px', background: 'white', border: '1px solid var(--line)', borderRadius: 14, maxWidth: 'none' }}
           dangerouslySetInnerHTML={{ __html: bodyHtml }}
         />
       )}

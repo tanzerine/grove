@@ -11,6 +11,7 @@
     "db:push": "supabase db push"
   },
   "dependencies": {
+    "marked": "^15.0.5",
     "replicate": "^1.0.1",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.48.0",
