@@ -3,6 +3,7 @@ import { mdToHtml } from '@/lib/markdown';
 import { notFound } from 'next/navigation';
 import PostActions from './PostActions';
 import PipelineTimeline from './PipelineTimeline';
+import PostEditor from './PostEditor';
 import Link from 'next/link';
 
 export default async function PostPage({ params }: { params: Promise<{ id: string }> }) {
@@ -72,10 +73,21 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
         </div>
       )}
 
+      {/* Editor — shown for any post that has body content */}
+      {p.body_md && ['review', 'scheduled', 'published'].includes(p.status) && (
+        <PostEditor
+          postId={p.id}
+          initialBody={p.body_md}
+          initialMetaTitle={p.meta_title ?? ''}
+          initialMetaDesc={p.meta_description ?? ''}
+          status={p.status}
+        />
+      )}
+
       {bodyHtml && (
         <article
           className="prose"
-          style={{ marginTop: 28, padding: '36px 44px', background: 'white', border: '1px solid var(--line)', borderRadius: 14, maxWidth: 'none' }}
+          style={{ marginTop: 16, padding: '36px 44px', background: 'white', border: '1px solid var(--line)', borderRadius: 14, maxWidth: 'none' }}
           dangerouslySetInnerHTML={{ __html: bodyHtml }}
         />
       )}

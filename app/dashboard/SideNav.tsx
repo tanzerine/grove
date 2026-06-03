@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 
 const ITEMS = [
   { href: '/dashboard',           label: 'Pipeline',    match: (p: string) => p === '/dashboard' || p.startsWith('/dashboard/posts') },
+  { href: '/dashboard/calendar',  label: 'Calendar',    match: (p: string) => p.startsWith('/dashboard/calendar') },
   { href: '/dashboard/published', label: 'Published',   match: (p: string) => p.startsWith('/dashboard/published') },
   { href: '/dashboard/voice',     label: 'Brand voice', match: (p: string) => p.startsWith('/dashboard/voice') },
   { href: '/dashboard/embed',     label: 'Embed',       match: (p: string) => p.startsWith('/dashboard/embed') },
