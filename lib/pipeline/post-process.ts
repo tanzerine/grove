@@ -81,19 +81,24 @@ function escapeRegex(s: string) {
 }
 
 /**
- * Returns true if a citation link of the form [text](url) exists on at least
- * `min` sources from our provided list. Used to know when to append a
- * Sources section as a fallback.
+ * Returns the number of inline markdown citation links in the body.
  */
 export function citationCount(body: string): number {
   return (body.match(/\[[^\]]+\]\(https?:\/\/[^)]+\)/g) ?? []).length;
 }
 
-/** Appends a "Sources" section using the provided list if the body is light
- *  on inline citations. */
-export function appendSourcesIfThin(body: string, sources: SearchResult[], minInline = 3): string {
-  if (citationCount(body) >= minInline) return body;
-  const list = sources.slice(0, 6).map((s) => `- [${s.title}](${s.url})`).join('\n');
-  if (!list) return body;
-  return `${body}\n\n## Sources\n${list}`;
+/**
+ * Cap inline citations at MAX. If the writer over-cites, we demote the
+ * extras to plain text (link text remains, URL is dropped). This keeps the
+ * article reading like a blog post, not a research paper.
+ *
+ * Strategy: keep the FIRST `max` links — those tend to anchor the strongest
+ * claims since writers cite the most important supports early.
+ */
+export function capCitations(body: string, max = 4): string {
+  let count = 0;
+  return body.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, (_match, text) => {
+    count += 1;
+    return count <= max ? _match : text;
+  });
 }

@@ -22,7 +22,9 @@ export function validatePost(post: string): Validation {
     issues.push('MISSING_EXPERIENCE: no first-person experience line');
 
   const citations = (post.match(/\[[^\]]+\]\(https?:\/\/[^\)]+\)/g) || []).length;
-  if (citations < 3) issues.push(`LOW_CITATIONS: ${citations} markdown links (target 3+)`);
+  // 2-4 citations is the sweet spot — selective evidence, not link-stuffed
+  if (citations < 2) issues.push(`LOW_CITATIONS: ${citations} markdown links (target 2–4)`);
+  if (citations > 5) issues.push(`OVER_CITED: ${citations} markdown links (target 2–4 — fewer, more selective)`);
 
   for (const s of RECYCLED_STATS) if (lower.includes(s.toLowerCase())) issues.push(`RECYCLED_STAT: '${s}'`);
 

@@ -5,7 +5,7 @@
  */
 import { llmCall } from '../llm';
 import { qualityRulesPrompt } from './quality-rules';
-import { postProcess, appendSourcesIfThin } from './post-process';
+import { postProcess, capCitations } from './post-process';
 import type { SiteProfile } from './site-profile';
 import type { ResearchContext } from './research-context';
 import { flatSources } from './research-context';
@@ -87,7 +87,14 @@ EXECUTION RULES (in priority order)
 E-E-A-T RULES (not optional)
 - EXPERIENCE: open with first-person; reference doing/seeing/building, not summarizing
 - EXPERTISE: include at least one concrete specific (real product, real number, real workflow)
-- AUTHORITY: 3+ inline citations as markdown [text](url) — never bare [N]
+- AUTHORITY (citations — be selective):
+  - 3–4 inline citations TOTAL, no more
+  - Cite ONLY when the claim genuinely needs evidence: a specific number,
+    a year, a direct quote, a specific stat, a regulatory rule, a study finding
+  - DO NOT cite for general statements, opinions, common knowledge, or
+    "as everyone knows" framing
+  - Inline as [descriptive text](url), never bare [N] numeric refs
+  - If a sentence reads fine without a citation, drop it
 - TRUSTWORTHINESS: include 1+ honest hedge ("but it depends…", "this won't work if…")
 
 PROSE RHYTHM (40%+ of sentences must be under 12 words)
@@ -145,7 +152,8 @@ Deliver the article now. Open with the hook line verbatim. Use the title as your
   const parsed = parseSections(draft.text);
   let body = parsed.blog_post || draft.text.trim();
   body = postProcess(body, sources);
-  body = appendSourcesIfThin(body, sources, 3);
+  // cap citations: 4 max, extras demoted to plain text
+  body = capCitations(body, 4);
 
   // Title: always prefer the editorial brief's title — that's the whole point
   const title = (parsed.meta_title?.trim() || brief.title).slice(0, 80);
