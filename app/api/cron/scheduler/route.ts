@@ -1,15 +1,17 @@
 /**
- * Hourly cron — runs three responsibilities:
+ * Hourly cron — runs four responsibilities:
  *   1. publish any 'scheduled' posts whose time has come
  *   2. for verified domains under quota, enqueue new topics
  *   3. drain the 'queued' bucket by generating drafts
+ *   4. backfill cover images for posts that are missing one
  *
  * Guarded by CRON_SECRET (Vercel sets x-vercel-cron header; we also accept bearer).
  */
-import { NextResponse, after } from 'next/server';
+import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { generatePost } from '@/lib/pipeline/generate';
 import { runCoverForPost } from '@/lib/pipeline/cover-image';
+import { runInlineImagesForPost } from '@/lib/pipeline/inline-images';
 
 export const maxDuration = 300;
 
@@ -40,11 +42,44 @@ export async function GET(req: Request) {
   for (const p of queued ?? []) {
     try {
       await generatePost(p.id);
-      after(async () => { await runCoverForPost(p.id); });
     } catch (e: any) {
       await sb.from('posts').update({ status: 'failed', validation: { error: String(e?.message ?? e) } }).eq('id', p.id);
     }
   }
 
-  return NextResponse.json({ published: due?.length ?? 0, generated: queued?.length ?? 0 });
+  // 3) backfill cover images — catches posts where after() never ran (e.g. hobby plan)
+  const { data: needCover } = await sb
+    .from('posts')
+    .select('id')
+    .not('status', 'eq', 'failed')
+    .not('status', 'eq', 'queued')
+    .is('cover_image_url', null)
+    .limit(3);
+
+  for (const p of needCover ?? []) {
+    await runCoverForPost(p.id);
+  }
+
+  // 4) backfill inline images — posts that have a cover but not yet inline images
+  //    (limit 2 per tick: each post runs 2 Flux calls in parallel, ~10s total)
+  const { data: needInline } = await sb
+    .from('posts')
+    .select('id')
+    .not('status', 'eq', 'failed')
+    .not('status', 'eq', 'queued')
+    .not('cover_image_url', 'is', null)
+    .limit(2);
+
+  let inlineCount = 0;
+  for (const p of needInline ?? []) {
+    await runInlineImagesForPost(p.id);
+    inlineCount++;
+  }
+
+  return NextResponse.json({
+    published: due?.length ?? 0,
+    generated: queued?.length ?? 0,
+    covers: needCover?.length ?? 0,
+    inline_images: inlineCount,
+  });
 }

@@ -66,7 +66,7 @@ export async function runCoverForPost(postId: string): Promise<void> {
   await appendLog(postId, 'cover_image', 'start');
 
   const { data: post } = await sb
-    .from('posts').select('title, meta_title, domains(site_profile)')
+    .from('posts').select('title, meta_title, body_md, domains(site_profile)')
     .eq('id', postId).single();
 
   if (!post) { await appendLog(postId, 'cover_image', 'fail', 'post not found'); return; }
@@ -80,9 +80,15 @@ export async function runCoverForPost(postId: string): Promise<void> {
       await appendLog(postId, 'cover_image', 'done', 'no image generated');
       return;
     }
+
+    // Inject the image naturally into the article body after the H1
+    const currentBody: string = (post as any).body_md ?? '';
+    const updatedBody = injectCoverIntoBody(currentBody, cover.url, title);
+
     await sb.from('posts').update({
       cover_image_url: cover.url,
       cover_image_credit: cover.credit,
+      body_md: updatedBody,
     }).eq('id', postId);
     await appendLog(postId, 'cover_image', 'done', cover.credit.name);
   } catch (err: any) {
@@ -141,6 +147,14 @@ export async function fetchCoverImage(title: string, industry = ''): Promise<Cov
   // 3. Upload to Supabase Storage for permanent URL
   try {
     const sb = supabaseAdmin();
+
+    // Auto-create the bucket if it doesn't exist yet (one-time setup)
+    const { error: bucketErr } = await sb.storage.createBucket(BUCKET, { public: true });
+    if (bucketErr && !bucketErr.message.toLowerCase().includes('already exists')) {
+      console.error('[cover-image] Failed to create/verify bucket:', bucketErr.message);
+      return null;
+    }
+
     const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.webp`;
     const { error: uploadErr } = await sb.storage.from(BUCKET).upload(filename, imageBuffer, {
       contentType: 'image/webp',
@@ -148,7 +162,7 @@ export async function fetchCoverImage(title: string, industry = ''): Promise<Cov
       upsert: false,
     });
     if (uploadErr) {
-      console.error('[cover-image] Supabase upload failed (is the bucket created and public?):', uploadErr.message);
+      console.error('[cover-image] Supabase upload failed:', uploadErr.message);
       return null;
     }
 
@@ -167,4 +181,17 @@ export async function fetchCoverImage(title: string, industry = ''): Promise<Cov
     console.error('[cover-image] persist failed:', err);
     return null;
   }
+}
+
+/**
+ * Injects a cover image into body_md right after the first H1 heading.
+ * If no H1 is found, prepends the image at the top.
+ */
+export function injectCoverIntoBody(bodyMd: string, imageUrl: string, altText: string): string {
+  const imageMarkdown = `\n\n![${altText}](${imageUrl})\n\n`;
+  const lines = bodyMd.split('\n');
+  const h1Index = lines.findIndex((l) => /^#\s/.test(l));
+  if (h1Index === -1) return imageMarkdown.trimStart() + bodyMd;
+  lines.splice(h1Index + 1, 0, imageMarkdown);
+  return lines.join('\n');
 }

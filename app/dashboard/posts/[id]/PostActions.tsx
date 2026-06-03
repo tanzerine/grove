@@ -3,8 +3,8 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 export default function PostActions({
-  id, status, published, publicUrl, hasSocial,
-}: { id: string; status: string; published: boolean; publicUrl: string | null; hasSocial: boolean }) {
+  id, status, published, publicUrl, hasSocial, hasCover, hasInlineImages,
+}: { id: string; status: string; published: boolean; publicUrl: string | null; hasSocial: boolean; hasCover: boolean; hasInlineImages: boolean }) {
   const r = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -35,6 +35,28 @@ export default function PostActions({
     }
     r.refresh();
   }
+  async function genInlineImages() {
+    setBusy('inline');
+    const res = await fetch(`/api/posts/${id}/inline-images`, { method: 'POST' });
+    setBusy(null);
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      alert(`Inline image generation failed: ${j.error ?? 'unknown'}`);
+    }
+    r.refresh();
+  }
+
+  async function genCover() {
+    setBusy('cover');
+    const res = await fetch(`/api/posts/${id}/cover`, { method: 'POST' });
+    setBusy(null);
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      alert(`Cover generation failed: ${j.error ?? 'unknown'}`);
+    }
+    r.refresh();
+  }
+
   async function del() {
     if (!confirm('Delete this post?')) return;
     setBusy('delete');
@@ -57,6 +79,16 @@ export default function PostActions({
       {(status === 'failed' || status === 'review' || status === 'published') && (
         <button className="btn btn-ghost btn-sm" onClick={retry} disabled={!!busy}>
           {busy === 'retry' ? 'Regenerating…' : 'Regenerate'}
+        </button>
+      )}
+      {!hasCover && (status === 'review' || status === 'published' || status === 'scheduled') && (
+        <button className="btn btn-ghost btn-sm" onClick={genCover} disabled={!!busy}>
+          {busy === 'cover' ? 'Generating cover…' : 'Generate cover image'}
+        </button>
+      )}
+      {hasCover && !hasInlineImages && (status === 'review' || status === 'published' || status === 'scheduled') && (
+        <button className="btn btn-ghost btn-sm" onClick={genInlineImages} disabled={!!busy}>
+          {busy === 'inline' ? 'Generating images…' : 'Add inline images'}
         </button>
       )}
       {published && publicUrl && (

@@ -16,6 +16,18 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
   const validation = p.validation as { passed?: boolean; issues?: string[]; stats?: Record<string, number>; error?: string } | null;
   const bodyHtml = p.body_md ? mdToHtml(p.body_md) : '';
 
+  // Detect inline images: count ![...](...) that appear after an H2 line
+  const hasInlineImages = (() => {
+    if (!p.body_md) return false;
+    const lines = p.body_md.split('\n');
+    let pastH2 = false; let count = 0;
+    for (const l of lines) {
+      if (/^##\s/.test(l)) pastH2 = true;
+      if (pastH2 && /^!\[.+\]\(.+\)/.test(l.trim())) count++;
+    }
+    return count >= 2;
+  })();
+
   return (
     <>
       <Link href="/dashboard" className="mono" style={{ fontSize: 12, color: 'var(--moss)' }}>← Pipeline</Link>
@@ -36,6 +48,8 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
         published={p.status === 'published'}
         publicUrl={p.status === 'published' ? `/b/${domain?.blog_slug}/${p.slug}` : null}
         hasSocial={!!(social.x || social.linkedin || social.instagram)}
+        hasCover={!!p.cover_image_url}
+        hasInlineImages={hasInlineImages}
       />
 
       {p.status === 'failed' && (
