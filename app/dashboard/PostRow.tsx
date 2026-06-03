@@ -13,11 +13,19 @@ const STATUS_BADGE: Record<string, { cls: string; label: string }> = {
   failed: { cls: 'queue', label: 'FAILED' },
 };
 
+// posts in these statuses for > STUCK_MIN minutes are almost certainly stuck.
+const STUCK_MIN = 5;
+const IN_FLIGHT = new Set(['queued', 'researching', 'writing']);
+
 export default function PostRow({ p }: { p: any }) {
   const r = useRouter();
   const [busy, setBusy] = useState<null | 'retry' | 'delete'>(null);
   const b = STATUS_BADGE[p.status] ?? STATUS_BADGE.queued;
   const errorMsg = p.status === 'failed' ? (p.validation?.error ?? 'Unknown error') : null;
+  const failedAt = p.validation?.failed_at;
+
+  const ageMin = (Date.now() - new Date(p.created_at).getTime()) / 60_000;
+  const stuck = IN_FLIGHT.has(p.status) && ageMin > STUCK_MIN;
 
   async function retry() {
     if (busy) return;
@@ -26,11 +34,10 @@ export default function PostRow({ p }: { p: any }) {
     setBusy(null);
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
-      alert(`Retry failed: ${j.error ?? 'unknown error'}`);
+      alert(`Retry failed: ${j.error ?? 'unknown'}`);
     }
     r.refresh();
   }
-
   async function del() {
     if (busy) return;
     if (!confirm('Delete this post?')) return;
@@ -40,6 +47,9 @@ export default function PostRow({ p }: { p: any }) {
     r.refresh();
   }
 
+  const showRetry = p.status === 'failed' || stuck;
+  const showDelete = p.status === 'failed' || stuck;
+
   return (
     <div className="post-row">
       <div className="pthumb" />
@@ -48,22 +58,23 @@ export default function PostRow({ p }: { p: any }) {
         <div className="pmeta">
           {p.status === 'published' ? `Published · ${p.reads} reads` :
            p.status === 'review' ? `${p.validation?.stats?.word_count ?? '—'} words · awaiting your review` :
+           stuck ? <span style={{ color: '#c33' }}>Stuck at {p.status} for {Math.round(ageMin)}m — click Retry</span> :
            p.status === 'writing' ? 'Drafting…' :
            p.status === 'researching' ? 'Gathering sources…' :
-           p.status === 'failed' ? <span style={{ color: '#c33' }}>Failed: {String(errorMsg).slice(0, 90)}</span> :
+           p.status === 'failed' ? <span style={{ color: '#c33' }}>Failed{failedAt ? ` at ${failedAt}` : ''}: {String(errorMsg).slice(0, 80)}</span> :
            p.topic}
         </div>
       </Link>
       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-        {p.status === 'failed' && (
-          <>
-            <button className="qbtn go" onClick={retry} disabled={!!busy} style={{ background: 'var(--moss)', color: 'white' }}>
-              {busy === 'retry' ? 'Retrying…' : 'Retry'}
-            </button>
-            <button className="qbtn" onClick={del} disabled={!!busy}>
-              {busy === 'delete' ? '…' : 'Delete'}
-            </button>
-          </>
+        {showRetry && (
+          <button className="qbtn go" onClick={retry} disabled={!!busy} style={{ background: 'var(--moss)', color: 'white' }}>
+            {busy === 'retry' ? 'Retrying…' : 'Retry'}
+          </button>
+        )}
+        {showDelete && (
+          <button className="qbtn" onClick={del} disabled={!!busy}>
+            {busy === 'delete' ? '…' : 'Delete'}
+          </button>
         )}
         {p.status === 'review' && (
           <button className="qbtn go" onClick={async () => {
