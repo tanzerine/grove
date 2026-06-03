@@ -3,6 +3,36 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { llmCall } from '@/lib/llm';
 
 export const maxDuration = 120;
+// Required: this GET route reads cookies for auth — must never be statically cached
+export const dynamic = 'force-dynamic';
+
+// ── Fallback template engine ────────────────────────────────────────────────
+// When the LLM is slow / unavailable, generate smart topic seeds from the
+// business profile using format templates. Always returns 6 useful topics.
+
+const FORMAT_TEMPLATES = [
+  (biz: string, product: string, audience: string) =>
+    `How to get started with ${product || biz} — a beginner's guide for ${audience || 'teams'}`,
+  (biz: string, product: string, audience: string) =>
+    `${product || biz} vs the alternatives: what ${audience || 'professionals'} should know`,
+  (biz: string, product: string, audience: string) =>
+    `5 mistakes ${audience || 'businesses'} make with ${product || biz} (and how to fix them)`,
+  (biz: string, product: string, audience: string) =>
+    `Behind the scenes: how ${biz} builds ${product || 'its product'}`,
+  (biz: string, product: string, audience: string) =>
+    `The ${new Date().getFullYear()} guide to ${product || biz} for ${audience || 'growing companies'}`,
+  (biz: string, product: string, audience: string) =>
+    `Why ${audience || 'smart teams'} are switching to ${product || biz}`,
+];
+
+function fallbackTopics(biz: any, hostname: string): string[] {
+  const name = biz?.name ?? hostname;
+  const product = (biz?.products_services ?? [])[0] ?? biz?.description ?? name;
+  const audience = biz?.target_audience ?? 'businesses';
+  return FORMAT_TEMPLATES.map((fn) => fn(name, product, audience));
+}
+
+// ── Route ───────────────────────────────────────────────────────────────────
 
 export async function GET(req: Request) {
   const sb = await supabaseServer();
@@ -29,35 +59,41 @@ export async function GET(req: Request) {
     .filter(Boolean)
     .join('\n- ');
 
-  const system = `You generate blog topic ideas for a business's content pipeline.
+  // ── Try LLM first, fall back to templates ────────────────────────────────
+  try {
+    const system = `You generate blog topic ideas for a business's content pipeline.
 Topics should be specific, search-intent-driven, and genuinely useful to the target audience.
-Each topic is the seed for a full article — it should be concrete enough to write 1000 words on.
+Each topic is the seed for a full article — concrete enough to write 1000 words on.
 
-Output ONLY valid JSON — an array of 6 topic strings, no markdown, no explanation:
-["topic 1", "topic 2", ...]`;
+Output ONLY a valid JSON array of 6 strings. No markdown, no explanation, no preamble:
+["topic 1", "topic 2", "topic 3", "topic 4", "topic 5", "topic 6"]`;
 
-  const user_msg = `Business: ${biz?.name ?? domain.hostname}
+    const user_msg = `Business: ${biz?.name ?? domain.hostname}
 Industry: ${biz?.industry ?? 'unknown'}
 What they do: ${biz?.description ?? 'unknown'}
 Products/services: ${(biz?.products_services ?? []).join(', ') || 'unknown'}
 Target audience: ${biz?.target_audience ?? 'unknown'}
 Value props: ${(biz?.value_props ?? []).join('; ') || 'unknown'}
 
-${usedTopics ? `Already written (do NOT suggest these or close variants):\n- ${usedTopics}\n` : ''}
-Generate 6 fresh, specific blog topics that would perform well in search and genuinely help this audience.
-Mix formats: how-to, comparison, mistakes-to-avoid, behind-the-scenes, trend analysis, opinion.`;
+${usedTopics ? `Already written (avoid these):\n- ${usedTopics}\n` : ''}
+Generate 6 fresh, specific blog topics. Mix formats: how-to, comparison, mistakes-to-avoid, behind-the-scenes, trend, opinion.`;
 
-  try {
     const { text } = await llmCall({ fast: true, maxTokens: 400, system, user: user_msg });
 
-    // Robust array extraction — find the first '[' ... ']' block regardless of surrounding text
-    const arrayMatch = text.match(/\[[\s\S]*?\]/);
-    if (!arrayMatch) throw new Error('no JSON array in response');
-    const suggestions: string[] = JSON.parse(arrayMatch[0]);
-    if (!Array.isArray(suggestions)) throw new Error('not an array');
-    return NextResponse.json({ suggestions: suggestions.slice(0, 6) });
+    // Extract the JSON array from wherever it appears in the response
+    const start = text.indexOf('[');
+    const end = text.lastIndexOf(']');
+    if (start === -1 || end <= start) throw new Error('no array in response');
+    const suggestions: string[] = JSON.parse(text.slice(start, end + 1));
+    if (!Array.isArray(suggestions) || suggestions.length === 0) throw new Error('empty array');
+
+    return NextResponse.json({ suggestions: suggestions.slice(0, 6), source: 'llm' });
   } catch (err: any) {
-    console.error('[topics/suggest] failed:', err?.message ?? err);
-    return NextResponse.json({ error: 'generation failed' }, { status: 500 });
+    console.warn('[topics/suggest] LLM failed, using template fallback:', err?.message ?? err);
+    // Always return something useful — never a 500
+    return NextResponse.json({
+      suggestions: fallbackTopics(biz, domain.hostname),
+      source: 'template',
+    });
   }
 }

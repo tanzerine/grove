@@ -35,9 +35,13 @@ export default function PipelineActions({ domainId }: { domainId?: string }) {
     setSuggErr(false);
     try {
       const res = await fetch(`/api/topics/suggest?domain_id=${domainId}`);
-      if (!res.ok) throw new Error();
-      const { suggestions: s } = await res.json();
-      setSuggestions(s ?? []);
+      const json = await res.json().catch(() => ({}));
+      const s: string[] = json.suggestions ?? [];
+      if (s.length > 0) {
+        setSuggestions(s);
+      } else {
+        setSuggErr(true);
+      }
     } catch {
       setSuggErr(true);
     }
