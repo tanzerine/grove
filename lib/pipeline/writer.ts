@@ -5,8 +5,7 @@
  */
 import { llmCall } from '../llm';
 import { qualityRulesPrompt } from './quality-rules';
-import { postProcess, appendSourcesIfThin, citationCount } from './post-process';
-import { validatePost } from './validator';
+import { postProcess, appendSourcesIfThin } from './post-process';
 import type { SiteProfile } from './site-profile';
 import type { ResearchContext } from './research-context';
 import { flatSources } from './research-context';
@@ -134,51 +133,18 @@ ${sourcesBlock}
 
 Deliver the article now. Open with the hook line verbatim. Use the title as your H1.`;
 
-  // ─── 1. first draft ───────────────────────────────────────────────────
-  const draft = await llmCall({ system, user, maxTokens: 5500 });
+  // ─── single LLM draft. No revision pass on the hot path. ─────────────
+  // Why: two LLM calls back-to-back can push past Vercel's 300s ceiling and
+  // leave posts stuck in 'writing'. The validator still runs and exposes
+  // any issues in the review UI — fix manually or with the future "Polish"
+  // button instead of risking a hang here.
+  console.log('[writer] calling LLM (single draft, no revision)');
+  const draft = await llmCall({ system, user, maxTokens: 4000 });
+  console.log('[writer] LLM returned, len:', draft.text.length);
+
   const parsed = parseSections(draft.text);
   let body = parsed.blog_post || draft.text.trim();
   body = postProcess(body, sources);
-
-  // ─── 2. surgical revision if specific rules failed ────────────────────
-  const v = validatePost(body);
-  const needsFirstPerson = v.issues.some((i) => i.startsWith('MISSING_EXPERIENCE'));
-  const needsRhythm = v.issues.some((i) => i.startsWith('LOW_SENTENCE_VARIETY'));
-  const needsCitations = citationCount(body) < 3 && sources.length > 0;
-
-  if (needsFirstPerson || needsRhythm || needsCitations) {
-    const fixes: string[] = [];
-    if (needsFirstPerson) fixes.push(
-      `- Rewrite ONLY the opening paragraph so the first sentence is first-person ` +
-      `(use this line: "${brief.hook}" verbatim or close). Do not change the rest.`
-    );
-    if (needsRhythm) fixes.push(
-      `- Add 5–8 sentences under 8 words sprinkled throughout. Convert 2–3 to one-sentence ` +
-      `paragraphs for emphasis. Aim for 40%+ of sentences under 12 words.`
-    );
-    if (needsCitations) fixes.push(
-      `- The article has fewer than 3 inline markdown-link citations. Add citations as ` +
-      `[descriptive text](url) using ONLY URLs from the sources list, on at least 3 factual claims.`
-    );
-
-    const fixSys = `You revise a draft to fix specific issues. Apply ONLY the listed
-fixes. Keep structure, headings, examples, and voice unchanged. Output the
-corrected article using the same ---DELIMITER--- format.`;
-    const fixUser = `FIXES:\n${fixes.join('\n')}\n\nSOURCES:\n${sourcesBlock}\n\nORIGINAL:\n\n---BLOG_POST---\n${body}\n---META_TITLE---\n${parsed.meta_title || brief.title}\n---META_DESCRIPTION---\n${parsed.meta_description}\n\nOutput the revised article in the same delimited format.`;
-
-    try {
-      const revised = await llmCall({ system: fixSys, user: fixUser, maxTokens: 5500 });
-      const revParsed = parseSections(revised.text);
-      if (revParsed.blog_post && revParsed.blog_post.length >= 400) {
-        body = postProcess(revParsed.blog_post, sources);
-        if (revParsed.meta_title) parsed.meta_title = revParsed.meta_title;
-        if (revParsed.meta_description) parsed.meta_description = revParsed.meta_description;
-      }
-    } catch (e) {
-      console.error('revision pass failed (continuing):', e);
-    }
-  }
-
   body = appendSourcesIfThin(body, sources, 3);
 
   // Title: always prefer the editorial brief's title — that's the whole point

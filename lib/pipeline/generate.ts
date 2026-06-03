@@ -31,31 +31,39 @@ async function failAt(postId: string, step: string, err: any) {
 }
 
 export async function generatePost(postId: string) {
+  const t0 = Date.now();
+  const log = (step: string) => console.log(`[generate ${postId}] +${Date.now() - t0}ms ${step}`);
+
   const sb = supabaseAdmin();
   const { data: post } = await sb.from('posts').select('*, domains(*)').eq('id', postId).single();
   if (!post) throw new Error('post not found');
   const domain = (post as any).domains;
   const topic: string = post.topic ?? domain.hostname;
+  log(`start, topic="${topic}"`);
 
   // 1. site profile (lazy)
   let profile: SiteProfile = domain.site_profile;
   if (!profile?.business?.name) {
     await sb.from('posts').update({ status: 'researching' }).eq('id', postId);
     try {
+      log('site_profile START');
       profile = await profileSite(domain.hostname);
       await sb.from('domains').update({ site_profile: profile }).eq('id', domain.id);
+      log('site_profile DONE');
     } catch (e) { await failAt(postId, 'site_profile', e); return; }
   }
 
   // 2. layered research
   await sb.from('posts').update({ status: 'researching' }).eq('id', postId);
+  log('research START');
   let context;
-  try { context = await gatherContext(topic, profile); }
+  try { context = await gatherContext(topic, profile); log('research DONE'); }
   catch (e) { await failAt(postId, 'research', e); return; }
 
   // 3. topic refinement — turn the keyword into a sharp editorial brief
+  log('topic_refiner START');
   let brief;
-  try { brief = await refineTopic(topic, profile, context); }
+  try { brief = await refineTopic(topic, profile, context); log('topic_refiner DONE'); }
   catch (e) { await failAt(postId, 'topic_refiner', e); return; }
 
   await sb.from('posts').update({
@@ -69,8 +77,9 @@ export async function generatePost(postId: string) {
   }).eq('id', postId);
 
   // 4. write the article from the brief
+  log('writer START');
   let writer;
-  try { writer = await runWriter({ brief, profile, context }); }
+  try { writer = await runWriter({ brief, profile, context }); log('writer DONE'); }
   catch (e) { await failAt(postId, 'writer', e); return; }
 
   if (!writer.blog_post || writer.blog_post.length < 200) {
@@ -97,6 +106,7 @@ export async function generatePost(postId: string) {
       scheduled_at,
     }).eq('id', postId);
     await sb.from('topic_memory').insert({ domain_id: domain.id, keyword: topic });
+    log('persist DONE');
   } catch (e) { await failAt(postId, 'persist', e); return; }
 
   // 6. cover image — background. Failure is non-fatal; the article is already
