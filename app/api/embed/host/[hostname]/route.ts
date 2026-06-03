@@ -36,13 +36,15 @@ export async function GET(_req: Request, ctx: { params: Promise<{ hostname: stri
     .order('published_at', { ascending: false })
     .limit(6);
 
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? new URL(_req.url).origin;
+  const groveBase = process.env.NEXT_PUBLIC_APP_URL ?? new URL(_req.url).origin;
   return NextResponse.json({
     domain: domain.hostname,
     posts: (posts ?? []).map((p) => ({
+      slug: p.slug,                                                       // for customer to build local URLs
       title: p.title,
       excerpt: p.meta_description,
-      url: `${base}/b/${domain.blog_slug}/${p.slug}`,
+      // fallback URL on grove's domain if the customer hasn't wired up a /blog/[slug] route
+      url: `${groveBase}/b/${domain.blog_slug}/${p.slug}`,
       date: p.published_at,
     })),
   }, { headers: { 'access-control-allow-origin': '*' } });
