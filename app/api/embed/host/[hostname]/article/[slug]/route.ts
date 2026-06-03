@@ -28,7 +28,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ hostname: stri
 
   const { data: post } = await sb
     .from('posts')
-    .select('slug,title,body_md,meta_title,meta_description,published_at,reads')
+    .select('slug,title,body_md,meta_title,meta_description,published_at,reads,cover_image_url,cover_image_credit')
     .eq('domain_id', domain.id)
     .eq('slug', slug)
     .eq('status', 'published')
@@ -54,6 +54,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ hostname: stri
       meta_description: post.meta_description,
       body_md: post.body_md,
       published_at: post.published_at,
+      cover_image_url: post.cover_image_url ?? null,
+      cover_image_credit: post.cover_image_credit ?? null,
     },
   }, {
     headers: {

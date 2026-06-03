@@ -30,22 +30,26 @@ export async function GET(_req: Request, ctx: { params: Promise<{ hostname: stri
 
   const { data: posts } = await sb
     .from('posts')
-    .select('slug,title,meta_description,published_at')
+    .select('slug,title,meta_description,published_at,cover_image_url,cover_image_credit,body_md')
     .eq('domain_id', domain.id)
     .eq('status', 'published')
     .order('published_at', { ascending: false })
     .limit(6);
 
   const groveBase = process.env.NEXT_PUBLIC_APP_URL ?? new URL(_req.url).origin;
+  const readMinutes = (md: string) => Math.max(1, Math.round((md?.split(/\s+/).length ?? 0) / 225));
+
   return NextResponse.json({
     domain: domain.hostname,
     posts: (posts ?? []).map((p) => ({
-      slug: p.slug,                                                       // for customer to build local URLs
+      slug: p.slug,
       title: p.title,
       excerpt: p.meta_description,
-      // fallback URL on grove's domain if the customer hasn't wired up a /blog/[slug] route
       url: `${groveBase}/b/${domain.blog_slug}/${p.slug}`,
       date: p.published_at,
+      cover_image_url: p.cover_image_url ?? null,
+      cover_image_credit: p.cover_image_credit ?? null,
+      read_minutes: readMinutes(p.body_md ?? ''),
     })),
   }, { headers: { 'access-control-allow-origin': '*' } });
 }

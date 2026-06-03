@@ -14,6 +14,7 @@ import { validatePost } from './validator';
 import { profileSite, type SiteProfile } from './site-profile';
 import { gatherContext } from './research-context';
 import { refineTopic } from './topic-refiner';
+import { fetchCoverImage } from './cover-image';
 
 function slugify(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
@@ -77,9 +78,12 @@ export async function generatePost(postId: string) {
     return;
   }
 
-  // 5. validate + persist
-  const validation = validatePost(writer.blog_post);
+  // 5. cover image (best-effort, never blocks persist)
   const title = writer.meta_title || brief.title || topic.slice(0, 60);
+  const cover = await fetchCoverImage(title, profile.business.industry).catch(() => null);
+
+  // 6. validate + persist
+  const validation = validatePost(writer.blog_post);
   const slug = slugify(title);
   const nextStatus: 'review' | 'scheduled' = domain.auto_publish ? 'scheduled' : 'review';
   const scheduled_at = domain.auto_publish ? nextPublishSlot(domain.posts_per_week) : null;
@@ -91,6 +95,8 @@ export async function generatePost(postId: string) {
       body_md: writer.blog_post,
       meta_title: writer.meta_title,
       meta_description: writer.meta_description,
+      cover_image_url: cover?.url ?? null,
+      cover_image_credit: cover?.credit ?? null,
       social: null,
       validation,
       scheduled_at,
