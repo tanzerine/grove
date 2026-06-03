@@ -1,0 +1,153 @@
+/**
+ * Topic refiner — turns a vague keyword into an insider brief.
+ *
+ * The user types "how to use 3d objects to make flat design more interesting".
+ * That's the worst kind of input for the writer: generic, no angle, no
+ * specifics. A real founder writing for their company blog would never pick
+ * that title. They'd pick something like:
+ *
+ *   "I tested 23 3D-rendering tools on the same icon — only 4 produced
+ *    something I'd ship"
+ *
+ * This step takes the raw topic + business profile + research context and
+ * outputs a sharp brief: a strong title, a specific POV, a list of concrete
+ * details the writer should reference, and the first-person opener line.
+ *
+ * Reference patterns (calibrated from observed great titles):
+ *   - "How we [did X] without [losing Y]"             — show your work
+ *   - "[Tool/feature] explained: when (and when not) to [verb]"  — opinionated guide
+ *   - "Behind the [project]: why [specific choice]"   — insider story
+ *   - "I tested N [things] — only M [met the bar]"    — experiment writeup
+ *   - "[N] mistakes that quietly [bad outcome]"       — pain-point listicle
+ *   - "[Product] is here — [concrete benefit, no hype]" — launch
+ *   - "A field guide to [specific task]"              — useful, not SEO bait
+ *   - "[Thing] explained: a working framework"        — opinion + structure
+ *   - "What we're shipping [period] — a rough sketch" — roadmap transparency
+ *   - "[Group] we love: [N] [people/things] [doing X]" — curation
+ */
+import { llmCall, extractJson } from '../llm';
+import type { SiteProfile } from './site-profile';
+import type { ResearchContext } from './research-context';
+
+export type RefinedBrief = {
+  title: string;                       // strong, opinionated, ≤ 60 chars when possible
+  angle: string;                       // one-sentence POV / thesis
+  format: 'experiment' | 'guide' | 'opinion' | 'launch' | 'curation' | 'roadmap' | 'behind-the-scenes' | 'list';
+  hook: string;                        // proposed first-person opening line
+  promise: string;                     // what concrete value the reader walks away with
+  must_include: string[];              // specific numbers / examples / anecdotes / refs
+  alt_titles: string[];                // 2-3 other strong options for fallback
+};
+
+const TITLE_EXAMPLES = `
+EXAMPLES OF GREAT TITLES (study the patterns):
+- "How we trained Oven on 800k 3D renders without losing the soul"
+- "A field guide to writing prompts that bake clean icons"
+- "Style memory is here — lock your brand once, forget about it"
+- "Designers we love: five people changing how 3D feels in product UI"
+- "GLB export, explained: when (and when not) to ship a real 3D asset"
+- "Behind the rebrand: why Oven's logo is a circle and nothing else"
+- "What we're shipping next quarter — a rough sketch"
+- "10 onboarding mistakes quietly killing your activation rate"
+- "I rebuilt our onboarding 3 times before activation moved"
+
+PATTERNS YOU SHOULD USE:
+- "How we [did X] without [losing Y]"             → show your work
+- "[Thing] explained: when (and when not) to [verb]" → opinionated guide
+- "Behind the [project]: why [specific choice]"   → insider story
+- "I tested N [things] — only M [met the bar]"    → experiment writeup
+- "[N] [mistakes/lessons/patterns] that quietly [outcome]" → pain-point list
+- "[Product] is here — [concrete benefit, no hype]" → launch
+- "A field guide to [specific task]"              → useful, not SEO bait
+- "[Group] we love: [N] [things] [doing X]"       → curation
+
+PATTERNS TO AVOID:
+- "The ultimate guide to [X]"          — content farm bait
+- "Everything you need to know about…" — too generic, no POV
+- "X tips for Y"                       — listicle without specificity
+- "Why X matters in 2026"              — boilerplate
+- "X: a comprehensive overview"        — boring, no stance
+`;
+
+const FORMATS = `
+FORMAT — pick the one that fits the topic + business:
+- experiment      → "I tested N things — only M worked"; writer recounts a real or imagined comparison run
+- guide           → field guide / working framework; opinionated rules, not "ultimate guide"
+- opinion         → strong stance; takes a position, defends it
+- launch          → announces something the business does/offers; concrete benefit
+- curation        → "X people/tools/patterns we love"; shoutout/list
+- roadmap         → transparent share of what's next, hedging honestly
+- behind-the-scenes → process story; how the business actually does the thing
+- list            → "N mistakes/lessons/patterns" with specific examples
+`;
+
+export async function refineTopic(
+  rawTopic: string,
+  profile: SiteProfile,
+  context: ResearchContext,
+): Promise<RefinedBrief> {
+  const competitorList = context.competitor.map((s) => `- ${s.title}`).join('\n') || '(none)';
+  const painList = context.pain.map((s) => `- ${s.title}`).join('\n') || '(none)';
+
+  const system = `You are an editorial strategist. You take a vague topic and turn it
+into a sharp brief for a writer — picking the strongest angle a founder
+would actually choose for their company blog.
+
+YOU MUST:
+- Pick an insider POV only this business could credibly write
+- Use specific numbers, names, and anecdotes where possible
+- Reject generic SEO framings ("Ultimate Guide", "Everything You Need…")
+- Reference at least one product/service the business actually offers
+- Choose a title format from the list (see below)
+- Output strict JSON, no markdown, no preamble
+
+${TITLE_EXAMPLES}
+${FORMATS}
+
+CRITICAL OUTPUT RULES
+- One raw JSON object. No backticks. No code fences. Plain text values.
+- All string values single-line — no embedded newlines.`;
+
+  const user = `BUSINESS
+Name: ${profile.business.name}
+Industry: ${profile.business.industry}
+What they do: ${profile.business.description}
+Products / services: ${profile.business.products_services.join(', ') || 'unknown'}
+Target audience: ${profile.business.target_audience}
+Value props: ${profile.business.value_props.join('; ') || 'unknown'}
+
+RAW TOPIC: "${rawTopic}"
+
+CONTEXT FROM RESEARCH
+Common competitor angles for this topic:
+${competitorList}
+
+Common audience pain-points around this topic:
+${painList}
+
+Pick ONE strong angle. Output:
+{
+  "title": "the chosen title (uses one of the proven patterns, has specificity)",
+  "angle": "one-sentence POV / thesis the article defends",
+  "format": "experiment | guide | opinion | launch | curation | roadmap | behind-the-scenes | list",
+  "hook": "the proposed first-person opener — must start with I, we, or our",
+  "promise": "the concrete value the reader walks away with",
+  "must_include": ["specific number, name, example, or anecdote to reference", "..."],
+  "alt_titles": ["strong alternative title 1", "strong alternative title 2"]
+}`;
+
+  const { text } = await llmCall({ system, user, maxTokens: 1200 });
+  const parsed = extractJson<RefinedBrief>(text);
+
+  // sanity: never let title fall back to raw topic; force at least one alt
+  if (!parsed.title || parsed.title.toLowerCase().trim() === rawTopic.toLowerCase().trim()) {
+    parsed.title = parsed.alt_titles?.[0] ?? `How ${profile.business.name} thinks about ${rawTopic}`;
+  }
+  if (!parsed.hook || !/^\s*(I|We|Our|My)\b/i.test(parsed.hook)) {
+    parsed.hook = `I've spent the last year watching ${profile.business.target_audience} struggle with this.`;
+  }
+  parsed.must_include = parsed.must_include ?? [];
+  parsed.alt_titles = parsed.alt_titles ?? [];
+
+  return parsed;
+}

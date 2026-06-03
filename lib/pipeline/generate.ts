@@ -1,12 +1,19 @@
 /**
- * Linear 4-step pipeline. Each step is independently try/catch'd so a failure
- * never leaves a post stuck — it lands in `failed` with the precise step.
+ * 5-step pipeline. Each step independently try/catch'd — failures land in
+ * `failed` with `validation.failed_at` so we always know exactly where it died.
+ *
+ *   1. Site profile          (lazy, one-time per domain)
+ *   2. Layered research      (Tavily: primary + competitor + pain)
+ *   3. Topic refinement      (NEW — turn raw keyword into a sharp editorial brief)
+ *   4. Article write         (executes on the brief)
+ *   5. Validate + persist
  */
 import { supabaseAdmin } from '../supabase/admin';
 import { runWriter } from './writer';
 import { validatePost } from './validator';
 import { profileSite, type SiteProfile } from './site-profile';
 import { gatherContext } from './research-context';
+import { refineTopic } from './topic-refiner';
 
 function slugify(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
@@ -17,8 +24,7 @@ async function failAt(postId: string, step: string, err: any) {
   console.error(`generate.${step} failed for ${postId}:`, msg);
   const sb = supabaseAdmin();
   await sb.from('posts').update({
-    status: 'failed',
-    validation: { error: msg, failed_at: step },
+    status: 'failed', validation: { error: msg, failed_at: step },
   }).eq('id', postId);
   throw err;
 }
@@ -30,7 +36,7 @@ export async function generatePost(postId: string) {
   const domain = (post as any).domains;
   const topic: string = post.topic ?? domain.hostname;
 
-  // 1. site profile
+  // 1. site profile (lazy)
   let profile: SiteProfile = domain.site_profile;
   if (!profile?.business?.name) {
     await sb.from('posts').update({ status: 'researching' }).eq('id', postId);
@@ -40,25 +46,30 @@ export async function generatePost(postId: string) {
     } catch (e) { await failAt(postId, 'site_profile', e); return; }
   }
 
-  // 2. layered research context (primary + competitor + pain in parallel)
+  // 2. layered research
   await sb.from('posts').update({ status: 'researching' }).eq('id', postId);
   let context;
   try { context = await gatherContext(topic, profile); }
   catch (e) { await failAt(postId, 'research', e); return; }
 
+  // 3. topic refinement — turn the keyword into a sharp editorial brief
+  let brief;
+  try { brief = await refineTopic(topic, profile, context); }
+  catch (e) { await failAt(postId, 'topic_refiner', e); return; }
+
   await sb.from('posts').update({
     status: 'writing',
     research: {
-      topic,
+      topic, brief,
       primary: context.primary.map((s) => ({ url: s.url, title: s.title })),
       competitor: context.competitor.map((s) => ({ url: s.url, title: s.title })),
       pain: context.pain.map((s) => ({ url: s.url, title: s.title })),
     },
   }).eq('id', postId);
 
-  // 3. writer
+  // 4. write the article from the brief
   let writer;
-  try { writer = await runWriter({ topic, profile, context }); }
+  try { writer = await runWriter({ brief, profile, context }); }
   catch (e) { await failAt(postId, 'writer', e); return; }
 
   if (!writer.blog_post || writer.blog_post.length < 200) {
@@ -66,9 +77,9 @@ export async function generatePost(postId: string) {
     return;
   }
 
-  // 4. validate + persist
+  // 5. validate + persist
   const validation = validatePost(writer.blog_post);
-  const title = writer.meta_title || topic.slice(0, 60);
+  const title = writer.meta_title || brief.title || topic.slice(0, 60);
   const slug = slugify(title);
   const nextStatus: 'review' | 'scheduled' = domain.auto_publish ? 'scheduled' : 'review';
   const scheduled_at = domain.auto_publish ? nextPublishSlot(domain.posts_per_week) : null;
