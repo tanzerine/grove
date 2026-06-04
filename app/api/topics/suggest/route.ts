@@ -1,38 +1,93 @@
 import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
-import { llmCall } from '@/lib/llm';
 
-export const maxDuration = 120;
-// Required: this GET route reads cookies for auth — must never be statically cached
 export const dynamic = 'force-dynamic';
+// No maxDuration needed — no LLM call, responds in <100ms
 
-// ── Fallback template engine ────────────────────────────────────────────────
-// When the LLM is slow / unavailable, generate smart topic seeds from the
-// business profile using format templates. Always returns 6 useful topics.
+// ── Topic template engine ────────────────────────────────────────────────────
+// 30 format templates covering every major blog content type.
+// Filled in with real business profile data, shuffled, deduped against
+// existing posts, and returned instantly without any LLM call.
 
-const FORMAT_TEMPLATES = [
-  (biz: string, product: string, audience: string) =>
-    `How to get started with ${product || biz} — a beginner's guide for ${audience || 'teams'}`,
-  (biz: string, product: string, audience: string) =>
-    `${product || biz} vs the alternatives: what ${audience || 'professionals'} should know`,
-  (biz: string, product: string, audience: string) =>
-    `5 mistakes ${audience || 'businesses'} make with ${product || biz} (and how to fix them)`,
-  (biz: string, product: string, audience: string) =>
-    `Behind the scenes: how ${biz} builds ${product || 'its product'}`,
-  (biz: string, product: string, audience: string) =>
-    `The ${new Date().getFullYear()} guide to ${product || biz} for ${audience || 'growing companies'}`,
-  (biz: string, product: string, audience: string) =>
-    `Why ${audience || 'smart teams'} are switching to ${product || biz}`,
+type Vars = {
+  name: string;       // business name
+  product: string;    // primary product/service
+  audience: string;   // target audience
+  industry: string;   // industry
+  value: string;      // top value prop
+  year: number;
+};
+
+const TEMPLATES: Array<(v: Vars) => string> = [
+  // How-to
+  (v) => `How to get started with ${v.product} in under an hour`,
+  (v) => `How ${v.audience} can use ${v.product} to save time every week`,
+  (v) => `How to evaluate ${v.industry} tools: a checklist for ${v.audience}`,
+  (v) => `How ${v.name} approaches ${v.value} — and what you can copy`,
+  (v) => `How to switch to ${v.product} without disrupting your workflow`,
+
+  // Mistakes / pitfalls
+  (v) => `5 mistakes ${v.audience} make with ${v.product} (and how to fix them)`,
+  (v) => `Why most ${v.audience} get ${v.industry} wrong — and what to do instead`,
+  (v) => `The biggest ${v.product} mistakes we see ${v.audience} make`,
+  (v) => `Stop doing these 4 things with your ${v.industry} stack`,
+
+  // Comparison
+  (v) => `${v.product} vs the alternatives: an honest breakdown for ${v.audience}`,
+  (v) => `Build vs buy: when ${v.audience} should use ${v.product}`,
+  (v) => `Free vs paid ${v.industry} tools — what actually matters for ${v.audience}`,
+
+  // Behind the scenes
+  (v) => `Behind the scenes: how ${v.name} delivers ${v.value}`,
+  (v) => `What we learned from our first 100 ${v.audience} customers`,
+  (v) => `The tech stack behind ${v.name} (and why we chose it)`,
+  (v) => `How we reduced onboarding time for ${v.audience} by 60%`,
+
+  // Trend / opinion
+  (v) => `The state of ${v.industry} in ${v.year}: what's changing and what's not`,
+  (v) => `Why ${v.value} is becoming the #1 priority for ${v.audience}`,
+  (v) => `The ${v.industry} trends ${v.audience} should actually care about in ${v.year}`,
+  (v) => `Hot take: most ${v.industry} advice for ${v.audience} is wrong`,
+
+  // Lists / roundups
+  (v) => `The ${v.year} toolkit for ${v.audience} who care about ${v.value}`,
+  (v) => `7 questions to ask before choosing a ${v.industry} solution`,
+  (v) => `Our favourite ${v.industry} resources for ${v.audience} — curated`,
+  (v) => `10 things ${v.audience} wish they knew before starting with ${v.product}`,
+
+  // ROI / results
+  (v) => `What does ${v.product} actually cost? A real breakdown for ${v.audience}`,
+  (v) => `The ROI of ${v.value}: how ${v.audience} measure what matters`,
+  (v) => `Case study: how a ${v.audience} team got results with ${v.product}`,
+
+  // FAQ / explainer
+  (v) => `${v.product} explained: the plain-English guide for ${v.audience}`,
+  (v) => `The most common questions ${v.audience} ask about ${v.industry}`,
+  (v) => `Is ${v.product} right for you? An honest self-assessment`,
 ];
 
-function fallbackTopics(biz: any, hostname: string): string[] {
-  const name = biz?.name ?? hostname;
-  const product = (biz?.products_services ?? [])[0] ?? biz?.description ?? name;
-  const audience = biz?.target_audience ?? 'businesses';
-  return FORMAT_TEMPLATES.map((fn) => fn(name, product, audience));
+function buildVars(biz: any, hostname: string): Vars {
+  return {
+    name:     biz?.name                     ?? hostname,
+    product:  (biz?.products_services ?? [])[0] ?? biz?.description ?? biz?.name ?? hostname,
+    audience: biz?.target_audience          ?? 'growing businesses',
+    industry: biz?.industry                 ?? 'software',
+    value:    (biz?.value_props ?? [])[0]   ?? 'quality and speed',
+    year:     new Date().getFullYear(),
+  };
 }
 
-// ── Route ───────────────────────────────────────────────────────────────────
+// Seeded shuffle so each call returns a different rotation without repeats
+function shuffle<T>(arr: T[], seed: number): T[] {
+  const a = [...arr];
+  let s = seed;
+  for (let i = a.length - 1; i > 0; i--) {
+    s = (s * 1664525 + 1013904223) & 0xffffffff;
+    const j = Math.abs(s) % (i + 1);
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
 
 export async function GET(req: Request) {
   const sb = await supabaseServer();
@@ -47,53 +102,25 @@ export async function GET(req: Request) {
     .from('domains').select('site_profile, hostname').eq('id', domainId).single();
   if (!domain) return NextResponse.json({ error: 'not found' }, { status: 404 });
 
-  const profile = domain.site_profile as any;
-  const biz = profile?.business;
+  const biz = (domain.site_profile as any)?.business;
+  const vars = buildVars(biz, domain.hostname);
 
-  // Gather recently used topics to avoid repeats
+  // Gather already-used topics to filter out close matches
   const { data: recent } = await sb
     .from('posts').select('topic, meta_title').eq('domain_id', domainId)
     .not('status', 'eq', 'failed').order('created_at', { ascending: false }).limit(30);
-  const usedTopics = (recent ?? [])
-    .map((p: any) => p.meta_title || p.topic)
-    .filter(Boolean)
-    .join('\n- ');
+  const used = new Set(
+    (recent ?? []).map((p: any) => (p.meta_title || p.topic || '').toLowerCase().slice(0, 40))
+  );
 
-  // ── Try LLM first, fall back to templates ────────────────────────────────
-  try {
-    const system = `You generate blog topic ideas for a business's content pipeline.
-Topics should be specific, search-intent-driven, and genuinely useful to the target audience.
-Each topic is the seed for a full article — concrete enough to write 1000 words on.
+  // Shuffle with a time-based seed so each click gives a fresh rotation
+  const seed = Math.floor(Date.now() / 1000);
+  const shuffled = shuffle(TEMPLATES, seed);
 
-Output ONLY a valid JSON array of 6 strings. No markdown, no explanation, no preamble:
-["topic 1", "topic 2", "topic 3", "topic 4", "topic 5", "topic 6"]`;
+  const suggestions = shuffled
+    .map((fn) => fn(vars))
+    .filter((t) => !used.has(t.toLowerCase().slice(0, 40)))
+    .slice(0, 6);
 
-    const user_msg = `Business: ${biz?.name ?? domain.hostname}
-Industry: ${biz?.industry ?? 'unknown'}
-What they do: ${biz?.description ?? 'unknown'}
-Products/services: ${(biz?.products_services ?? []).join(', ') || 'unknown'}
-Target audience: ${biz?.target_audience ?? 'unknown'}
-Value props: ${(biz?.value_props ?? []).join('; ') || 'unknown'}
-
-${usedTopics ? `Already written (avoid these):\n- ${usedTopics}\n` : ''}
-Generate 6 fresh, specific blog topics. Mix formats: how-to, comparison, mistakes-to-avoid, behind-the-scenes, trend, opinion.`;
-
-    const { text } = await llmCall({ fast: true, maxTokens: 400, system, user: user_msg });
-
-    // Extract the JSON array from wherever it appears in the response
-    const start = text.indexOf('[');
-    const end = text.lastIndexOf(']');
-    if (start === -1 || end <= start) throw new Error('no array in response');
-    const suggestions: string[] = JSON.parse(text.slice(start, end + 1));
-    if (!Array.isArray(suggestions) || suggestions.length === 0) throw new Error('empty array');
-
-    return NextResponse.json({ suggestions: suggestions.slice(0, 6), source: 'llm' });
-  } catch (err: any) {
-    console.warn('[topics/suggest] LLM failed, using template fallback:', err?.message ?? err);
-    // Always return something useful — never a 500
-    return NextResponse.json({
-      suggestions: fallbackTopics(biz, domain.hostname),
-      source: 'template',
-    });
-  }
+  return NextResponse.json({ suggestions });
 }
