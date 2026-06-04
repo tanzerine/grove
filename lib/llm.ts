@@ -58,6 +58,39 @@ export async function llmCall(opts: {
   return { text };
 }
 
+/* ─────────────────── fast LLM call (small model, low latency) ──────────── */
+// Uses Llama 3.2 3B — optimised for quick structured tasks like topic
+// generation. Typically responds in 3–6s vs 15–60s for the main model.
+// Falls back gracefully: caller should handle null return.
+
+const FAST_MODEL = (
+  process.env.REPLICATE_FAST_MODEL ?? 'meta/llama-3.2-3b-instruct'
+) as `${string}/${string}`;
+
+export async function fastLlmCall(opts: {
+  system: string;
+  user: string;
+  maxTokens?: number;
+}): Promise<{ text: string }> {
+  const out = await Promise.race([
+    replicate.run(FAST_MODEL, {
+      input: {
+        prompt: opts.user,
+        system_prompt: opts.system,
+        max_tokens: opts.maxTokens ?? 512,
+        temperature: 0.7,
+      },
+    }),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('fast LLM timeout')), 30_000)
+    ),
+  ]);
+
+  const text = Array.isArray(out) ? (out as string[]).join('') : String(out ?? '');
+  if (!text.trim()) throw new Error('fast LLM returned empty output');
+  return { text };
+}
+
 /* ─────────────────────── defensive JSON extractor ─────────────────────── */
 
 export function extractJson<T = unknown>(text: string): T {
