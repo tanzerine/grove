@@ -69,8 +69,10 @@ export async function runWriter(opts: {
   context: ResearchContext;
   kb?: string;
   hostname?: string;
+  managerNotes?: string;       // present on rewrite passes
+  previousDraft?: string;       // present on rewrite passes
 }): Promise<WriterOutput> {
-  const { brief, profile, context, kb = '', hostname } = opts;
+  const { brief, profile, context, kb = '', hostname, managerNotes, previousDraft } = opts;
   const { business, voice } = profile;
   const homeUrl = hostname ? `https://${hostname.replace(/^https?:\/\//, '').replace(/\/$/, '')}` : '';
   const sources = flatSources(context);
@@ -192,10 +194,14 @@ OUTPUT FORMAT — exact delimiters, nothing else:
 ---META_DESCRIPTION---
 [under 155 chars — capture the promise]`;
 
+  const rewriteBlock = managerNotes && previousDraft
+    ? `\n\nMANAGER REWRITE — this is round 2. Apply the notes surgically; keep what works.\n${managerNotes}\n\nPREVIOUS DRAFT (edit this — don't restart from scratch):\n${previousDraft.slice(0, 9000)}\n`
+    : '';
+
   const user = `SOURCES (your only allowed citations — inline as [text](url) markdown links):
 
 ${sourcesBlock}
-
+${rewriteBlock}
 Deliver the article now. Open with the hook line verbatim. Use the title as your H1.`;
 
   // ─── single LLM draft. No revision pass on the hot path. ─────────────
