@@ -34,20 +34,80 @@ with soft gradient background, restrained palette of 2-3 muted colors,
 geometric shapes and subtle textures, magazine-cover quality, no text, no people,
 landscape 16:9 framing`;
 
-async function composePrompt(title: string, industry: string): Promise<string> {
-  // The LLM picks 2-3 visual subjects from the title and weaves them into a
-  // concrete Flux prompt. Falls back to a template if the call fails.
+type PromptInput = {
+  title: string;
+  industry?: string;
+  businessName?: string;
+  businessDescription?: string;
+  products?: string[];
+  bodyMd?: string;
+};
+
+/**
+ * Pull a short, content-rich excerpt for the image prompter: the first
+ * non-heading paragraph (usually the lead/hook) + the first H2 (signals the
+ * central argument). This grounds the image in the article's actual thesis,
+ * not just keywords in the title.
+ */
+function articleEssence(bodyMd: string): string {
+  if (!bodyMd) return '';
+  const lines = bodyMd.split('\n');
+  let lead = '';
+  let firstH2 = '';
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    if (/^#\s/.test(trimmed)) continue;             // skip H1
+    if (/^##\s/.test(trimmed)) {
+      if (!firstH2) firstH2 = trimmed.replace(/^##\s+/, '');
+      continue;
+    }
+    if (/^[#>\-*\d]/.test(trimmed)) continue;        // skip headings/lists/quotes
+    if (!lead) lead = trimmed.replace(/[*_`]/g, '');
+    if (lead && firstH2) break;
+  }
+  return [lead.slice(0, 320), firstH2 && `Central section: ${firstH2}`]
+    .filter(Boolean).join(' ');
+}
+
+async function composePrompt(input: PromptInput): Promise<string> {
+  const { title, industry = '', businessName = '', businessDescription = '', products = [], bodyMd = '' } = input;
+  const essence = articleEssence(bodyMd);
+
   try {
     const { text } = await llmCall({
       fast: true,
-      maxTokens: 120,
-      system: 'You write image-generation prompts. Output ONE sentence describing visual subjects. No quotes, no preamble, no markdown. Focus on concrete objects, materials, lighting. Avoid abstract or text.',
-      user: `Article title: "${title}"\nBusiness: ${industry}\n\nWrite a single image prompt: what should the cover IMAGE depict? Keep it concrete and visual.`,
+      maxTokens: 180,
+      system: `You write image-generation prompts for editorial blog covers.
+The cover MUST visually echo the article's specific argument AND fit the
+business's product domain — not generic stock imagery.
+
+RULES
+- Output ONE sentence. No quotes, no preamble, no markdown, no lists.
+- Pick a concrete visual metaphor that maps to the article's central idea
+  (e.g. "before/after split frame", "stacked layers being lifted", "tools
+  laid out on a workbench"). Not abstract swirls.
+- Anchor the imagery in objects the business's audience would recognize from
+  their own work — UI surfaces, icons, panels, blueprints, etc. — based on
+  the business description and products.
+- Concrete subjects, materials, lighting. No people, no faces, no readable
+  text or logos on the image.
+- 25–45 words.`,
+      user: `BUSINESS: ${businessName || '(unknown)'} — ${businessDescription || industry || '(unknown)'}
+PRODUCTS / SERVICES: ${products.slice(0, 4).join(', ') || '(unknown)'}
+
+ARTICLE TITLE: "${title}"
+ARTICLE ESSENCE: ${essence || '(none — infer from title)'}
+
+Write the image prompt now.`,
     });
-    const subject = text.trim().replace(/^["']|["']$/g, '').slice(0, 200);
+    const subject = text.trim().replace(/^["']|["']$/g, '').replace(/\s+/g, ' ').slice(0, 320);
     return `${subject}, ${STYLE}`;
   } catch {
-    return `abstract concept of ${title}, ${STYLE}`;
+    const fallbackSubject = products[0]
+      ? `visual metaphor for "${title}" rendered using ${products[0]}-style imagery`
+      : `visual metaphor for "${title}" in the ${industry || 'tech'} space`;
+    return `${fallbackSubject}, ${STYLE}`;
   }
 }
 
@@ -71,11 +131,19 @@ export async function runCoverForPost(postId: string): Promise<void> {
 
   if (!post) { await appendLog(postId, 'cover_image', 'fail', 'post not found'); return; }
   const title = (post as any).meta_title || (post as any).title || '';
-  const industry = (post as any).domains?.site_profile?.business?.industry ?? '';
+  const biz = (post as any).domains?.site_profile?.business ?? {};
+  const bodyMd: string = (post as any).body_md ?? '';
   if (!title) { await appendLog(postId, 'cover_image', 'fail', 'no title'); return; }
 
   try {
-    const cover = await fetchCoverImage(title, industry);
+    const cover = await fetchCoverImage({
+      title,
+      industry: biz.industry ?? '',
+      businessName: biz.name ?? '',
+      businessDescription: biz.description ?? '',
+      products: biz.products_services ?? [],
+      bodyMd,
+    });
     if (!cover) {
       await appendLog(postId, 'cover_image', 'done', 'no image generated');
       return;
@@ -96,14 +164,21 @@ export async function runCoverForPost(postId: string): Promise<void> {
   }
 }
 
-export async function fetchCoverImage(title: string, industry = ''): Promise<Cover | null> {
+export async function fetchCoverImage(
+  input: string | PromptInput,
+  industryArg = '',
+): Promise<Cover | null> {
+  // Back-compat: callers used to pass (title, industry). Normalize to PromptInput.
+  const promptInput: PromptInput = typeof input === 'string'
+    ? { title: input, industry: industryArg }
+    : input;
   const apiKey = process.env.REPLICATE_API_TOKEN;
   if (!apiKey) return null;
 
   let imageBuffer: Uint8Array;
   try {
     const replicate = new Replicate({ auth: apiKey });
-    const prompt = await composePrompt(title, industry);
+    const prompt = await composePrompt(promptInput);
 
     // 1. Generate via Flux Schnell with hard 90s timeout
     const result = await Promise.race([

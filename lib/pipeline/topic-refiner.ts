@@ -29,10 +29,24 @@ import { llmCall, extractJson } from '../llm';
 import type { SiteProfile } from './site-profile';
 import type { ResearchContext } from './research-context';
 
+/**
+ * Marketing funnel position for this article:
+ *  - editorial    → pure thought-leadership, NO brand link, NO product mention.
+ *                   Builds trust & SEO authority. The reader leaves smarter, not pitched.
+ *  - contextual   → ONE inline brand mention as a link, woven naturally into prose.
+ *                   No closing CTA. Most articles land here.
+ *  - conversion   → Strong activation. Brand mentioned in lead, product referenced
+ *                   as the obvious tool, and the article ends with a deliberate CTA
+ *                   paragraph linking to the homepage. Use sparingly — for topics
+ *                   where the product genuinely IS the answer.
+ */
+export type MarketingIntent = 'editorial' | 'contextual' | 'conversion';
+
 export type RefinedBrief = {
   title: string;                       // strong, opinionated, ≤ 60 chars when possible
   angle: string;                       // one-sentence POV / thesis
   format: 'experiment' | 'guide' | 'opinion' | 'launch' | 'curation' | 'roadmap' | 'behind-the-scenes' | 'list';
+  marketing_intent: MarketingIntent;   // funnel position — drives writer's marketing rules
   hook: string;                        // proposed first-person opening line
   promise: string;                     // what concrete value the reader walks away with
   must_include: string[];              // specific numbers / examples / anecdotes / refs
@@ -104,6 +118,24 @@ YOU MUST:
 ${TITLE_EXAMPLES}
 ${FORMATS}
 
+MARKETING INTENT — pick honestly based on how naturally the product fits the topic:
+- editorial   → thought-leadership where the product would be a forced fit.
+                Industry trends, philosophical takes, broad craft lessons.
+                The article must work without ever naming the company.
+                Roughly 25% of articles. Best for opinion, roadmap, some lists.
+- contextual  → the product is one good example of the thing being discussed,
+                but the article's value doesn't depend on you buying it.
+                Roughly 50% of articles. Best for guide, experiment, curation,
+                behind-the-scenes, most lists.
+- conversion  → the topic is a direct buyer question — "how do I do X?" where
+                the product IS the answer for the reader's job. The article
+                earns a real CTA at the end.
+                Roughly 25% of articles. Best for launch, comparison guides,
+                "how to do [exact thing product does]" experiments and behind-the-scenes.
+
+If unsure, pick "contextual". Never pick "conversion" just to push the product —
+only when the topic genuinely calls for it.
+
 CRITICAL OUTPUT RULES
 - One raw JSON object. No backticks. No code fences. Plain text values.
 - All string values single-line — no embedded newlines.`;
@@ -130,6 +162,7 @@ Pick ONE strong angle. Output:
   "title": "the chosen title (uses one of the proven patterns, has specificity)",
   "angle": "one-sentence POV / thesis the article defends",
   "format": "experiment | guide | opinion | launch | curation | roadmap | behind-the-scenes | list",
+  "marketing_intent": "editorial | contextual | conversion",
   "hook": "the proposed first-person opener — must start with I, we, or our",
   "promise": "the concrete value the reader walks away with",
   "must_include": ["specific number, name, example, or anecdote to reference", "..."],
@@ -148,6 +181,18 @@ Pick ONE strong angle. Output:
   }
   parsed.must_include = parsed.must_include ?? [];
   parsed.alt_titles = parsed.alt_titles ?? [];
+
+  // sanity: marketing_intent must be one of three known values
+  const validIntents: MarketingIntent[] = ['editorial', 'contextual', 'conversion'];
+  if (!validIntents.includes(parsed.marketing_intent as MarketingIntent)) {
+    // default by format: launch leans conversion, opinion/roadmap lean editorial,
+    // everything else lands at contextual.
+    parsed.marketing_intent = parsed.format === 'launch'
+      ? 'conversion'
+      : (parsed.format === 'opinion' || parsed.format === 'roadmap')
+        ? 'editorial'
+        : 'contextual';
+  }
 
   return parsed;
 }

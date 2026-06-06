@@ -78,7 +78,7 @@ export async function generatePost(postId: string) {
   await appendLog(postId, 'writer', 'start', `drafting ${brief.format}`);
   let writer;
   try {
-    writer = await runWriter({ brief, profile, context });
+    writer = await runWriter({ brief, profile, context, hostname: domain.hostname });
     await appendLog(postId, 'writer', 'done', `${writer.blog_post.split(/\s+/).length} words`);
   } catch (e) { await failAt(postId, 'writer', e); return; }
 

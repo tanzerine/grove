@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { mdToHtml } from '@/lib/markdown';
+import { mdToHtml, extractToc } from '@/lib/markdown';
 import { notFound } from 'next/navigation';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string; post: string }> }) {
@@ -29,12 +29,44 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   await sb.from('posts').update({ reads: (p.reads ?? 0) + 1 }).eq('id', p.id);
 
   const html = mdToHtml(p.body_md ?? '');
+  const toc = extractToc(p.body_md ?? '');
 
   return (
     <main className="wrap" style={{ maxWidth: 720, padding: '60px 28px' }}>
       <a href={`/b/${slug}`} className="mono" style={{ fontSize: 12, color: 'var(--moss)' }}>← {domain.hostname}</a>
       <h1 className="display" style={{ fontSize: 46, marginTop: 18 }}>{p.title}</h1>
       <p className="mono" style={{ color: 'var(--clay)', fontSize: 12 }}>{new Date(p.published_at!).toLocaleDateString()}</p>
+      {toc.length >= 2 && (
+        <nav
+          aria-label="Table of contents"
+          style={{
+            marginTop: 30,
+            padding: '20px 24px',
+            background: 'white',
+            border: '1px solid var(--line)',
+            borderRadius: 14,
+          }}
+        >
+          <div
+            className="mono"
+            style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--clay)', marginBottom: 10 }}
+          >
+            Contents
+          </div>
+          <ol style={{ listStyle: 'none', padding: 0, margin: 0, lineHeight: 1.7 }}>
+            {toc.map((item, i) => (
+              <li
+                key={`${item.id}-${i}`}
+                style={{ paddingLeft: item.level === 3 ? 16 : 0, fontSize: item.level === 3 ? 14 : 15 }}
+              >
+                <a href={`#${item.id}`} style={{ color: 'var(--ink)', textDecoration: 'none' }}>
+                  {item.text}
+                </a>
+              </li>
+            ))}
+          </ol>
+        </nav>
+      )}
       <article
         className="prose"
         style={{ marginTop: 30, padding: '40px 36px', background: 'white', border: '1px solid var(--line)', borderRadius: 14, maxWidth: 'none' }}

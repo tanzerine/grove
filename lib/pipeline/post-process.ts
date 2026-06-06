@@ -88,6 +88,79 @@ export function citationCount(body: string): number {
 }
 
 /**
+ * Marketing safety net — behavior depends on the article's funnel intent.
+ *
+ *   editorial   → no-op. Pure thought-leadership; we never inject a link.
+ *   contextual  → if the body already links to the host, leave it. Otherwise
+ *                 find the first plain-prose mention of the brand name and
+ *                 wrap it as a markdown link. If neither exists, do nothing —
+ *                 a clean article beats a tacked-on link.
+ *   conversion  → ensure there's both (a) an inline brand link in the body
+ *                 AND (b) a real closing CTA paragraph. Injects whatever is
+ *                 missing.
+ */
+export function ensureHomepageCta(
+  body: string,
+  opts: {
+    businessName: string;
+    hostname?: string;
+    intent?: 'editorial' | 'contextual' | 'conversion';
+  },
+): string {
+  const { businessName, hostname, intent = 'contextual' } = opts;
+  if (intent === 'editorial') return body;
+  if (!hostname || !businessName) return body;
+
+  const host = hostname.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const escapedHost = host.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const escapedName = businessName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const hostLinked = new RegExp(`https?://(?:www\\.)?${escapedHost}`, 'i').test(body);
+
+  // Inline-link the first plain-prose brand mention.
+  const inlineLinkBrand = (text: string): { out: string; linked: boolean } => {
+    const re = new RegExp(`(?<![\\[\\w])${escapedName}(?!\\w|\\])`);
+    let replaced = false;
+    const lines = text.split('\n').map((line) => {
+      if (replaced) return line;
+      if (/^\s*#/.test(line)) return line;
+      if (/^\s*```/.test(line)) return line;
+      if (!re.test(line)) return line;
+      replaced = true;
+      return line.replace(re, `[${businessName}](https://${host})`);
+    });
+    return { out: lines.join('\n'), linked: replaced };
+  };
+
+  if (intent === 'contextual') {
+    if (hostLinked) return body;
+    const { out } = inlineLinkBrand(body);
+    return out;
+  }
+
+  // intent === 'conversion' — guarantee both an inline link and a closing CTA.
+  let next = body;
+  if (!hostLinked) {
+    const { out, linked } = inlineLinkBrand(next);
+    if (linked) next = out;
+  }
+
+  // Detect an existing closing CTA: last 2 paragraphs contain a host link
+  // AND a verb that suggests next-step framing.
+  const paras = next.trim().split(/\n{2,}/);
+  const tail = paras.slice(-2).join('\n\n');
+  const hasClosingCta =
+    new RegExp(`https?://(?:www\\.)?${escapedHost}`, 'i').test(tail) &&
+    /\b(open|generate|sketch|ship|bake|build|launch|design|prototype|explore)\b/i.test(tail);
+
+  if (!hasClosingCta) {
+    const cta = `\n\nIf this is the kind of work you're shipping, that's the gap we built [${businessName}](https://${host}) to close — open it the next time you hit this wall.\n`;
+    next = next.trimEnd() + cta;
+  }
+
+  return next;
+}
+
+/**
  * Cap inline citations at MAX. If the writer over-cites, we demote the
  * extras to plain text (link text remains, URL is dropped). This keeps the
  * article reading like a blog post, not a research paper.
