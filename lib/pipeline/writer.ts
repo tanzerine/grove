@@ -5,11 +5,56 @@
  */
 import { llmCall } from '../llm';
 import { qualityRulesPrompt } from './quality-rules';
-import { postProcess, capCitations } from './post-process';
+import { postProcess, capCitations, ensureHomepageCta } from './post-process';
 import type { SiteProfile } from './site-profile';
 import type { ResearchContext } from './research-context';
 import { flatSources } from './research-context';
-import type { RefinedBrief } from './topic-refiner';
+import type { RefinedBrief, MarketingIntent } from './topic-refiner';
+
+/**
+ * Per-intent marketing rules block. The funnel position decides whether
+ * the article is pure editorial, lightly contextual, or a direct conversion play.
+ */
+function marketingRulesFor(
+  intent: MarketingIntent,
+  business: SiteProfile['business'],
+  homeUrl: string,
+): string {
+  const audienceLine = `Frame the article so a reader of ${business.target_audience} sees themselves in every example. NO hobbyist, off-target, or adjacent-persona examples (e.g. don't pitch "interior design" if the audience is product designers shipping UI). Every concrete example, anecdote, and "imagine if..." scenario must come from ${business.target_audience}'s actual day, not generic.`;
+
+  if (intent === 'editorial') {
+    return `MARKETING RULES (pure editorial — this article earns trust by NOT pitching)
+- ${audienceLine}
+- DO NOT mention "${business.name}" by name anywhere in the body.
+- DO NOT link to ${homeUrl || 'the homepage'} or any owned property.
+- DO NOT end with a CTA, "next steps", or "if you want to learn more" paragraph.
+- The article ends on its argument. The reader walks away smarter, not pitched.
+- You may reference the product CATEGORY generically when it's relevant ("AI icon generators", "site profilers", etc.) but never a specific brand including ours.`;
+  }
+
+  if (intent === 'conversion') {
+    return `MARKETING RULES (conversion intent — the product genuinely IS the answer to this topic)
+- ${audienceLine}
+- Name "${business.name}" in the opening 200 words, in a sentence that frames the article's problem from the product's vantage point. Make the brand name itself a link: [${business.name}](${homeUrl || 'https://example.com'}).
+- Reference ONE specific feature from {${business.products_services.join(', ') || 'their core product'}} mid-article, as the obvious tool a working reader would reach for at the moment the article introduces the problem it solves.
+- Close with ONE deliberate CTA paragraph (2–3 sentences) that connects the article's lesson to ${business.name} as the next concrete step. The CTA should:
+  • Use a verb that matches what the reader would actually do (open, generate, sketch, ship, bake) — not generic "try" or "sign up".
+  • End with the brand-name-as-link: [${business.name}](${homeUrl || 'https://example.com'}).
+  • Be ONE paragraph, not a separate H2 section. No "Conclusion" or "Get Started" heading.
+- DO NOT use the phrases: "click here", "sign up today", "join us", "limited time", "don't miss out", "what are you waiting for".`;
+  }
+
+  // contextual (default)
+  return `MARKETING RULES (contextual — subtle, this is editorial, not a landing page)
+- ${audienceLine}
+- Mention "${business.name}" exactly ONCE in the body, inline, the first time you reference the product category in a way that calls for a concrete example. The brand name itself is the link — markdown form: [${business.name}](${homeUrl || 'https://example.com'}). Examples of good placement:
+  • "...which is the bet we made when we built [${business.name}](${homeUrl || ''})."
+  • "We hit the same wall building [${business.name}](${homeUrl || ''}) — here's what worked."
+  Bad placement: any sentence containing "try", "check out", "sign up", "click here", or a separate closing CTA paragraph.
+- DO NOT add a closing "Want to learn more? Try X" paragraph. The article ends on its argument, not on a pitch.
+- DO NOT use the words "try", "check out", "get started", "sign up", "join us", or "visit our" anywhere near the brand link.
+- Reference ONE specific feature from {${business.products_services.join(', ') || 'their core product'}} inline only if it's the obvious answer to a problem the paragraph just described — as the tool a working reader would reach for, never as a product callout.`;
+}
 
 export type WriterOutput = {
   blog_post: string;
@@ -23,9 +68,13 @@ export async function runWriter(opts: {
   profile: SiteProfile;
   context: ResearchContext;
   kb?: string;
+  hostname?: string;
+  managerNotes?: string;       // present on rewrite passes
+  previousDraft?: string;       // present on rewrite passes
 }): Promise<WriterOutput> {
-  const { brief, profile, context, kb = '' } = opts;
+  const { brief, profile, context, kb = '', hostname, managerNotes, previousDraft } = opts;
   const { business, voice } = profile;
+  const homeUrl = hostname ? `https://${hostname.replace(/^https?:\/\//, '').replace(/\/$/, '')}` : '';
   const sources = flatSources(context);
 
   const fmt = (arr: typeof context.primary, offset: number) =>
@@ -84,6 +133,17 @@ EXECUTION RULES (in priority order)
    - behind-the-scenes → process story, what we tried, what didn't work
    - list             → numbered list, 5–10 items, each with a specific reason
 
+${marketingRulesFor(brief.marketing_intent, business, homeUrl)}
+
+EDITORIAL DESIGN (give the article rhythm and visual interest)
+- Open with a 1–2 sentence LEAD paragraph that's short, punchy, and italicized using markdown *emphasis* — it sets the stakes before the real opening hook lands.
+- Drop ONE pull quote mid-article: a > blockquote on a single, sharp claim from the surrounding paragraph (≤ 16 words). Place it after the first major section, not at the end. Don't quote yourself attributing — just the line itself.
+- Use H2 for major sections and H3 for sub-points. Every H2 section should be roughly 150–300 words — vary length deliberately.
+- Use one --- horizontal rule at the strongest argument shift (not as a section delimiter — as a beat).
+- Use **bold** to surface 3–5 key phrases readers should catch when scanning, not to shout. No bolding entire sentences.
+- Where you have 3+ parallel items, use a list. Where you have comparable options, use a 2–3 column table. Don't force either.
+- One sentence per line in the lead and pull quote. Paragraphs of 2–4 sentences elsewhere, except for 1–2 single-sentence paragraphs used as emphasis beats.
+
 E-E-A-T RULES (not optional)
 - EXPERIENCE: open with first-person; reference doing/seeing/building, not summarizing
 - EXPERTISE: include at least one concrete specific (real product, real number, real workflow)
@@ -134,10 +194,14 @@ OUTPUT FORMAT — exact delimiters, nothing else:
 ---META_DESCRIPTION---
 [under 155 chars — capture the promise]`;
 
+  const rewriteBlock = managerNotes && previousDraft
+    ? `\n\nMANAGER REWRITE — this is round 2. Apply the notes surgically; keep what works.\n${managerNotes}\n\nPREVIOUS DRAFT (edit this — don't restart from scratch):\n${previousDraft.slice(0, 9000)}\n`
+    : '';
+
   const user = `SOURCES (your only allowed citations — inline as [text](url) markdown links):
 
 ${sourcesBlock}
-
+${rewriteBlock}
 Deliver the article now. Open with the hook line verbatim. Use the title as your H1.`;
 
   // ─── single LLM draft. No revision pass on the hot path. ─────────────
@@ -154,6 +218,13 @@ Deliver the article now. Open with the hook line verbatim. Use the title as your
   body = postProcess(body, sources);
   // cap citations: 4 max, extras demoted to plain text
   body = capCitations(body, 4);
+  // marketing safety net — funnel-aware: editorial=no-op, contextual=inline link,
+  // conversion=inline link + closing CTA paragraph.
+  body = ensureHomepageCta(body, {
+    businessName: business.name,
+    hostname,
+    intent: brief.marketing_intent,
+  });
 
   // Title: always prefer the editorial brief's title — that's the whole point
   const title = (parsed.meta_title?.trim() || brief.title).slice(0, 80);

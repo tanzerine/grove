@@ -300,31 +300,72 @@ a { color: inherit; text-decoration: none; }
 .reveal.in { opacity: 1; transform: none; }
 
 /* ─────────────────────────── prose / article body ─────────────────────────── */
-.prose { color: var(--ink); font-size: 17px; line-height: 1.75; max-width: 72ch; }
+.prose { color: var(--ink); font-size: 17px; line-height: 1.78; max-width: 68ch; margin: 0 auto; }
 .prose > * + * { margin-top: 1.1em; }
 .prose h1, .prose h2, .prose h3, .prose h4 {
   font-family: 'Clash Display', serif; line-height: 1.2; letter-spacing: -0.01em;
   margin-top: 2em; margin-bottom: 0.6em; color: var(--ink);
 }
 .prose h1 { font-size: 2.2em; }
-.prose h2 { font-size: 1.75em; padding-bottom: 0.3em; border-bottom: 1px solid var(--line); }
-.prose h3 { font-size: 1.35em; }
-.prose h4 { font-size: 1.1em; color: var(--moss); }
+.prose h2 {
+  font-size: 1.55em; padding-bottom: 0.35em; border-bottom: 1px solid var(--line);
+  position: relative;
+}
+.prose h2::before {
+  content: ''; display: block; width: 32px; height: 2px; background: var(--moss);
+  margin-bottom: 14px; border-radius: 2px;
+}
+.prose h3 { font-size: 1.22em; color: var(--ink); }
+.prose h4 { font-size: 1.05em; color: var(--moss); font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 0.05em; }
 .prose p { margin: 0 0 1em; }
-.prose a { color: var(--moss); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
-.prose a:hover { color: var(--ink); }
-.prose strong { color: var(--ink); font-weight: 600; }
+
+/* Lead paragraph: the first paragraph after the H1 gets editorial treatment.
+   It also gets a small drop-cap on its first letter. */
+.prose > p:first-of-type {
+  font-size: 1.18em; line-height: 1.65; color: var(--ink);
+  margin-bottom: 1.4em;
+}
+.prose > p:first-of-type::first-letter {
+  font-family: 'Clash Display', serif;
+  font-size: 3.4em; float: left; line-height: 0.9;
+  padding: 8px 12px 0 0; color: var(--moss);
+}
+
+/* Italic emphasis paragraph (used as a kicker / dek by the writer). */
+.prose > p > em:only-child { font-size: 1.05em; color: var(--clay); }
+
+/* Subtle links: brand mentions shouldn't shout. */
+.prose a {
+  color: var(--ink);
+  text-decoration: underline; text-decoration-color: var(--moss);
+  text-decoration-thickness: 1px; text-underline-offset: 4px;
+  transition: text-decoration-color 0.15s ease, color 0.15s ease;
+}
+.prose a:hover { color: var(--moss); text-decoration-color: var(--ink); }
+
+.prose strong { color: var(--ink); font-weight: 600; background: linear-gradient(transparent 62%, rgba(78,158,106,0.18) 62%); padding: 0 2px; }
 .prose em { color: var(--clay); }
-.prose ul, .prose ol { margin: 0.5em 0 1em; padding-left: 1.6em; }
-.prose ul li, .prose ol li { margin: 0.4em 0; padding-left: 4px; }
+.prose ul, .prose ol { margin: 0.8em 0 1.2em; padding-left: 1.6em; }
+.prose ul li, .prose ol li { margin: 0.5em 0; padding-left: 6px; }
 .prose ul li::marker { color: var(--moss); }
 .prose ol li::marker { color: var(--moss); font-family: 'DM Mono', monospace; font-weight: 600; }
+
+/* Pull quote: blockquote rendered as a magazine-style centered statement. */
 .prose blockquote {
-  margin: 1.4em 0; padding: 0.6em 0 0.6em 1.2em;
-  border-left: 3px solid var(--moss); background: var(--paper);
-  color: var(--ink); font-style: italic; border-radius: 0 8px 8px 0;
+  margin: 2em -8px;
+  padding: 18px 24px 18px 28px;
+  border-left: 3px solid var(--moss);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Clash Display', serif;
+  font-style: italic;
+  font-size: 1.35em; line-height: 1.45;
+  border-radius: 0 10px 10px 0;
 }
 .prose blockquote p { margin: 0; }
+.prose blockquote p::before { content: '“'; color: var(--moss); margin-right: 4px; }
+.prose blockquote p::after { content: '”'; color: var(--moss); margin-left: 2px; }
+
 .prose code {
   background: var(--paper); padding: 2px 6px; border-radius: 4px;
   font-family: 'DM Mono', ui-monospace, monospace; font-size: 0.9em; color: var(--ink);
@@ -335,12 +376,22 @@ a { color: inherit; text-decoration: none; }
   line-height: 1.55; margin: 1.2em 0;
 }
 .prose pre code { background: transparent; padding: 0; color: inherit; }
-.prose hr { border: none; border-top: 1px dashed var(--line); margin: 2.4em auto; width: 60%; }
-.prose img { max-width: 100%; height: auto; border-radius: 10px; margin: 1.5em 0; }
+
+/* Section break: three centered dots, editorial style. */
+.prose hr {
+  border: none; margin: 2.8em auto; width: 100%; text-align: center; height: 8px;
+  background-image: radial-gradient(circle, var(--clay) 1.5px, transparent 1.5px);
+  background-size: 14px 8px; background-repeat: repeat-x; background-position: center;
+}
+
+.prose img { max-width: 100%; height: auto; border-radius: 10px; margin: 1.8em 0; display: block; }
+.prose img + em { display: block; text-align: center; font-size: 13px; color: var(--clay); margin-top: -1em; font-style: normal; }
+
 .prose table {
-  width: 100%; border-collapse: collapse; margin: 1.4em 0; font-size: 15px;
+  width: 100%; border-collapse: collapse; margin: 1.6em 0; font-size: 15px;
   border: 1px solid var(--line); border-radius: 8px; overflow: hidden;
 }
-.prose table th, .prose table td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--line); }
-.prose table th { background: var(--paper); color: var(--moss); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; }
+.prose table th, .prose table td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--line); }
+.prose table th { background: var(--paper); color: var(--moss); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
 .prose table tr:last-child td { border-bottom: none; }
+.prose table tr:nth-child(even) td { background: rgba(245, 243, 237, 0.4); }
