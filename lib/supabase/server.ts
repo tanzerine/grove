@@ -9,9 +9,9 @@ export async function supabaseServer() {
     {
       cookies: {
         getAll: () => cookieStore.getAll(),
-        setAll: (toSet) => {
+        setAll: (toSet: { name: string; value: string; options?: Record<string, unknown> }[]) => {
           try {
-            toSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
+            toSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options as any));
           } catch {
             // server components can't set cookies; ignored
           }

@@ -1,7 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: { serverActions: { bodySizeLimit: '2mb' } },
-  typescript: { ignoreBuildErrors: true },
+  // Type errors now fail the build (the codebase type-checks clean as of the
+  // calendar work). This stops latent bugs like the manager-gate body_md
+  // mismatch from silently shipping again. ESLint stays non-blocking.
+  typescript: { ignoreBuildErrors: false },
   eslint: { ignoreDuringBuilds: true },
   async headers() {
     return [

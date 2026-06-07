@@ -12,6 +12,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import { generatePost } from '@/lib/pipeline/generate';
 import { runCoverForPost } from '@/lib/pipeline/cover-image';
 import { runInlineImagesForPost } from '@/lib/pipeline/inline-images';
+import { materializeDuePlanSlots } from '@/lib/strategy/materialize';
 
 export const maxDuration = 300;
 
@@ -33,6 +34,19 @@ export async function GET(req: Request) {
     .eq('status', 'scheduled').lte('scheduled_at', now);
   for (const p of due ?? []) {
     await sb.from('posts').update({ status: 'published', published_at: now }).eq('id', p.id);
+  }
+
+  // 1b) materialize plan → posts: turn active-strategy slots that are due
+  //     (within the lead window) into queued posts, carrying their planned
+  //     publish date through. This is what actually executes the strategy.
+  let materialized = 0;
+  const { data: verified } = await sb
+    .from('domains').select('id').not('verified_at', 'is', null);
+  for (const d of verified ?? []) {
+    try {
+      const ids = await materializeDuePlanSlots(d.id, { leadHours: 72, limit: 3 });
+      materialized += ids.length;
+    } catch { /* one domain failing must not stall the tick */ }
   }
 
   // 2) drain queued posts (limit 3 per tick to stay under Vercel 300s)
@@ -78,6 +92,7 @@ export async function GET(req: Request) {
 
   return NextResponse.json({
     published: due?.length ?? 0,
+    materialized,
     generated: queued?.length ?? 0,
     covers: needCover?.length ?? 0,
     inline_images: inlineCount,

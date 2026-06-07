@@ -60,6 +60,7 @@ export type PostSlot = {
   intent: 'editorial' | 'contextual' | 'conversion';
   target_keyword?: string;
   notes?: string;
+  publish_date?: string;   // ISO instant this slot is slated to publish (UTC; UI renders local)
 };
 
 export type Strategy = {
@@ -233,7 +234,40 @@ publishing_plan should contain exactly ${monthlyPostCount} slots, distributed ac
     intent: ['editorial', 'contextual', 'conversion'].includes(slot.intent) ? slot.intent : 'contextual',
   }));
 
+  // Deterministically assign each slot a real publish date so the calendar has
+  // a concrete schedule (the LLM is bad at evenly spacing dates; code isn't).
+  parsed.publishing_plan = assignPublishDates(parsed.publishing_plan, month, postsPerWeek);
+
   return parsed;
+}
+
+/**
+ * Spread slots across the month at a steady cadence, skipping weekends, at
+ * 09:00 UTC. Stored as UTC instants; the dashboard renders them in the
+ * viewer's local time. Owners can override any individual date later.
+ */
+export function assignPublishDates(slots: PostSlot[], month: string, postsPerWeek: number): PostSlot[] {
+  if (!slots.length) return slots;
+  const [y, m] = month.split('-').map(Number);          // month is 1-based here
+  const monthIdx = (m || 1) - 1;
+  const daysInMonth = new Date(Date.UTC(y, monthIdx + 1, 0)).getUTCDate();
+
+  // Candidate weekdays (Mon–Fri) in the month, in order.
+  const weekdays: number[] = [];
+  for (let d = 1; d <= daysInMonth; d++) {
+    const wd = new Date(Date.UTC(y, monthIdx, d)).getUTCDay();
+    if (wd !== 0 && wd !== 6) weekdays.push(d);
+  }
+  if (!weekdays.length) return slots;
+
+  // Even step so N slots land across the available weekdays.
+  const step = Math.max(1, weekdays.length / slots.length);
+  return slots.map((slot, i) => {
+    if (slot.publish_date) return slot;                 // respect an existing date
+    const day = weekdays[Math.min(weekdays.length - 1, Math.floor(i * step))];
+    const dt = new Date(Date.UTC(y, monthIdx, day, 9, 0, 0));
+    return { ...slot, publish_date: dt.toISOString() };
+  });
 }
 
 function validKpi(k: KPI): boolean {
