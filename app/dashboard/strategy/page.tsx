@@ -3,6 +3,9 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { summarizeMonth, type MonthlyReport } from '@/lib/strategy/review';
 import type { Strategy, Goal, Pillar, PostSlot } from '@/lib/strategy/build';
+import LocalDateTime from './LocalDateTime';
+
+type SlotStatus = { status: string; slug: string | null; scheduled_at?: string | null };
 
 export const dynamic = 'force-dynamic';
 
@@ -45,13 +48,20 @@ export default async function StrategyPage() {
   const admin = supabaseAdmin();
   const { data: posts = [] } = await admin
     .from('posts')
-    .select('id,title,slug,status,topic,published_at,research')
+    .select('id,title,slug,status,topic,published_at,scheduled_at,slot_id,research')
     .eq('domain_id', domain.id)
     .order('created_at', { ascending: false });
-  const slotStatusByTopic = new Map<string, { status: string; slug: string | null }>();
+  // Match a slot to its post by slot_id (exact, set at materialization) and
+  // fall back to topic text for older posts that predate the link column.
+  const slotStatusByTopic = new Map<string, SlotStatus>();
+  const slotStatusById = new Map<string, SlotStatus>();
   for (const p of posts ?? []) {
-    if (p.topic) slotStatusByTopic.set(p.topic.toLowerCase(), { status: p.status, slug: p.slug });
+    const v: SlotStatus = { status: p.status, slug: p.slug, scheduled_at: p.scheduled_at };
+    if (p.topic) slotStatusByTopic.set(p.topic.toLowerCase(), v);
+    if ((p as any).slot_id) slotStatusById.set((p as any).slot_id, v);
   }
+  const statusForSlot = (slot: PostSlot): SlotStatus | undefined =>
+    slotStatusById.get(slot.id) ?? slotStatusByTopic.get(slot.topic.toLowerCase());
 
   const s = strategy as unknown as Strategy & { id: string; month: string; source: string };
 
@@ -61,7 +71,7 @@ export default async function StrategyPage() {
       {s.notes && <NotesCard notes={s.notes} />}
       <GoalsRow goals={s.goals} kpis={s.kpis} report={report} />
       <PillarsList pillars={s.pillars} plan={s.publishing_plan} slotStatus={slotStatusByTopic} report={report} />
-      <PublishingPlanTable plan={s.publishing_plan} pillars={s.pillars} slotStatus={slotStatusByTopic} />
+      <PublishingPlanTable plan={s.publishing_plan} pillars={s.pillars} statusFor={statusForSlot} />
     </>
   );
 }
@@ -198,7 +208,7 @@ function fmtNumber(n: number): string {
 // ───────────────────────────── PILLARS ─────────────────────────────
 function PillarsList({
   pillars, plan, slotStatus, report,
-}: { pillars: Pillar[]; plan: PostSlot[]; slotStatus: Map<string, { status: string; slug: string | null }>; report: MonthlyReport | null }) {
+}: { pillars: Pillar[]; plan: PostSlot[]; slotStatus: Map<string, SlotStatus>; report: MonthlyReport | null }) {
   if (!pillars?.length) return null;
   return (
     <div style={{ marginTop: 30 }}>
@@ -214,7 +224,7 @@ function PillarsList({
 
 function PillarCard({
   pillar, plan, slotStatus, report,
-}: { pillar: Pillar; plan: PostSlot[]; slotStatus: Map<string, { status: string; slug: string | null }>; report: MonthlyReport | null }) {
+}: { pillar: Pillar; plan: PostSlot[]; slotStatus: Map<string, SlotStatus>; report: MonthlyReport | null }) {
   const planned = plan.filter((s) => s.pillar_id === pillar.id);
   const published = planned.filter((s) => slotStatus.get(s.topic.toLowerCase())?.status === 'published').length;
   const perf = report?.per_pillar?.[pillar.id];
@@ -278,20 +288,31 @@ function pillarVerdict(views: number, planned: number, published: number) {
 
 // ─────────────────────── PUBLISHING PLAN TABLE ─────────────────────
 function PublishingPlanTable({
-  plan, pillars, slotStatus,
-}: { plan: PostSlot[]; pillars: Pillar[]; slotStatus: Map<string, { status: string; slug: string | null }> }) {
+  plan, pillars, statusFor,
+}: { plan: PostSlot[]; pillars: Pillar[]; statusFor: (slot: PostSlot) => SlotStatus | undefined }) {
   if (!plan?.length) return null;
   const pillarTitle = (id: string) => pillars.find((p) => p.id === id)?.title ?? id;
 
+  // Effective date for each slot: the post's actual scheduled_at (reflects any
+  // reschedule) if it exists, else the planned publish_date. Sort into a schedule.
+  const effectiveDate = (slot: PostSlot) => statusFor(slot)?.scheduled_at ?? slot.publish_date ?? '';
+  const rows = [...plan].sort((a, b) => (effectiveDate(a) < effectiveDate(b) ? -1 : 1));
+
   return (
     <div style={{ marginTop: 30 }}>
-      <div className="mono" style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--clay)', marginBottom: 12 }}>
-        Publishing plan · {plan.length} slots
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
+        <div className="mono" style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--clay)' }}>
+          Publishing plan · {plan.length} slots
+        </div>
+        <Link href="/dashboard/calendar" style={{ fontSize: 12, color: 'var(--moss)', textDecoration: 'none' }}>
+          Open calendar →
+        </Link>
       </div>
       <div style={{ background: 'white', border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
           <thead>
             <tr style={{ background: 'var(--paper)' }}>
+              <Th>Date</Th>
               <Th>Pillar</Th>
               <Th>Topic</Th>
               <Th>Intent</Th>
@@ -299,10 +320,21 @@ function PublishingPlanTable({
             </tr>
           </thead>
           <tbody>
-            {plan.map((slot) => {
-              const status = slotStatus.get(slot.topic.toLowerCase());
+            {rows.map((slot) => {
+              const status = statusFor(slot);
+              const date = effectiveDate(slot);
+              const rescheduled = !!status?.scheduled_at && !!slot.publish_date
+                && status.scheduled_at.slice(0, 10) !== slot.publish_date.slice(0, 10);
               return (
                 <tr key={slot.id} style={{ borderTop: '1px solid var(--line)' }}>
+                  <Td>
+                    {date
+                      ? <span style={{ fontFamily: 'DM Mono', fontSize: 13, color: 'var(--ink)' }}>
+                          <LocalDateTime iso={date} withTime />
+                          {rescheduled && <span title="rescheduled from plan" style={{ color: 'var(--moss)', marginLeft: 6 }}>•</span>}
+                        </span>
+                      : <span style={{ color: 'var(--clay)' }}>—</span>}
+                  </Td>
                   <Td><span style={{ color: 'var(--clay)' }}>{pillarTitle(slot.pillar_id)}</span></Td>
                   <Td>{slot.topic}</Td>
                   <Td><IntentTag intent={slot.intent} /></Td>
