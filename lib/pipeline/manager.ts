@@ -131,6 +131,21 @@ Return JSON:
   parsed.issues = Array.isArray(parsed.issues) ? parsed.issues : [];
   parsed.scores = parsed.scores ?? { strategic_fit: 0, marketing: 0, craft: 0, safety: 0, overall: 0 };
 
+  // Score floor: gating was action-driven, so the LLM could return a low
+  // overall AND action:"approve", shipping a weak draft. On attempt 1, force a
+  // rewrite when the score is below the bar so the quality pass actually fires.
+  // (Attempt 2 can't rewrite again — serverless time budget — so it stands.)
+  const QUALITY_FLOOR = 60;
+  if (attempt === 1 && parsed.action === 'approve' && (parsed.scores.overall ?? 0) < QUALITY_FLOOR) {
+    parsed.action = 'rewrite';
+    if (!parsed.rewrite_brief) {
+      const top = parsed.issues.filter((i) => i.severity !== 'note').slice(0, 4).map((i) => `- ${i.note}`).join('\n');
+      parsed.rewrite_brief =
+        `Overall quality ${parsed.scores.overall ?? 0}/100 is below the ${QUALITY_FLOOR} bar. Raise it by fixing:\n` +
+        (top || '- thin specifics, weak argument, or off-voice prose — add concrete detail and sharpen the angle.');
+    }
+  }
+
   // Force consistency: pass mirrors action.
   parsed.pass = parsed.action === 'approve';
 
