@@ -40,6 +40,18 @@ export const MANAGER_RUBRIC: RubricRule[] = [
     severity: 'block',
     rule: 'Article must not touch any off-limits topic, competitor, or framing the owner flagged.',
   },
+  {
+    id: 'no_referral_away',
+    scope: 'strategic',
+    severity: 'block',
+    rule: 'This is the brand\'s OWN blog. It must never name, link, recommend, or compare-by-name any competing product, tool, platform, studio, or agency, nor tell the reader to "use tools like X", "partner with an agency", or "you could also try Y". Naming the product CATEGORY generically is fine.',
+  },
+  {
+    id: 'title_h1_sync',
+    scope: 'strategic',
+    severity: 'rewrite',
+    rule: 'The article\'s single H1 must match the brief title verbatim. Flag if the on-page H1 is a different headline than the title/slug the reader clicked.',
+  },
 
   // ── marketing intent execution ─────────────────────────────
   {
@@ -91,6 +103,18 @@ export const MANAGER_RUBRIC: RubricRule[] = [
     scope: 'craft',
     severity: 'rewrite',
     rule: 'Contains at least one concrete specific (real number, real product, real workflow, real anecdote). No generic claims throughout.',
+  },
+  {
+    id: 'depth_floor',
+    scope: 'craft',
+    severity: 'rewrite',
+    rule: 'Article must be substantial (roughly 900–1400 words). Reject thin, skim-depth drafts under ~800 words that read like an SEO summary rather than an in-house point of view.',
+  },
+  {
+    id: 'format_adherence',
+    scope: 'craft',
+    severity: 'rewrite',
+    rule: 'Article must actually execute the brief format. A "behind-the-scenes" must be a real process story (what we tried, what failed), not a product explainer or "Why choose us / N steps" listicle. An "experiment" must report what was tested + numbers.',
   },
   {
     id: 'structure_balance',

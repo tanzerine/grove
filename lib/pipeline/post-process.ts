@@ -88,6 +88,55 @@ export function citationCount(body: string): number {
 }
 
 /**
+ * Force the article's H1 to be the canonical title verbatim.
+ *
+ * The writer prompt says "use the title above verbatim as the H1", but the
+ * model routinely invents its own H1 (oveners.com shipped 4/4 posts whose H1
+ * diverged from the slug/meta title — bad for the title-tag↔H1 SEO signal and
+ * jarring for a reader who clicked the listing title).
+ *
+ * Behavior:
+ *   - If the body's first non-empty line is an H1, replace it with `# {title}`.
+ *   - If there is no leading H1, prepend one.
+ *   - Any *additional* H1s later in the body are demoted to H2 (an article has
+ *     exactly one H1).
+ */
+export function forceCanonicalH1(body: string, title: string): string {
+  if (!title?.trim()) return body;
+  const clean = title.trim().replace(/^#+\s*/, '');
+  const lines = body.replace(/^\s+/, '').split('\n');
+
+  // find index of the first H1
+  let firstIdx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (/^#\s+/.test(lines[i])) { firstIdx = i; break; }
+    if (lines[i].trim()) break; // hit prose before any H1 → none at the top
+  }
+
+  if (firstIdx === -1) {
+    body = `# ${clean}\n\n${lines.join('\n').trimStart()}`;
+  } else {
+    lines[firstIdx] = `# ${clean}`;
+    body = lines.join('\n');
+  }
+
+  // demote any later H1s to H2 so there's exactly one H1
+  let seenH1 = false;
+  body = body
+    .split('\n')
+    .map((l) => {
+      if (/^#\s+/.test(l)) {
+        if (seenH1) return l.replace(/^#\s+/, '## ');
+        seenH1 = true;
+      }
+      return l;
+    })
+    .join('\n');
+
+  return body;
+}
+
+/**
  * Marketing safety net — behavior depends on the article's funnel intent.
  *
  *   editorial   → no-op. Pure thought-leadership; we never inject a link.

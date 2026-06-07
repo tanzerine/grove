@@ -22,6 +22,12 @@ export type SiteProfile = {
     tone: string;
     register: string;
     vocabulary: string[];           // distinctive words/phrases the brand uses
+    // ── richer voice signature (brand-review framework) ──────────────────
+    we_are: string[];               // what the voice IS, in practice
+    we_are_not: string[];           // common misreadings to avoid
+    signature_moves: string[];      // recurring rhetorical habits (e.g. "opens with a failure")
+    avoid: string[];                // words/phrases this brand never uses
+    samples: string[];              // 2-3 REAL prose excerpts from the brand's own blog
   };
   meta: {
     has_blog: boolean;
@@ -67,6 +73,46 @@ async function fetchText(url: string): Promise<{ url: string; title: string; met
   } catch { return null; }
 }
 
+/**
+ * Find the brand's own blog posts and pull real prose excerpts. These become
+ * the writer's few-shot voice anchors — far stronger than any adjective the
+ * extractor could guess from a landing page. Without this, Grove learns voice
+ * from marketing copy and writes generic SEO-affiliate prose (the exact failure
+ * mode seen on oveners.com).
+ */
+async function discoverBlogSamples(hostname: string): Promise<string[]> {
+  const bases = [`https://${hostname}`, `https://www.${hostname.replace(/^www\./, '')}`];
+  for (const base of bases) {
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 8_000);
+      const r = await fetch(`${base}/blog`, {
+        signal: ctrl.signal, redirect: 'follow',
+        headers: { 'user-agent': 'grove-profiler/1.0 (+https://grove.so)' },
+      });
+      clearTimeout(t);
+      if (!r.ok) continue;
+      const html = await r.text();
+      // grab post links: /blog/<slug> or /b/<slug>/<post>
+      const links = Array.from(html.matchAll(/href=["'](\/(?:blog|b)\/[^"'#?]+)["']/gi))
+        .map((m) => m[1])
+        .filter((p) => p.split('/').filter(Boolean).length >= 2); // not the index itself
+      const unique = Array.from(new Set(links)).slice(0, 3);
+      const samples: string[] = [];
+      for (const path of unique) {
+        const page = await fetchText(`${base}${path}`);
+        if (!page) continue;
+        // take the densest ~600-char window of real prose as the excerpt
+        const excerpt = page.body.replace(/\s+/g, ' ').trim().slice(0, 700);
+        if (excerpt.length > 200) samples.push(excerpt);
+        if (samples.length >= 2) break;
+      }
+      if (samples.length) return samples;
+    } catch { /* try next base */ }
+  }
+  return [];
+}
+
 export async function profileSite(hostname: string): Promise<SiteProfile> {
   const base = `https://${hostname}`;
   const altBase = `https://www.${hostname.replace(/^www\./, '')}`;
@@ -77,7 +123,10 @@ export async function profileSite(hostname: string): Promise<SiteProfile> {
     ...CANDIDATE_PATHS.map((p) => `${altBase}${p}`),
   ]));
 
-  const pagesResults = await Promise.all(urls.map(fetchText));
+  const [pagesResults, blogSamples] = await Promise.all([
+    Promise.all(urls.map(fetchText)),
+    discoverBlogSamples(hostname),
+  ]);
   const pages = pagesResults.filter((p): p is NonNullable<typeof p> => !!p);
 
   // Always include the homepage even if empty
@@ -94,19 +143,31 @@ export async function profileSite(hostname: string): Promise<SiteProfile> {
     `## ${p.url}\nTITLE: ${p.title}\nMETA: ${p.meta}\nBODY: ${p.body}`
   ).join('\n\n---\n\n').slice(0, 24_000);
 
+  // Voice is the highest-leverage field in the whole pipeline, so this runs on
+  // the MAIN model (not the 3B fast model) and is anchored on real blog prose.
+  const samplesBlock = blogSamples.length
+    ? blogSamples.map((s, i) => `SAMPLE ${i + 1}:\n"""${s}"""`).join('\n\n')
+    : '(no blog samples found — infer voice from the marketing copy, but mark it low-confidence)';
+
   const { text } = await llmCall({
-    fast: true,
     json: true,
-    maxTokens: 1500,
-    system: `You analyze a website and extract structured business intelligence.
+    maxTokens: 2000,
+    system: `You analyze a website and extract structured business intelligence AND a
+precise brand-voice signature a ghostwriter could imitate.
+
 Be specific. "professional" is useless — "engineer-to-engineer, blunt about trade-offs" is useful.
 If a field is genuinely unknown, write "unknown" — never invent.
+
+VOICE comes FIRST from the blog SAMPLES (the brand's real published prose), and
+only falls back to marketing copy if no samples exist. Marketing copy lies about
+voice; the blog is how they actually write. Derive we_are / we_are_not as
+contrast pairs (e.g. we_are "blunt about trade-offs", we_are_not "hype-y").
 
 CRITICAL OUTPUT RULES:
 - Output ONE raw JSON object. Nothing else.
 - No markdown. No backticks. No code fences.
 - All string values must be plain text — never embed code blocks.`,
-    user: `Read the crawled pages below from ${hostname}.
+    user: `Read the crawled pages and blog samples below from ${hostname}.
 
 Return JSON:
 {
@@ -123,11 +184,18 @@ Return JSON:
     "persona": "specific archetype of the writer",
     "tone": "...",
     "register": "...",
-    "vocabulary": ["distinctive word", "..."]
+    "vocabulary": ["distinctive word actually used", "..."],
+    "we_are": ["concrete voice trait observed in the samples", "..."],
+    "we_are_not": ["the misread to avoid for each trait", "..."],
+    "signature_moves": ["recurring habit, e.g. 'opens on a specific failure'", "..."],
+    "avoid": ["word/phrase this brand clearly never uses", "..."]
   }
 }
 
-CRAWLED PAGES:
+BLOG SAMPLES (source of truth for voice — imitate THIS, not the marketing copy):
+${samplesBlock}
+
+CRAWLED PAGES (source for business facts):
 ${corpus}`,
   });
 
@@ -154,6 +222,11 @@ ${corpus}`,
         tone: parsed.voice?.tone ?? 'clear, practical, confident',
         register: parsed.voice?.register ?? 'professional-conversational',
         vocabulary: parsed.voice?.vocabulary ?? [],
+        we_are: parsed.voice?.we_are ?? [],
+        we_are_not: parsed.voice?.we_are_not ?? [],
+        signature_moves: parsed.voice?.signature_moves ?? [],
+        avoid: parsed.voice?.avoid ?? [],
+        samples: blogSamples,
       },
       meta: { has_blog: hasBlog, has_pricing: hasPricing, pages_crawled: crawledUrls },
     };
@@ -171,6 +244,7 @@ function emptyProfile(hostname: string, crawled: string[] = [], hasBlog = false,
     voice: {
       persona: `Owner of ${hostname}`, tone: 'clear, practical, confident',
       register: 'professional-conversational', vocabulary: [],
+      we_are: [], we_are_not: [], signature_moves: [], avoid: [], samples: [],
     },
     meta: { has_blog: hasBlog, has_pricing: hasPricing, pages_crawled: crawled },
   };

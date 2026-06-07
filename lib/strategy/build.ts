@@ -79,10 +79,41 @@ export type BuildStrategyInput = {
   interview?: InterviewAnswers | null;
   prevStrategy?: Strategy | null;
   prevReport?: MonthlyReport | null;
+  alreadyCovered?: string[];        // topic_memory keywords — don't re-propose these
 };
 
+/**
+ * Turn a MonthlyReport into a compact, COMPLETE digest for the planner.
+ *
+ * The old code did `JSON.stringify(report).slice(0, 3500)`, which routinely cut
+ * the JSON mid-object — the model received malformed data and ignored it. This
+ * extracts the decision-relevant signal and never truncates a structure:
+ *   - what won / lost by intent (so the intent mix can shift with evidence)
+ *   - top & bottom posts with the metric that explains why
+ *   - real search queries (the strongest demand signal we have)
+ */
+function digestReport(r: MonthlyReport): string {
+  const row = (p: any) =>
+    `"${(p.title || p.post_id || '').slice(0, 60)}" — ${p.views} views, ${p.median_dwell_sec}s dwell, ${(p.scroll_100_rate * 100).toFixed(0)}% read-through, ${p.conversions} conv`;
+  const intents = Object.entries(r.per_intent || {})
+    .map(([k, v]: [string, any]) => `${k}: ${v.views} views / ${v.conversions} conv`)
+    .join(' · ') || '(no intent data)';
+  const queries = (r.top_queries || []).slice(0, 12)
+    .map((q) => `"${q.query}" (${q.sessions})`).join(', ') || '(none captured)';
+
+  return [
+    `MONTH ${r.month}: ${r.posts_count} posts, ${r.totals.views} views, ${r.totals.unique_sessions} sessions, ${(r.totals.organic_share * 100).toFixed(0)}% organic, ${r.totals.conversions} conversions.`,
+    `BY INTENT: ${intents}`,
+    `TOP POSTS (double down on these angles):`,
+    ...(r.top_posts || []).slice(0, 5).map((p) => `  + ${row(p)}`),
+    `BOTTOM POSTS (sharpen the angle or kill the pillar):`,
+    ...(r.bottom_posts || []).slice(0, 5).map((p) => `  - ${row(p)}`),
+    `REAL SEARCH QUERIES that brought readers (PRIORITIZE covering these — proven demand): ${queries}`,
+  ].join('\n');
+}
+
 export async function buildStrategy(input: BuildStrategyInput): Promise<Strategy> {
-  const { month, postsPerWeek, profile, interview, prevStrategy, prevReport } = input;
+  const { month, postsPerWeek, profile, interview, prevStrategy, prevReport, alreadyCovered } = input;
   const monthlyPostCount = Math.max(4, Math.round(postsPerWeek * 4.3));
 
   const source: Strategy['source'] = interview
@@ -100,15 +131,21 @@ PRIORITIES (in order)
    conversions, organic share, newsletter signups. No vanity metrics.
 3. Mix funnel intents across pillars. Conversion-heavy pillars need real
    product-relevance; editorial pillars build authority that conversion
-   pillars later cash in.
+   pillars later cash in. The actual slot intents you assign should roughly
+   match the aggregate of your pillars' declared intent_mix.
 4. If last month's report shows a clear winner, double down on it.
-   If a pillar underperformed, propose either a sharper angle or kill it.
+   If a pillar underperformed (low dwell / low read-through / low conv),
+   propose either a sharper angle or kill it — say which, and why.
+5. DEMAND FIRST: the report lists real search queries that already brought
+   readers. Dedicate at least ~⅓ of the plan to covering those queries with a
+   sharper angle than last time. Proven demand beats invented topics.
 
 DON'T
 - Don't invent metrics we can't measure.
 - Don't promise more than ${monthlyPostCount} articles.
 - Don't pick topics that violate the owner's off-limits list.
 - Don't fabricate prior performance — only reference fields you actually see.
+- Don't re-propose a topic in ALREADY COVERED — pick a fresh angle or a new keyword.
 
 OUTPUT: ONE raw JSON object. No markdown. No prose. No code fences.`;
 
@@ -130,7 +167,10 @@ LAST MONTH'S STRATEGY (for continuity / contrast):
 ${prevStrategy ? JSON.stringify({ goals: prevStrategy.goals, kpis: prevStrategy.kpis, pillars: prevStrategy.pillars.map((p) => p.title) }) : '(none — first month)'}
 
 LAST MONTH'S REPORT (real numbers from analytics):
-${prevReport ? JSON.stringify(prevReport).slice(0, 3500) : '(none)'}
+${prevReport ? digestReport(prevReport) : '(none — first month)'}
+
+ALREADY COVERED (don't repeat these topics/keywords):
+${alreadyCovered?.length ? alreadyCovered.slice(0, 60).join(', ') : '(nothing on file)'}
 
 Produce the new strategy as JSON:
 {
