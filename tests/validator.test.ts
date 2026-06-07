@@ -1,0 +1,58 @@
+import { describe, it, expect } from 'vitest';
+import { validatePost } from '../lib/pipeline/validator';
+
+const TITLE = 'My Real Title';
+
+/** Build an 800+ word post that satisfies every validator rule. */
+function goodBody(title = TITLE): string {
+  const short = 'It works well.';                       // 3 words
+  const long =
+    'This is a deliberately long sentence that runs well past twenty words so the variety check clearly sees both short and long forms here.'; // ~24 words
+  const lines: string[] = [`# ${title}`, '', 'I tested this on a real project last month.'];
+  for (let i = 0; i < 30; i++) lines.push(`${short} ${long}`);
+  // exactly two citations (sweet spot 2–4)
+  lines.push('Here is [a source](https://example.com/a) and [another](https://example.com/b).');
+  return lines.join('\n');
+}
+
+describe('validatePost', () => {
+  it('passes a well-formed post', () => {
+    const v = validatePost(goodBody(), { title: TITLE });
+    expect(v.issues).toEqual([]);
+    expect(v.passed).toBe(true);
+    expect(v.stats.word_count).toBeGreaterThanOrEqual(800);
+  });
+
+  it('flags thin content', () => {
+    const v = validatePost(`# ${TITLE}\n\nI tested it. Too short.`, { title: TITLE });
+    expect(v.issues.some((i) => i.startsWith('THIN_CONTENT'))).toBe(true);
+    expect(v.passed).toBe(false);
+  });
+
+  it('flags an H1 that does not match the title (the desync bug)', () => {
+    const body = goodBody('A Completely Different Headline');
+    const v = validatePost(body, { title: TITLE });
+    expect(v.issues.some((i) => i.startsWith('TITLE_H1_MISMATCH'))).toBe(true);
+  });
+
+  it('flags referring the reader to a competitor / third party', () => {
+    const v = validatePost(goodBody() + '\n\nYou can also use Notion for this.', { title: TITLE });
+    expect(v.issues.some((i) => i.startsWith('REFERRAL_AWAY'))).toBe(true);
+  });
+
+  it('catches "tools like X" referral phrasing', () => {
+    const v = validatePost(goodBody() + '\n\nThere are tools like Canva too.', { title: TITLE });
+    expect(v.issues.some((i) => i.startsWith('REFERRAL_AWAY'))).toBe(true);
+  });
+
+  it('flags banned AI-tell phrases', () => {
+    const v = validatePost(goodBody() + '\n\nThis is a real game-changer.', { title: TITLE });
+    expect(v.issues.some((i) => i.includes('game-changer'))).toBe(true);
+  });
+
+  it('flags too few citations', () => {
+    const body = `# ${TITLE}\n\nI tested it. ${'Words here and there in a sentence. '.repeat(200)}`;
+    const v = validatePost(body, { title: TITLE });
+    expect(v.issues.some((i) => i.startsWith('LOW_CITATIONS'))).toBe(true);
+  });
+});

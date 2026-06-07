@@ -10,6 +10,7 @@ import { gatherContext } from './research-context';
 import { refineTopic } from './topic-refiner';
 import { appendLog, resetLog } from './log';
 import { evaluateDraft, composeRewriteInstructions } from './manager';
+import { toManagerDraft } from './draft-adapter';
 import type { Strategy, PostSlot } from '../strategy/build';
 
 function slugify(s: string) {
@@ -100,8 +101,7 @@ export async function generatePost(postId: string) {
   try {
     await appendLog(postId, 'manager', 'start', `attempt 1`);
     evaluation = await evaluateDraft({
-      attempt: 1, brief, strategy, slot,
-      draft: { body_md: writer.blog_post, meta_title: writer.meta_title, meta_description: writer.meta_description },
+      attempt: 1, brief, strategy, slot, draft: toManagerDraft(writer),
     });
     await persistEvaluation(postId, strategy?.id ?? null, 1, evaluation);
     await appendLog(postId, 'manager', 'done',
@@ -118,8 +118,7 @@ export async function generatePost(postId: string) {
         `${writer.blog_post.split(/\s+/).length} words (rewrite)`);
 
       evaluation = await evaluateDraft({
-        attempt: 2, brief, strategy, slot,
-        draft: { body_md: writer.blog_post, meta_title: writer.meta_title, meta_description: writer.meta_description },
+        attempt: 2, brief, strategy, slot, draft: toManagerDraft(writer),
       });
       await persistEvaluation(postId, strategy?.id ?? null, 2, evaluation);
       await appendLog(postId, 'manager', 'done',
