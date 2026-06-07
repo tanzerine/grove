@@ -10,7 +10,7 @@ import { supabaseAdmin } from '../supabase/admin';
 export type LogEvent = 'start' | 'done' | 'fail';
 export type LogStep =
   | 'queued' | 'site_profile' | 'research' | 'topic_refiner'
-  | 'writer' | 'persist' | 'cover_image' | 'social';
+  | 'writer' | 'manager' | 'persist' | 'cover_image' | 'inline_images' | 'social';
 
 export type LogEntry = {
   ts: number;          // ms epoch

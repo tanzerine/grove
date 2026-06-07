@@ -96,7 +96,6 @@ export default function PostEditor({ postId, initialBody, initialMetaTitle, init
                 style={{
                   padding: '10px 20px', fontSize: 13, fontWeight: tab === t ? 600 : 400,
                   color: tab === t ? 'var(--ink)' : 'var(--clay)',
-                  borderBottom: tab === t ? '2px solid var(--moss)' : '2px solid transparent',
                   background: 'none', border: 'none', borderBottom: tab === t ? '2px solid var(--moss)' : '2px solid transparent',
                   cursor: 'pointer', fontFamily: 'inherit', textTransform: 'capitalize',
                 }}

@@ -100,7 +100,8 @@ export async function generatePost(postId: string) {
   try {
     await appendLog(postId, 'manager', 'start', `attempt 1`);
     evaluation = await evaluateDraft({
-      attempt: 1, brief, draft: writer, strategy, slot,
+      attempt: 1, brief, strategy, slot,
+      draft: { body_md: writer.blog_post, meta_title: writer.meta_title, meta_description: writer.meta_description },
     });
     await persistEvaluation(postId, strategy?.id ?? null, 1, evaluation);
     await appendLog(postId, 'manager', 'done',
@@ -117,7 +118,8 @@ export async function generatePost(postId: string) {
         `${writer.blog_post.split(/\s+/).length} words (rewrite)`);
 
       evaluation = await evaluateDraft({
-        attempt: 2, brief, draft: writer, strategy, slot,
+        attempt: 2, brief, strategy, slot,
+        draft: { body_md: writer.blog_post, meta_title: writer.meta_title, meta_description: writer.meta_description },
       });
       await persistEvaluation(postId, strategy?.id ?? null, 2, evaluation);
       await appendLog(postId, 'manager', 'done',
