@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import PostActions from './PostActions';
 import PipelineTimeline from './PipelineTimeline';
 import PostEditor from './PostEditor';
+import LocalTime from '../../LocalTime';
 import Link from 'next/link';
 
 export default async function PostPage({ params }: { params: Promise<{ id: string }> }) {
@@ -42,6 +43,16 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
       <p className="mono" style={{ fontSize: 12, color: 'var(--clay)', marginTop: 4 }}>
         Topic: {p.topic} · {validation?.stats?.word_count ? `${validation.stats.word_count} words · ` : ''}{validation?.stats?.citation_count ?? 0} citations
       </p>
+
+      {p.status === 'scheduled' && p.scheduled_at && (
+        <ScheduleLine color="#7B9EF0">Publishes <strong><LocalTime iso={p.scheduled_at} /></strong> (your local time)</ScheduleLine>
+      )}
+      {p.status === 'review' && p.scheduled_at && (
+        <ScheduleLine color="#E0A040">Planned for <strong><LocalTime iso={p.scheduled_at} /></strong> — approve to lock it in</ScheduleLine>
+      )}
+      {p.status === 'published' && p.published_at && (
+        <ScheduleLine color="var(--moss)">Published <strong><LocalTime iso={p.published_at} /></strong></ScheduleLine>
+      )}
 
       <PostActions
         id={p.id}
@@ -109,6 +120,15 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
         </div>
       )}
     </>
+  );
+}
+
+function ScheduleLine({ color, children }: { color: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, fontSize: 14, color: 'var(--ink)' }}>
+      <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, display: 'inline-block', flexShrink: 0 }} />
+      {children}
+    </div>
   );
 }
 

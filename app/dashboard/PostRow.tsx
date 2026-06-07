@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import LocalTime from './LocalTime';
 
 const STATUS_BADGE: Record<string, { cls: string; label: string }> = {
   queued: { cls: 'queue', label: 'QUEUED' },
@@ -72,8 +73,9 @@ export default function PostRow({ p }: { p: any }) {
       <Link href={`/dashboard/posts/${p.id}`} className="pbody" style={{ textDecoration: 'none', color: 'inherit' }}>
         <div className="ptitle" style={{ cursor: 'pointer' }}>{p.title ?? p.topic ?? '(no title yet)'}</div>
         <div className="pmeta">
-          {p.status === 'published' ? `Published · ${p.reads} reads` :
-           p.status === 'review' ? `${p.validation?.stats?.word_count ?? '—'} words · awaiting your review` :
+          {p.status === 'published' ? <>Published{p.published_at ? <> · <LocalTime iso={p.published_at} withTime={false} /></> : ''} · {p.reads} reads</> :
+           p.status === 'scheduled' ? (p.scheduled_at ? <><span style={{ color: '#7B9EF0' }}>● </span>Publishes <LocalTime iso={p.scheduled_at} /></> : 'Scheduled') :
+           p.status === 'review' ? <>{p.validation?.stats?.word_count ?? '—'} words · awaiting your review{p.scheduled_at ? <> · planned for <LocalTime iso={p.scheduled_at} withTime={false} /></> : ''}</> :
            stuck ? <span style={{ color: '#c33' }}>Stuck at {p.status} for {Math.round(ageMin)}m — click Retry</span> :
            p.status === 'failed' ? <span style={{ color: '#c33' }}>Failed{failedAt ? ` at ${failedAt}` : ''}: {String(errorMsg).slice(0, 80)}</span> :
            currentStep ? <><span style={{ color: 'var(--moss)' }}>● </span>{currentStep}</> :
