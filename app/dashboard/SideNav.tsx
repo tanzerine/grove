@@ -10,6 +10,7 @@ const ITEMS = [
   { href: '/dashboard/reviews',   label: 'Reviews',     match: (p: string) => p.startsWith('/dashboard/reviews') },
   { href: '/dashboard/analytics', label: 'Analytics',   match: (p: string) => p.startsWith('/dashboard/analytics') },
   { href: '/dashboard/voice',     label: 'Brand voice', match: (p: string) => p.startsWith('/dashboard/voice') },
+  { href: '/dashboard/connections', label: 'Social',    match: (p: string) => p.startsWith('/dashboard/connections') },
   { href: '/dashboard/embed',     label: 'Embed',       match: (p: string) => p.startsWith('/dashboard/embed') },
 ];
 

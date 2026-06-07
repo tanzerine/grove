@@ -91,12 +91,17 @@ export async function generatePost(postId: string) {
 
   // 4b. MANAGER — gate on strategic fit + craft + marketing intent.
   // Loop once on 'rewrite'; on round 2 the manager must approve or reject.
-  const { strategy, slot } = await loadActiveStrategy(domain.id, brief);
+  // Prefer the exact strategy/slot link (set when materialized from the plan);
+  // fall back to fuzzy title matching for ad-hoc / legacy posts.
+  const { strategy, slot } = await loadActiveStrategy(
+    domain.id, brief, { strategyId: (post as any).strategy_id, slotId: (post as any).slot_id },
+  );
   let evaluation;
   try {
     await appendLog(postId, 'manager', 'start', `attempt 1`);
     evaluation = await evaluateDraft({
-      attempt: 1, brief, draft: writer, strategy, slot,
+      attempt: 1, brief, strategy, slot,
+      draft: { body_md: writer.blog_post, meta_title: writer.meta_title, meta_description: writer.meta_description },
     });
     await persistEvaluation(postId, strategy?.id ?? null, 1, evaluation);
     await appendLog(postId, 'manager', 'done',
@@ -113,7 +118,8 @@ export async function generatePost(postId: string) {
         `${writer.blog_post.split(/\s+/).length} words (rewrite)`);
 
       evaluation = await evaluateDraft({
-        attempt: 2, brief, draft: writer, strategy, slot,
+        attempt: 2, brief, strategy, slot,
+        draft: { body_md: writer.blog_post, meta_title: writer.meta_title, meta_description: writer.meta_description },
       });
       await persistEvaluation(postId, strategy?.id ?? null, 2, evaluation);
       await appendLog(postId, 'manager', 'done',
@@ -141,8 +147,11 @@ export async function generatePost(postId: string) {
     intent: brief.marketing_intent,
   });
   const slug = slugify(title);
+  // Preserve a planned date if one was carried through from the strategy slot;
+  // otherwise fall back to the rolling auto-publish cadence.
+  const plannedAt: string | null = (post as any).scheduled_at ?? null;
   const nextStatus: 'review' | 'scheduled' = domain.auto_publish ? 'scheduled' : 'review';
-  const scheduled_at = domain.auto_publish ? nextPublishSlot(domain.posts_per_week) : null;
+  const scheduled_at = plannedAt ?? (domain.auto_publish ? nextPublishSlot(domain.posts_per_week) : null);
 
   try {
     await sb.from('posts').update({
@@ -174,8 +183,23 @@ export async function generatePost(postId: string) {
 async function loadActiveStrategy(
   domainId: string,
   brief: { title: string; format: string },
+  link?: { strategyId?: string | null; slotId?: string | null },
 ): Promise<{ strategy: (Strategy & { id: string }) | null; slot: PostSlot | null }> {
   const sb = supabaseAdmin();
+
+  // Exact link path: the post was materialized from a specific slot.
+  if (link?.strategyId) {
+    const { data: exact } = await sb
+      .from('strategies').select('*').eq('id', link.strategyId).maybeSingle();
+    if (exact) {
+      const strategy = exact as unknown as Strategy & { id: string };
+      const slot = link.slotId
+        ? (strategy.publishing_plan ?? []).find((s) => s.id === link.slotId) ?? null
+        : null;
+      return { strategy, slot };
+    }
+  }
+
   const { data } = await sb
     .from('strategies')
     .select('*')

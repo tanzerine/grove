@@ -5,6 +5,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 const schema = z.object({
   domain_id: z.string().uuid(),
   auto_publish: z.boolean().optional(),
+  auto_social: z.boolean().optional(),
   posts_per_week: z.number().min(1).max(14).optional(),
 });
 
