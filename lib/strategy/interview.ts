@@ -74,6 +74,47 @@ export const INTERVIEW: InterviewQuestion[] = [
   {
     id: 'off_limits',
     prompt: 'Any topics, competitors, or framings the blog should never touch?',
+    help: 'Name competitors explicitly — they become a hard do-not-mention list for the writer + validator.',
+    kind: 'text',
+  },
+
+  // ── VOICE (optional, but this is what makes the blog sound like YOU) ──────
+  {
+    id: 'voice_samples',
+    prompt: 'Paste 1–2 posts (or URLs) that already sound exactly like your brand.',
+    help: 'The single biggest lever on voice. The writer is few-shot anchored on these real excerpts — not on guesses from your landing page.',
+    kind: 'text',
+  },
+  {
+    id: 'first_person',
+    prompt: 'Who is the article narrator?',
+    help: 'Drives the opening hook and every "I/we" in the piece.',
+    kind: 'single',
+    options: [
+      'a named person ("I", a founder/author with a byline)',
+      'the company ("we", collective voice)',
+      'no first person (third-person, editorial)',
+    ],
+  },
+  {
+    id: 'voice_attributes',
+    prompt: 'Pick the 2–3 attributes that most define how you sound.',
+    help: 'Each becomes a we-are / we-are-not rule the writer and brand-review grade against.',
+    kind: 'multi',
+    options: [
+      'casual & conversational (not formal/institutional)',
+      'peer-level & collaborative (not authoritative/expert-down)',
+      'direct & matter-of-fact (not warm/effusive)',
+      'technical & precise (not simplified/hand-wavy)',
+      'bold & energetic (not calm/measured)',
+      'playful & witty (not serious/earnest)',
+      'opinionated & forward-looking (not neutral/established)',
+    ],
+  },
+  {
+    id: 'words_to_avoid',
+    prompt: 'Words, phrases, or clichés you\'d never say.',
+    help: 'Merged into the banned-phrase list for this brand specifically.',
     kind: 'text',
   },
 ];

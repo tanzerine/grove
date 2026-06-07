@@ -5,7 +5,7 @@
  */
 import { llmCall } from '../llm';
 import { qualityRulesPrompt } from './quality-rules';
-import { postProcess, capCitations, ensureHomepageCta } from './post-process';
+import { postProcess, capCitations, ensureHomepageCta, forceCanonicalH1 } from './post-process';
 import type { SiteProfile } from './site-profile';
 import type { ResearchContext } from './research-context';
 import { flatSources } from './research-context';
@@ -84,7 +84,7 @@ export async function runWriter(opts: {
     '### Primary sources (use for facts, definitions, evidence)',
     context.primary.length ? fmt(context.primary, 0) : '(none)',
     '',
-    '### Competitor / alternative angles (for positioning your POV)',
+    '### Competitor / alternative angles (POSITIONING INTEL ONLY — never name, link, cite, or recommend these in the article)',
     context.competitor.length ? fmt(context.competitor, context.primary.length) : '(none)',
     '',
     '### Audience pain points (ground the article in real problems)',
@@ -109,6 +109,16 @@ Persona: ${voice.persona}
 Tone: ${voice.tone}
 Register: ${voice.register}
 ${voice.vocabulary.length ? `Vocabulary they use: ${voice.vocabulary.join(', ')}` : ''}
+${voice.we_are?.length ? `We ARE: ${voice.we_are.join('; ')}` : ''}
+${voice.we_are_not?.length ? `We are NOT: ${voice.we_are_not.join('; ')}` : ''}
+${voice.signature_moves?.length ? `Signature moves: ${voice.signature_moves.join('; ')}` : ''}
+${voice.avoid?.length ? `Never say (brand-specific bans): ${voice.avoid.join(', ')}` : ''}
+${voice.samples?.length ? `
+VOICE ANCHORS — these are REAL excerpts from this brand's own blog. Match this
+rhythm, diction, and attitude. Do NOT copy their content; imitate how they sound.
+This is the bar: if your draft doesn't sound like it could sit next to these, rewrite it.
+${voice.samples.map((s, i) => `--- anchor ${i + 1} ---\n${s}`).join('\n\n')}
+` : ''}
 
 EDITORIAL BRIEF (the spec — execute on this exactly)
 Title: ${brief.title}
@@ -172,6 +182,24 @@ STRUCTURE
 - 0–2 horizontal rules (---) at MAJOR argument shifts
 - inline \`code\` for product names / technical terms
 
+LENGTH (non-negotiable)
+- 900–1400 words. A draft under 800 words will be auto-rejected as thin.
+  Don't pad — go deeper: more concrete detail per section, not more sections.
+
+NEVER SEND THE READER ELSEWHERE
+- This is ${business.name}'s OWN blog. Never name, link, recommend, or compare
+  by name any competing product, tool, platform, studio, or agency — not even
+  to look balanced. The "Competitor / alternative angles" sources are for
+  sharpening YOUR contrast only.
+- Banned constructions: "tools like X", "platforms like Y", "you could also
+  use…", "alternatively, try…", "partner with an agency", "hire a studio".
+- You may name the product CATEGORY generically ("AI icon generators"); never
+  a specific rival brand.
+
+H1
+- The article's one and only H1 (# ) must be the brief's Title VERBATIM.
+  Do not rewrite it, shorten it, or invent a different headline.
+
 DO NOT
 - DO NOT start with "Title:", "Welcome back to…", or any meta intro
 - DO NOT use: elevate, game-changer, unleash, robust, seamless, cutting-edge,
@@ -215,7 +243,11 @@ Deliver the article now. Open with the hook line verbatim. Use the title as your
 
   const parsed = parseSections(draft.text);
   let body = parsed.blog_post || draft.text.trim();
+  // Canonical title is decided here (brief wins) so we can force it onto the H1.
+  const title = (parsed.meta_title?.trim() || brief.title).slice(0, 80);
   body = postProcess(body, sources);
+  // force the H1 to the canonical title verbatim (prompt rule #1, now guaranteed)
+  body = forceCanonicalH1(body, title);
   // cap citations: 4 max, extras demoted to plain text
   body = capCitations(body, 4);
   // marketing safety net — funnel-aware: editorial=no-op, contextual=inline link,
@@ -226,8 +258,7 @@ Deliver the article now. Open with the hook line verbatim. Use the title as your
     intent: brief.marketing_intent,
   });
 
-  // Title: always prefer the editorial brief's title — that's the whole point
-  const title = (parsed.meta_title?.trim() || brief.title).slice(0, 80);
+  // Title already computed above (canonical, forced onto the H1).
   let metaDesc = parsed.meta_description?.trim() || brief.promise.slice(0, 155);
   if (!metaDesc) {
     const firstPara = body.split('\n').find((l) => l.trim() && !l.startsWith('#')) ?? '';

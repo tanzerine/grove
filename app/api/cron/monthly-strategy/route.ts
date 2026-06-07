@@ -73,6 +73,15 @@ export async function GET(req: Request) {
       // aggregate last month's events
       const report = await summarizeMonth(domain.id, prevMonth, thisMonth);
 
+      // topics already written for this domain — so the planner doesn't repeat them
+      const { data: covered } = await sb
+        .from('topic_memory')
+        .select('keyword')
+        .eq('domain_id', domain.id)
+        .order('created_at', { ascending: false })
+        .limit(60);
+      const alreadyCovered = (covered ?? []).map((r: any) => r.keyword).filter(Boolean);
+
       const strategy = await buildStrategy({
         month: thisMonthLabel,
         postsPerWeek: domain.posts_per_week ?? 4,
@@ -80,6 +89,7 @@ export async function GET(req: Request) {
         interview: parseInterview((domain as any).interview),
         prevStrategy: (prev as any) as Strategy | null,
         prevReport: report,
+        alreadyCovered,
       });
 
       // deactivate prev, insert new

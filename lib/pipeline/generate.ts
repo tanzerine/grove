@@ -136,7 +136,10 @@ export async function generatePost(postId: string) {
 
   // 5. PERSIST
   const title = writer.meta_title || brief.title || topic.slice(0, 60);
-  const validation = validatePost(writer.blog_post);
+  const validation = validatePost(writer.blog_post, {
+    title,
+    intent: brief.marketing_intent,
+  });
   const slug = slugify(title);
   const nextStatus: 'review' | 'scheduled' = domain.auto_publish ? 'scheduled' : 'review';
   const scheduled_at = domain.auto_publish ? nextPublishSlot(domain.posts_per_week) : null;
