@@ -15,7 +15,10 @@
 import { llmCall, extractJson } from '../llm';
 import type { SiteProfile } from '../pipeline/site-profile';
 import { interviewSummary, type InterviewAnswers } from './interview';
+import { assignPublishDates } from './schedule';
 import type { MonthlyReport } from './review';
+
+export { assignPublishDates };   // re-exported for back-compat
 
 export type Goal = {
   id: string;          // short slug, e.g. "trial-signups"
@@ -239,35 +242,6 @@ publishing_plan should contain exactly ${monthlyPostCount} slots, distributed ac
   parsed.publishing_plan = assignPublishDates(parsed.publishing_plan, month, postsPerWeek);
 
   return parsed;
-}
-
-/**
- * Spread slots across the month at a steady cadence, skipping weekends, at
- * 09:00 UTC. Stored as UTC instants; the dashboard renders them in the
- * viewer's local time. Owners can override any individual date later.
- */
-export function assignPublishDates(slots: PostSlot[], month: string, postsPerWeek: number): PostSlot[] {
-  if (!slots.length) return slots;
-  const [y, m] = month.split('-').map(Number);          // month is 1-based here
-  const monthIdx = (m || 1) - 1;
-  const daysInMonth = new Date(Date.UTC(y, monthIdx + 1, 0)).getUTCDate();
-
-  // Candidate weekdays (Mon–Fri) in the month, in order.
-  const weekdays: number[] = [];
-  for (let d = 1; d <= daysInMonth; d++) {
-    const wd = new Date(Date.UTC(y, monthIdx, d)).getUTCDay();
-    if (wd !== 0 && wd !== 6) weekdays.push(d);
-  }
-  if (!weekdays.length) return slots;
-
-  // Even step so N slots land across the available weekdays.
-  const step = Math.max(1, weekdays.length / slots.length);
-  return slots.map((slot, i) => {
-    if (slot.publish_date) return slot;                 // respect an existing date
-    const day = weekdays[Math.min(weekdays.length - 1, Math.floor(i * step))];
-    const dt = new Date(Date.UTC(y, monthIdx, day, 9, 0, 0));
-    return { ...slot, publish_date: dt.toISOString() };
-  });
 }
 
 function validKpi(k: KPI): boolean {
