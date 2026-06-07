@@ -131,7 +131,7 @@ export default function CalendarClient({
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 24, alignItems: 'start' }}>
         {/* Calendar grid */}
-        <div style={{ background: 'white', border: '1px solid var(--line)', borderRadius: 16, overflow: 'hidden' }}>
+        <div style={{ background: 'white', border: '1px solid var(--line)', borderRadius: 16, overflow: 'hidden', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: '1px solid var(--line)' }}>
             <button onClick={prevMonth} style={navBtn}>‹</button>
             <span style={{ fontFamily: 'Clash Display', fontSize: 20, fontWeight: 600 }}>{MONTHS[month]} {year}</span>
@@ -162,6 +162,7 @@ export default function CalendarClient({
                     borderBottom: i < cells.length - 7 ? '1px solid var(--line)' : 'none',
                     background: active ? '#f0f6ff' : 'white',
                     cursor: day ? 'pointer' : 'default', transition: 'background .12s',
+                    minWidth: 0, overflow: 'hidden',   // keep long titles from blowing out the grid
                   }}
                 >
                   {day && (
@@ -173,7 +174,7 @@ export default function CalendarClient({
                         background: todayCell ? 'rgba(89,148,94,0.12)' : 'transparent',
                         display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 4,
                       }}>{day}</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
                         {shown.slice(0, 2).map((it, idx) => it.kind === 'post' ? (
                           <div key={it.p.id} style={{
                             fontSize: 10, lineHeight: 1.3,
@@ -228,7 +229,7 @@ export default function CalendarClient({
                     return (
                       <div key={p.id} style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid var(--line)' }}>
                         <Link href={`/dashboard/posts/${p.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-                          <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 3 }}>{p.title ?? p.topic ?? '(draft)'}</div>
+                          <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 3, overflowWrap: 'anywhere' }}>{p.title ?? p.topic ?? '(draft)'}</div>
                         </Link>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: canReschedule ? 8 : 0 }}>
                           <span style={{ width: 7, height: 7, borderRadius: '50%', background: STATUS_COLOR[p.status] ?? 'var(--clay)', display: 'inline-block' }} />
@@ -268,7 +269,7 @@ export default function CalendarClient({
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
                   {selectedDayPlanned.map(s => (
                     <div key={s.slot_id} style={{ padding: '8px 12px', borderRadius: 8, border: '1px dashed var(--clay)' }}>
-                      <div style={{ fontSize: 12, color: 'var(--ink)', marginBottom: 2 }}>{s.topic}</div>
+                      <div style={{ fontSize: 12, color: 'var(--ink)', marginBottom: 2, overflowWrap: 'anywhere' }}>{s.topic}</div>
                       <div style={{ fontSize: 10, color: 'var(--clay)' }}>planned · {s.intent} · {fmtTime(s.publish_date)} — auto-drafts ~3 days ahead</div>
                     </div>
                   ))}
@@ -291,6 +292,7 @@ export default function CalendarClient({
                               border: `2px solid ${editing ? 'var(--moss)' : 'var(--line)'}`,
                               background: editing ? 'rgba(89,148,94,0.07)' : 'white',
                               cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, color: 'var(--ink)',
+                              overflowWrap: 'anywhere',
                             }}>
                             {p.title ?? p.topic ?? '(draft)'}
                           </button>
@@ -327,6 +329,7 @@ export default function CalendarClient({
                   <Link key={p.id} href={`/dashboard/posts/${p.id}`} style={{
                     display: 'block', padding: '8px 12px', borderRadius: 8,
                     border: '1px solid var(--line)', textDecoration: 'none', fontSize: 12, color: 'var(--ink)',
+                    overflowWrap: 'anywhere',
                   }}>{p.title ?? p.topic ?? '(draft)'}</Link>
                 ))}
               </div>
