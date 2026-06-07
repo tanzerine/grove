@@ -12,7 +12,9 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import { generatePost } from '@/lib/pipeline/generate';
 import { runCoverForPost } from '@/lib/pipeline/cover-image';
 import { runInlineImagesForPost } from '@/lib/pipeline/inline-images';
+import { runSocialAdapter } from '@/lib/pipeline/writer';
 import { materializeDuePlanSlots } from '@/lib/strategy/materialize';
+import { publishToSocials } from '@/lib/social/publish';
 
 export const maxDuration = 300;
 
@@ -27,13 +29,37 @@ export async function GET(req: Request) {
 
   const sb = supabaseAdmin();
 
-  // 1) publish scheduled posts whose time has come
+  // 1) publish scheduled posts whose time has come, then fan out to socials
   const now = new Date().toISOString();
   const { data: due } = await sb
-    .from('posts').select('id')
+    .from('posts')
+    .select('id, title, slug, body_md, social, cover_image_url, social_published, domain_id, domains(*)')
     .eq('status', 'scheduled').lte('scheduled_at', now);
+  let socialFanout = 0;
   for (const p of due ?? []) {
     await sb.from('posts').update({ status: 'published', published_at: now }).eq('id', p.id);
+
+    const domain = (p as any).domains;
+    if (!domain?.auto_social) continue;
+    try {
+      // generate the social copy on demand if it wasn't created earlier
+      let social = (p as any).social;
+      if (!social && domain.site_profile?.business?.name && (p as any).body_md && (p as any).title) {
+        social = await runSocialAdapter({ title: (p as any).title, body_md: (p as any).body_md }, domain.site_profile);
+        await sb.from('posts').update({ social }).eq('id', p.id);
+      }
+      const res = await publishToSocials(
+        (p as any).domain_id,
+        {
+          id: (p as any).id, title: (p as any).title, slug: (p as any).slug,
+          social, cover_image_url: (p as any).cover_image_url, social_published: (p as any).social_published,
+        },
+        { blog_slug: domain.blog_slug },
+      );
+      if (Object.values(res).some((r: any) => r?.id)) socialFanout++;
+    } catch (e) {
+      console.error('[social fanout]', (p as any).id, e);
+    }
   }
 
   // 1b) materialize plan → posts: turn active-strategy slots that are due
@@ -92,6 +118,7 @@ export async function GET(req: Request) {
 
   return NextResponse.json({
     published: due?.length ?? 0,
+    social_fanout: socialFanout,
     materialized,
     generated: queued?.length ?? 0,
     covers: needCover?.length ?? 0,
