@@ -3,7 +3,7 @@ import { mdToHtml } from '@/lib/markdown';
 import { notFound } from 'next/navigation';
 import PostActions from './PostActions';
 import PipelineTimeline from './PipelineTimeline';
-import PostEditor from './PostEditor';
+import RichEditor from './RichEditor';
 import LocalTime from '../../LocalTime';
 import Link from 'next/link';
 
@@ -84,24 +84,22 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
         </div>
       )}
 
-      {/* Editor — shown for any post that has body content */}
-      {p.body_md && ['review', 'scheduled', 'published'].includes(p.status) && (
-        <PostEditor
+      {/* Single article block: rendered, and editable in place for finished posts. */}
+      {p.body_md && (['review', 'scheduled', 'published'].includes(p.status) ? (
+        <RichEditor
           postId={p.id}
           initialBody={p.body_md}
           initialMetaTitle={p.meta_title ?? ''}
           initialMetaDesc={p.meta_description ?? ''}
-          status={p.status}
+          canEdit
         />
-      )}
-
-      {bodyHtml && (
+      ) : bodyHtml ? (
         <article
           className="prose"
           style={{ marginTop: 16, padding: '36px 44px', background: 'white', border: '1px solid var(--line)', borderRadius: 14, maxWidth: 'none' }}
           dangerouslySetInnerHTML={{ __html: bodyHtml }}
         />
-      )}
+      ) : null)}
 
       {(social.x || social.linkedin || social.instagram) && (
         <>
@@ -112,7 +110,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
         </>
       )}
 
-      {p.meta_title && (
+      {p.meta_title && !['review', 'scheduled', 'published'].includes(p.status) && (
         <div style={{ marginTop: 32, padding: 16, background: 'var(--paper)', borderRadius: 10, fontSize: 14 }}>
           <div className="mono" style={{ fontSize: 11, color: 'var(--clay)' }}>SEO META</div>
           <div style={{ marginTop: 6 }}><b>Title:</b> {p.meta_title}</div>
