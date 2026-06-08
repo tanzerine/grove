@@ -19,9 +19,9 @@ const STATUS_BADGE: Record<string, { cls: string; label: string }> = {
 const STUCK_MIN = 3;
 const IN_FLIGHT = new Set(['queued', 'researching', 'writing']);
 
-export default function PostRow({ p }: { p: any }) {
+export default function PostRow({ p, score }: { p: any; score?: { overall: number; action: string } | null }) {
   const r = useRouter();
-  const [busy, setBusy] = useState<null | 'retry' | 'delete'>(null);
+  const [busy, setBusy] = useState<null | 'retry' | 'delete' | 'regen'>(null);
   const b = STATUS_BADGE[p.status] ?? STATUS_BADGE.queued;
   const errorMsg = p.status === 'failed' ? (p.validation?.error ?? 'Unknown error') : null;
   const failedAt = p.validation?.failed_at;
@@ -64,8 +64,29 @@ export default function PostRow({ p }: { p: any }) {
     r.refresh();
   }
 
+  async function regenerate() {
+    if (busy) return;
+    if (!confirm('Rewrite this article from scratch? This replaces the current draft.')) return;
+    setBusy('regen');
+    const res = await fetch(`/api/posts/${p.id}/retry`, { method: 'POST' });
+    setBusy(null);
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      alert(`Regenerate failed: ${j.error ?? 'unknown'}`);
+    }
+    r.refresh();
+  }
+
   const showRetry = p.status === 'failed' || stuck;
   const showDelete = p.status === 'failed' || stuck;
+  // Regenerate is available once there's a finished draft to replace.
+  const showRegen = ['review', 'scheduled', 'published'].includes(p.status);
+
+  // Manager quality score (0–100), colored by band.
+  const scoreColor = !score ? 'var(--clay)'
+    : score.overall >= 70 ? 'var(--moss)'
+    : score.overall >= 40 ? '#E0A040'
+    : '#c0392b';
 
   return (
     <div className="post-row">
@@ -85,6 +106,22 @@ export default function PostRow({ p }: { p: any }) {
         </div>
       </Link>
       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        {score && (
+          <span
+            title={`Manager quality score · last decision: ${score.action}`}
+            style={{
+              fontFamily: 'DM Mono', fontSize: 12, fontWeight: 600, color: 'white',
+              background: scoreColor, borderRadius: 6, padding: '2px 7px', whiteSpace: 'nowrap',
+            }}
+          >
+            {score.overall}<span style={{ opacity: 0.7, fontWeight: 400 }}>/100</span>
+          </span>
+        )}
+        {showRegen && (
+          <button className="qbtn" onClick={regenerate} disabled={!!busy} title="Rewrite this article from scratch">
+            {busy === 'regen' ? '…' : '↻ Regenerate'}
+          </button>
+        )}
         {showRetry && (
           <button className="qbtn go" onClick={retry} disabled={!!busy} style={{ background: 'var(--moss)', color: 'white' }}>
             {busy === 'retry' ? 'Retrying…' : 'Retry'}
