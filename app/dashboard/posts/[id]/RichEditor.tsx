@@ -32,6 +32,7 @@ export default function RichEditor({ postId, initialBody, initialMetaTitle, init
   const [seoOpen, setSeoOpen] = useState(false);
   const [metaTitle, setMetaTitle] = useState(initialMetaTitle);
   const [metaDesc, setMetaDesc] = useState(initialMetaDesc);
+  const [revise, setRevise] = useState<{ from: number; to: number; text: string; instruction: string; loading?: boolean; error?: string } | null>(null);
   const baseline = useRef<string>(initialBody);
 
   const editor = useEditor({
@@ -96,6 +97,39 @@ export default function RichEditor({ postId, initialBody, initialMetaTitle, init
     else editor.chain().focus().setLink({ href: url }).run();
   }
 
+  // ── #4: revise the selected passage with AI ──────────────────────────
+  function startRevise() {
+    if (!editor) return;
+    const { from, to } = editor.state.selection;
+    if (from === to) return;
+    const text = editor.state.doc.textBetween(from, to, ' ');
+    if (text.trim().length < 2) return;
+    setRevise({ from, to, text, instruction: '' });
+  }
+
+  async function runRevise() {
+    if (!editor || !revise || !revise.instruction.trim()) return;
+    setRevise({ ...revise, loading: true, error: undefined });
+    try {
+      const res = await fetch(`/api/posts/${postId}/revise-section`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ selected: revise.text, instruction: revise.instruction, context: getMd(editor) }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok || !j.revised) {
+        setRevise((rv) => (rv ? { ...rv, loading: false, error: j.error ?? 'revision failed' } : rv));
+        return;
+      }
+      // replace exactly the originally-selected range with the revision
+      editor.chain().focus().setTextSelection({ from: revise.from, to: revise.to }).insertContent(j.revised).run();
+      setDirty(getMd(editor) !== baseline.current);
+      setRevise(null);
+    } catch (e: any) {
+      setRevise((rv) => (rv ? { ...rv, loading: false, error: String(e?.message ?? e) } : rv));
+    }
+  }
+
   const wordCount = getMd(editor).trim().split(/\s+/).filter(Boolean).length;
 
   return (
@@ -129,8 +163,37 @@ export default function RichEditor({ postId, initialBody, initialMetaTitle, init
             <FmtBtn on={editor.isActive('blockquote')} onClick={() => editor.chain().focus().toggleBlockquote().run()}>❝</FmtBtn>
             <FmtBtn on={editor.isActive('bulletList')} onClick={() => editor.chain().focus().toggleBulletList().run()}>•</FmtBtn>
             <FmtBtn on={editor.isActive('link')} onClick={setLink}>link</FmtBtn>
+            <span style={{ width: 1, background: 'rgba(255,255,255,0.22)', margin: '2px 3px' }} />
+            <FmtBtn onClick={startRevise}>✨ AI</FmtBtn>
           </div>
         </BubbleMenu>
+      )}
+
+      {/* #4: AI revise panel for the captured selection */}
+      {revise && (
+        <div style={overlay} onClick={() => { if (!revise.loading) setRevise(null); }}>
+          <div style={card} onClick={(e) => e.stopPropagation()}>
+            <div style={{ fontFamily: 'Clash Display', fontSize: 16 }}>Revise with AI</div>
+            <div style={{ fontSize: 12, color: 'var(--clay)', borderLeft: '3px solid var(--line)', paddingLeft: 10, maxHeight: 84, overflow: 'auto' }}>
+              {revise.text.length > 240 ? revise.text.slice(0, 240) + '…' : revise.text}
+            </div>
+            <textarea
+              autoFocus
+              value={revise.instruction}
+              onChange={(e) => setRevise((rv) => (rv ? { ...rv, instruction: e.target.value } : rv))}
+              placeholder="How should this change? e.g. make it punchier, add a concrete example, soften the tone"
+              rows={3}
+              style={inp}
+            />
+            {revise.error && <div style={{ color: '#c33', fontSize: 12 }}>{revise.error}</div>}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={runRevise} disabled={!revise.instruction.trim() || revise.loading} className="btn btn-primary btn-sm">
+                {revise.loading ? 'Rewriting…' : 'Rewrite selection'}
+              </button>
+              <button onClick={() => setRevise(null)} disabled={revise.loading} className="btn btn-ghost btn-sm">Cancel</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* the single rendered block — reads like the article, editable on click */}
@@ -195,4 +258,12 @@ const lbl: React.CSSProperties = {
 const inp: React.CSSProperties = {
   width: '100%', padding: '10px 14px', border: '1px solid var(--line)', borderRadius: 8,
   fontSize: 14, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', resize: 'vertical',
+};
+const overlay: React.CSSProperties = {
+  position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.28)', zIndex: 50,
+  display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '14vh 16px 16px',
+};
+const card: React.CSSProperties = {
+  width: 'min(560px, 100%)', background: 'white', borderRadius: 14, padding: 20,
+  display: 'flex', flexDirection: 'column', gap: 12, boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
 };
