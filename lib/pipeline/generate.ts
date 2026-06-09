@@ -130,27 +130,41 @@ export async function generatePost(postId: string) {
     evaluation = null;
   }
 
-  if (evaluation?.action === 'reject') {
-    await sb.from('posts').update({
-      status: 'failed',
-      validation: { error: 'manager rejected', reject_reason: evaluation.reject_reason },
-    }).eq('id', postId);
-    await appendLog(postId, 'persist', 'fail', `manager reject: ${evaluation.reject_reason}`);
-    return;
-  }
-
   // 5. PERSIST
+  // The manager NEVER discards a finished draft. A reject or any serious flag
+  // routes the post to human REVIEW (with the manager's concerns attached),
+  // not to 'failed'. 'failed' is reserved for real pipeline errors. This keeps
+  // the owner in control instead of silently throwing away good work — e.g. a
+  // draft scoring 85 should never be deleted just because round 2 couldn't
+  // squeeze in one more rewrite.
   const title = writer.meta_title || brief.title || topic.slice(0, 60);
   const validation = validatePost(writer.blog_post, {
     title,
     intent: brief.marketing_intent,
   });
+  if (evaluation) {
+    (validation as any).manager = {
+      action: evaluation.action,
+      overall: evaluation.scores?.overall ?? null,
+      reject_reason: evaluation.reject_reason ?? null,
+      issues: (evaluation.issues ?? []).filter((i) => i.severity !== 'note').map((i) => `${i.rule}: ${i.note}`),
+    };
+  }
   const slug = slugify(title);
+
+  // Route to review (not auto-publish) when the manager rejected, flagged a
+  // block/rewrite issue, or scored below the bar — even if auto_publish is on.
+  const managerConcern =
+    evaluation?.action === 'reject' ||
+    (evaluation?.issues ?? []).some((i) => i.severity === 'block' || i.severity === 'rewrite') ||
+    (evaluation ? (evaluation.scores?.overall ?? 100) < 60 : false);
+
   // Preserve a planned date if one was carried through from the strategy slot;
   // otherwise fall back to the rolling auto-publish cadence.
   const plannedAt: string | null = (post as any).scheduled_at ?? null;
-  const nextStatus: 'review' | 'scheduled' = domain.auto_publish ? 'scheduled' : 'review';
-  const scheduled_at = plannedAt ?? (domain.auto_publish ? nextPublishSlot(domain.posts_per_week) : null);
+  const canAutoPublish = domain.auto_publish && !managerConcern;
+  const nextStatus: 'review' | 'scheduled' = canAutoPublish ? 'scheduled' : 'review';
+  const scheduled_at = plannedAt ?? (canAutoPublish ? nextPublishSlot(domain.posts_per_week) : null);
 
   try {
     await sb.from('posts').update({
@@ -165,7 +179,8 @@ export async function generatePost(postId: string) {
     }).eq('id', postId);
     await sb.from('topic_memory').insert({ domain_id: domain.id, keyword: topic });
     await appendLog(postId, 'persist', 'done',
-      validation.passed ? 'validator passed' : `validator: ${validation.issues.length} flags`);
+      `→ ${nextStatus}${managerConcern ? ' (manager flagged for your review)' : ''} · ` +
+      (validation.passed ? 'validator clean' : `${validation.issues.length} validator flags`));
   } catch (e) { await failAt(postId, 'persist', e); return; }
 
   // NOTE: cover image is intentionally NOT triggered here.

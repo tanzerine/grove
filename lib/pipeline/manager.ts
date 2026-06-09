@@ -149,14 +149,14 @@ Return JSON:
   // Force consistency: pass mirrors action.
   parsed.pass = parsed.action === 'approve';
 
-  // Round 2 may NOT request another rewrite.
+  // Round 2 may NOT request another rewrite, and must NOT discard the draft.
+  // Whatever's left, approve it through — generate.ts routes drafts that still
+  // carry block/rewrite issues (or score low) to human review instead of
+  // auto-publishing. Throwing away an otherwise-fine draft just because one
+  // rewrite pass couldn't clear every flag is the wrong call.
   if (attempt === 2 && parsed.action === 'rewrite') {
-    const hasBlocking = parsed.issues.some((i) => i.severity === 'block');
-    parsed.action = hasBlocking ? 'reject' : 'approve';
-    parsed.pass = parsed.action === 'approve';
-    parsed.reject_reason = hasBlocking
-      ? 'blocking issues remained after one rewrite attempt'
-      : parsed.reject_reason;
+    parsed.action = 'approve';
+    parsed.pass = true;
   }
 
   return parsed;
