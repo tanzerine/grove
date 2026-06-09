@@ -82,6 +82,16 @@ export default function RichEditor({ postId, initialBody, initialMetaTitle, init
     setEditing(false);
   }
 
+  function discard() {
+    if (!editor) return;
+    if ((dirty || metaDirty) && !confirm('Discard your changes since the last save?')) return;
+    editor.commands.setContent(baseline.current);   // baseline is the last-saved markdown
+    setMetaTitle(initialMetaTitle);
+    setMetaDesc(initialMetaDesc);
+    setDirty(false);
+    setEditing(false);
+  }
+
   function enterEdit() {
     if (!canEdit || editing) return;
     setEditing(true);
@@ -146,6 +156,9 @@ export default function RichEditor({ postId, initialBody, initialMetaTitle, init
             {saved && <span style={{ fontSize: 11, color: 'var(--moss)' }}>✓ saved</span>}
             <button onClick={done} disabled={saving} className="btn btn-primary btn-sm" style={{ marginLeft: 'auto' }}>
               {saving ? 'Saving…' : (dirty || metaDirty) ? 'Save & done' : 'Done'}
+            </button>
+            <button onClick={discard} disabled={saving} className="btn btn-ghost btn-sm">
+              Discard
             </button>
           </>
         )}
@@ -235,7 +248,8 @@ function FmtBtn({ children, on, onClick, italic }: { children: React.ReactNode; 
   return (
     <button onMouseDown={(e) => { e.preventDefault(); onClick(); }}
       style={{
-        background: on ? 'var(--moss)' : 'transparent', color: on ? 'white' : 'var(--ink)',
+        // bar background is dark (var(--ink)); keep text light so it's readable
+        background: on ? 'var(--moss)' : 'transparent', color: '#fff',
         border: 'none', borderRadius: 5, padding: '4px 8px', cursor: 'pointer',
         fontSize: 13, fontStyle: italic ? 'italic' : 'normal', fontFamily: 'inherit', minWidth: 26,
       }}>
@@ -258,12 +272,13 @@ const lbl: React.CSSProperties = {
 const inp: React.CSSProperties = {
   width: '100%', padding: '10px 14px', border: '1px solid var(--line)', borderRadius: 8,
   fontSize: 14, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', resize: 'vertical',
+  color: 'var(--ink)', background: '#fff',
 };
 const overlay: React.CSSProperties = {
   position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.28)', zIndex: 50,
   display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '14vh 16px 16px',
 };
 const card: React.CSSProperties = {
-  width: 'min(560px, 100%)', background: 'white', borderRadius: 14, padding: 20,
+  width: 'min(560px, 100%)', background: 'white', color: 'var(--ink)', borderRadius: 14, padding: 20,
   display: 'flex', flexDirection: 'column', gap: 12, boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
 };
