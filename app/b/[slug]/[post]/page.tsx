@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 export default async function PostPage({ params }: { params: Promise<{ slug: string; post: string }> }) {
   const { slug, post } = await params;
   const sb = supabaseAdmin();
-  const { data: domain } = await sb.from('domains').select('id,hostname,blog_slug').eq('blog_slug', slug).single();
+  const { data: domain } = await sb.from('domains').select('id,hostname,blog_slug,site_profile').eq('blog_slug', slug).single();
   if (!domain) notFound();
   const { data: p } = await sb
     .from('posts').select('title,body_md,published_at,meta_description,reads,id')
@@ -31,47 +31,53 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   const html = mdToHtml(p.body_md ?? '');
   const toc = extractToc(p.body_md ?? '');
 
+  // CTA banner: "Try {business}" → the customer's own site (counts as a conversion).
+  const profile = (domain as any).site_profile ?? null;
+  const business = profile?.business ?? null;
+  const businessName: string = business?.name || domain.hostname.replace(/^www\./, '');
+  const subline: string = business?.value_props?.[0] || business?.description || '';
+  const homeUrl = `https://${domain.hostname.replace(/^https?:\/\//, '').replace(/\/$/, '')}`;
+
   return (
-    <main className="wrap" style={{ maxWidth: 720, padding: '60px 28px' }}>
+    <main className="post-shell">
       <a href={`/b/${slug}`} className="mono" style={{ fontSize: 12, color: 'var(--moss)' }}>← {domain.hostname}</a>
-      <h1 className="display" style={{ fontSize: 46, marginTop: 18 }}>{p.title}</h1>
-      <p className="mono" style={{ color: 'var(--clay)', fontSize: 12 }}>{new Date(p.published_at!).toLocaleDateString()}</p>
-      {toc.length >= 2 && (
-        <nav
-          aria-label="Table of contents"
-          style={{
-            marginTop: 30,
-            padding: '20px 24px',
-            background: 'white',
-            border: '1px solid var(--line)',
-            borderRadius: 14,
-          }}
-        >
-          <div
-            className="mono"
-            style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--clay)', marginBottom: 10 }}
-          >
-            Contents
-          </div>
-          <ol style={{ listStyle: 'none', padding: 0, margin: 0, lineHeight: 1.7 }}>
-            {toc.map((item, i) => (
-              <li
-                key={`${item.id}-${i}`}
-                style={{ paddingLeft: item.level === 3 ? 16 : 0, fontSize: item.level === 3 ? 14 : 15 }}
-              >
-                <a href={`#${item.id}`} style={{ color: 'var(--ink)', textDecoration: 'none' }}>
-                  {item.text}
-                </a>
-              </li>
-            ))}
-          </ol>
-        </nav>
-      )}
-      <article
-        className="prose"
-        style={{ marginTop: 30, padding: '40px 36px', background: 'white', border: '1px solid var(--line)', borderRadius: 14, maxWidth: 'none' }}
-        dangerouslySetInnerHTML={{ __html: html }}
-      />
+
+      <div className="post-grid" style={{ marginTop: 18 }}>
+        <div className="post-main">
+          <h1 className="display" style={{ fontSize: 46 }}>{p.title}</h1>
+          <p className="mono" style={{ color: 'var(--clay)', fontSize: 12 }}>{new Date(p.published_at!).toLocaleDateString()}</p>
+
+          <article
+            className="prose"
+            style={{ marginTop: 30, padding: '40px 36px', background: 'white', border: '1px solid var(--line)', borderRadius: 14, maxWidth: 'none' }}
+            dangerouslySetInnerHTML={{ __html: html }}
+          />
+
+          {/* "Try {business}" banner — links to the customer's site, tracked as a conversion */}
+          <aside className="cta-banner">
+            <div className="cta-kicker">Powered by {businessName}</div>
+            <h3>Try {businessName}</h3>
+            {subline && <p>{subline}</p>}
+            <a className="cta-btn" href={homeUrl} target="_blank" rel="noopener noreferrer" data-conv>
+              Visit {businessName} →
+            </a>
+          </aside>
+        </div>
+
+        {toc.length >= 2 && (
+          <aside className="toc-rail" aria-label="Table of contents">
+            <div className="toc-title">On this page</div>
+            <ol>
+              {toc.map((item, i) => (
+                <li key={`${item.id}-${i}`} className={item.level === 3 ? 'lvl3' : undefined}>
+                  <a href={`#${item.id}`}>{item.text}</a>
+                </li>
+              ))}
+            </ol>
+          </aside>
+        )}
+      </div>
+
       <script
         dangerouslySetInnerHTML={{
           __html: buildTrackerScript({ postId: p.id, domainId: domain.id, hostname: domain.hostname }),

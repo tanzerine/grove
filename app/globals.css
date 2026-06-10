@@ -335,13 +335,15 @@ a { color: inherit; text-decoration: none; }
 .prose > p > em:only-child { font-size: 1.05em; color: var(--clay); }
 
 /* Subtle links: brand mentions shouldn't shout. */
+/* Links blend into the prose (professional editorial) — no loud underline.
+   A faint hairline only hints at them; the color shifts on hover. */
 .prose a {
   color: var(--ink);
-  text-decoration: underline; text-decoration-color: var(--moss);
-  text-decoration-thickness: 1px; text-underline-offset: 4px;
-  transition: text-decoration-color 0.15s ease, color 0.15s ease;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(26, 46, 31, 0.16);
+  transition: color 0.15s ease, border-color 0.15s ease;
 }
-.prose a:hover { color: var(--moss); text-decoration-color: var(--ink); }
+.prose a:hover { color: var(--moss); border-bottom-color: var(--moss); }
 
 .prose strong { color: var(--ink); font-weight: 600; background: linear-gradient(transparent 62%, rgba(78,158,106,0.18) 62%); padding: 0 2px; }
 .prose em { color: var(--clay); }
@@ -395,3 +397,27 @@ a { color: inherit; text-decoration: none; }
 .prose table th { background: var(--paper); color: var(--moss); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
 .prose table tr:last-child td { border-bottom: none; }
 .prose table tr:nth-child(even) td { background: rgba(245, 243, 237, 0.4); }
+
+/* ─────────────── public article: right-rail TOC + CTA banner ─────────────── */
+.post-shell { max-width: 1060px; margin: 0 auto; padding: 60px 28px; }
+.post-grid { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 48px; align-items: start; }
+.post-main { min-width: 0; }
+
+.toc-rail { position: sticky; top: 28px; }
+.toc-title { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--clay); margin-bottom: 12px; }
+.toc-rail ol { list-style: none; margin: 0; padding: 0; }
+.toc-rail a { display: block; color: var(--clay); text-decoration: none; font-size: 13.5px; line-height: 1.45; padding: 5px 0 5px 14px; border-left: 2px solid var(--line); transition: color 0.15s, border-color 0.15s; }
+.toc-rail a:hover { color: var(--ink); border-left-color: var(--moss); }
+.toc-rail li.lvl3 a { padding-left: 26px; font-size: 13px; }
+
+.cta-banner { margin-top: 48px; background: var(--ink); color: white; border-radius: 16px; padding: 36px 40px; text-align: center; }
+.cta-banner .cta-kicker { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.6); }
+.cta-banner h3 { font-family: 'Clash Display', sans-serif; font-size: 26px; margin: 8px 0 6px; color: white; }
+.cta-banner p { color: rgba(255,255,255,0.82); font-size: 15px; line-height: 1.6; margin: 0 auto 20px; max-width: 48ch; }
+.cta-btn { display: inline-block; background: var(--moss); color: white; text-decoration: none; padding: 12px 26px; border-radius: 999px; font-weight: 600; font-size: 15px; transition: transform 0.12s ease, background 0.15s ease; }
+.cta-btn:hover { background: #4e9e6a; transform: translateY(-1px); }
+
+@media (max-width: 900px) {
+  .post-grid { grid-template-columns: 1fr; }
+  .toc-rail { display: none; }
+}
