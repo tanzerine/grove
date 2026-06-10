@@ -45,6 +45,37 @@ export type ManagerInput = {
   slot?: PostSlot | null;       // the publishing_plan slot this article was meant to fill
 };
 
+/**
+ * Compute the rubric scores from the model's raw axis ratings.
+ * - Missing/garbled axes default to a neutral 70 (a tooling glitch must never
+ *   read as "terrible article").
+ * - overall is weighted in code; when there's no active strategy, strategic_fit
+ *   is dropped from the weighting (nothing to grade it against).
+ */
+export function computeScores(
+  raw: any,
+  hasStrategy: boolean,
+): { strategic_fit: number; marketing: number; craft: number; safety: number; overall: number } {
+  const clamp = (n: any, dflt = 70) => {
+    const v = Number(n);
+    return Number.isFinite(v) ? Math.max(0, Math.min(100, Math.round(v))) : dflt;
+  };
+  const sub = {
+    strategic_fit: hasStrategy ? clamp(raw?.strategic_fit) : clamp(raw?.strategic_fit, 75),
+    marketing: clamp(raw?.marketing),
+    craft: clamp(raw?.craft),
+    safety: clamp(raw?.safety),
+  };
+  const w = hasStrategy
+    ? { strategic_fit: 0.30, marketing: 0.25, craft: 0.30, safety: 0.15 }
+    : { strategic_fit: 0.00, marketing: 0.35, craft: 0.50, safety: 0.15 };
+  const overall = Math.round(
+    sub.strategic_fit * w.strategic_fit + sub.marketing * w.marketing +
+    sub.craft * w.craft + sub.safety * w.safety,
+  );
+  return { ...sub, overall };
+}
+
 export async function evaluateDraft(input: ManagerInput): Promise<Evaluation> {
   const { attempt, brief, draft, strategy, slot } = input;
   const pillar = slot && strategy
@@ -71,12 +102,22 @@ DECIDE
 This is attempt ${attempt} of at most 2. On attempt 2 you MUST choose
 'approve' or 'reject' — never 'rewrite' again.
 
-SCORES (0-100, be honest):
-- strategic_fit: pillar/audience/KPI alignment
+SCORES — rate each axis 0-100 on an ABSOLUTE craft scale (NOT as a pass/fail gate).
+Anchors:
+- 85-100 = excellent, ship as-is
+- 70-84 = solid and publishable — where a competent, on-topic, specific draft lands
+- 50-69 = usable but has clear weaknesses
+- below 50 = real, nameable problems
+Axes:
+- strategic_fit: does it serve the pillar/audience? If there is NO active strategy,
+  score this 75 (there is nothing to violate) — do NOT tank it to 0.
 - marketing: intent execution + CTA discipline
-- craft: lead, pull-quote, specifics, banned phrases
-- safety: citations, no fabricated stats, no PII
-- overall: weighted (strategic_fit 40%, marketing 25%, craft 25%, safety 10%)
+- craft: lead, specifics, voice, structure, no banned phrases
+- safety: citations where needed, no fabricated stats, no PII
+Do NOT default to low numbers. Most finished drafts are 70-85 unless they have
+concrete flaws you can name. Score honestly against the anchors above.
+You provide the four axis scores; the SYSTEM computes the weighted overall — so
+just rate the axes accurately, don't compute an overall yourself.
 
 OUTPUT: ONE raw JSON object, no preamble, no markdown.
 
@@ -117,7 +158,7 @@ Return JSON:
 {
   "action": "approve | rewrite | reject",
   "pass": true|false,
-  "scores": { "strategic_fit": 0, "marketing": 0, "craft": 0, "safety": 0, "overall": 0 },
+  "scores": { "strategic_fit": <0-100>, "marketing": <0-100>, "craft": <0-100>, "safety": <0-100> },
   "issues": [{ "rule": "rule_id", "severity": "block|rewrite|note", "note": "specific quoted evidence + what to change" }],
   "rewrite_brief": "if action=rewrite, concrete edit instructions (3-6 bullet points). Empty otherwise.",
   "reject_reason": "if action=reject, one sentence. Empty otherwise."
@@ -129,7 +170,10 @@ Return JSON:
   // ── normalize ────────────────────────────────────────────
   parsed.action = ['approve', 'rewrite', 'reject'].includes(parsed.action) ? parsed.action : 'approve';
   parsed.issues = Array.isArray(parsed.issues) ? parsed.issues : [];
-  parsed.scores = parsed.scores ?? { strategic_fit: 0, marketing: 0, craft: 0, safety: 0, overall: 0 };
+
+  // Compute the overall in code (never trust the model's arithmetic) with
+  // strategy-aware weights and neutral defaults for missing axes.
+  parsed.scores = computeScores(parsed.scores, !!strategy);
 
   // Score floor: gating was action-driven, so the LLM could return a low
   // overall AND action:"approve", shipping a weak draft. On attempt 1, force a
