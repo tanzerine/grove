@@ -1,9 +1,10 @@
 /**
- * AI-generated cover image via Replicate Flux Schnell.
+ * AI-generated cover image via OpenAI gpt-image-2 on Replicate.
  *
  * Pipeline:
- *  1. LLM crafts a Flux prompt from the article's title + business industry
- *  2. Flux Schnell renders the image (~3-5s, ~$0.003 per image)
+ *  1. LLM art-directs an image prompt from the article + business context
+ *  2. gpt-image-2 renders the image. Quality is env-tunable to control cost
+ *     (COVER_IMAGE_QUALITY: low ≈ cheapest, medium = balanced, high = pricey)
  *  3. Image is downloaded and uploaded to Supabase Storage (Replicate URLs
  *     expire after ~60 minutes, so we must persist them)
  *  4. Return the public Supabase URL + AI credit
@@ -21,18 +22,20 @@ import Replicate from 'replicate';
 import { llmCall } from '../llm';
 import { supabaseAdmin } from '../supabase/admin';
 
-const FLUX_MODEL = 'black-forest-labs/flux-schnell' as const;
+const IMAGE_MODEL = 'openai/gpt-image-2' as const;
+// low ≈ cheapest, medium = balanced quality/cost, high = pricey. Env-tunable.
+const IMAGE_QUALITY = (process.env.COVER_IMAGE_QUALITY ?? 'medium') as 'low' | 'medium' | 'high';
+const IMAGE_ASPECT = '3:2';   // gpt-image-2 supports 1:1, 3:2, 2:3
 const BUCKET = process.env.COVER_BUCKET ?? 'post-covers';
 
 export type Cover = {
   url: string;
-  credit: { name: string; source: 'flux-schnell'; model: string };
+  credit: { name: string; source: string; model: string };
 };
 
-const STYLE = `editorial illustration style — clean, modern, minimalist composition
-with soft gradient background, restrained palette of 2-3 muted colors,
-geometric shapes and subtle textures, magazine-cover quality, no text, no people,
-landscape 16:9 framing`;
+const STYLE = `clean modern editorial illustration, restrained muted palette of 2-3 colors,
+soft tasteful lighting, generous negative space, landscape composition,
+magazine-cover quality — no text, no letters, no logos, no readable UI copy, no people, no faces`;
 
 type PromptInput = {
   title: string;
@@ -76,23 +79,22 @@ async function composePrompt(input: PromptInput): Promise<string> {
 
   try {
     const { text } = await llmCall({
-      fast: true,
-      maxTokens: 180,
-      system: `You write image-generation prompts for editorial blog covers.
-The cover MUST visually echo the article's specific argument AND fit the
-business's product domain — not generic stock imagery.
+      maxTokens: 320,
+      system: `You are an art director writing ONE image-generation prompt for an
+editorial blog cover, rendered by a high-fidelity image model (gpt-image-2).
+The cover MUST visually echo THIS article's specific argument AND fit the
+business's product domain — never generic stock imagery.
 
-RULES
-- Output ONE sentence. No quotes, no preamble, no markdown, no lists.
-- Pick a concrete visual metaphor that maps to the article's central idea
-  (e.g. "before/after split frame", "stacked layers being lifted", "tools
-  laid out on a workbench"). Not abstract swirls.
-- Anchor the imagery in objects the business's audience would recognize from
-  their own work — UI surfaces, icons, panels, blueprints, etc. — based on
-  the business description and products.
-- Concrete subjects, materials, lighting. No people, no faces, no readable
-  text or logos on the image.
-- 25–45 words.`,
+Write ONE paragraph (45-75 words, no quotes/markdown/lists) that specifies, in order:
+- SUBJECT: a concrete visual metaphor mapping to the article's central idea
+  (e.g. a split before/after frame, stacked layers being lifted, mismatched
+  parts snapping into a set). Ground it in objects the audience recognizes
+  from their own work — UI panels, icons, devices, blueprints — based on the
+  business description and products.
+- COMPOSITION: one clear focal point with generous negative space, landscape.
+- LIGHTING & MATERIALS: soft, tasteful, tactile.
+Be vivid and specific about shapes, materials, and arrangement.
+Do NOT include any text, letters, numbers, logos, readable UI copy, people, or faces.`,
       user: `BUSINESS: ${businessName || '(unknown)'} — ${businessDescription || industry || '(unknown)'}
 PRODUCTS / SERVICES: ${products.slice(0, 4).join(', ') || '(unknown)'}
 
@@ -101,8 +103,8 @@ ARTICLE ESSENCE: ${essence || '(none — infer from title)'}
 
 Write the image prompt now.`,
     });
-    const subject = text.trim().replace(/^["']|["']$/g, '').replace(/\s+/g, ' ').slice(0, 320);
-    return `${subject}, ${STYLE}`;
+    const subject = text.trim().replace(/^["']|["']$/g, '').replace(/\s+/g, ' ').slice(0, 600);
+    return `${subject} ${STYLE}`;
   } catch {
     const fallbackSubject = products[0]
       ? `visual metaphor for "${title}" rendered using ${products[0]}-style imagery`
@@ -180,20 +182,18 @@ export async function fetchCoverImage(
     const replicate = new Replicate({ auth: apiKey });
     const prompt = await composePrompt(promptInput);
 
-    // 1. Generate via Flux Schnell with hard 90s timeout
+    // 1. Generate via gpt-image-2 with hard 120s timeout (it's slower than Flux)
     const result = await Promise.race([
-      replicate.run(FLUX_MODEL, {
+      replicate.run(IMAGE_MODEL, {
         input: {
           prompt,
-          aspect_ratio: '16:9',
+          aspect_ratio: IMAGE_ASPECT,
+          quality: IMAGE_QUALITY,
           output_format: 'webp',
-          output_quality: 90,
-          num_outputs: 1,
-          go_fast: true,
         },
       }),
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Flux generation timeout')), 90_000)
+        setTimeout(() => reject(new Error('image generation timeout')), 120_000)
       ),
     ]);
 
@@ -215,7 +215,7 @@ export async function fetchCoverImage(
       return null;
     }
   } catch (err) {
-    console.error('[cover-image] Flux failed:', err);
+    console.error('[cover-image] gpt-image-2 failed:', err);
     return null;
   }
 
@@ -247,9 +247,9 @@ export async function fetchCoverImage(
     return {
       url: pub.publicUrl,
       credit: {
-        name: 'AI-generated via Flux Schnell',
-        source: 'flux-schnell',
-        model: FLUX_MODEL,
+        name: 'AI-generated via gpt-image-2',
+        source: 'gpt-image-2',
+        model: IMAGE_MODEL,
       },
     };
   } catch (err) {
