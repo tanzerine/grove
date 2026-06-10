@@ -126,8 +126,17 @@ function ctaHtml(cta: Cta, name: string): string {
  * <style> block so it needs ZERO CSS on the customer's page. They just render
  * this string. Collapses to one column under 820px.
  */
+function stripLeadingH1(md: string): string {
+  const lines = md.split('\n');
+  const i = lines.findIndex((l) => l.trim() !== '');
+  if (i >= 0 && /^#\s+/.test(lines[i].trim())) lines.splice(i, 1);
+  return lines.join('\n');
+}
+
 function buildHtmlField(rawBody: string, toc: Toc[], cta: Cta, name: string): string {
-  const article = mdToHtml(rawBody);
+  // Drop the article's own H1 — the customer's page already renders the title,
+  // so keeping it here would print the title twice.
+  const article = mdToHtml(stripLeadingH1(rawBody));
   const hasToc = toc.length >= 2;
   const tocAside = hasToc
     ? `<aside class="grv-toc"><div class="grv-toc-t">On this page</div><ol>` +
