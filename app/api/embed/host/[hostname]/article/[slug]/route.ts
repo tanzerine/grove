@@ -87,34 +87,59 @@ export async function GET(_req: Request, ctx: { params: Promise<{ hostname: stri
 
 type Toc = { id: string; text: string; level: 2 | 3 };
 
-/** Insert a TOC block after the hero (H1 + cover image) and append the CTA banner. */
+function esc(s: string): string {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/**
+ * Floated-right TOC rail as a single self-contained, inline-styled HTML block.
+ * float:right makes it sit beside the body without needing the host page's CSS;
+ * the article text wraps to its left — matching Grove's hosted layout.
+ */
+function tocHtml(toc: Toc[]): string {
+  const items = toc.map((t) =>
+    `<li style="padding-left:${t.level === 3 ? 14 : 0}px">` +
+    `<a href="#${esc(t.id)}" style="color:#3a4a3f;text-decoration:none;display:block;padding:3px 0">${esc(t.text)}</a></li>`,
+  ).join('');
+  return `<aside style="float:right;width:240px;max-width:42%;margin:4px 0 22px 30px;padding:18px 20px;` +
+    `border:1px solid #e6e2d6;border-radius:14px;background:#faf9f5;font-size:14px;line-height:1.5">` +
+    `<div style="font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#7a8a7d;margin-bottom:10px">On this page</div>` +
+    `<ol style="list-style:none;margin:0;padding:0">${items}</ol></aside>`;
+}
+
+/** Polished, self-contained CTA box (dark card + pill button), inline-styled. */
+function ctaHtml(cta: { headline: string; subline: string; url: string }, name: string): string {
+  return `<div style="clear:both;margin:44px 0 8px;padding:32px 36px;border-radius:16px;background:#1a2e1f;color:#fff;text-align:center">` +
+    `<div style="font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.6)">Powered by ${esc(name)}</div>` +
+    `<div style="font-size:24px;font-weight:700;margin:8px 0 6px;color:#fff">${esc(cta.headline)}</div>` +
+    (cta.subline ? `<p style="color:rgba(255,255,255,.82);font-size:15px;line-height:1.6;margin:0 auto 18px;max-width:46ch">${esc(cta.subline)}</p>` : '') +
+    `<a href="${esc(cta.url)}" style="display:inline-block;background:#4e9e6a;color:#fff;text-decoration:none;padding:13px 28px;border-radius:999px;font-weight:600;font-size:15px">Visit ${esc(name)} &rarr;</a></div>`;
+}
+
+/**
+ * Insert the floated TOC after the hero (H1 + cover) and append the CTA box.
+ * Both are single-line inline-styled HTML blocks so markdown renderers pass
+ * them straight through (no internal blank lines that would re-trigger md parsing).
+ */
 function enrichBody(
   bodyMd: string,
   opts: { toc: Toc[]; cta: { headline: string; subline: string; url: string }; businessName: string },
 ): string {
-  const { toc, cta } = opts;
+  const { toc, cta, businessName } = opts;
   let body = bodyMd;
 
   if (toc.length >= 2) {
-    const tocMd =
-      `> **On this page**\n>\n` +
-      toc.map((t) => `> ${t.level === 3 ? '    ' : ''}- [${t.text}](#${t.id})`).join('\n');
+    const block = tocHtml(toc);
     const lines = body.split('\n');
     let at = 0;
     const h1 = lines.findIndex((l) => /^#\s/.test(l));
     if (h1 >= 0) {
       at = h1 + 1;
-      // skip blank lines and an immediately-following cover image
       while (at < lines.length && (lines[at].trim() === '' || /^!\[.*\]\(.*\)/.test(lines[at].trim()))) at++;
     }
-    lines.splice(at, 0, '', tocMd, '');
+    lines.splice(at, 0, '', block, '');
     body = lines.join('\n');
   }
 
-  const ctaMd =
-    `\n\n---\n\n### ${cta.headline}\n\n` +
-    (cta.subline ? `${cta.subline}\n\n` : '') +
-    `[Visit ${opts.businessName} →](${cta.url})\n`;
-
-  return body + ctaMd;
+  return `${body}\n\n${ctaHtml(cta, businessName)}\n`;
 }
