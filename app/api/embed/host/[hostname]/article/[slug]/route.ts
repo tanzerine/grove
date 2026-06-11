@@ -100,13 +100,14 @@ function esc(s: string): string {
  */
 function tocHtml(toc: Toc[]): string {
   const items = toc.map((t) =>
-    `<li style="padding-left:${t.level === 3 ? 14 : 0}px">` +
-    `<a href="#${esc(t.id)}" style="color:#3a4a3f;text-decoration:none;display:block;padding:3px 0">${esc(t.text)}</a></li>`,
+    `<li style="margin:${t.level === 3 ? '3px 0 3px 18px' : '5px 0'}">` +
+    `<a href="#${esc(t.id)}" style="color:#3a4a3f;text-decoration:none">${esc(t.text)}</a></li>`,
   ).join('');
-  return `<aside style="float:right;width:240px;max-width:42%;margin:4px 0 22px 30px;padding:18px 20px;` +
-    `border:1px solid #e6e2d6;border-radius:14px;background:#faf9f5;font-size:14px;line-height:1.5">` +
-    `<div style="font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#7a8a7d;margin-bottom:10px">On this page</div>` +
-    `<ol style="list-style:none;margin:0;padding:0">${items}</ol></aside>`;
+  // A tidy full-width "Table of contents" card at the top of the article body
+  // (not a cramped right-float, which reads badly inside a narrow content column).
+  return `<div style="margin:10px 0 30px;padding:22px 26px;border:1px solid #e6e2d6;border-radius:14px;background:#faf9f5">` +
+    `<div style="font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#7a8a7d;margin-bottom:12px">Table of contents</div>` +
+    `<ol style="margin:0;padding-left:20px;font-size:15px;line-height:1.6;color:#3a4a3f">${items}</ol></div>`;
 }
 
 type Cta = { headline: string; subline: string; url: string };
