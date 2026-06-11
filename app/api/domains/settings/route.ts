@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import { randomBytes } from 'crypto';
 import { supabaseServer } from '@/lib/supabase/server';
 
 const schema = z.object({
@@ -7,6 +8,8 @@ const schema = z.object({
   auto_publish: z.boolean().optional(),
   auto_social: z.boolean().optional(),
   posts_per_week: z.number().min(1).max(14).optional(),
+  // empty string clears the webhook; a URL sets it (https only).
+  social_webhook_url: z.string().url().startsWith('https://').or(z.literal('')).optional(),
 });
 
 export async function PATCH(req: Request) {
@@ -18,7 +21,25 @@ export async function PATCH(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: 'invalid' }, { status: 400 });
 
   const { domain_id, ...updates } = parsed.data;
-  const { error } = await sb.from('domains').update(updates).eq('id', domain_id).eq('user_id', user.id);
+  const patch: Record<string, unknown> = { ...updates };
+
+  // Webhook lifecycle: clearing the URL drops the secret too; setting a URL
+  // mints a signing secret if the domain doesn't already have one.
+  if (updates.social_webhook_url !== undefined) {
+    if (updates.social_webhook_url === '') {
+      patch.social_webhook_url = null;
+      patch.social_webhook_secret = null;
+    } else {
+      const { data: existing } = await sb
+        .from('domains').select('social_webhook_secret')
+        .eq('id', domain_id).eq('user_id', user.id).maybeSingle();
+      if (!existing?.social_webhook_secret) {
+        patch.social_webhook_secret = 'whsec_' + randomBytes(24).toString('hex');
+      }
+    }
+  }
+
+  const { error } = await sb.from('domains').update(patch).eq('id', domain_id).eq('user_id', user.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json({ ok: true });
 }

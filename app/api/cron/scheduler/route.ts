@@ -54,7 +54,11 @@ export async function GET(req: Request) {
           id: (p as any).id, title: (p as any).title, slug: (p as any).slug,
           social, cover_image_url: (p as any).cover_image_url, social_published: (p as any).social_published,
         },
-        { blog_slug: domain.blog_slug },
+        {
+          blog_slug: domain.blog_slug,
+          social_webhook_url: domain.social_webhook_url,
+          social_webhook_secret: domain.social_webhook_secret,
+        },
       );
       if (Object.values(res).some((r: any) => r?.id)) socialFanout++;
     } catch (e) {

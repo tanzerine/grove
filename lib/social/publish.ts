@@ -15,6 +15,7 @@ import {
   composeShare, blogUrlFor, isDryRun,
   type PostForShare, type DomainForShare, type ShareRequest,
 } from './compose';
+import { deliverWebhook } from './webhook';
 
 export type { PostForShare, DomainForShare } from './compose';
 export { blogUrlFor } from './compose';
@@ -80,20 +81,26 @@ const POSTERS: Record<string, (c: Connection, r: ShareRequest) => Promise<string
   x: postX, linkedin: postLinkedIn, instagram: postInstagram,
 };
 
-export type ShareResult = Record<string, { id?: string; at: string; error?: string; dry_run?: boolean }>;
+export type ShareResult = Record<string, { id?: string; at: string; status?: number; error?: string; dry_run?: boolean }>;
 
 /* ───────────── orchestrator ───────────── */
+// Fans a published post out to (1) OAuth-connected platforms and (2) the
+// outbound webhook, if either is set. Defensive throughout: one channel
+// failing never throws. Idempotent via posts.social_published, so the cron
+// can safely re-run without double-posting.
 export async function publishToSocials(
   domainId: string, post: PostForShare, domain: DomainForShare,
 ): Promise<ShareResult> {
   const conns = await getConnections(domainId);
-  if (!conns.length) return post.social_published ?? {};
+  const hasWebhook = !!domain.social_webhook_url;
+  if (!conns.length && !hasWebhook) return post.social_published ?? {};
 
   const url = blogUrlFor(domain, post.slug);
   const already: ShareResult = post.social_published ?? {};
   const result: ShareResult = { ...already };
   const dry = isDryRun();
 
+  // 1) OAuth-connected platforms
   for (const conn of conns) {
     if (already[conn.platform]?.id) continue; // already posted successfully
     const req = composeShare(conn.platform, post, url);
@@ -112,6 +119,15 @@ export async function publishToSocials(
     } catch (e: any) {
       result[conn.platform] = { at: new Date().toISOString(), error: String(e?.message ?? e).slice(0, 300) };
     }
+  }
+
+  // 2) Outbound webhook — independent of OAuth. Skip if already delivered OK
+  //    (a prior error or no record means retry).
+  if (hasWebhook && !already.webhook?.status && !already.webhook?.dry_run) {
+    const wh = await deliverWebhook(post, domain, {
+      url: domain.social_webhook_url, secret: domain.social_webhook_secret,
+    });
+    if (wh) result.webhook = wh;
   }
 
   await supabaseAdmin().from('posts').update({ social_published: result }).eq('id', post.id);
