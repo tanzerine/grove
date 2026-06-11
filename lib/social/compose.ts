@@ -15,7 +15,11 @@ export type PostForShare = {
   social_published?: Record<string, { id?: string; at: string; error?: string; dry_run?: boolean }> | null;
 };
 
-export type DomainForShare = { blog_slug: string };
+export type DomainForShare = {
+  blog_slug: string;
+  social_webhook_url?: string | null;
+  social_webhook_secret?: string | null;
+};
 
 export type ShareRequest = {
   platform: Platform;

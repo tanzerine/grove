@@ -88,4 +88,33 @@ describe('publishToSocials', () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(res.x.id).toBe('old');
   });
+
+  it('fires the webhook even with zero OAuth connections', async () => {
+    getConnections.mockResolvedValue([]); // no connected accounts
+    const fetchMock = vi.fn(async () => ({ ok: true, status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await publishToSocials('d1', { ...post }, {
+      blog_slug: 'demo', social_webhook_url: 'https://hook.test/x', social_webhook_secret: 'whsec_1',
+    });
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock).toHaveBeenCalledWith('https://hook.test/x', expect.anything());
+    expect(res.webhook.status).toBe(200);
+    expect(updateEq).toHaveBeenCalled();
+  });
+
+  it('does not re-fire a webhook that already delivered', async () => {
+    getConnections.mockResolvedValue([]);
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const already = { ...post, social_published: { webhook: { status: 200, at: '2026-01-01' } } };
+    const res = await publishToSocials('d1', already, {
+      blog_slug: 'demo', social_webhook_url: 'https://hook.test/x', social_webhook_secret: 'whsec_1',
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(res.webhook.status).toBe(200);
+  });
 });

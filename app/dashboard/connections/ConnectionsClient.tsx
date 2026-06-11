@@ -15,18 +15,30 @@ const META: Record<PlatformView['id'], { label: string; blurb: string; color: st
 };
 
 export default function ConnectionsClient({
-  domainId, autoSocial, platforms,
-}: { domainId: string; autoSocial: boolean; platforms: PlatformView[] }) {
+  domainId, autoSocial, platforms, webhookUrl, webhookSecret,
+}: {
+  domainId: string; autoSocial: boolean; platforms: PlatformView[];
+  webhookUrl: string | null; webhookSecret: string | null;
+}) {
   const r = useRouter();
   const q = useSearchParams();
   const [auto, setAuto] = useState(autoSocial);
   const [busy, setBusy] = useState<string | null>(null);
 
+  const [hook, setHook] = useState(webhookUrl ?? '');
+  const [savingHook, setSavingHook] = useState(false);
+  const [hookErr, setHookErr] = useState<string | null>(null);
+  const [revealSecret, setRevealSecret] = useState(false);
+
   const connectedCount = platforms.filter((p) => p.connection).length;
+  const webhookActive = !!webhookUrl;
+  // Auto-share needs at least one outlet — a connected account OR the webhook.
+  const outletCount = connectedCount + (webhookActive ? 1 : 0);
   const connectedMsg = q.get('connected');
   const errorMsg = q.get('error');
 
   async function toggleAuto() {
+    if (outletCount === 0) return;
     const next = !auto;
     setAuto(next);
     await fetch('/api/domains/settings', {
@@ -34,6 +46,22 @@ export default function ConnectionsClient({
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ domain_id: domainId, auto_social: next }),
     });
+    r.refresh();
+  }
+
+  async function saveWebhook(url: string) {
+    setSavingHook(true);
+    setHookErr(null);
+    const res = await fetch('/api/domains/settings', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ domain_id: domainId, social_webhook_url: url }),
+    });
+    setSavingHook(false);
+    if (!res.ok) {
+      setHookErr(url ? 'Enter a valid https:// URL.' : 'Could not clear the webhook.');
+      return;
+    }
     r.refresh();
   }
 
@@ -72,20 +100,20 @@ export default function ConnectionsClient({
         <div>
           <div style={{ fontSize: 15, fontWeight: 600 }}>Auto-share on publish</div>
           <div style={{ fontSize: 13, color: 'var(--clay)', marginTop: 2 }}>
-            {connectedCount === 0
-              ? 'Connect at least one account to enable.'
-              : `When on, every published post is shared to your ${connectedCount} connected ${connectedCount === 1 ? 'account' : 'accounts'}.`}
+            {outletCount === 0
+              ? 'Connect an account or add a webhook below to enable.'
+              : `When on, every published post is shared to your ${outletCount} ${outletCount === 1 ? 'outlet' : 'outlets'}${webhookActive ? ' (incl. webhook)' : ''}.`}
           </div>
         </div>
         <button
           onClick={toggleAuto}
-          disabled={connectedCount === 0}
+          disabled={outletCount === 0}
           aria-pressed={auto}
           style={{
             width: 50, height: 28, borderRadius: 999, border: 'none', position: 'relative',
-            cursor: connectedCount === 0 ? 'not-allowed' : 'pointer',
-            background: auto && connectedCount > 0 ? 'var(--moss)' : 'var(--line)',
-            transition: 'background .15s', opacity: connectedCount === 0 ? 0.5 : 1,
+            cursor: outletCount === 0 ? 'not-allowed' : 'pointer',
+            background: auto && outletCount > 0 ? 'var(--moss)' : 'var(--line)',
+            transition: 'background .15s', opacity: outletCount === 0 ? 0.5 : 1,
           }}
         >
           <span style={{
@@ -129,6 +157,60 @@ export default function ConnectionsClient({
       <p style={{ fontSize: 12, color: 'var(--clay)', marginTop: 16 }}>
         Tokens are encrypted at rest. Disconnect any time — Grove keeps no copy after that.
       </p>
+
+      {/* webhook — the no-OAuth path: pipe every publish into Zapier / Make / n8n */}
+      <div style={{ background: 'white', border: '1px solid var(--line)', borderRadius: 14, padding: 20, marginTop: 28 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <h4 style={{ fontFamily: 'Clash Display', fontSize: 20, margin: 0 }}>Publish webhook</h4>
+          {webhookActive && (
+            <span style={{ fontSize: 11, fontFamily: 'DM Mono', color: 'var(--moss)', background: 'rgba(89,148,94,0.10)', borderRadius: 999, padding: '2px 8px' }}>
+              active
+            </span>
+          )}
+        </div>
+        <p style={{ fontSize: 13, color: 'var(--clay)', marginTop: 6, maxWidth: 560 }}>
+          No app review, works today. Grove POSTs each published post — canonical URL,
+          cover image, and ready-to-post copy for every channel — to your URL. Wire it into
+          Zapier, Make, or n8n to fan out anywhere.
+        </p>
+
+        <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+          <input
+            type="url"
+            inputMode="url"
+            placeholder="https://hooks.zapier.com/…"
+            value={hook}
+            onChange={(e) => setHook(e.target.value)}
+            style={{ flex: 1, border: '1px solid var(--line)', borderRadius: 10, padding: '10px 12px', fontSize: 14, fontFamily: 'DM Mono' }}
+          />
+          <button onClick={() => saveWebhook(hook.trim())} disabled={savingHook || hook.trim() === (webhookUrl ?? '')} className="btn btn-primary btn-sm">
+            {savingHook ? '…' : 'Save'}
+          </button>
+          {webhookActive && (
+            <button onClick={() => { setHook(''); saveWebhook(''); }} disabled={savingHook} className="btn btn-ghost btn-sm">
+              Remove
+            </button>
+          )}
+        </div>
+        {hookErr && <div style={{ fontSize: 12, color: '#b04a3b', marginTop: 8 }}>{hookErr}</div>}
+
+        {webhookActive && webhookSecret && (
+          <div style={{ marginTop: 14, fontSize: 13 }}>
+            <div style={{ color: 'var(--clay)', marginBottom: 4 }}>
+              Signing secret — verify the <code style={{ fontFamily: 'DM Mono' }}>x-grove-signature</code> header
+              (<code style={{ fontFamily: 'DM Mono' }}>sha256=HMAC(secret, body)</code>):
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <code style={{ fontFamily: 'DM Mono', fontSize: 12, background: 'var(--paper, #f6f5f2)', border: '1px solid var(--line)', borderRadius: 8, padding: '6px 10px', userSelect: 'all' }}>
+                {revealSecret ? webhookSecret : webhookSecret.slice(0, 9) + '•'.repeat(18)}
+              </code>
+              <button onClick={() => setRevealSecret((v) => !v)} className="btn btn-ghost btn-sm">
+                {revealSecret ? 'Hide' : 'Reveal'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

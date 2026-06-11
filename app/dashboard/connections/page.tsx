@@ -10,7 +10,7 @@ export default async function ConnectionsPage() {
   if (!user) return null;
 
   const { data: domain } = await sb
-    .from('domains').select('id, auto_social').eq('user_id', user.id)
+    .from('domains').select('id, auto_social, social_webhook_url, social_webhook_secret').eq('user_id', user.id)
     .order('created_at', { ascending: false }).limit(1).maybeSingle();
 
   if (!domain) {
@@ -31,5 +31,13 @@ export default async function ConnectionsPage() {
       : null,
   }));
 
-  return <ConnectionsClient domainId={domain.id} autoSocial={!!domain.auto_social} platforms={platforms} />;
+  return (
+    <ConnectionsClient
+      domainId={domain.id}
+      autoSocial={!!domain.auto_social}
+      platforms={platforms}
+      webhookUrl={domain.social_webhook_url ?? null}
+      webhookSecret={domain.social_webhook_secret ?? null}
+    />
+  );
 }
