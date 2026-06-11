@@ -1,6 +1,15 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+
+const CONNECT_ERRORS: Record<string, string> = {
+  not_configured: "That platform isn't set up yet — its API keys are missing from the environment.",
+  cancelled: 'Connection cancelled.',
+  state_mismatch: 'Connection expired or was tampered with. Try again.',
+  session_expired: 'Your session expired. Refresh and try again.',
+  no_domain: 'Connect a domain first.',
+  connect_failed: "Couldn't connect — the platform rejected the request. Try again.",
+};
 
 export type PlatformView = {
   id: 'x' | 'linkedin' | 'instagram';
@@ -29,6 +38,61 @@ export default function ConnectionsClient({
   const [savingHook, setSavingHook] = useState(false);
   const [hookErr, setHookErr] = useState<string | null>(null);
   const [revealSecret, setRevealSecret] = useState(false);
+
+  const [connecting, setConnecting] = useState<string | null>(null);
+  const [flash, setFlash] = useState<{ ok: boolean; text: string } | null>(null);
+  const popupRef = useRef<Window | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // OAuth popup: open the connect route in a centered window, then wait for the
+  // callback page to postMessage the result back (or for the user to close it).
+  function connect(pf: string) {
+    setFlash(null);
+    const w = 600, h = 760;
+    const left = window.screenX + Math.max(0, (window.outerWidth - w) / 2);
+    const top = window.screenY + Math.max(0, (window.outerHeight - h) / 2);
+    const popup = window.open(
+      `/api/social/${pf}/connect`, `grove_oauth_${pf}`,
+      `width=${w},height=${h},left=${left},top=${top},menubar=no,toolbar=no,location=yes`,
+    );
+    if (!popup) {
+      // popup blocked — fall back to a full-page redirect
+      window.location.href = `/api/social/${pf}/connect`;
+      return;
+    }
+    popupRef.current = popup;
+    setConnecting(pf);
+    // If the user closes the window without finishing, clear the spinner.
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(() => {
+      if (popup.closed) {
+        if (pollRef.current) clearInterval(pollRef.current);
+        setConnecting((cur) => (cur === pf ? null : cur));
+      }
+    }, 600);
+  }
+
+  useEffect(() => {
+    function onMessage(e: MessageEvent) {
+      if (e.origin !== window.location.origin) return;
+      const d = e.data;
+      if (!d || d.source !== 'grove-oauth') return;
+      if (pollRef.current) clearInterval(pollRef.current);
+      try { popupRef.current?.close(); } catch { /* noop */ }
+      setConnecting(null);
+      if (d.ok) {
+        setFlash({ ok: true, text: `Connected ${META[d.platform as PlatformView['id']]?.label ?? d.platform}.` });
+        r.refresh();
+      } else {
+        setFlash({ ok: false, text: CONNECT_ERRORS[d.error] ?? `Couldn't connect (${d.error}).` });
+      }
+    }
+    window.addEventListener('message', onMessage);
+    return () => {
+      window.removeEventListener('message', onMessage);
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [r]);
 
   const connectedCount = platforms.filter((p) => p.connection).length;
   const webhookActive = !!webhookUrl;
@@ -82,17 +146,14 @@ export default function ConnectionsClient({
         </p>
       </div>
 
-      {connectedMsg && (
+      {/* live popup result (preferred) */}
+      {flash && <Banner ok={flash.ok}>{flash.text}</Banner>}
+      {/* full-page-redirect fallback result, from URL params */}
+      {!flash && connectedMsg && (
         <Banner ok>Connected {META[connectedMsg as PlatformView['id']]?.label ?? connectedMsg}.</Banner>
       )}
-      {errorMsg && (
-        <Banner>
-          {errorMsg === 'not_configured'
-            ? 'That platform isn\'t set up yet — add its API credentials in the environment.'
-            : errorMsg === 'state_mismatch'
-            ? 'Connection expired or was tampered with. Try again.'
-            : `Couldn't connect (${errorMsg}). Try again.`}
-        </Banner>
+      {!flash && errorMsg && (
+        <Banner>{CONNECT_ERRORS[errorMsg] ?? `Couldn't connect (${errorMsg}). Try again.`}</Banner>
       )}
 
       {/* auto-share toggle */}
@@ -147,7 +208,13 @@ export default function ConnectionsClient({
                   {busy === p.id ? '…' : 'Disconnect'}
                 </button>
               ) : (
-                <a href={`/api/social/${p.id}/connect`} className="btn btn-primary btn-sm">Connect</a>
+                <button
+                  onClick={() => connect(p.id)}
+                  disabled={connecting === p.id}
+                  className="btn btn-primary btn-sm"
+                >
+                  {connecting === p.id ? 'Connecting…' : 'Connect'}
+                </button>
               )}
             </div>
           );
