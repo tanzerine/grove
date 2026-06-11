@@ -1,17 +1,45 @@
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { mdToHtml, extractToc } from '@/lib/markdown';
+import { appBase, isBot, jsonLdScript } from '@/lib/seo';
 import { notFound } from 'next/navigation';
+import { headers } from 'next/headers';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string; post: string }> }) {
   const { slug, post } = await params;
   const sb = supabaseAdmin();
   const { data: domain } = await sb.from('domains').select('id,hostname').eq('blog_slug', slug).single();
   if (!domain) return {};
-  const { data: p } = await sb.from('posts').select('meta_title,meta_description').eq('domain_id', domain.id).eq('slug', post).single();
+  const { data: p } = await sb
+    .from('posts')
+    .select('title,meta_title,meta_description,cover_image_url,published_at')
+    .eq('domain_id', domain.id).eq('slug', post).eq('status', 'published').single();
+  if (!p) return {};
+
+  const url = `${appBase()}/b/${slug}/${post}`;
+  const title = p.meta_title || p.title || undefined;
+  const description = p.meta_description ?? undefined;
   return {
-    title: p?.meta_title,
-    description: p?.meta_description,
-    openGraph: { title: p?.meta_title, description: p?.meta_description, type: 'article' },
+    title,
+    description,
+    alternates: {
+      canonical: url,
+      types: { 'application/rss+xml': `${appBase()}/b/${slug}/rss.xml` },
+    },
+    openGraph: {
+      title,
+      description,
+      url,
+      type: 'article',
+      siteName: domain.hostname,
+      publishedTime: p.published_at ?? undefined,
+      images: p.cover_image_url ? [{ url: p.cover_image_url }] : undefined,
+    },
+    twitter: {
+      card: p.cover_image_url ? 'summary_large_image' : 'summary',
+      title,
+      description,
+      images: p.cover_image_url ? [p.cover_image_url] : undefined,
+    },
   };
 }
 
@@ -21,12 +49,16 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   const { data: domain } = await sb.from('domains').select('id,hostname,blog_slug,site_profile').eq('blog_slug', slug).single();
   if (!domain) notFound();
   const { data: p } = await sb
-    .from('posts').select('title,body_md,published_at,meta_description,reads,id')
+    .from('posts').select('title,body_md,published_at,meta_description,reads,id,cover_image_url,cover_image_credit')
     .eq('domain_id', domain.id).eq('slug', post).eq('status', 'published').single();
   if (!p) notFound();
 
-  // increment reads (best-effort)
-  await sb.from('posts').update({ reads: (p.reads ?? 0) + 1 }).eq('id', p.id);
+  // increment reads (best-effort) — humans only; bots and link-preview
+  // fetchers would otherwise skew the metric the strategy loop feeds on
+  const ua = (await headers()).get('user-agent');
+  if (!isBot(ua)) {
+    await sb.from('posts').update({ reads: (p.reads ?? 0) + 1 }).eq('id', p.id);
+  }
 
   const html = mdToHtml(p.body_md ?? '');
   const toc = extractToc(p.body_md ?? '');
@@ -38,6 +70,29 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   const subline: string = business?.value_props?.[0] || business?.description || '';
   const homeUrl = `https://${domain.hostname.replace(/^https?:\/\//, '').replace(/\/$/, '')}`;
 
+  const pageUrl = `${appBase()}/b/${slug}/${post}`;
+  const credit = (p as any).cover_image_credit as { name?: string; profile_url?: string } | null;
+  const articleLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: p.title,
+    description: p.meta_description ?? undefined,
+    image: p.cover_image_url ?? undefined,
+    datePublished: p.published_at ?? undefined,
+    dateModified: p.published_at ?? undefined,
+    mainEntityOfPage: pageUrl,
+    author: { '@type': 'Organization', name: businessName, url: homeUrl },
+    publisher: { '@type': 'Organization', name: businessName, url: homeUrl },
+  };
+  const breadcrumbLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: domain.hostname, item: `${appBase()}/b/${slug}` },
+      { '@type': 'ListItem', position: 2, name: p.title, item: pageUrl },
+    ],
+  };
+
   return (
     <main className="post-shell">
       <a href={`/b/${slug}`} className="mono" style={{ fontSize: 12, color: 'var(--moss)' }}>← {domain.hostname}</a>
@@ -46,6 +101,23 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
         <div className="post-main">
           <h1 className="display" style={{ fontSize: 46 }}>{p.title}</h1>
           <p className="mono" style={{ color: 'var(--clay)', fontSize: 12 }}>{new Date(p.published_at!).toLocaleDateString()}</p>
+
+          {p.cover_image_url && (
+            <figure style={{ margin: '26px 0 0' }}>
+              <img
+                src={p.cover_image_url}
+                alt={p.title ?? ''}
+                style={{ display: 'block', width: '100%', borderRadius: 14, border: '1px solid var(--line)' }}
+              />
+              {credit?.name && (
+                <figcaption className="mono" style={{ fontSize: 11, color: 'var(--clay)', marginTop: 6 }}>
+                  Image: {credit.profile_url
+                    ? <a href={credit.profile_url} target="_blank" rel="noopener noreferrer">{credit.name}</a>
+                    : credit.name}
+                </figcaption>
+              )}
+            </figure>
+          )}
 
           <article
             className="prose"
@@ -78,6 +150,8 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
         )}
       </div>
 
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(articleLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(breadcrumbLd) }} />
       <script
         dangerouslySetInnerHTML={{
           __html: buildTrackerScript({ postId: p.id, domainId: domain.id, hostname: domain.hostname }),
