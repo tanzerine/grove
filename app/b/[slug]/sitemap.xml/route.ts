@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { appBase, escapeXml } from '@/lib/seo';
 
 export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }> }) {
   const { slug } = await ctx.params;
@@ -7,16 +8,27 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
   if (!domain) return new Response('not found', { status: 404 });
   const { data: posts } = await sb
     .from('posts').select('slug,published_at')
-    .eq('domain_id', domain.id).eq('status', 'published');
+    .eq('domain_id', domain.id).eq('status', 'published')
+    .order('published_at', { ascending: false });
 
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? 'https://grove.so';
+  const base = appBase();
   const urls = (posts ?? []).map((p) =>
-    `<url><loc>${base}/b/${slug}/${p.slug}</loc><lastmod>${(p.published_at ?? '').slice(0, 10)}</lastmod></url>`
+    `<url><loc>${escapeXml(`${base}/b/${slug}/${p.slug}`)}</loc><lastmod>${(p.published_at ?? '').slice(0, 10)}</lastmod></url>`
   ).join('');
+
+  // index page lastmod = most recent post
+  const indexLastmod = posts?.[0]?.published_at
+    ? `<lastmod>${posts[0].published_at.slice(0, 10)}</lastmod>`
+    : '';
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-<url><loc>${base}/b/${slug}</loc></url>${urls}
+<url><loc>${escapeXml(`${base}/b/${slug}`)}</loc>${indexLastmod}</url>${urls}
 </urlset>`;
-  return new Response(xml, { headers: { 'content-type': 'application/xml' } });
+  return new Response(xml, {
+    headers: {
+      'content-type': 'application/xml',
+      'cache-control': 'public, s-maxage=600, stale-while-revalidate=3600',
+    },
+  });
 }
