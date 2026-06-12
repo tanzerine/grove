@@ -3,6 +3,7 @@ import { mdToHtml, extractToc } from '@/lib/markdown';
 import { isBot, jsonLdScript, blogHomeUrl, blogPostUrl, subdomainSlugFromHost } from '@/lib/seo';
 import { pickRelated } from '@/lib/related-posts';
 import { injectInternalLinks } from '@/lib/internal-links';
+import { genreFor, authorFor } from '@/lib/blog-genre';
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
 
@@ -51,7 +52,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   const { data: domain } = await sb.from('domains').select('id,hostname,blog_slug,site_profile').eq('blog_slug', slug).single();
   if (!domain) notFound();
   const { data: p } = await sb
-    .from('posts').select('title,body_md,published_at,meta_description,reads,id,cover_image_url,cover_image_credit')
+    .from('posts').select('title,body_md,published_at,meta_description,reads,id,cover_image_url,cover_image_credit,format:research->brief->>format')
     .eq('domain_id', domain.id).eq('slug', post).eq('status', 'published').single();
   if (!p) notFound();
 
@@ -89,6 +90,8 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
 
   const pageUrl = blogPostUrl(slug, post);
   const credit = (p as any).cover_image_credit as { name?: string; profile_url?: string } | null;
+  const author = authorFor(profile, domain.hostname);
+  const genre = genreFor((p as any).format, p.title);
   const articleLd = {
     '@context': 'https://schema.org',
     '@type': 'BlogPosting',
@@ -98,7 +101,8 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
     datePublished: p.published_at ?? undefined,
     dateModified: p.published_at ?? undefined,
     mainEntityOfPage: pageUrl,
-    author: { '@type': 'Organization', name: businessName, url: homeUrl },
+    articleSection: genre.label,
+    author: { '@type': author.endsWith('Team') ? 'Organization' : 'Person', name: author, url: homeUrl },
     publisher: { '@type': 'Organization', name: businessName, url: homeUrl },
   };
   const breadcrumbLd = {
@@ -117,7 +121,14 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
       <div className="post-grid" style={{ marginTop: 18 }}>
         <div className="post-main">
           <h1 className="display" style={{ fontSize: 46 }}>{p.title}</h1>
-          <p className="mono" style={{ color: 'var(--clay)', fontSize: 12 }}>{new Date(p.published_at!).toLocaleDateString()}</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <span className="mono" style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--moss)', background: 'rgba(89,148,94,0.10)', borderRadius: 999, padding: '3px 10px' }}>
+              {genre.label}
+            </span>
+            <p className="mono" style={{ color: 'var(--clay)', fontSize: 12, margin: 0 }}>
+              By {author} · {new Date(p.published_at!).toLocaleDateString()}
+            </p>
+          </div>
 
           {p.cover_image_url && (
             <figure style={{ margin: '26px 0 0' }}>

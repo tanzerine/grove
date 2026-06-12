@@ -1,8 +1,11 @@
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { jsonLdScript, blogHomeUrl, blogPostUrl, subdomainSlugFromHost } from '@/lib/seo';
+import { genreFor, authorFor, type Genre } from '@/lib/blog-genre';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
+
+const PER_PAGE = 9;
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -26,56 +29,226 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 
-export default async function BlogIndex({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
-  const sb = supabaseAdmin();
-  const { data: domain } = await sb.from('domains').select('id,hostname,blog_slug').eq('blog_slug', slug).single();
-  if (!domain) notFound();
-  const { data: posts } = await sb
-    .from('posts').select('slug,title,meta_description,published_at,cover_image_url')
-    .eq('domain_id', domain.id).eq('status', 'published').order('published_at', { ascending: false });
+type Row = {
+  slug: string | null;
+  title: string | null;
+  meta_description: string | null;
+  published_at: string | null;
+  cover_image_url: string | null;
+  reads: number | null;
+  format: string | null;
+};
 
-  // On a blog subdomain the middleware strips /b/{slug}, so links are root-relative there.
+export default async function BlogIndex({
+  params, searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ page?: string; q?: string; tag?: string }>;
+}) {
+  const { slug } = await params;
+  const sp = await searchParams;
+  const q = (sp.q ?? '').trim();
+  const tag = (sp.tag ?? '').trim();
+  const page = Math.max(1, Number(sp.page) || 1);
+
+  const sb = supabaseAdmin();
+  const { data: domain } = await sb
+    .from('domains').select('id,hostname,blog_slug,site_profile').eq('blog_slug', slug).single();
+  if (!domain) notFound();
+
+  const { data } = await sb
+    .from('posts')
+    .select('slug,title,meta_description,published_at,cover_image_url,reads,format:research->brief->>format')
+    .eq('domain_id', domain.id).eq('status', 'published')
+    .order('published_at', { ascending: false });
+  const all = (data ?? []) as unknown as Row[];
+
   const onSubdomain = !!subdomainSlugFromHost((await headers()).get('host'));
   const prefix = onSubdomain ? '' : `/b/${slug}`;
+  const author = authorFor((domain as any).site_profile, domain.hostname);
+
+  // genres present across the whole catalog → filter chips
+  const genreById = new Map<string, Genre>();
+  for (const p of all) {
+    const g = genreFor(p.format, p.title);
+    if (!genreById.has(g.id)) genreById.set(g.id, g);
+  }
+
+  // featured = most-read article; pinned wide on the unfiltered first page
+  const featured = !q && !tag && all.length >= 2
+    ? all.reduce((best, p) => ((p.reads ?? 0) > (best.reads ?? 0) ? p : best), all[0])
+    : null;
+
+  const ql = q.toLowerCase();
+  const filtered = all.filter((p) => {
+    if (featured && p.slug === featured.slug) return false;
+    if (tag && genreFor(p.format, p.title).id !== tag) return false;
+    if (ql && !(`${p.title ?? ''} ${p.meta_description ?? ''}`.toLowerCase().includes(ql))) return false;
+    return true;
+  });
+
+  const pages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+  const current = Math.min(page, pages);
+  const pageItems = filtered.slice((current - 1) * PER_PAGE, current * PER_PAGE);
+
+  const mk = (over: { page?: number; q?: string; tag?: string }) => {
+    const u = new URLSearchParams();
+    const nq = over.q ?? q; const nt = over.tag ?? tag; const np = over.page ?? 1;
+    if (nq) u.set('q', nq);
+    if (nt) u.set('tag', nt);
+    if (np > 1) u.set('page', String(np));
+    const s = u.toString();
+    return `${prefix || '/'}${s ? `?${s}` : ''}`;
+  };
 
   const blogLd = {
     '@context': 'https://schema.org',
     '@type': 'Blog',
     name: `The ${domain.hostname} blog`,
     url: blogHomeUrl(slug),
-    blogPost: (posts ?? []).slice(0, 20).map((p) => ({
+    blogPost: all.slice(0, 20).map((p) => ({
       '@type': 'BlogPosting',
       headline: p.title,
       url: blogPostUrl(slug, p.slug!),
       datePublished: p.published_at ?? undefined,
+      author: { '@type': author.endsWith('Team') ? 'Organization' : 'Person', name: author },
     })),
   };
 
   return (
-    <main className="wrap" style={{ maxWidth: 760, padding: '60px 28px' }}>
-      <h1 className="display" style={{ fontSize: 56 }}>The {domain.hostname} blog</h1>
-      <p className="lede">Grown by grove. Updated on autopilot.</p>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 28, marginTop: 40 }}>
-        {(posts ?? []).map((p) => (
-          <Link key={p.slug} href={`${prefix}/${p.slug}`} style={{ display: 'flex', gap: 20, alignItems: 'flex-start', borderBottom: '1px solid var(--line)', paddingBottom: 24 }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <h2 style={{ fontFamily: 'Clash Display', fontSize: 26, margin: 0 }}>{p.title}</h2>
-              <p style={{ color: 'var(--clay)', margin: '6px 0 0' }}>{p.meta_description}</p>
-              <span className="mono" style={{ fontSize: 12, color: 'var(--clay)' }}>{new Date(p.published_at!).toLocaleDateString()}</span>
-            </div>
-            {p.cover_image_url && (
-              <img
-                src={p.cover_image_url}
-                alt=""
-                loading="lazy"
-                style={{ width: 148, height: 96, objectFit: 'cover', borderRadius: 10, border: '1px solid var(--line)', flexShrink: 0 }}
-              />
-            )}
-          </Link>
-        ))}
+    <main className="wrap" style={{ maxWidth: 1080, padding: '54px 28px 80px' }}>
+      {/* header: title left, search top-right */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 24, flexWrap: 'wrap' }}>
+        <div>
+          <h1 className="display" style={{ fontSize: 48, margin: 0 }}>The {domain.hostname} blog</h1>
+          <p className="lede" style={{ marginTop: 8 }}>Grown by grove. Updated on autopilot.</p>
+        </div>
+        <form method="GET" action={prefix || '/'} style={{ display: 'flex', gap: 8 }}>
+          {tag && <input type="hidden" name="tag" value={tag} />}
+          <input
+            type="search"
+            name="q"
+            defaultValue={q}
+            placeholder="Search articles…"
+            aria-label="Search articles"
+            style={{ width: 230, padding: '10px 14px', border: '1px solid var(--line)', borderRadius: 10, background: 'white', fontFamily: 'inherit', fontSize: 14 }}
+          />
+          <button type="submit" className="btn btn-ghost btn-sm">Search</button>
+        </form>
       </div>
+
+      {/* genre filter chips */}
+      {genreById.size > 1 && (
+        <div style={{ display: 'flex', gap: 8, marginTop: 26, flexWrap: 'wrap' }}>
+          <Chip href={mk({ tag: '', page: 1 })} active={!tag}>All</Chip>
+          {Array.from(genreById.values()).map((g) => (
+            <Chip key={g.id} href={mk({ tag: g.id, page: 1 })} active={tag === g.id}>{g.label}</Chip>
+          ))}
+        </div>
+      )}
+
+      {/* featured — most-read, wide card */}
+      {featured && current === 1 && (
+        <Link
+          href={`${prefix}/${featured.slug}`}
+          style={{ display: 'flex', marginTop: 28, background: 'white', border: '1px solid var(--line)', borderRadius: 16, overflow: 'hidden', textDecoration: 'none', color: 'inherit' }}
+        >
+          <div style={{ flex: '1 1 55%', padding: '30px 32px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <span className="mono" style={{ fontSize: 10, letterSpacing: '0.12em', background: 'var(--moss)', color: 'white', borderRadius: 999, padding: '3px 10px' }}>FEATURED</span>
+              <GenreTag genre={genreFor(featured.format, featured.title)} />
+            </div>
+            <h2 style={{ fontFamily: 'Clash Display', fontSize: 32, lineHeight: 1.12, margin: '14px 0 0' }}>{featured.title}</h2>
+            {featured.meta_description && (
+              <p style={{ color: 'var(--clay)', fontSize: 15, lineHeight: 1.6, margin: '10px 0 0' }}>{featured.meta_description}</p>
+            )}
+            <Byline author={author} date={featured.published_at} reads={featured.reads} />
+          </div>
+          {featured.cover_image_url && (
+            <img src={featured.cover_image_url} alt="" style={{ flex: '1 1 45%', minWidth: 0, maxWidth: '45%', objectFit: 'cover' }} />
+          )}
+        </Link>
+      )}
+
+      {/* article grid — 9 per page */}
+      {pageItems.length === 0 ? (
+        <p style={{ marginTop: 40, color: 'var(--clay)' }}>
+          {q || tag ? <>No articles match{q ? <> “{q}”</> : null}. <Link href={mk({ q: '', tag: '', page: 1 })} style={{ color: 'var(--moss)' }}>Clear filters</Link></> : 'No articles yet.'}
+        </p>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 18, marginTop: 28 }}>
+          {pageItems.map((p) => {
+            const g = genreFor(p.format, p.title);
+            return (
+              <Link key={p.slug} href={`${prefix}/${p.slug}`} style={{ display: 'flex', flexDirection: 'column', background: 'white', border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden', textDecoration: 'none', color: 'inherit' }}>
+                {p.cover_image_url && (
+                  <img src={p.cover_image_url} alt="" loading="lazy" style={{ width: '100%', height: 150, objectFit: 'cover', display: 'block' }} />
+                )}
+                <div style={{ padding: '16px 18px 18px', display: 'flex', flexDirection: 'column', flex: 1 }}>
+                  <div><GenreTag genre={g} /></div>
+                  <h2 style={{ fontFamily: 'Clash Display', fontSize: 20, lineHeight: 1.2, margin: '10px 0 0' }}>{p.title}</h2>
+                  {p.meta_description && (
+                    <p style={{ color: 'var(--clay)', fontSize: 13.5, lineHeight: 1.55, margin: '8px 0 0', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {p.meta_description}
+                    </p>
+                  )}
+                  <div style={{ marginTop: 'auto' }}>
+                    <Byline author={author} date={p.published_at} />
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+
+      {/* pagination */}
+      {pages > 1 && (
+        <nav aria-label="Pages" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 18, marginTop: 44 }}>
+          {current > 1
+            ? <Link href={mk({ page: current - 1 })} className="mono" style={{ fontSize: 13, color: 'var(--moss)' }}>← Newer</Link>
+            : <span className="mono" style={{ fontSize: 13, color: 'var(--line)' }}>← Newer</span>}
+          <span className="mono" style={{ fontSize: 12, color: 'var(--clay)' }}>Page {current} / {pages}</span>
+          {current < pages
+            ? <Link href={mk({ page: current + 1 })} className="mono" style={{ fontSize: 13, color: 'var(--moss)' }}>Older →</Link>
+            : <span className="mono" style={{ fontSize: 13, color: 'var(--line)' }}>Older →</span>}
+        </nav>
+      )}
+
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(blogLd) }} />
     </main>
+  );
+}
+
+function Chip({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      className="mono"
+      style={{
+        fontSize: 12, padding: '6px 14px', borderRadius: 999, textDecoration: 'none',
+        background: active ? 'var(--moss)' : 'white',
+        color: active ? 'white' : 'var(--ink)',
+        border: `1px solid ${active ? 'var(--moss)' : 'var(--line)'}`,
+      }}
+    >
+      {children}
+    </Link>
+  );
+}
+
+function GenreTag({ genre }: { genre: Genre }) {
+  return (
+    <span className="mono" style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--moss)', background: 'rgba(89,148,94,0.10)', borderRadius: 999, padding: '3px 10px' }}>
+      {genre.label}
+    </span>
+  );
+}
+
+function Byline({ author, date, reads }: { author: string; date: string | null; reads?: number | null }) {
+  return (
+    <p className="mono" style={{ fontSize: 11.5, color: 'var(--clay)', margin: '14px 0 0' }}>
+      By {author}{date ? ` · ${new Date(date).toLocaleDateString()}` : ''}{reads && reads > 0 ? ` · ${reads} reads` : ''}
+    </p>
   );
 }
