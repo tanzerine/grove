@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { supabaseServer } from '@/lib/supabase/server';
 import { getBriefStats, composeBrief, nextAction, type BriefStats } from '@/lib/agent-brief';
+import { QualityColumns, type ScoredArticle } from './QualityCharts';
 import PipelineActions from './PipelineActions';
 import PostRow from './PostRow';
 import ModeToggle from './ModeToggle';
@@ -50,6 +51,8 @@ export default async function Page() {
 
       {brief && <AgentBrief stats={brief} />}
 
+      <QualityCard posts={posts ?? []} scoreByPost={scoreByPost} />
+
       <div className="dm-top">
         <h4 style={{ fontFamily: 'Clash Display', fontSize: 28, margin: 0 }}>Content pipeline</h4>
       </div>
@@ -71,6 +74,39 @@ export default async function Page() {
         )}
       </div>
     </>
+  );
+}
+
+/* ───────── article quality across the catalog ───────── */
+
+function QualityCard({
+  posts, scoreByPost,
+}: { posts: any[]; scoreByPost: Map<string, { overall: number; action: string }> }) {
+  // oldest → newest so the chart reads left-to-right in time
+  const items: ScoredArticle[] = posts
+    .filter((p) => scoreByPost.has(p.id))
+    .map((p) => ({ id: p.id, title: p.title ?? p.topic, overall: scoreByPost.get(p.id)!.overall }))
+    .reverse();
+  if (items.length < 2) return null; // a one-bar chart conveys nothing
+
+  const avg = Math.round(items.reduce((a, i) => a + i.overall, 0) / items.length);
+  return (
+    <section style={{ background: 'white', border: '1px solid var(--line)', borderRadius: 14, padding: '20px 24px', marginBottom: 26 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
+        <div className="mono" style={{ fontSize: 11, letterSpacing: '0.1em', color: 'var(--clay)' }}>
+          ARTICLE QUALITY · MANAGER SCORES
+        </div>
+        <span style={{ fontSize: 13, color: 'var(--clay)' }}>
+          avg <strong style={{ color: 'var(--ink)', fontFamily: 'Clash Display', fontSize: 16 }}>{avg}</strong>/100
+          · {items.length} scored
+        </span>
+      </div>
+      <QualityColumns items={items} />
+      <p style={{ fontSize: 12, color: 'var(--clay)', margin: '10px 0 0' }}>
+        Every draft is graded 0–100 by the manager agent before it can publish — strategy fit,
+        marketing intent, craft, safety. Click a bar to open that article.
+      </p>
+    </section>
   );
 }
 

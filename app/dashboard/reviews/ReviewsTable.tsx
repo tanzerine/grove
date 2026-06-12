@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { ScoreRing, RubricBars } from '../QualityCharts';
 
 type Issue = { rule: string; severity: 'block' | 'rewrite' | 'note'; note: string };
 type EvaluationRow = {
@@ -166,26 +167,11 @@ function OverrideButton({ postId }: { postId: string }) {
 }
 
 function ScoresRow({ scores }: { scores: EvaluationRow['scores'] }) {
-  const items: Array<[string, number]> = [
-    ['strategic fit', scores?.strategic_fit ?? 0],
-    ['marketing', scores?.marketing ?? 0],
-    ['craft', scores?.craft ?? 0],
-    ['safety', scores?.safety ?? 0],
-  ];
   return (
     <Section title="Scores">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {items.map(([label, value]) => (
-          <div key={label}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-              <span style={{ color: 'var(--clay)', textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'DM Mono', fontSize: 11 }}>{label}</span>
-              <span style={{ color: 'var(--ink)' }}>{value}</span>
-            </div>
-            <div style={{ height: 6, marginTop: 4, background: 'var(--paper)', borderRadius: 999, overflow: 'hidden' }}>
-              <div style={{ width: `${Math.max(0, Math.min(100, value))}%`, height: '100%', background: value >= 70 ? 'var(--moss)' : value >= 50 ? 'var(--ink)' : '#b04a3b' }} />
-            </div>
-          </div>
-        ))}
+      <div style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap' }}>
+        <ScoreRing value={scores?.overall ?? 0} size={84} />
+        <RubricBars scores={scores} />
       </div>
     </Section>
   );

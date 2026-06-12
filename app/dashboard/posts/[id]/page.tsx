@@ -6,6 +6,7 @@ import PipelineTimeline from './PipelineTimeline';
 import RichEditor from './RichEditor';
 import LocalTime from '../../LocalTime';
 import Link from 'next/link';
+import { ScoreRing, RubricBars, bandColor, type RubricScores } from '../../QualityCharts';
 
 export default async function PostPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -13,6 +14,13 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
   const { data: p } = await sb.from('posts').select('*, domains(blog_slug,hostname)').eq('id', id).single();
   if (!p) notFound();
   const domain = (p as any).domains;
+
+  // Manager evaluations (attempt 1, and 2 when a rewrite happened)
+  const { data: evals } = await sb
+    .from('post_evaluations')
+    .select('attempt, action, scores, issues, created_at')
+    .eq('post_id', id)
+    .order('attempt', { ascending: true });
 
   const social = (p.social ?? {}) as { x?: string; linkedin?: string; instagram?: string };
   const validation = p.validation as { passed?: boolean; issues?: string[]; stats?: Record<string, number>; error?: string } | null;
@@ -75,6 +83,8 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
         <PipelineTimeline log={(p.generation_log ?? []) as any} status={p.status} />
       </div>
 
+      {evals && evals.length > 0 && <QualityScoreCard evals={evals as any} />}
+
       {validation?.issues && validation.issues.length > 0 && (
         <div style={{ background: '#fef9e8', border: '1px solid #f0d674', padding: 16, borderRadius: 10, marginTop: 20 }}>
           <b style={{ fontSize: 13 }}>Quality flags from validator</b>
@@ -118,6 +128,59 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
         </div>
       )}
     </>
+  );
+}
+
+type EvalRow = { attempt: number; action: string; scores: RubricScores | null; issues: Array<{ severity: string }> | null; created_at: string };
+
+function QualityScoreCard({ evals }: { evals: EvalRow[] }) {
+  const latest = evals[evals.length - 1];
+  const first = evals[0];
+  const overall = Number(latest.scores?.overall ?? 0);
+  const delta = evals.length > 1
+    ? Number(latest.scores?.overall ?? 0) - Number(first.scores?.overall ?? 0)
+    : null;
+  const flagged = (latest.issues ?? []).filter((i) => i.severity === 'block' || i.severity === 'rewrite').length;
+
+  const actionLabel: Record<string, { text: string; color: string }> = {
+    approve: { text: 'Approved by manager', color: 'var(--moss)' },
+    rewrite: { text: 'Sent back for rewrite', color: '#E0A040' },
+    reject: { text: 'Rejected — routed to your review', color: '#b04a3b' },
+  };
+  const act = actionLabel[latest.action] ?? { text: latest.action, color: 'var(--clay)' };
+
+  return (
+    <section style={{ background: 'white', border: '1px solid var(--line)', borderRadius: 14, padding: '20px 24px', marginTop: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <div className="mono" style={{ fontSize: 11, letterSpacing: '0.1em', color: 'var(--clay)' }}>
+          MANAGER SCORE · ATTEMPT {latest.attempt}/2
+        </div>
+        <Link href="/dashboard/reviews" className="mono" style={{ fontSize: 11, color: 'var(--moss)' }}>
+          all evaluations →
+        </Link>
+      </div>
+
+      <div style={{ display: 'flex', gap: 28, alignItems: 'center', marginTop: 16, flexWrap: 'wrap' }}>
+        <ScoreRing value={overall} />
+        <RubricBars scores={latest.scores} />
+      </div>
+
+      <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginTop: 16, flexWrap: 'wrap', fontSize: 13 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: act.color }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: act.color, display: 'inline-block' }} />
+          {act.text}
+        </span>
+        {delta !== null && (
+          <span style={{ color: delta >= 0 ? 'var(--moss)' : '#b04a3b' }}>
+            rewrite {delta >= 0 ? 'raised' : 'lowered'} the score {first.scores?.overall} → {latest.scores?.overall}
+            {' '}({delta >= 0 ? '+' : ''}{delta})
+          </span>
+        )}
+        {flagged > 0 && (
+          <span style={{ color: bandColor(overall) }}>{flagged} flagged issue{flagged === 1 ? '' : 's'}</span>
+        )}
+      </div>
+    </section>
   );
 }
 
