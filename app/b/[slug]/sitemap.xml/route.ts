@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { appBase, escapeXml } from '@/lib/seo';
+import { escapeXml, blogHomeUrl, blogPostUrl } from '@/lib/seo';
 
 export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }> }) {
   const { slug } = await ctx.params;
@@ -11,9 +11,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
     .eq('domain_id', domain.id).eq('status', 'published')
     .order('published_at', { ascending: false });
 
-  const base = appBase();
   const urls = (posts ?? []).map((p) =>
-    `<url><loc>${escapeXml(`${base}/b/${slug}/${p.slug}`)}</loc><lastmod>${(p.published_at ?? '').slice(0, 10)}</lastmod></url>`
+    `<url><loc>${escapeXml(blogPostUrl(slug, p.slug!))}</loc><lastmod>${(p.published_at ?? '').slice(0, 10)}</lastmod></url>`
   ).join('');
 
   // index page lastmod = most recent post
@@ -23,7 +22,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-<url><loc>${escapeXml(`${base}/b/${slug}`)}</loc>${indexLastmod}</url>${urls}
+<url><loc>${escapeXml(blogHomeUrl(slug))}</loc>${indexLastmod}</url>${urls}
 </urlset>`;
   return new Response(xml, {
     headers: {

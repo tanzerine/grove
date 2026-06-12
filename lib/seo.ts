@@ -7,6 +7,43 @@ export function appBase(): string {
   return (process.env.NEXT_PUBLIC_APP_URL ?? 'https://grove.so').replace(/\/$/, '');
 }
 
+/* ─────────────── one canonical home per blog ───────────────
+ * With GROVE_BLOG_ROOT_DOMAIN set, every blog lives on its own subdomain
+ * ({slug}.{root}, served by the middleware host-rewrite). Without it, blogs
+ * live under /b/{slug} on the app origin. EVERY absolute blog URL — canonical,
+ * OG, JSON-LD, sitemap, RSS, robots, social copy, webhooks — must come from
+ * these two builders so the shapes can never diverge again. */
+
+export function blogRootDomain(): string | null {
+  const v = (process.env.GROVE_BLOG_ROOT_DOMAIN ?? '')
+    .trim().replace(/^https?:\/\//, '').replace(/\/$/, '');
+  return v || null;
+}
+
+/** Absolute URL of a blog's home (no trailing slash). */
+export function blogHomeUrl(blogSlug: string): string {
+  const root = blogRootDomain();
+  return root ? `https://${blogSlug}.${root}` : `${appBase()}/b/${blogSlug}`;
+}
+
+/** Absolute URL of one article. */
+export function blogPostUrl(blogSlug: string, postSlug: string): string {
+  return `${blogHomeUrl(blogSlug)}/${postSlug}`;
+}
+
+/**
+ * If `host` is a blog subdomain under GROVE_BLOG_ROOT_DOMAIN, return its slug.
+ * Null for the root/app/www hosts, foreign hosts, or when the env is unset.
+ */
+export function subdomainSlugFromHost(host: string | null | undefined): string | null {
+  const root = blogRootDomain();
+  if (!root || !host) return null;
+  const h = host.toLowerCase().split(':')[0];
+  if (h === root || h === `www.${root}` || !h.endsWith(`.${root}`)) return null;
+  const sub = h.slice(0, -(root.length + 1));
+  return /^[a-z0-9-]+$/.test(sub) && sub !== 'www' ? sub : null;
+}
+
 export function escapeXml(s: string): string {
   return s.replace(/[<>&'"]/g, (c) =>
     ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c]!),

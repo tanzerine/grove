@@ -3,6 +3,7 @@
  * unit-testable and reused by both the publisher and the dry-run preview.
  */
 import type { Platform } from './providers';
+import { blogHomeUrl, blogPostUrl } from '../seo';
 
 export type SocialCopy = { x?: string; linkedin?: string; instagram?: string } | null;
 
@@ -33,12 +34,10 @@ export function isDryRun(): boolean {
   return v === 'true' || v === '1';
 }
 
+// Delegates to lib/seo so social URLs can never diverge from the canonical
+// URLs the blog pages, sitemap, and RSS emit.
 export function blogUrlFor(domain: DomainForShare, slug: string | null): string {
-  const root = (process.env.GROVE_BLOG_ROOT_DOMAIN ?? '').replace(/^https?:\/\//, '').replace(/\/$/, '');
-  const path = slug ?? '';
-  return root
-    ? `https://${domain.blog_slug}.${root}/${path}`
-    : `https://grove.so/b/${domain.blog_slug}/${path}`;
+  return slug ? blogPostUrl(domain.blog_slug, slug) : blogHomeUrl(domain.blog_slug);
 }
 
 export function firstTweet(thread?: string): string {

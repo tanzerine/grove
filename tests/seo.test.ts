@@ -1,5 +1,8 @@
-import { describe, it, expect } from 'vitest';
-import { escapeXml, isBot, jsonLdScript, appBase } from '../lib/seo';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import {
+  escapeXml, isBot, jsonLdScript, appBase,
+  blogHomeUrl, blogPostUrl, subdomainSlugFromHost,
+} from '../lib/seo';
 
 describe('escapeXml', () => {
   it('escapes the five XML special characters', () => {
@@ -43,5 +46,63 @@ describe('appBase', () => {
   it('returns an origin without a trailing slash', () => {
     expect(appBase().endsWith('/')).toBe(false);
     expect(appBase()).toMatch(/^https?:\/\//);
+  });
+});
+
+describe('blog URLs', () => {
+  const saved = process.env.GROVE_BLOG_ROOT_DOMAIN;
+  beforeEach(() => { delete process.env.GROVE_BLOG_ROOT_DOMAIN; });
+  afterEach(() => {
+    if (saved === undefined) delete process.env.GROVE_BLOG_ROOT_DOMAIN;
+    else process.env.GROVE_BLOG_ROOT_DOMAIN = saved;
+  });
+
+  it('path mode (env unset): blogs live under /b on the app origin', () => {
+    expect(blogHomeUrl('demo')).toBe(`${appBase()}/b/demo`);
+    expect(blogPostUrl('demo', 'my-post')).toBe(`${appBase()}/b/demo/my-post`);
+  });
+
+  it('subdomain mode: blogs live on {slug}.{root}', () => {
+    process.env.GROVE_BLOG_ROOT_DOMAIN = 'grove.so';
+    expect(blogHomeUrl('demo')).toBe('https://demo.grove.so');
+    expect(blogPostUrl('demo', 'my-post')).toBe('https://demo.grove.so/my-post');
+  });
+
+  it('tolerates scheme/trailing-slash in the env value', () => {
+    process.env.GROVE_BLOG_ROOT_DOMAIN = 'https://grove.so/';
+    expect(blogHomeUrl('demo')).toBe('https://demo.grove.so');
+  });
+});
+
+describe('subdomainSlugFromHost', () => {
+  const saved = process.env.GROVE_BLOG_ROOT_DOMAIN;
+  beforeEach(() => { process.env.GROVE_BLOG_ROOT_DOMAIN = 'grove.so'; });
+  afterEach(() => {
+    if (saved === undefined) delete process.env.GROVE_BLOG_ROOT_DOMAIN;
+    else process.env.GROVE_BLOG_ROOT_DOMAIN = saved;
+  });
+
+  it('extracts the slug from a blog subdomain (port ignored)', () => {
+    expect(subdomainSlugFromHost('demo.grove.so')).toBe('demo');
+    expect(subdomainSlugFromHost('demo.grove.so:443')).toBe('demo');
+    expect(subdomainSlugFromHost('My-Blog.GROVE.SO')).toBe('my-blog');
+  });
+
+  it('ignores the root, www, foreign hosts, and nested subdomains', () => {
+    expect(subdomainSlugFromHost('grove.so')).toBeNull();
+    expect(subdomainSlugFromHost('www.grove.so')).toBeNull();
+    expect(subdomainSlugFromHost('evil.com')).toBeNull();
+    expect(subdomainSlugFromHost('notgrove.so')).toBeNull();
+    expect(subdomainSlugFromHost('a.b.grove.so')).toBeNull(); // dot in slug → invalid
+  });
+
+  it('is a no-op when the env is unset', () => {
+    delete process.env.GROVE_BLOG_ROOT_DOMAIN;
+    expect(subdomainSlugFromHost('demo.grove.so')).toBeNull();
+  });
+
+  it('handles null/empty hosts', () => {
+    expect(subdomainSlugFromHost(null)).toBeNull();
+    expect(subdomainSlugFromHost('')).toBeNull();
   });
 });
