@@ -131,7 +131,7 @@ export default async function BlogIndex({
             defaultValue={q}
             placeholder="Search articles…"
             aria-label="Search articles"
-            style={{ width: 230, padding: '10px 14px', border: '1px solid var(--line)', borderRadius: 10, background: 'white', fontFamily: 'inherit', fontSize: 14 }}
+            className="blog-search"
           />
           <button type="submit" className="btn btn-ghost btn-sm">Search</button>
         </form>
@@ -149,11 +149,8 @@ export default async function BlogIndex({
 
       {/* featured — most-read, wide card */}
       {featured && current === 1 && (
-        <Link
-          href={`${prefix}/${featured.slug}`}
-          style={{ display: 'flex', marginTop: 28, background: 'white', border: '1px solid var(--line)', borderRadius: 16, overflow: 'hidden', textDecoration: 'none', color: 'inherit' }}
-        >
-          <div style={{ flex: '1 1 55%', padding: '30px 32px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <Link href={`${prefix}/${featured.slug}`} className="feat-card">
+          <div style={{ flex: '1 1 55%', padding: '32px 34px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <span className="mono" style={{ fontSize: 10, letterSpacing: '0.12em', background: 'var(--moss)', color: 'white', borderRadius: 999, padding: '3px 10px' }}>FEATURED</span>
               <GenreTag genre={genreFor(featured.format, featured.title)} />
@@ -164,9 +161,9 @@ export default async function BlogIndex({
             )}
             <Byline author={author} date={featured.published_at} reads={featured.reads} />
           </div>
-          {featured.cover_image_url && (
-            <img src={featured.cover_image_url} alt="" style={{ flex: '1 1 45%', minWidth: 0, maxWidth: '45%', objectFit: 'cover' }} />
-          )}
+          {featured.cover_image_url
+            ? <img src={featured.cover_image_url} alt="" className="feat-media" />
+            : <div className="feat-fallback" aria-hidden style={{ background: fallbackColor(featured.title) }}>{initialOf(featured.title)}</div>}
         </Link>
       )}
 
@@ -180,10 +177,10 @@ export default async function BlogIndex({
           {pageItems.map((p) => {
             const g = genreFor(p.format, p.title);
             return (
-              <Link key={p.slug} href={`${prefix}/${p.slug}`} style={{ display: 'flex', flexDirection: 'column', background: 'white', border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden', textDecoration: 'none', color: 'inherit' }}>
-                {p.cover_image_url && (
-                  <img src={p.cover_image_url} alt="" loading="lazy" style={{ width: '100%', height: 150, objectFit: 'cover', display: 'block' }} />
-                )}
+              <Link key={p.slug} href={`${prefix}/${p.slug}`} className="bi-card">
+                {p.cover_image_url
+                  ? <img src={p.cover_image_url} alt="" loading="lazy" className="bi-cover" />
+                  : <div className="bi-fallback" aria-hidden style={{ background: fallbackColor(p.title) }}>{initialOf(p.title)}</div>}
                 <div style={{ padding: '16px 18px 18px', display: 'flex', flexDirection: 'column', flex: 1 }}>
                   <div><GenreTag genre={g} /></div>
                   <h2 style={{ fontFamily: 'Clash Display', fontSize: 20, lineHeight: 1.2, margin: '10px 0 0' }}>{p.title}</h2>
@@ -204,14 +201,14 @@ export default async function BlogIndex({
 
       {/* pagination */}
       {pages > 1 && (
-        <nav aria-label="Pages" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 18, marginTop: 44 }}>
+        <nav aria-label="Pages" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 14, marginTop: 44 }}>
           {current > 1
-            ? <Link href={mk({ page: current - 1 })} className="mono" style={{ fontSize: 13, color: 'var(--moss)' }}>← Newer</Link>
-            : <span className="mono" style={{ fontSize: 13, color: 'var(--line)' }}>← Newer</span>}
+            ? <Link href={mk({ page: current - 1 })} className="pagenav-link">← Newer</Link>
+            : <span className="pagenav-link off">← Newer</span>}
           <span className="mono" style={{ fontSize: 12, color: 'var(--clay)' }}>Page {current} / {pages}</span>
           {current < pages
-            ? <Link href={mk({ page: current + 1 })} className="mono" style={{ fontSize: 13, color: 'var(--moss)' }}>Older →</Link>
-            : <span className="mono" style={{ fontSize: 13, color: 'var(--line)' }}>Older →</span>}
+            ? <Link href={mk({ page: current + 1 })} className="pagenav-link">Older →</Link>
+            : <span className="pagenav-link off">Older →</span>}
         </nav>
       )}
 
@@ -222,19 +219,22 @@ export default async function BlogIndex({
 
 function Chip({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
   return (
-    <Link
-      href={href}
-      className="mono"
-      style={{
-        fontSize: 12, padding: '6px 14px', borderRadius: 999, textDecoration: 'none',
-        background: active ? 'var(--moss)' : 'white',
-        color: active ? 'white' : 'var(--ink)',
-        border: `1px solid ${active ? 'var(--moss)' : 'var(--line)'}`,
-      }}
-    >
+    <Link href={href} className={`chip-link${active ? ' on' : ''}`}>
       {children}
     </Link>
   );
+}
+
+/* Deterministic flat brand-family color + display initial for posts without
+ * a cover, so coverless cards still look designed instead of bare. */
+const FALLBACK_COLORS = ['#4e9e6a', '#2f6b4f', '#7a8a7d', '#1a2e1f'];
+function fallbackColor(title: string | null): string {
+  let h = 0;
+  for (const ch of title ?? '') h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return FALLBACK_COLORS[h % FALLBACK_COLORS.length];
+}
+function initialOf(title: string | null): string {
+  return Array.from((title ?? '').trim())[0]?.toUpperCase() ?? '·';
 }
 
 function GenreTag({ genre }: { genre: Genre }) {

@@ -92,6 +92,9 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   const credit = (p as any).cover_image_credit as { name?: string; profile_url?: string } | null;
   const author = authorFor(profile, domain.hostname);
   const genre = genreFor((p as any).format, p.title);
+  const readMin = Math.max(1, Math.round((p.body_md ?? '').split(/\s+/).length / 225));
+  const shareX = `https://twitter.com/intent/tweet?text=${encodeURIComponent(p.title ?? '')}&url=${encodeURIComponent(pageUrl)}`;
+  const shareLi = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(pageUrl)}`;
   const articleLd = {
     '@context': 'https://schema.org',
     '@type': 'BlogPosting',
@@ -116,6 +119,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
 
   return (
     <main className="post-shell">
+      <div id="rp" className="read-progress" aria-hidden />
       <a href={prefix || '/'} className="mono" style={{ fontSize: 12, color: 'var(--moss)' }}>← {domain.hostname}</a>
 
       <div className="post-grid" style={{ marginTop: 18 }}>
@@ -126,7 +130,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
               {genre.label}
             </span>
             <p className="mono" style={{ color: 'var(--clay)', fontSize: 12, margin: 0 }}>
-              By {author} · {new Date(p.published_at!).toLocaleDateString()}
+              By {author} · {new Date(p.published_at!).toLocaleDateString()} · {readMin} min read
             </p>
           </div>
 
@@ -163,6 +167,13 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
             </a>
           </aside>
 
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 26, flexWrap: 'wrap' }}>
+            <span className="mono" style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--clay)' }}>Share</span>
+            <a className="share-btn" href={shareX} target="_blank" rel="noopener noreferrer">X / Twitter</a>
+            <a className="share-btn" href={shareLi} target="_blank" rel="noopener noreferrer">LinkedIn</a>
+            <button className="share-btn" id="cpy" data-url={pageUrl} type="button">Copy link</button>
+          </div>
+
           {related.length > 0 && (
             <section style={{ marginTop: 36 }} aria-label="Related articles">
               <div className="mono" style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--clay)', marginBottom: 12 }}>
@@ -170,13 +181,9 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(related.length, 3)}, 1fr)`, gap: 12 }}>
                 {related.map((rp) => (
-                  <a
-                    key={rp.slug}
-                    href={`${prefix}/${rp.slug}`}
-                    style={{ display: 'block', background: 'white', border: '1px solid var(--line)', borderRadius: 12, overflow: 'hidden', textDecoration: 'none', color: 'inherit' }}
-                  >
+                  <a key={rp.slug} href={`${prefix}/${rp.slug}`} className="bi-card">
                     {rp.cover_image_url && (
-                      <img src={rp.cover_image_url} alt="" loading="lazy" style={{ width: '100%', height: 110, objectFit: 'cover', display: 'block' }} />
+                      <img src={rp.cover_image_url} alt="" loading="lazy" className="bi-cover" style={{ height: 110 }} />
                     )}
                     <div style={{ padding: '12px 14px 14px' }}>
                       <div style={{ fontFamily: 'Clash Display', fontSize: 16, lineHeight: 1.3 }}>{rp.title}</div>
@@ -212,6 +219,13 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
       <script
         dangerouslySetInnerHTML={{
           __html: buildTrackerScript({ postId: p.id, domainId: domain.id, hostname: domain.hostname }),
+        }}
+      />
+      <script
+        dangerouslySetInnerHTML={{
+          __html:
+            `(function(){var b=document.getElementById('rp');if(b){addEventListener('scroll',function(){var h=document.documentElement;var m=h.scrollHeight-h.clientHeight;b.style.width=(m>0?h.scrollTop/m*100:0)+'%';},{passive:true});}` +
+            `var c=document.getElementById('cpy');if(c){c.addEventListener('click',function(){if(!navigator.clipboard)return;navigator.clipboard.writeText(c.getAttribute('data-url')).then(function(){var t=c.textContent;c.textContent='Copied ✓';setTimeout(function(){c.textContent=t;},1600);});});}})();`,
         }}
       />
     </main>
