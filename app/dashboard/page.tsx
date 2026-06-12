@@ -1,4 +1,6 @@
+import Link from 'next/link';
 import { supabaseServer } from '@/lib/supabase/server';
+import { getBriefStats, composeBrief, nextAction, type BriefStats } from '@/lib/agent-brief';
 import PipelineActions from './PipelineActions';
 import PostRow from './PostRow';
 import ModeToggle from './ModeToggle';
@@ -9,6 +11,12 @@ export default async function Page() {
   const domain = domains?.[0];
   const { data: posts } = await sb
     .from('posts').select('*').eq('domain_id', domain?.id).order('created_at', { ascending: false }).limit(20);
+
+  // Weekly brief — the agent reports outcomes before we show machinery.
+  let brief: BriefStats | null = null;
+  if (domain) {
+    try { brief = await getBriefStats(domain.id, domain.hostname); } catch { /* brief is optional */ }
+  }
 
   // Latest manager evaluation per post → show the quality score in the pipeline.
   const ids = (posts ?? []).map((p) => p.id);
@@ -28,6 +36,8 @@ export default async function Page() {
 
   return (
     <>
+      {brief && <AgentBrief stats={brief} />}
+
       <div className="dm-top">
         <h4 style={{ fontFamily: 'Clash Display', fontSize: 28, margin: 0 }}>Content pipeline</h4>
       </div>
@@ -49,5 +59,66 @@ export default async function Page() {
         )}
       </div>
     </>
+  );
+}
+
+/* ───────── the agent's weekly report, in plain language ───────── */
+
+function AgentBrief({ stats }: { stats: BriefStats }) {
+  const sentences = composeBrief(stats);
+  const action = nextAction(stats);
+  const delta = stats.readsLastWeek > 0
+    ? Math.round(((stats.readsThisWeek - stats.readsLastWeek) / stats.readsLastWeek) * 100)
+    : null;
+
+  return (
+    <section style={{ background: 'white', border: '1px solid var(--line)', borderRadius: 14, padding: '22px 24px', marginBottom: 26 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
+        <div>
+          <div className="mono" style={{ fontSize: 11, letterSpacing: '0.1em', color: 'var(--clay)' }}>
+            YOUR MARKETING AGENT · LAST 7 DAYS
+          </div>
+          <p style={{ fontSize: 15, lineHeight: 1.65, margin: '10px 0 0', maxWidth: 640 }}>
+            {sentences.join(' ')}
+          </p>
+        </div>
+        {action && (
+          <Link
+            href={action.href}
+            className="btn btn-primary btn-sm"
+            style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+          >
+            {action.label}
+          </Link>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
+        <Chip
+          label="Reads"
+          value={String(stats.readsThisWeek)}
+          sub={delta !== null && Math.abs(delta) >= 5 ? `${delta > 0 ? '+' : ''}${delta}%` : undefined}
+          subColor={delta !== null && delta < 0 ? '#b04a3b' : 'var(--moss)'}
+        />
+        <Chip label="Site clicks" value={String(stats.conversionsThisWeek)} />
+        <Chip label="Published" value={`${stats.publishedThisWeek} / ${stats.totalPublished} total`} />
+        {stats.organicShare >= 0.05 && (
+          <Chip label="From search" value={`${Math.round(stats.organicShare * 100)}%`} />
+        )}
+        {stats.inReview > 0 && <Chip label="Awaiting review" value={String(stats.inReview)} />}
+      </div>
+    </section>
+  );
+}
+
+function Chip({ label, value, sub, subColor }: { label: string; value: string; sub?: string; subColor?: string }) {
+  return (
+    <div style={{ background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 10, padding: '8px 14px' }}>
+      <span style={{ fontFamily: 'Clash Display', fontSize: 18, color: 'var(--ink)' }}>{value}</span>
+      {sub && <span style={{ fontSize: 12, marginLeft: 6, color: subColor ?? 'var(--moss)' }}>{sub}</span>}
+      <div className="mono" style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--clay)', marginTop: 2 }}>
+        {label}
+      </div>
+    </div>
   );
 }

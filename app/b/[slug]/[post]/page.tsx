@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { mdToHtml, extractToc } from '@/lib/markdown';
 import { appBase, isBot, jsonLdScript } from '@/lib/seo';
+import { pickRelated } from '@/lib/related-posts';
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
 
@@ -62,6 +63,14 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
 
   const html = mdToHtml(p.body_md ?? '');
   const toc = extractToc(p.body_md ?? '');
+
+  // "Keep reading" — internal links keep readers on the blog (and give
+  // crawlers real internal linking between articles).
+  const { data: siblings } = await sb
+    .from('posts').select('slug,title,meta_description,cover_image_url,published_at')
+    .eq('domain_id', domain.id).eq('status', 'published').neq('id', p.id)
+    .order('published_at', { ascending: false }).limit(24);
+  const related = pickRelated({ slug: post, title: p.title }, siblings ?? [], 3);
 
   // CTA banner: "Try {business}" → the customer's own site (counts as a conversion).
   const profile = (domain as any).site_profile ?? null;
@@ -134,6 +143,35 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
               Visit {businessName} →
             </a>
           </aside>
+
+          {related.length > 0 && (
+            <section style={{ marginTop: 36 }} aria-label="Related articles">
+              <div className="mono" style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--clay)', marginBottom: 12 }}>
+                Keep reading
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(related.length, 3)}, 1fr)`, gap: 12 }}>
+                {related.map((rp) => (
+                  <a
+                    key={rp.slug}
+                    href={`/b/${slug}/${rp.slug}`}
+                    style={{ display: 'block', background: 'white', border: '1px solid var(--line)', borderRadius: 12, overflow: 'hidden', textDecoration: 'none', color: 'inherit' }}
+                  >
+                    {rp.cover_image_url && (
+                      <img src={rp.cover_image_url} alt="" loading="lazy" style={{ width: '100%', height: 110, objectFit: 'cover', display: 'block' }} />
+                    )}
+                    <div style={{ padding: '12px 14px 14px' }}>
+                      <div style={{ fontFamily: 'Clash Display', fontSize: 16, lineHeight: 1.3 }}>{rp.title}</div>
+                      {rp.meta_description && (
+                        <p style={{ fontSize: 12.5, color: 'var(--clay)', margin: '6px 0 0', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                          {rp.meta_description}
+                        </p>
+                      )}
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
 
         {toc.length >= 2 && (
