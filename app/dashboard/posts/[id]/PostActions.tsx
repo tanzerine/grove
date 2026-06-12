@@ -57,6 +57,21 @@ export default function PostActions({
     r.refresh();
   }
 
+  async function shareNow() {
+    setBusy('share');
+    const res = await fetch(`/api/posts/${id}/share`, { method: 'POST' });
+    const j = await res.json().catch(() => ({}));
+    setBusy(null);
+    if (!res.ok) {
+      alert(`Share failed: ${j.error ?? 'unknown'}`);
+    } else {
+      const lines = Object.entries(j.result ?? {}).map(([ch, r]: [string, any]) =>
+        r?.error ? `${ch}: failed — ${r.error}` : r?.dry_run ? `${ch}: dry run` : `${ch}: shared ✓`);
+      alert(lines.length ? lines.join('\n') : 'Nothing to share yet.');
+    }
+    r.refresh();
+  }
+
   async function del() {
     if (!confirm('Delete this post?')) return;
     setBusy('delete');
@@ -89,6 +104,11 @@ export default function PostActions({
       {hasCover && !hasInlineImages && (status === 'review' || status === 'published' || status === 'scheduled') && (
         <button className="btn btn-ghost btn-sm" onClick={genInlineImages} disabled={!!busy}>
           {busy === 'inline' ? 'Generating images…' : 'Add inline images'}
+        </button>
+      )}
+      {published && (
+        <button className="btn btn-ghost btn-sm" onClick={shareNow} disabled={!!busy}>
+          {busy === 'share' ? 'Sharing…' : 'Share to socials'}
         </button>
       )}
       {published && publicUrl && (

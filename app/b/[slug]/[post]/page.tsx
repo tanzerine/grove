@@ -2,6 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import { mdToHtml, extractToc } from '@/lib/markdown';
 import { appBase, isBot, jsonLdScript } from '@/lib/seo';
 import { pickRelated } from '@/lib/related-posts';
+import { injectInternalLinks } from '@/lib/internal-links';
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
 
@@ -61,16 +62,18 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
     await sb.from('posts').update({ reads: (p.reads ?? 0) + 1 }).eq('id', p.id);
   }
 
-  const html = mdToHtml(p.body_md ?? '');
-  const toc = extractToc(p.body_md ?? '');
-
-  // "Keep reading" — internal links keep readers on the blog (and give
-  // crawlers real internal linking between articles).
+  // Siblings power both retention features: contextual in-body links and the
+  // "Keep reading" block. Injection happens at render time so every existing
+  // post gains links as the blog grows.
   const { data: siblings } = await sb
     .from('posts').select('slug,title,meta_description,cover_image_url,published_at')
     .eq('domain_id', domain.id).eq('status', 'published').neq('id', p.id)
     .order('published_at', { ascending: false }).limit(24);
   const related = pickRelated({ slug: post, title: p.title }, siblings ?? [], 3);
+
+  const { body: linkedMd } = injectInternalLinks(p.body_md ?? '', siblings ?? [], `/b/${slug}`);
+  const html = mdToHtml(linkedMd);
+  const toc = extractToc(p.body_md ?? '');
 
   // CTA banner: "Try {business}" → the customer's own site (counts as a conversion).
   const profile = (domain as any).site_profile ?? null;

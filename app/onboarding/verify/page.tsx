@@ -108,6 +108,15 @@ function VerifyInner() {
         {polling ? 'Checking all methods…' : 'I added it — verify now'}
       </button>
       {msg && <p style={{ marginTop: 14, color: 'var(--clay)', fontSize: 14 }}>{msg}</p>}
+
+      <p style={{ marginTop: 26, fontSize: 14, color: 'var(--clay)' }}>
+        Don't have DNS access right now?{' '}
+        <a href="/dashboard" style={{ color: 'var(--moss)', textDecoration: 'underline' }}>
+          Skip for now →
+        </a>{' '}
+        You can already queue topics and watch Grove write — autopilot publishing stays
+        paused until you verify.
+      </p>
     </main>
   );
 }

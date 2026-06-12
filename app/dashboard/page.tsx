@@ -36,6 +36,18 @@ export default async function Page() {
 
   return (
     <>
+      {domain && !domain.verified_at && (
+        <div style={{ background: 'rgba(89,148,94,0.08)', border: '1px solid var(--moss)', borderRadius: 12, padding: '12px 16px', marginBottom: 18, fontSize: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span>
+            <b>{domain.hostname}</b> isn't verified yet — autopilot is paused, but you can
+            queue topics manually and review every draft.
+          </span>
+          <Link href={`/onboarding/verify?domain=${domain.id}`} className="btn btn-primary btn-sm" style={{ whiteSpace: 'nowrap' }}>
+            Verify domain →
+          </Link>
+        </div>
+      )}
+
       {brief && <AgentBrief stats={brief} />}
 
       <div className="dm-top">
