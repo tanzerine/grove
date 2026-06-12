@@ -15,7 +15,7 @@ export type RelatedCandidate = {
   published_at?: string | null;
 };
 
-const STOP = new Set([
+export const STOP = new Set([
   'the', 'a', 'an', 'and', 'or', 'for', 'to', 'of', 'in', 'on', 'with', 'your',
   'you', 'how', 'what', 'why', 'when', 'is', 'are', 'vs', 'at', 'by', 'from',
   'it', 'its', 'that', 'this', 'best', 'guide', 'complete', 'ultimate', 'top',
