@@ -1,6 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { mdToHtml, extractToc } from '@/lib/markdown';
-import { appBase, isBot, jsonLdScript } from '@/lib/seo';
+import { isBot, jsonLdScript, blogHomeUrl, blogPostUrl, subdomainSlugFromHost } from '@/lib/seo';
 import { pickRelated } from '@/lib/related-posts';
 import { injectInternalLinks } from '@/lib/internal-links';
 import { notFound } from 'next/navigation';
@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     .eq('domain_id', domain.id).eq('slug', post).eq('status', 'published').single();
   if (!p) return {};
 
-  const url = `${appBase()}/b/${slug}/${post}`;
+  const url = blogPostUrl(slug, post);
   const title = p.meta_title || p.title || undefined;
   const description = p.meta_description ?? undefined;
   return {
@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     description,
     alternates: {
       canonical: url,
-      types: { 'application/rss+xml': `${appBase()}/b/${slug}/rss.xml` },
+      types: { 'application/rss+xml': `${blogHomeUrl(slug)}/rss.xml` },
     },
     openGraph: {
       title,
@@ -62,6 +62,11 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
     await sb.from('posts').update({ reads: (p.reads ?? 0) + 1 }).eq('id', p.id);
   }
 
+  // On a blog subdomain the middleware strips the /b/{slug} prefix, so
+  // relative links must be root-relative there and prefixed on the app host.
+  const onSubdomain = !!subdomainSlugFromHost((await headers()).get('host'));
+  const prefix = onSubdomain ? '' : `/b/${slug}`;
+
   // Siblings power both retention features: contextual in-body links and the
   // "Keep reading" block. Injection happens at render time so every existing
   // post gains links as the blog grows.
@@ -71,7 +76,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
     .order('published_at', { ascending: false }).limit(24);
   const related = pickRelated({ slug: post, title: p.title }, siblings ?? [], 3);
 
-  const { body: linkedMd } = injectInternalLinks(p.body_md ?? '', siblings ?? [], `/b/${slug}`);
+  const { body: linkedMd } = injectInternalLinks(p.body_md ?? '', siblings ?? [], prefix);
   const html = mdToHtml(linkedMd);
   const toc = extractToc(p.body_md ?? '');
 
@@ -82,7 +87,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   const subline: string = business?.value_props?.[0] || business?.description || '';
   const homeUrl = `https://${domain.hostname.replace(/^https?:\/\//, '').replace(/\/$/, '')}`;
 
-  const pageUrl = `${appBase()}/b/${slug}/${post}`;
+  const pageUrl = blogPostUrl(slug, post);
   const credit = (p as any).cover_image_credit as { name?: string; profile_url?: string } | null;
   const articleLd = {
     '@context': 'https://schema.org',
@@ -100,14 +105,14 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: domain.hostname, item: `${appBase()}/b/${slug}` },
+      { '@type': 'ListItem', position: 1, name: domain.hostname, item: blogHomeUrl(slug) },
       { '@type': 'ListItem', position: 2, name: p.title, item: pageUrl },
     ],
   };
 
   return (
     <main className="post-shell">
-      <a href={`/b/${slug}`} className="mono" style={{ fontSize: 12, color: 'var(--moss)' }}>← {domain.hostname}</a>
+      <a href={prefix || '/'} className="mono" style={{ fontSize: 12, color: 'var(--moss)' }}>← {domain.hostname}</a>
 
       <div className="post-grid" style={{ marginTop: 18 }}>
         <div className="post-main">
@@ -156,7 +161,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
                 {related.map((rp) => (
                   <a
                     key={rp.slug}
-                    href={`/b/${slug}/${rp.slug}`}
+                    href={`${prefix}/${rp.slug}`}
                     style={{ display: 'block', background: 'white', border: '1px solid var(--line)', borderRadius: 12, overflow: 'hidden', textDecoration: 'none', color: 'inherit' }}
                   >
                     {rp.cover_image_url && (

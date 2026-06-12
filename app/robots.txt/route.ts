@@ -3,20 +3,21 @@
  * discover every hosted blog without waiting on external links.
  */
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { appBase } from '@/lib/seo';
+import { blogHomeUrl } from '@/lib/seo';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const base = appBase();
   const sb = supabaseAdmin();
   const { data: domains } = await sb
     .from('domains').select('blog_slug')
     .not('verified_at', 'is', null)
     .limit(500);
 
+  // With GROVE_BLOG_ROOT_DOMAIN set these point at the subdomains (each of
+  // which also serves its own robots.txt); without it, at the /b/ paths.
   const sitemaps = (domains ?? [])
-    .map((d) => `Sitemap: ${base}/b/${d.blog_slug}/sitemap.xml`)
+    .map((d) => `Sitemap: ${blogHomeUrl(d.blog_slug)}/sitemap.xml`)
     .join('\n');
 
   const body = `User-agent: *

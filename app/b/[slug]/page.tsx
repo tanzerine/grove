@@ -1,13 +1,14 @@
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { appBase, jsonLdScript } from '@/lib/seo';
+import { jsonLdScript, blogHomeUrl, blogPostUrl, subdomainSlugFromHost } from '@/lib/seo';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { headers } from 'next/headers';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const sb = supabaseAdmin();
   const { data: domain } = await sb.from('domains').select('hostname').eq('blog_slug', slug).single();
-  const url = `${appBase()}/b/${slug}`;
+  const url = blogHomeUrl(slug);
   return {
     title: `${domain?.hostname ?? 'grove blog'} — articles`,
     description: `Posts by ${domain?.hostname}`,
@@ -34,15 +35,19 @@ export default async function BlogIndex({ params }: { params: Promise<{ slug: st
     .from('posts').select('slug,title,meta_description,published_at,cover_image_url')
     .eq('domain_id', domain.id).eq('status', 'published').order('published_at', { ascending: false });
 
+  // On a blog subdomain the middleware strips /b/{slug}, so links are root-relative there.
+  const onSubdomain = !!subdomainSlugFromHost((await headers()).get('host'));
+  const prefix = onSubdomain ? '' : `/b/${slug}`;
+
   const blogLd = {
     '@context': 'https://schema.org',
     '@type': 'Blog',
     name: `The ${domain.hostname} blog`,
-    url: `${appBase()}/b/${slug}`,
+    url: blogHomeUrl(slug),
     blogPost: (posts ?? []).slice(0, 20).map((p) => ({
       '@type': 'BlogPosting',
       headline: p.title,
-      url: `${appBase()}/b/${slug}/${p.slug}`,
+      url: blogPostUrl(slug, p.slug!),
       datePublished: p.published_at ?? undefined,
     })),
   };
@@ -53,7 +58,7 @@ export default async function BlogIndex({ params }: { params: Promise<{ slug: st
       <p className="lede">Grown by grove. Updated on autopilot.</p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 28, marginTop: 40 }}>
         {(posts ?? []).map((p) => (
-          <Link key={p.slug} href={`/b/${slug}/${p.slug}`} style={{ display: 'flex', gap: 20, alignItems: 'flex-start', borderBottom: '1px solid var(--line)', paddingBottom: 24 }}>
+          <Link key={p.slug} href={`${prefix}/${p.slug}`} style={{ display: 'flex', gap: 20, alignItems: 'flex-start', borderBottom: '1px solid var(--line)', paddingBottom: 24 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <h2 style={{ fontFamily: 'Clash Display', fontSize: 26, margin: 0 }}>{p.title}</h2>
               <p style={{ color: 'var(--clay)', margin: '6px 0 0' }}>{p.meta_description}</p>

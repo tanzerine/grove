@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { appBase, escapeXml } from '@/lib/seo';
+import { escapeXml, blogHomeUrl } from '@/lib/seo';
 
 export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }> }) {
   const { slug } = await ctx.params;
@@ -12,8 +12,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
     .eq('domain_id', domain.id).eq('status', 'published')
     .order('published_at', { ascending: false }).limit(50);
 
-  const base = appBase();
-  const blogUrl = `${base}/b/${slug}`;
+  const blogUrl = blogHomeUrl(slug);
   const items = (posts ?? []).map((p) => {
     const url = `${blogUrl}/${p.slug}`;
     return `<item>
