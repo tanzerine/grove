@@ -22,101 +22,6 @@ function eventDot(event: string) {
   return { color: '#d99c2b', icon: '●' };
 }
 
-const KEYFRAMES = `
-@keyframes grove-pulse-dot {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%       { opacity: 0.35; transform: scale(0.65); }
-}
-@keyframes grove-bounce {
-  0%, 60%, 100% { transform: translateY(0);   opacity: 0.35; }
-  30%           { transform: translateY(-5px); opacity: 1;    }
-}
-@keyframes grove-shimmer {
-  0%   { background-position: -200% center; }
-  100% { background-position:  200% center; }
-}
-@keyframes grove-spin {
-  to { transform: rotate(360deg); }
-}
-@keyframes grove-glow-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(209,156,43,0.5); }
-  50%       { box-shadow: 0 0 0 5px rgba(209,156,43,0); }
-}
-
-/* Animated collapse: grid-rows 0fr→1fr is jank-free and height-agnostic */
-.grove-collapsible {
-  display: grid;
-  transition: grid-template-rows 0.32s cubic-bezier(0.4, 0, 0.2, 1),
-              opacity 0.22s ease;
-}
-.grove-collapsible.open  { grid-template-rows: 1fr; opacity: 1; }
-.grove-collapsible.closed { grid-template-rows: 0fr; opacity: 0; pointer-events: none; }
-.grove-collapsible-inner { overflow: hidden; min-height: 0; }
-
-.grove-live-dot {
-  display: inline-block;
-  animation: grove-pulse-dot 1.2s ease-in-out infinite;
-}
-.grove-think-dot {
-  display: inline-block;
-  width: 5px; height: 5px;
-  border-radius: 50%;
-  background: #d99c2b;
-  animation: grove-bounce 1.4s ease-in-out infinite;
-}
-.grove-think-dot:nth-child(2) { animation-delay: 0.18s; }
-.grove-think-dot:nth-child(3) { animation-delay: 0.36s; }
-
-.grove-active-row {
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(209,156,43,0.12) 40%,
-    rgba(209,156,43,0.20) 50%,
-    rgba(209,156,43,0.12) 60%,
-    transparent 100%
-  );
-  background-size: 200% auto;
-  animation: grove-shimmer 2.2s linear infinite;
-  border-radius: 6px;
-  padding: 4px 6px;
-  margin: -4px -6px;
-}
-
-/* Spinning progress ring that appears on hover over the active step dot */
-.grove-active-icon {
-  position: relative;
-}
-.grove-active-icon::after {
-  content: '';
-  position: absolute;
-  inset: -4px;
-  border-radius: 50%;
-  border: 2px solid #d99c2b;
-  border-top-color: transparent;
-  opacity: 0;
-  transform: rotate(0deg);
-  transition: opacity 0.18s ease;
-}
-.grove-active-icon:hover::after {
-  opacity: 1;
-  animation: grove-spin 0.75s linear infinite;
-}
-.grove-active-icon:hover {
-  animation: grove-glow-pulse 1s ease-in-out infinite;
-}
-
-/* Arrow rotation for the toggle chevron */
-.grove-toggle-arrow {
-  display: inline-block;
-  font-size: 10px;
-  transition: transform 0.25s ease;
-  color: var(--clay);
-  font-family: monospace;
-  line-height: 1;
-}
-.grove-toggle-arrow.open { transform: rotate(90deg); }
-`;
 
 export default function PipelineTimeline({ log, status }: { log: LogEntry[]; status: string }) {
   const router = useRouter();
@@ -143,9 +48,7 @@ export default function PipelineTimeline({ log, status }: { log: LogEntry[]; sta
   const first = items[0]?.ts ?? Date.now();
 
   return (
-    <>
-      <style>{KEYFRAMES}</style>
-      <div style={{ background: 'var(--paper)', borderRadius: 12, border: '1px solid var(--line)', overflow: 'hidden' }}>
+    <div style={{ background: 'var(--paper)', borderRadius: 12, border: '1px solid var(--line)', overflow: 'hidden' }}>
 
         {/* ── Header / toggle ── */}
         <button
@@ -236,6 +139,5 @@ export default function PipelineTimeline({ log, status }: { log: LogEntry[]; sta
         </div>
 
       </div>
-    </>
   );
 }
