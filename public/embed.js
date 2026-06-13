@@ -133,6 +133,13 @@
     root.className = 'gv';
     root.innerHTML = '<div class="gv-empty">Loading…</div>';
     var HASH = '#grove/';
+    // Hybrid mode: when data-article-base is set, cards link to the customer's
+    // own server-rendered article pages ({base}/{slug}) instead of the in-page
+    // hash reader — keeps articles crawlable/SEO'd on their domain.
+    var artBase = root.getAttribute('data-article-base');
+    function articleHref(slug) {
+      return artBase ? artBase.replace(/\/$/, '') + '/' + slug : HASH + slug;
+    }
 
     loadAll(host).then(function (posts) {
       if (!posts.length) { root.innerHTML = '<div class="gv-empty">New articles are on the way — check back soon.</div>'; return; }
@@ -180,7 +187,7 @@
         var pages = Math.max(1, Math.ceil(pool.length / PER));
         if (state.page > pages) state.page = pages;
         var items = pool.slice((state.page - 1) * PER, state.page * PER);
-        var href = function (slug) { return HASH + slug; };
+        var href = articleHref;
 
         var featHTML = (feat && state.page === 1) ? (
           '<a class="gv-feat" href="' + href(feat.slug) + '">' +

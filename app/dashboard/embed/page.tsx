@@ -48,6 +48,9 @@ export default async function Page() {
       <h3 style={{ fontFamily: 'Clash Display', fontSize: 22, marginTop: 30 }}>Make it yours</h3>
       <ul style={{ paddingLeft: 18, marginTop: 10, lineHeight: 1.8, color: 'var(--clay)' }}>
         <li><span className="mono">data-accent=&quot;#hex&quot;</span> — match your brand color (links, chips, hover).</li>
+        <li><span className="mono">data-article-base=&quot;/blog&quot;</span> on <span className="mono">#grove-blog</span> — link cards to your own
+          server-rendered article pages (<span className="mono">/blog/&lt;slug&gt;</span>) instead of the in-page reader.
+          Use this if you keep a thin article route for per-domain SEO.</li>
         <li>Cards inherit your page font automatically. Override any class under <span className="mono">.gv</span> to restyle.</li>
       </ul>
 
