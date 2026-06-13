@@ -6,6 +6,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { mdToHtml, extractToc } from '@/lib/markdown';
+import { genreFor, authorFor } from '@/lib/blog-genre';
 
 export async function GET(_req: Request, ctx: { params: Promise<{ hostname: string; slug: string }> }) {
   const { hostname: raw, slug } = await ctx.params;
@@ -29,7 +30,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ hostname: stri
 
   const { data: post } = await sb
     .from('posts')
-    .select('slug,title,body_md,meta_title,meta_description,published_at,reads,cover_image_url,cover_image_credit')
+    .select('slug,title,body_md,meta_title,meta_description,published_at,reads,cover_image_url,cover_image_credit,format:research->brief->>format')
     .eq('domain_id', domain.id)
     .eq('slug', slug)
     .eq('status', 'published')
@@ -71,6 +72,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ hostname: stri
       title: post.title,
       meta_title: post.meta_title,
       meta_description: post.meta_description,
+      genre: genreFor((post as any).format, post.title).label,
+      author: authorFor((domain as any).site_profile, domain.hostname),
       body_md: enrichedBody,             // fallback: floated TOC + CTA inline
       html,                              // RECOMMENDED: full 2-col article + right-rail TOC + CTA
       toc,                               // [{ id, text, level }] — build your own rail if you prefer
