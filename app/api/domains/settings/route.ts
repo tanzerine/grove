@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { randomBytes } from 'crypto';
 import { supabaseServer } from '@/lib/supabase/server';
+import { isPublicHttpUrl } from '@/lib/net/ssrf';
 
 const schema = z.object({
   domain_id: z.string().uuid(),
@@ -30,6 +31,11 @@ export async function PATCH(req: Request) {
       patch.social_webhook_url = null;
       patch.social_webhook_secret = null;
     } else {
+      // The cron POSTs to this URL server-side, so block targets that resolve
+      // to internal/private addresses (SSRF). https is already enforced by zod.
+      if (!(await isPublicHttpUrl(updates.social_webhook_url))) {
+        return NextResponse.json({ error: 'webhook URL must be a public https endpoint' }, { status: 400 });
+      }
       const { data: existing } = await sb
         .from('domains').select('social_webhook_secret')
         .eq('id', domain_id).eq('user_id', user.id).maybeSingle();

@@ -10,6 +10,12 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
   const { id } = await ctx.params;
+  // runInlineImagesForPost runs as the service role (bypasses RLS); confirm the
+  // caller owns this post before spending image-generation credits on it. This
+  // SELECT is RLS-scoped to the owner.
+  const { data: owned } = await sb.from('posts').select('id').eq('id', id).maybeSingle();
+  if (!owned) return NextResponse.json({ error: 'not found' }, { status: 404 });
+
   await runInlineImagesForPost(id);
   return NextResponse.json({ ok: true });
 }

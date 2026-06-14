@@ -11,6 +11,7 @@
  */
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { isCronAuthorized } from '@/lib/cron-auth';
 import { buildStrategy, type Strategy } from '@/lib/strategy/build';
 import { summarizeMonth } from '@/lib/strategy/review';
 import { parseInterview } from '@/lib/strategy/interview';
@@ -27,9 +28,8 @@ function monthBounds(now = new Date()) {
 }
 
 export async function GET(req: Request) {
-  // basic shared-secret guard — Vercel cron sends the auth header it's configured with
-  const auth = req.headers.get('authorization') ?? '';
-  if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  // Shared-secret guard — fails closed when CRON_SECRET is unset.
+  if (!isCronAuthorized(req)) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
 
