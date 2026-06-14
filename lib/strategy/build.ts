@@ -16,6 +16,7 @@ import { llmCall, extractJson } from '../llm';
 import type { SiteProfile } from '../pipeline/site-profile';
 import { interviewSummary, type InterviewAnswers } from './interview';
 import { assignPublishDates } from './schedule';
+import { gatherKeywordDemand, formatDemandForPrompt } from './keywords';
 import type { MonthlyReport } from './review';
 
 export { assignPublishDates };   // re-exported for back-compat
@@ -120,6 +121,21 @@ export async function buildStrategy(input: BuildStrategyInput): Promise<Strategy
   const { month, postsPerWeek, profile, interview, prevStrategy, prevReport, alreadyCovered } = input;
   const monthlyPostCount = Math.max(4, Math.round(postsPerWeek * 4.3));
 
+  // VALIDATED DEMAND — pull real search phrases (free, via Google Autocomplete)
+  // for the business's own products/industry/value props. This grounds the
+  // plan in what people actually search, fixing the month-1 cold start where
+  // the planner had only the profile to go on. Best-effort: [] on any failure.
+  const seeds = [
+    ...profile.business.products_services,
+    profile.business.industry,
+    ...profile.business.value_props,
+  ].map((s) => (s ?? '').trim()).filter(Boolean);
+  let demandBlock = '(none captured — plan from the business profile)';
+  try {
+    const demand = await gatherKeywordDemand(seeds, { maxSeeds: 4, limit: 36 });
+    demandBlock = formatDemandForPrompt(demand);
+  } catch { /* demand is best-effort signal */ }
+
   const source: Strategy['source'] = interview
     ? prevStrategy ? 'mixed' : 'interview'
     : 'inferred';
@@ -143,6 +159,12 @@ PRIORITIES (in order)
 5. DEMAND FIRST: the report lists real search queries that already brought
    readers. Dedicate at least ~⅓ of the plan to covering those queries with a
    sharper angle than last time. Proven demand beats invented topics.
+6. VALIDATED SEARCH DEMAND: a list of real phrases people search (from Google
+   autocomplete) is provided. Build pillars and topics around these, and set
+   each slot's "target_keyword" to a real phrase from the list when one fits.
+   Match the phrase's search intent to the slot intent: informational →
+   editorial/contextual, commercial → contextual/conversion, transactional →
+   conversion. Don't force an unrelated keyword onto a slot.
 
 DON'T
 - Don't invent metrics we can't measure.
@@ -172,6 +194,9 @@ ${prevStrategy ? JSON.stringify({ goals: prevStrategy.goals, kpis: prevStrategy.
 
 LAST MONTH'S REPORT (real numbers from analytics):
 ${prevReport ? digestReport(prevReport) : '(none — first month)'}
+
+VALIDATED SEARCH DEMAND (real Google autocomplete phrases for this business — prioritize covering these and pull target_keyword from here):
+${demandBlock}
 
 ALREADY COVERED (don't repeat these topics/keywords):
 ${alreadyCovered?.length ? alreadyCovered.slice(0, 60).join(', ') : '(nothing on file)'}

@@ -19,15 +19,25 @@ export type ResearchContext = {
   pain: SearchResult[];
 };
 
-export async function gatherContext(topic: string, profile: SiteProfile): Promise<ResearchContext> {
+export async function gatherContext(
+  topic: string,
+  profile: SiteProfile,
+  targetKeyword?: string,
+): Promise<ResearchContext> {
   const industry = profile.business.industry ?? '';
   const audience = profile.business.target_audience ?? '';
 
-  const [primary, competitor, pain] = await Promise.all([
+  // When the strategy assigned a real search keyword, search that exact phrase
+  // too — it's what the article needs to rank for, so we want sources that
+  // match the searcher's actual query, not just our paraphrased topic.
+  const kw = targetKeyword?.trim();
+  const [primaryTopic, primaryKw, competitor, pain] = await Promise.all([
     webSearch(topic, 5),
+    kw && kw.toLowerCase() !== topic.toLowerCase() ? webSearch(kw, 3) : Promise.resolve([]),
     webSearch(`best tools alternatives ${topic}`, 3),
     webSearch(`${topic} mistakes problems pitfalls ${audience}`, 3),
   ]);
+  const primary = [...primaryKw, ...primaryTopic];
 
   // dedupe by URL across buckets so we don't double-cite the same source
   const seen = new Set<string>();

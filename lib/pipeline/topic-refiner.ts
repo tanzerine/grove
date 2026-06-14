@@ -99,6 +99,7 @@ export async function refineTopic(
   rawTopic: string,
   profile: SiteProfile,
   context: ResearchContext,
+  targetKeyword?: string,
 ): Promise<RefinedBrief> {
   const competitorList = context.competitor.map((s) => `- ${s.title}`).join('\n') || '(none)';
   const painList = context.pain.map((s) => `- ${s.title}`).join('\n') || '(none)';
@@ -149,7 +150,7 @@ Target audience: ${profile.business.target_audience}
 Value props: ${profile.business.value_props.join('; ') || 'unknown'}
 
 RAW TOPIC: "${rawTopic}"
-
+${targetKeyword?.trim() ? `\nTARGET SEARCH KEYWORD: "${targetKeyword.trim()}" — real demand this article should rank for. Work it naturally into the title and ensure the angle satisfies that search intent. Do NOT keyword-stuff; one natural use in the title/lead is enough.\n` : ''}
 CONTEXT FROM RESEARCH
 Common competitor angles for this topic:
 ${competitorList}
