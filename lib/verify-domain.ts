@@ -13,7 +13,7 @@
  * need to do ONE — pick whichever is easiest for their setup.
  */
 import { promises as dns } from 'node:dns';
-import { isPublicHttpUrl } from '@/lib/net/ssrf';
+import { isPublicHttpUrl } from './net/ssrf';
 
 export type VerifyMethod = 'dns' | 'meta' | 'http';
 export type VerifyResult =
