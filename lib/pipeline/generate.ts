@@ -37,6 +37,11 @@ export async function generatePost(postId: string) {
   const domain = (post as any).domains;
   const topic: string = post.topic ?? domain.hostname;
 
+  // If this post was materialized from a strategy slot, recover the slot's
+  // validated target keyword so research + the refiner can aim the article at
+  // real search demand. Ad-hoc posts (no slot) simply skip this.
+  const targetKeyword = await slotTargetKeyword((post as any).strategy_id, (post as any).slot_id);
+
   // 1. SITE PROFILE (lazy)
   let profile: SiteProfile = domain.site_profile;
   if (!profile?.business?.name) {
@@ -51,10 +56,11 @@ export async function generatePost(postId: string) {
 
   // 2. RESEARCH
   await sb.from('posts').update({ status: 'researching' }).eq('id', postId);
-  await appendLog(postId, 'research', 'start', `Tavily x3 for "${topic}"`);
+  await appendLog(postId, 'research', 'start',
+    `Tavily for "${topic}"${targetKeyword ? ` + keyword "${targetKeyword}"` : ''}`);
   let context;
   try {
-    context = await gatherContext(topic, profile);
+    context = await gatherContext(topic, profile, targetKeyword);
     await appendLog(postId, 'research', 'done',
       `${context.primary.length} primary, ${context.competitor.length} competitor, ${context.pain.length} pain`);
   } catch (e) { await failAt(postId, 'research', e); return; }
@@ -63,7 +69,7 @@ export async function generatePost(postId: string) {
   await appendLog(postId, 'topic_refiner', 'start', 'picking angle + title');
   let brief;
   try {
-    brief = await refineTopic(topic, profile, context);
+    brief = await refineTopic(topic, profile, context, targetKeyword);
     await appendLog(postId, 'topic_refiner', 'done', `${brief.format}: ${brief.title}`);
   } catch (e) { await failAt(postId, 'topic_refiner', e); return; }
 
@@ -237,6 +243,21 @@ async function loadActiveStrategy(
     if (overlap > bestScore) { best = slot; bestScore = overlap; }
   }
   return { strategy, slot: best };
+}
+
+/** Recover the target_keyword the strategist assigned to this post's slot.
+ *  Returns undefined for ad-hoc posts or when the slot has no keyword. */
+async function slotTargetKeyword(
+  strategyId?: string | null,
+  slotId?: string | null,
+): Promise<string | undefined> {
+  if (!strategyId || !slotId) return undefined;
+  const sb = supabaseAdmin();
+  const { data } = await sb
+    .from('strategies').select('publishing_plan').eq('id', strategyId).maybeSingle();
+  const plan = ((data as any)?.publishing_plan ?? []) as PostSlot[];
+  const kw = plan.find((s) => s.id === slotId)?.target_keyword?.trim();
+  return kw || undefined;
 }
 
 async function persistEvaluation(
