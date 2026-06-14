@@ -4,6 +4,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { generatePost } from '@/lib/pipeline/generate';
 import { runCoverForPost } from '@/lib/pipeline/cover-image';
+import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
 
 export const maxDuration = 300;
 
@@ -13,6 +14,9 @@ export async function POST(req: Request) {
   const sb = await supabaseServer();
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+
+  const limited = await enforceRateLimit(`gen:${user.id}`, LIMITS.generate);
+  if (limited) return limited;
 
   const parsed = body.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: 'invalid' }, { status: 400 });

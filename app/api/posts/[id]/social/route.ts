@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { runSocialAdapter } from '@/lib/pipeline/writer';
+import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
 
 export const maxDuration = 120;
 
@@ -9,6 +10,9 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   const sb = await supabaseServer();
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+
+  const limited = await enforceRateLimit(`llm:${user.id}`, LIMITS.llm);
+  if (limited) return limited;
 
   const { id } = await ctx.params;
   const { data: post } = await sb.from('posts').select('*, domains(site_profile)').eq('id', id).single();
