@@ -94,22 +94,25 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
         </div>
       )}
 
-      {/* Single article block: rendered, and editable in place for finished posts. */}
-      {p.body_md && (['review', 'scheduled', 'published'].includes(p.status) ? (
+      {/* Single article block: rendered, and editable in place for finished
+          posts. Manual drafts arrive with an empty body and open in edit mode. */}
+      {['review', 'scheduled', 'published'].includes(p.status) ? (
         <RichEditor
           postId={p.id}
-          initialBody={p.body_md}
+          initialBody={p.body_md ?? ''}
+          initialTitle={p.title ?? ''}
           initialMetaTitle={p.meta_title ?? ''}
           initialMetaDesc={p.meta_description ?? ''}
           canEdit
+          autoEdit={!p.body_md}
         />
-      ) : bodyHtml ? (
+      ) : p.body_md && bodyHtml ? (
         <article
           className="prose"
           style={{ marginTop: 16, padding: '36px 44px', background: 'white', border: '1px solid var(--line)', borderRadius: 14, maxWidth: 'none' }}
           dangerouslySetInnerHTML={{ __html: bodyHtml }}
         />
-      ) : null)}
+      ) : null}
 
       {(social.x || social.linkedin || social.instagram) && (
         <>

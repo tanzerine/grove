@@ -14,6 +14,7 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
 }
 
 const patchSchema = z.object({
+  title: z.string().max(160).optional(),
   body_md: z.string().optional(),
   meta_title: z.string().max(80).optional(),
   meta_description: z.string().max(160).optional(),
