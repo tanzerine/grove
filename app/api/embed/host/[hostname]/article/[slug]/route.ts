@@ -7,6 +7,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { mdToHtml, extractToc } from '@/lib/markdown';
 import { genreFor, authorFor } from '@/lib/blog-genre';
+import { pickRelated } from '@/lib/related-posts';
 
 export async function GET(_req: Request, ctx: { params: Promise<{ hostname: string; slug: string }> }) {
   const { hostname: raw, slug } = await ctx.params;
@@ -58,6 +59,18 @@ export async function GET(_req: Request, ctx: { params: Promise<{ hostname: stri
   const toc = extractToc(rawBody);
   const cta = { headline: `Try ${businessName}`, subline, url: homeUrl };
 
+  // Siblings for "Keep reading" — returned as structured data so the customer
+  // can link to their own article URLs rather than grove's hosted pages.
+  const { data: siblings } = await sb
+    .from('posts')
+    .select('slug,title,meta_description,cover_image_url,published_at')
+    .eq('domain_id', domain.id)
+    .eq('status', 'published')
+    .neq('slug', slug)
+    .order('published_at', { ascending: false })
+    .limit(24);
+  const related = pickRelated({ slug, title: post.title }, siblings ?? [], 3);
+
   // body_md: floated-TOC + CTA injected, so sites rendering raw markdown still
   // show them (fallback). html: a self-contained, responsive 2-column layout
   // (article + sticky right rail + polished CTA) — render THIS field to get the
@@ -78,6 +91,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ hostname: stri
       html,                              // RECOMMENDED: full 2-col article + right-rail TOC + CTA
       toc,                               // [{ id, text, level }] — build your own rail if you prefer
       cta,                               // { headline, subline, url } — place the banner yourself
+      related,                           // [{ slug, title, meta_description, cover_image_url }] — "Keep reading"
       published_at: post.published_at,
       cover_image_url: post.cover_image_url ?? null,
       cover_image_credit: post.cover_image_credit ?? null,

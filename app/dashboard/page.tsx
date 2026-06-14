@@ -75,7 +75,7 @@ export default async function Page() {
       </p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 24 }}>
-        {(posts ?? []).map((p) => <PostRow key={p.id} p={p} score={scoreByPost.get(p.id) ?? null} />)}
+        {(posts ?? []).map((p) => <PostRow key={p.id} p={p} score={scoreByPost.get(p.id) ?? null} blogSlug={domain?.blog_slug} />)}
         {(!posts || posts.length === 0) && (
           <p className="lede">No posts yet. Queue a topic above — the pipeline runs immediately.</p>
         )}

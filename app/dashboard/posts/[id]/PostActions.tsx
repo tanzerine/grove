@@ -91,7 +91,7 @@ export default function PostActions({
           {busy === 'social' ? 'Adapting…' : hasSocial ? 'Regenerate social posts' : 'Generate social posts'}
         </button>
       )}
-      {(status === 'failed' || status === 'review' || status === 'published') && (
+      {(status === 'failed' || status === 'review' || status === 'scheduled' || status === 'published') && (
         <button className="btn btn-ghost btn-sm" onClick={retry} disabled={!!busy}>
           {busy === 'retry' ? 'Regenerating…' : 'Regenerate'}
         </button>

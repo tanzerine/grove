@@ -19,7 +19,7 @@ const STATUS_BADGE: Record<string, { cls: string; label: string }> = {
 const STUCK_MIN = 3;
 const IN_FLIGHT = new Set(['queued', 'researching', 'writing']);
 
-export default function PostRow({ p, score }: { p: any; score?: { overall: number; action: string } | null }) {
+export default function PostRow({ p, score, blogSlug }: { p: any; score?: { overall: number; action: string } | null; blogSlug?: string | null }) {
   const r = useRouter();
   const [busy, setBusy] = useState<null | 'retry' | 'delete' | 'regen'>(null);
   const b = STATUS_BADGE[p.status] ?? STATUS_BADGE.queued;
@@ -139,6 +139,18 @@ export default function PostRow({ p, score }: { p: any; score?: { overall: numbe
           }} style={{ background: 'var(--moss)', color: 'white' }}>
             Approve
           </button>
+        )}
+        {p.status === 'published' && blogSlug && p.slug && (
+          <a
+            className="qbtn"
+            href={`/b/${blogSlug}/${p.slug}`}
+            target="_blank"
+            rel="noreferrer"
+            style={{ textDecoration: 'none' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            View ↗
+          </a>
         )}
         <span className={`badge ${b.cls}`}><span className="d" />{b.label}</span>
       </div>
