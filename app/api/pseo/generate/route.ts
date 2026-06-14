@@ -1,0 +1,76 @@
+import { NextResponse, after } from 'next/server';
+import { z } from 'zod';
+import { supabaseServer } from '@/lib/supabase/server';
+import { supabaseAdmin } from '@/lib/supabase/admin';
+import { generateProgrammaticPage, type PseoPageSpec } from '@/lib/pseo';
+import { runCoverForPost } from '@/lib/pipeline/cover-image';
+import type { SiteProfile } from '@/lib/pipeline/site-profile';
+
+export const maxDuration = 300;
+
+const intent = z.enum(['informational', 'commercial', 'transactional', 'navigational']);
+const body = z.object({
+  domain_id: z.string().uuid(),
+  pages: z.array(z.object({
+    keyword: z.string().min(2).max(120),
+    title: z.string().min(2).max(160),
+    intent,
+  })).min(1).max(12),
+});
+
+function slugify(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
+}
+
+// Generate the previewed set: one lean page per spec, each routed to review.
+// Pages are generated sequentially to stay polite to the model API; the whole
+// batch runs inside the function's maxDuration.
+export async function POST(req: Request) {
+  const sb = await supabaseServer();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+
+  const parsed = body.safeParse(await req.json());
+  if (!parsed.success) return NextResponse.json({ error: 'invalid' }, { status: 400 });
+
+  const { data: domain } = await sb
+    .from('domains').select('id, site_profile').eq('id', parsed.data.domain_id).single();
+  if (!domain) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+
+  const profile = (domain as any).site_profile as SiteProfile | null;
+  if (!profile?.business?.name) {
+    return NextResponse.json({ error: 'no_profile' }, { status: 409 });
+  }
+
+  const admin = supabaseAdmin();
+  const created: string[] = [];
+  let failed = 0;
+
+  for (const spec of parsed.data.pages as PseoPageSpec[]) {
+    try {
+      const content = await generateProgrammaticPage(profile, spec);
+      const { data, error } = await admin.from('posts').insert({
+        domain_id: parsed.data.domain_id,
+        status: 'review',
+        topic: spec.keyword,
+        title: spec.title,
+        slug: slugify(spec.title),
+        body_md: content.body_md,
+        meta_title: content.meta_title,
+        meta_description: content.meta_description,
+      }).select('id').single();
+      if (error || !data) { failed++; continue; }
+      created.push(data.id);
+      await admin.from('topic_memory').insert({ domain_id: parsed.data.domain_id, keyword: spec.keyword });
+    } catch {
+      failed++;
+    }
+  }
+
+  // Cover images run after the response so they don't block the batch.
+  if (created.length) {
+    after(async () => { for (const id of created) { try { await runCoverForPost(id); } catch {} } });
+  }
+
+  return NextResponse.json({ created: created.length, failed, ids: created });
+}
