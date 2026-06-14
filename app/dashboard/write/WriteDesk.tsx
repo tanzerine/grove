@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import type { SearchIntent } from '@/lib/strategy/keywords';
 
 const Sparkle = () => (
   <svg width="13" height="13" viewBox="0 0 13 13" fill="none" style={{ flexShrink: 0 }}>
@@ -34,6 +35,45 @@ export default function WriteDesk({ domainId, hostname }: { domainId: string; ho
   const [err, setErr] = useState<string | null>(null);
   const [busyIdea, setBusyIdea] = useState<string | null>(null);   // topic being acted on
   const [busyKind, setBusyKind] = useState<'mine' | 'grove' | null>(null);
+
+  // ── programmatic SEO ────────────────────────────────────────
+  type PseoPage = { keyword: string; title: string; intent: SearchIntent };
+  const [seed, setSeed] = useState('');
+  const [count, setCount] = useState(6);
+  const [pages, setPages] = useState<PseoPage[]>([]);
+  const [planning, setPlanning] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [pseoErr, setPseoErr] = useState<string | null>(null);
+
+  async function previewSet() {
+    setPlanning(true); setPseoErr(null); setPages([]);
+    try {
+      const res = await fetch('/api/pseo/plan', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ domain_id: domainId, seed: seed.trim(), count }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (res.status === 409) setPseoErr('Build your site profile first — grove needs to know the business before it can plan pages.');
+      else if (!res.ok || !j.pages?.length) setPseoErr('Could not plan a set for that seed. Try a broader term.');
+      else setPages(j.pages);
+    } catch { setPseoErr('Something went wrong. Try again.'); }
+    setPlanning(false);
+  }
+
+  async function generateSet() {
+    if (!pages.length) return;
+    setGenerating(true); setPseoErr(null);
+    try {
+      const res = await fetch('/api/pseo/generate', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ domain_id: domainId, pages }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (res.ok && j.created > 0) { r.push('/dashboard'); return; }
+      setPseoErr('Generation failed — no pages were created.');
+    } catch { setPseoErr('Something went wrong generating the set.'); }
+    setGenerating(false);
+  }
 
   async function openBlank() {
     setOpening(true);
@@ -185,8 +225,87 @@ export default function WriteDesk({ domainId, hostname }: { domainId: string; ho
           </div>
         )}
       </section>
+
+      {/* ── Programmatic SEO ────────────────────────────────── */}
+      <section style={card}>
+        <div className="mono" style={cardKicker}>PROGRAMMATIC SEO · GENERATE A SET</div>
+        <p style={{ fontSize: 14, color: 'var(--clay)', margin: '6px 0 14px' }}>
+          Cover a whole topic at once. Give a seed term — grove finds the real searches around it
+          and drafts one focused page per query. Each lands in your pipeline for review, and they
+          cross-link automatically once published.
+        </p>
+
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <input
+            value={seed}
+            onChange={(e) => setSeed(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && seed.trim().length >= 2 && previewSet()}
+            placeholder="Seed term — e.g. 'cold brew', 'email deliverability', 'tax deductions'"
+            style={{ ...field, flex: 1, minWidth: 240 }}
+          />
+          <select
+            value={count}
+            onChange={(e) => setCount(Number(e.target.value))}
+            style={{ ...field, paddingRight: 10, cursor: 'pointer' }}
+            aria-label="Number of pages"
+          >
+            {[4, 6, 8, 10, 12].map((n) => <option key={n} value={n}>{n} pages</option>)}
+          </select>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={previewSet}
+            disabled={planning || seed.trim().length < 2}
+            style={{ whiteSpace: 'nowrap' }}
+          >
+            {planning ? 'Planning…' : 'Preview set'}
+          </button>
+        </div>
+
+        {pseoErr && <p style={{ fontSize: 12.5, color: '#c33', marginTop: 10 }}>{pseoErr}</p>}
+
+        {pages.length > 0 && (
+          <div style={{ marginTop: 16 }}>
+            <p style={{ fontSize: 11, color: 'var(--clay)', margin: '0 0 8px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+              {pages.length} pages planned — review before generating
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {pages.map((p, i) => (
+                <div key={i} style={ideaRow}>
+                  <span style={{ ...intentDot, background: intentColor(p.intent) }} title={p.intent} />
+                  <span style={{ fontSize: 14, lineHeight: 1.4, color: 'var(--ink)', flex: 1 }}>
+                    {p.title}
+                    <span style={{ display: 'block', fontSize: 11.5, color: 'var(--clay)', marginTop: 2 }}>
+                      targets “{p.keyword}” · {p.intent}
+                    </span>
+                  </span>
+                </div>
+              ))}
+            </div>
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={generateSet}
+              disabled={generating}
+              style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 6 }}
+            >
+              <Sparkle />{generating ? `Drafting ${pages.length} pages…` : `Generate ${pages.length} pages →`}
+            </button>
+            {generating && (
+              <p style={{ fontSize: 12, color: 'var(--clay)', marginTop: 8 }}>
+                This can take a minute or two — grove drafts each page one at a time.
+              </p>
+            )}
+          </div>
+        )}
+      </section>
     </div>
   );
+}
+
+function intentColor(intent: SearchIntent): string {
+  return intent === 'transactional' ? 'var(--moss)'
+    : intent === 'commercial' ? '#7B9EF0'
+    : intent === 'navigational' ? 'var(--clay)'
+    : '#E0A040'; // informational
 }
 
 const card: React.CSSProperties = {
@@ -207,4 +326,7 @@ const chip: React.CSSProperties = {
 const ideaRow: React.CSSProperties = {
   display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
   padding: '12px 14px', background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 10,
+};
+const intentDot: React.CSSProperties = {
+  width: 8, height: 8, borderRadius: '50%', flexShrink: 0, display: 'inline-block',
 };
