@@ -7,7 +7,6 @@ const ITEMS = [
   { href: '/dashboard/write',     label: 'Write',       match: (p: string) => p.startsWith('/dashboard/write') },
   { href: '/dashboard',           label: 'Pipeline',    match: (p: string) => p === '/dashboard' || p.startsWith('/dashboard/posts') },
   { href: '/dashboard/calendar',  label: 'Calendar',    match: (p: string) => p.startsWith('/dashboard/calendar') },
-  { href: '/dashboard/published', label: 'Published',   match: (p: string) => p.startsWith('/dashboard/published') },
   { href: '/dashboard/reviews',   label: 'Reviews',     match: (p: string) => p.startsWith('/dashboard/reviews') },
   { href: '/dashboard/analytics', label: 'Analytics',   match: (p: string) => p.startsWith('/dashboard/analytics') },
   { href: '/dashboard/voice',     label: 'Brand voice', match: (p: string) => p.startsWith('/dashboard/voice') },
