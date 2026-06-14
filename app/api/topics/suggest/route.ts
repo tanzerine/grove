@@ -44,11 +44,20 @@ function shuffle<T>(arr: T[], seed: number): T[] {
   return a;
 }
 
-function templateTopics(biz: any, hostname: string, used: Set<string>): string[] {
+function templateTopics(biz: any, hostname: string, used: Set<string>, focus = ''): string[] {
   const v = buildVars(biz, hostname);
   const seed = Math.floor(Date.now() / 1000);
-  return shuffle(TEMPLATES, seed)
-    .map((fn) => fn(v))
+  // When the author gave a focus, lead with topics built around it so the
+  // offline fallback still feels responsive to what they typed.
+  const focused = focus
+    ? [
+        `A practical guide to ${focus} for ${v.audience}`,
+        `${focus}: what ${v.audience} get wrong (and how to fix it)`,
+        `How ${v.name} thinks about ${focus}`,
+      ]
+    : [];
+  const generic = shuffle(TEMPLATES, seed).map((fn) => fn(v));
+  return [...focused, ...generic]
     .filter((t) => !used.has(t.toLowerCase().slice(0, 40)))
     .slice(0, 6);
 }
@@ -63,6 +72,10 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const domainId = searchParams.get('domain_id');
   if (!domainId) return NextResponse.json({ error: 'missing domain_id' }, { status: 400 });
+
+  // Optional steer from the writing desk: a theme, product angle, or question
+  // the author wants the ideas to orbit. Capped so it can't blow the prompt.
+  const focus = (searchParams.get('focus') ?? '').trim().slice(0, 200);
 
   const { data: domain } = await sb
     .from('domains').select('site_profile, hostname').eq('id', domainId).single();
@@ -90,6 +103,7 @@ No markdown. No explanation. No preamble. Just the array:
       `Target audience: ${biz?.target_audience ?? 'businesses'}`,
       `Top value prop: ${(biz?.value_props ?? [])[0] ?? 'quality'}`,
       used.size ? `\nAvoid topics similar to:\n${[...used].slice(0, 10).join('\n')}` : '',
+      focus ? `\nThe author wants these ideas centered on: "${focus}". Keep every topic clearly related to this angle.` : '',
       `\nGenerate 6 specific, search-intent blog topics. Mix formats: how-to, comparison, mistakes, behind-scenes, opinion, list.`,
     ].join('\n');
 
@@ -106,7 +120,7 @@ No markdown. No explanation. No preamble. Just the array:
   } catch (err: any) {
     console.warn('[suggest] fast LLM failed, using templates:', err?.message ?? err);
     return NextResponse.json({
-      suggestions: templateTopics(biz, domain.hostname, used),
+      suggestions: templateTopics(biz, domain.hostname, used, focus),
       source: 'template',
     });
   }

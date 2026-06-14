@@ -67,6 +67,13 @@ export default async function Page() {
 
       <PipelineActions domainId={domain?.id} />
 
+      <p style={{ fontSize: 13, color: 'var(--clay)', marginTop: 12 }}>
+        Prefer to write it yourself?{' '}
+        <Link href="/dashboard/write" style={{ color: 'var(--moss)', fontWeight: 600 }}>
+          Open the writing desk →
+        </Link>
+      </p>
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 24 }}>
         {(posts ?? []).map((p) => <PostRow key={p.id} p={p} score={scoreByPost.get(p.id) ?? null} />)}
         {(!posts || posts.length === 0) && (

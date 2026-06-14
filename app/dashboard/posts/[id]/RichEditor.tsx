@@ -14,22 +14,25 @@ import { useRouter } from 'next/navigation';
 type Props = {
   postId: string;
   initialBody: string;            // markdown
+  initialTitle: string;
   initialMetaTitle: string;
   initialMetaDesc: string;
   canEdit: boolean;
+  autoEdit?: boolean;             // open straight into edit mode (fresh manual drafts)
 };
 
 function getMd(editor: any): string {
   return editor?.storage?.markdown?.getMarkdown?.() ?? '';
 }
 
-export default function RichEditor({ postId, initialBody, initialMetaTitle, initialMetaDesc, canEdit }: Props) {
+export default function RichEditor({ postId, initialBody, initialTitle, initialMetaTitle, initialMetaDesc, canEdit, autoEdit }: Props) {
   const r = useRouter();
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(!!autoEdit);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [seoOpen, setSeoOpen] = useState(false);
+  const [seoOpen, setSeoOpen] = useState(!!autoEdit);   // show the title field first on a fresh draft
+  const [title, setTitle] = useState(initialTitle);
   const [metaTitle, setMetaTitle] = useState(initialMetaTitle);
   const [metaDesc, setMetaDesc] = useState(initialMetaDesc);
   const [revise, setRevise] = useState<{ from: number; to: number; text: string; instruction: string; loading?: boolean; error?: string } | null>(null);
@@ -56,7 +59,13 @@ export default function RichEditor({ postId, initialBody, initialMetaTitle, init
 
   useEffect(() => { editor?.setEditable(editing); }, [editing, editor]);
 
-  const metaDirty = metaTitle !== initialMetaTitle || metaDesc !== initialMetaDesc;
+  // Fresh manual drafts land in edit mode — drop the cursor into the body so
+  // the author can start typing without hunting for where to click.
+  useEffect(() => {
+    if (autoEdit && editor) setTimeout(() => editor.commands.focus('end'), 0);
+  }, [autoEdit, editor]);
+
+  const metaDirty = title !== initialTitle || metaTitle !== initialMetaTitle || metaDesc !== initialMetaDesc;
 
   async function save() {
     if (!editor) return;
@@ -65,7 +74,7 @@ export default function RichEditor({ postId, initialBody, initialMetaTitle, init
     const res = await fetch(`/api/posts/${postId}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ body_md: md, meta_title: metaTitle, meta_description: metaDesc }),
+      body: JSON.stringify({ title, body_md: md, meta_title: metaTitle, meta_description: metaDesc }),
     });
     setSaving(false);
     if (res.ok) {
@@ -86,6 +95,7 @@ export default function RichEditor({ postId, initialBody, initialMetaTitle, init
     if (!editor) return;
     if ((dirty || metaDirty) && !confirm('Discard your changes since the last save?')) return;
     editor.commands.setContent(baseline.current);   // baseline is the last-saved markdown
+    setTitle(initialTitle);
     setMetaTitle(initialMetaTitle);
     setMetaDesc(initialMetaDesc);
     setDirty(false);
@@ -225,10 +235,12 @@ export default function RichEditor({ postId, initialBody, initialMetaTitle, init
       {canEdit && (
         <div style={{ marginTop: 12, border: '1px solid var(--line)', borderRadius: 12, background: 'white', overflow: 'hidden' }}>
           <button onClick={() => setSeoOpen(o => !o)} style={{ ...hintBtn, width: '100%', padding: '12px 18px', justifyContent: 'flex-start', gap: 8, display: 'flex' }}>
-            <span>{seoOpen ? '▾' : '▸'}</span> SEO meta {metaDirty && <span style={{ color: '#E0A040', fontSize: 11 }}>● unsaved</span>}
+            <span>{seoOpen ? '▾' : '▸'}</span> Title &amp; SEO {metaDirty && <span style={{ color: '#E0A040', fontSize: 11 }}>● unsaved</span>}
           </button>
           {seoOpen && (
             <div style={{ padding: 18, borderTop: '1px solid var(--line)', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <label style={lbl}>Post title</label>
+              <input value={title} onChange={e => setTitle(e.target.value)} maxLength={160} placeholder="Give this post a title" style={inp} />
               <label style={lbl}>Meta title <span style={{ color: metaTitle.length > 60 ? '#c33' : 'var(--clay)' }}>({metaTitle.length}/60)</span></label>
               <input value={metaTitle} onChange={e => setMetaTitle(e.target.value)} maxLength={80} style={inp} />
               <label style={lbl}>Meta description <span style={{ color: metaDesc.length > 155 ? '#c33' : 'var(--clay)' }}>({metaDesc.length}/155)</span></label>
