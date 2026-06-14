@@ -24,6 +24,9 @@ export async function GET(req: Request) {
 
   const sb = supabaseAdmin();
 
+  // Prune rate-limiter rows older than any window (best-effort; ignore errors).
+  await sb.from('rate_hits').delete().lt('created_at', new Date(Date.now() - 2 * 3600_000).toISOString());
+
   // 1) publish scheduled posts whose time has come, then fan out to socials
   const now = new Date().toISOString();
   const { data: due } = await sb

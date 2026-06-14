@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { supabaseServer } from '@/lib/supabase/server';
 import { reviseSection } from '@/lib/pipeline/revise';
+import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
 
 export const maxDuration = 60;
 
@@ -15,6 +16,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const sb = await supabaseServer();
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+
+  const limited = await enforceRateLimit(`llm:${user.id}`, LIMITS.llm);
+  if (limited) return limited;
 
   const parsed = body.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: 'invalid' }, { status: 400 });

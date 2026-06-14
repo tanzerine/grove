@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
 import { fastLlmCall } from '@/lib/llm';
+import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -68,6 +69,9 @@ export async function GET(req: Request) {
   const sb = await supabaseServer();
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+
+  const limited = await enforceRateLimit(`llm:${user.id}`, LIMITS.llm);
+  if (limited) return limited;
 
   const { searchParams } = new URL(req.url);
   const domainId = searchParams.get('domain_id');
