@@ -88,6 +88,17 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   const subline: string = business?.value_props?.[0] || business?.description || '';
   const homeUrl = `https://${domain.hostname.replace(/^https?:\/\//, '').replace(/\/$/, '')}`;
 
+  // Brand colors extracted from the customer's homepage — applied as CSS custom
+  // properties so the banner inherits the customer's palette instead of Grove's defaults.
+  const branding = profile?.branding ?? null;
+  const bannerStyle = branding ? ({
+    '--cta-bg': branding.banner_bg,
+    '--cta-text': branding.banner_text,
+    '--cta-text-muted': branding.banner_text_muted,
+    '--cta-btn': branding.btn_color,
+    '--cta-btn-text': branding.btn_text_color,
+  } as React.CSSProperties) : undefined;
+
   const pageUrl = blogPostUrl(slug, post);
   const credit = (p as any).cover_image_credit as { name?: string; profile_url?: string } | null;
   const author = authorFor(profile, domain.hostname);
@@ -158,7 +169,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
           />
 
           {/* "Try {business}" banner — links to the customer's site, tracked as a conversion */}
-          <aside className="cta-banner">
+          <aside className="cta-banner" style={bannerStyle}>
             <div className="cta-kicker">Powered by {businessName}</div>
             <h3>Try {businessName}</h3>
             {subline && <p>{subline}</p>}

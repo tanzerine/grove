@@ -63,5 +63,10 @@ export async function GET(req: Request, ctx: { params: Promise<{ hostname: strin
       genre: genreFor(p.format, p.title).label,
       author,
     })),
-  }, { headers: { 'access-control-allow-origin': '*' } });
+  }, {
+    headers: {
+      'access-control-allow-origin': '*',
+      'cache-control': 'public, s-maxage=60, stale-while-revalidate=300',
+    },
+  });
 }
