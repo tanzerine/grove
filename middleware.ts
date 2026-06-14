@@ -30,10 +30,14 @@ export async function middleware(req: NextRequest) {
     return NextResponse.rewrite(url);
   }
 
-  // ── 2. App auth — only where it's needed ─────────────────────────────────
+  // ── 2. App auth — refresh the session on EVERY route ─────────────────────
+  // Supabase rotates the access/refresh token pair on expiry, and the rotated
+  // cookies can only be persisted from a place that can write to the response.
+  // Server components can't (their setAll is a no-op), so if we only refreshed
+  // on protected routes the session would silently die after a visit to the
+  // landing page. Running getUser here on every non-static request keeps the
+  // cookie fresh everywhere and is what lets "log in once, stay logged in" hold.
   const path = req.nextUrl.pathname;
-  if (!PROTECTED.some((pre) => path.startsWith(pre))) return NextResponse.next();
-
   const res = NextResponse.next();
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -48,7 +52,8 @@ export async function middleware(req: NextRequest) {
   );
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user) {
+  // Gate protected areas; everything else passes through with the refreshed cookie.
+  if (!user && PROTECTED.some((pre) => path.startsWith(pre))) {
     const url = req.nextUrl.clone();
     url.pathname = '/login';
     url.searchParams.set('next', path);

@@ -4,7 +4,7 @@ import SampleTabs from './SampleTabs';
 import PriceToggle from './PriceToggle';
 import Faq from './Faq';
 
-export default function Landing() {
+export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
   return (
     <>
       <GroveMark />
@@ -24,8 +24,14 @@ export default function Landing() {
             <a href="#faq">FAQ</a>
           </nav>
           <div className="nav-cta">
-            <a href="/login" className="signin">Sign in</a>
-            <a href="#pricing" className="btn btn-primary btn-sm">Start free <span className="arrow">→</span></a>
+            {loggedIn ? (
+              <a href="/dashboard" className="btn btn-primary btn-sm">Dashboard <span className="arrow">→</span></a>
+            ) : (
+              <>
+                <a href="/login" className="signin">Sign in</a>
+                <a href="#pricing" className="btn btn-primary btn-sm">Start free <span className="arrow">→</span></a>
+              </>
+            )}
           </div>
         </div>
       </header>
