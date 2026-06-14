@@ -6,6 +6,7 @@
  * has no idea what the business does and produces generic, off-topic drafts.
  */
 import { llmCall, extractJson } from '../llm';
+import { isPublicHttpUrl } from '../net/ssrf';
 
 export type BrandColors = {
   primary_color: string;
@@ -179,6 +180,7 @@ export function extractBrandColors(html: string): BrandColors | null {
 async function fetchHomepageRaw(hostname: string): Promise<string | null> {
   for (const base of [`https://${hostname}`, `https://www.${hostname.replace(/^www\./,'')}`]) {
     try {
+      if (!(await isPublicHttpUrl(base))) continue; // SSRF: owner-controlled host
       const ctrl = new AbortController();
       const t = setTimeout(() => ctrl.abort(), 8_000);
       const r = await fetch(base, {
@@ -204,6 +206,7 @@ const CANDIDATE_PATHS = [
 
 async function fetchText(url: string): Promise<{ url: string; title: string; meta: string; body: string } | null> {
   try {
+    if (!(await isPublicHttpUrl(url))) return null; // SSRF: owner-controlled host
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 8_000);
     const r = await fetch(url, {
@@ -242,6 +245,7 @@ async function discoverBlogSamples(hostname: string): Promise<string[]> {
   const bases = [`https://${hostname}`, `https://www.${hostname.replace(/^www\./, '')}`];
   for (const base of bases) {
     try {
+      if (!(await isPublicHttpUrl(`${base}/blog`))) continue; // SSRF: owner-controlled host
       const ctrl = new AbortController();
       const t = setTimeout(() => ctrl.abort(), 8_000);
       const r = await fetch(`${base}/blog`, {
