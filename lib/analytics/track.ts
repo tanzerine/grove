@@ -102,6 +102,16 @@ export async function ingestEvent(ev: IngestEvent, ctx: IngestContext): Promise<
   if (!row.post_id || !row.domain_id || !row.session_id) return { ok: false };
 
   const sb = supabaseAdmin();
+  // Both ids are attacker-supplied (this is a public, CORS-open endpoint). Only
+  // accept an event for a real *published* post that belongs to the claimed
+  // domain — otherwise anyone could forge views/conversions and pollute the
+  // analytics that drive the monthly strategy agent and the owner dashboard.
+  const { data: post } = await sb
+    .from('posts').select('id')
+    .eq('id', row.post_id).eq('domain_id', row.domain_id).eq('status', 'published')
+    .maybeSingle();
+  if (!post) return { ok: false };
+
   const { error } = await sb.from('post_events').insert(row);
   return { ok: !error };
 }

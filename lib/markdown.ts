@@ -1,7 +1,39 @@
 import { marked } from 'marked';
+import sanitizeHtml from 'sanitize-html';
 
 // GitHub-flavored markdown: tables, task lists, autolinks, line-break = <br>.
 marked.setOptions({ gfm: true, breaks: false });
+
+// marked does NOT sanitize — raw HTML in the source (incl. <script> or an
+// onerror= handler) passes straight through. Article bodies come from the LLM
+// (promptable) and from human-written drafts, and the rendered HTML is injected
+// via dangerouslySetInnerHTML on public blogs, the embed API (which lands on
+// customers' own domains), and the dashboard. So every parse runs through an
+// allowlist sanitizer before it can reach a DOM.
+const SANITIZE_OPTS: sanitizeHtml.IOptions = {
+  allowedTags: [
+    'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+    'p', 'a', 'ul', 'ol', 'li', 'blockquote', 'hr', 'br',
+    'strong', 'em', 'b', 'i', 'del', 's', 'sub', 'sup',
+    'code', 'pre', 'span',
+    'img', 'figure', 'figcaption',
+    'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td',
+    'input', // gfm task-list checkboxes
+  ],
+  allowedAttributes: {
+    a: ['href', 'target', 'rel', 'name'],
+    img: ['src', 'alt', 'title', 'width', 'height', 'loading'],
+    h1: ['id'], h2: ['id'], h3: ['id'], h4: ['id'], h5: ['id'], h6: ['id'],
+    code: ['class'], pre: ['class'], span: ['class'],
+    td: ['colspan', 'rowspan', 'align'], th: ['colspan', 'rowspan', 'align'],
+    input: ['type', 'checked', 'disabled'],
+  },
+  // href schemes: drop javascript:/data:/vbscript:; images http(s) only.
+  allowedSchemes: ['http', 'https', 'mailto', 'tel'],
+  allowedSchemesByTag: { img: ['http', 'https'] },
+  allowProtocolRelative: false,
+  disallowedTagsMode: 'discard', // also drops <script>/<style> content by default
+};
 
 function slugify(text: string): string {
   return text
@@ -34,7 +66,8 @@ renderer.heading = (token) => {
 
 export function mdToHtml(md: string): string {
   if (!md) return '';
-  return marked.parse(md, { renderer, async: false }) as string;
+  const raw = marked.parse(md, { renderer, async: false }) as string;
+  return sanitizeHtml(raw, SANITIZE_OPTS);
 }
 
 export type TocItem = { id: string; text: string; level: 2 | 3 };

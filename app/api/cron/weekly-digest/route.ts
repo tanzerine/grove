@@ -8,12 +8,13 @@
  * Owner email comes from the auth user that owns the domain
  * (domains.user_id → auth.users) via the service-role admin client.
  *
- * Guarded by CRON_SECRET (Vercel sets x-vercel-cron; we also accept bearer).
+ * Guarded by CRON_SECRET — Vercel sends it as a Bearer token automatically.
  * Degrades gracefully: with no RESEND_API_KEY the sends are console.warn no-ops
  * (see lib/email/resend.ts) so the route still 200s in preview / local.
  */
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { isCronAuthorized } from '@/lib/cron-auth';
 import { getBriefStats } from '@/lib/agent-brief';
 import { composeDigestEmail } from '@/lib/email/digest';
 import { sendEmail } from '@/lib/email/resend';
@@ -22,14 +23,8 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
-function isAuthorized(req: Request) {
-  const auth = req.headers.get('authorization');
-  const vc = req.headers.get('x-vercel-cron');
-  return vc === '1' || auth === `Bearer ${process.env.CRON_SECRET}`;
-}
-
 export async function GET(req: Request) {
-  if (!isAuthorized(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  if (!isCronAuthorized(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
   const sb = supabaseAdmin();
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://grove.so';

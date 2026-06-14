@@ -5,10 +5,11 @@
  *   3. drain the 'queued' bucket by generating drafts
  *   4. backfill cover images for posts that are missing one
  *
- * Guarded by CRON_SECRET (Vercel sets x-vercel-cron header; we also accept bearer).
+ * Guarded by CRON_SECRET — Vercel sends it as a Bearer token automatically.
  */
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { isCronAuthorized } from '@/lib/cron-auth';
 import { generatePost } from '@/lib/pipeline/generate';
 import { runCoverForPost } from '@/lib/pipeline/cover-image';
 import { runInlineImagesForPost } from '@/lib/pipeline/inline-images';
@@ -18,14 +19,8 @@ import { publishToSocials } from '@/lib/social/publish';
 
 export const maxDuration = 300;
 
-function isAuthorized(req: Request) {
-  const auth = req.headers.get('authorization');
-  const vc = req.headers.get('x-vercel-cron');
-  return vc === '1' || auth === `Bearer ${process.env.CRON_SECRET}`;
-}
-
 export async function GET(req: Request) {
-  if (!isAuthorized(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  if (!isCronAuthorized(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
   const sb = supabaseAdmin();
 
