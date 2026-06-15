@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   escapeXml, isBot, jsonLdScript, appBase,
-  blogHomeUrl, blogPostUrl, subdomainSlugFromHost, buildLlmsTxt, buildArticleGraph,
+  blogHomeUrl, blogPostUrl, subdomainSlugFromHost, buildLlmsTxt, buildArticleGraph, buildSitemapXml,
 } from '../lib/seo';
 
 describe('escapeXml', () => {
@@ -110,6 +110,42 @@ describe('buildLlmsTxt', () => {
       posts: [{ slug: 'a', title: 'Use [brackets] here', meta_description: '' }],
     });
     expect(out).toContain('- [Use brackets here]');
+  });
+});
+
+describe('buildSitemapXml', () => {
+  const posts = [
+    { slug: 'newest', published_at: '2026-06-10T12:00:00Z', cover_image_url: 'https://img/c.webp' },
+    { slug: 'older', published_at: '2026-05-01T00:00:00Z', cover_image_url: null },
+    { slug: null, published_at: '2026-04-01T00:00:00Z', cover_image_url: null },
+  ];
+
+  it('lists the home + every slugged post with a date-only lastmod', () => {
+    const xml = buildSitemapXml({ blogSlug: 'demo', posts });
+    expect(xml).toContain('<urlset');
+    expect(xml).toContain(`<loc>${blogHomeUrl('demo')}</loc>`);
+    expect(xml).toContain(`<loc>${blogPostUrl('demo', 'newest')}</loc><lastmod>2026-06-10</lastmod>`);
+    expect(xml).toContain(`<loc>${blogPostUrl('demo', 'older')}</loc><lastmod>2026-05-01</lastmod>`);
+    // index lastmod tracks the newest post
+    expect(xml).toContain(`<loc>${blogHomeUrl('demo')}</loc><lastmod>2026-06-10</lastmod>`);
+  });
+
+  it('emits the image extension only for posts with a cover', () => {
+    const xml = buildSitemapXml({ blogSlug: 'demo', posts });
+    expect(xml).toContain('xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"');
+    expect(xml).toContain('<image:loc>https://img/c.webp</image:loc>');
+    // the cover-less post has no <image:image>
+    const olderUrl = xml.slice(xml.indexOf(`<loc>${blogPostUrl('demo', 'older')}`));
+    expect(olderUrl.slice(0, olderUrl.indexOf('</url>'))).not.toContain('<image:image>');
+  });
+
+  it('skips posts with no slug and escapes URLs', () => {
+    const xml = buildSitemapXml({
+      blogSlug: 'demo',
+      posts: [{ slug: 'a&b', published_at: null, cover_image_url: null }, ...posts],
+    });
+    expect(xml).not.toMatch(/<loc>[^<]*null/);
+    expect(xml).toContain('a&amp;b');
   });
 });
 
