@@ -1,4 +1,5 @@
 import { BANNED_PHRASES, RECYCLED_STATS } from './quality-rules';
+import { extractFaq } from '../faq';
 
 export type Validation = { passed: boolean; issues: string[]; stats: Record<string, number> };
 
@@ -9,7 +10,7 @@ export type ValidateOpts = {
   intent?: 'editorial' | 'contextual' | 'conversion';
   /** Word-count floor. Drafts under this are flagged THIN. Default 800. */
   wordFloor?: number;
-  /** Word-count ceiling. Default 1800. */
+  /** Word-count ceiling. Default 1900 (body + a short FAQ). */
   wordCeiling?: number;
 };
 
@@ -41,7 +42,7 @@ function norm(s: string): string {
 export function validatePost(post: string, opts: ValidateOpts = {}): Validation {
   const issues: string[] = [];
   const lower = post.toLowerCase();
-  const { intent, wordFloor = 800, wordCeiling = 1800 } = opts;
+  const { intent, wordFloor = 800, wordCeiling = 1900 } = opts;
 
   for (const p of BANNED_PHRASES) if (lower.includes(p.toLowerCase())) issues.push(`BANNED_PHRASE: '${p}'`);
 
@@ -69,6 +70,11 @@ export function validatePost(post: string, opts: ValidateOpts = {}): Validation 
   const wordCount = post.split(/\s+/).filter(Boolean).length;
   if (wordCount < wordFloor) issues.push(`THIN_CONTENT: ${wordCount} words (floor ${wordFloor}, target 900–1400)`);
   if (wordCount > wordCeiling) issues.push(`OVERLONG: ${wordCount} words (ceiling ${wordCeiling})`);
+
+  // ── FAQ section: powers FAQPage schema + AI-answer extraction (AEO/GEO) ──
+  const faqs = extractFaq(post);
+  if (faqs.length < 2)
+    issues.push(`MISSING_FAQ: ${faqs.length} Q&A pairs under a "## FAQ" heading (target 2–4 — drives FAQ schema + AI answers)`);
 
   // ── H1 / title sync: the on-page H1 must match the canonical title ───────
   // (oveners.com shipped 4/4 posts whose H1 differed entirely from the slug/title.)
@@ -100,6 +106,7 @@ export function validatePost(post: string, opts: ValidateOpts = {}): Validation 
       sentence_count: sents.length,
       em_dash_count: em,
       citation_count: citations,
+      faq_count: faqs.length,
     },
   };
 }

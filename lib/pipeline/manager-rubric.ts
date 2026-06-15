@@ -122,6 +122,12 @@ export const MANAGER_RUBRIC: RubricRule[] = [
     severity: 'note',
     rule: 'Uses H2 for major sections. Lists/tables used where appropriate, not gratuitously.',
   },
+  {
+    id: 'aeo_faq',
+    scope: 'craft',
+    severity: 'note',
+    rule: 'Ends with a "## FAQ" section (2–4 "### question" + tight-answer pairs) covering real searcher questions, and the 1–2 key sections open answer-first (a self-contained ≤50-word answer before elaboration). This is what wins featured snippets and AI-answer citations.',
+  },
 
   // ── safety ─────────────────────────────────────────────────
   {
