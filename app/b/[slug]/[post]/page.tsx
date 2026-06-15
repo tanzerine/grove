@@ -1,7 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { mdToHtml, extractToc } from '@/lib/markdown';
 import { extractFaq } from '@/lib/faq';
-import { isBot, jsonLdScript, blogHomeUrl, blogPostUrl, subdomainSlugFromHost } from '@/lib/seo';
+import { isBot, jsonLdScript, blogHomeUrl, blogPostUrl, subdomainSlugFromHost, buildArticleGraph } from '@/lib/seo';
 import { pickRelated } from '@/lib/related-posts';
 import { injectInternalLinks } from '@/lib/internal-links';
 import { genreFor, authorFor } from '@/lib/blog-genre';
@@ -107,39 +107,26 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   const readMin = Math.max(1, Math.round((p.body_md ?? '').split(/\s+/).length / 225));
   const shareX = `https://twitter.com/intent/tweet?text=${encodeURIComponent(p.title ?? '')}&url=${encodeURIComponent(pageUrl)}`;
   const shareLi = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(pageUrl)}`;
-  const articleLd = {
-    '@context': 'https://schema.org',
-    '@type': 'BlogPosting',
-    headline: p.title,
-    description: p.meta_description ?? undefined,
-    image: p.cover_image_url ?? undefined,
-    datePublished: p.published_at ?? undefined,
-    dateModified: p.published_at ?? undefined,
-    mainEntityOfPage: pageUrl,
-    articleSection: genre.label,
-    author: { '@type': author.endsWith('Team') ? 'Organization' : 'Person', name: author, url: homeUrl },
-    publisher: { '@type': 'Organization', name: businessName, url: homeUrl },
-  };
-  const breadcrumbLd = {
-    '@context': 'https://schema.org',
-    '@type': 'BreadcrumbList',
-    itemListElement: [
-      { '@type': 'ListItem', position: 1, name: domain.hostname, item: blogHomeUrl(slug) },
-      { '@type': 'ListItem', position: 2, name: p.title, item: pageUrl },
-    ],
-  };
-  // FAQPage schema — only when the article carries a real FAQ section. This is
-  // the structured data AI answer engines + featured snippets read for Q&A.
+  // One linked @graph (Organization → WebSite → WebPage → Article + Breadcrumb
+  // + FAQ) instead of disconnected scripts — read as a single entity by search
+  // and answer engines. FAQPage is included only when a real FAQ is present.
   const faqs = extractFaq(p.body_md ?? '');
-  const faqLd = faqs.length >= 2 ? {
-    '@context': 'https://schema.org',
-    '@type': 'FAQPage',
-    mainEntity: faqs.map((f) => ({
-      '@type': 'Question',
-      name: f.question,
-      acceptedAnswer: { '@type': 'Answer', text: f.answer },
-    })),
-  } : null;
+  const graphLd = buildArticleGraph({
+    hostname: domain.hostname,
+    blogSlug: slug,
+    postSlug: post,
+    title: p.title ?? '',
+    description: p.meta_description,
+    image: p.cover_image_url,
+    publishedAt: p.published_at,
+    businessName,
+    homeUrl,
+    authorName: author,
+    authorIsOrg: author.endsWith('Team'),
+    genreLabel: genre.label,
+    wordCount: (p.body_md ?? '').split(/\s+/).filter(Boolean).length,
+    faqs,
+  });
 
   return (
     <main className="post-shell">
@@ -238,11 +225,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
         )}
       </div>
 
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(articleLd) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(breadcrumbLd) }} />
-      {faqLd && (
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(faqLd) }} />
-      )}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(graphLd) }} />
       <script
         dangerouslySetInnerHTML={{
           __html: buildTrackerScript({ postId: p.id, domainId: domain.id, hostname: domain.hostname }),
