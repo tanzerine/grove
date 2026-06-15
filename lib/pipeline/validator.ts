@@ -1,5 +1,6 @@
 import { BANNED_PHRASES, RECYCLED_STATS } from './quality-rules';
 import { extractFaq } from '../faq';
+import { extractTakeaways } from '../takeaways';
 
 export type Validation = { passed: boolean; issues: string[]; stats: Record<string, number> };
 
@@ -76,6 +77,11 @@ export function validatePost(post: string, opts: ValidateOpts = {}): Validation 
   if (faqs.length < 2)
     issues.push(`MISSING_FAQ: ${faqs.length} Q&A pairs under a "## FAQ" heading (target 2–4 — drives FAQ schema + AI answers)`);
 
+  // ── Key takeaways: the extractable TL;DR that AI engines + snippets quote ──
+  const takeaways = extractTakeaways(post);
+  if (takeaways.length < 3)
+    issues.push(`MISSING_KEY_TAKEAWAYS: ${takeaways.length} bullets under a "Key takeaways" intro (target 3–5 — extractable summary for AI + snippets)`);
+
   // ── H1 / title sync: the on-page H1 must match the canonical title ───────
   // (oveners.com shipped 4/4 posts whose H1 differed entirely from the slug/title.)
   const h1 = firstH1(post);
@@ -107,6 +113,7 @@ export function validatePost(post: string, opts: ValidateOpts = {}): Validation 
       em_dash_count: em,
       citation_count: citations,
       faq_count: faqs.length,
+      key_takeaways_count: takeaways.length,
     },
   };
 }

@@ -126,7 +126,7 @@ export const MANAGER_RUBRIC: RubricRule[] = [
     id: 'aeo_faq',
     scope: 'craft',
     severity: 'note',
-    rule: 'Ends with a "## FAQ" section (2–4 "### question" + tight-answer pairs) covering real searcher questions, and the 1–2 key sections open answer-first (a self-contained ≤50-word answer before elaboration). This is what wins featured snippets and AI-answer citations.',
+    rule: 'Answer-engine ready: opens with a "Key takeaways" TL;DR (3–5 tight bullets), the 1–2 key sections open answer-first (a self-contained ≤50-word answer before elaboration), and it ends with a "## FAQ" section (2–4 "### question" + tight-answer pairs) covering real searcher questions. This is what wins featured snippets and AI-answer citations.',
   },
 
   // ── safety ─────────────────────────────────────────────────
