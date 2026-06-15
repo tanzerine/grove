@@ -12,6 +12,7 @@
  */
 import { webSearch, type SearchResult } from '../search';
 import { gatherQuestions } from '../strategy/keywords';
+import { analyzeSerp, type SerpCoverage } from './serp';
 import type { SiteProfile } from './site-profile';
 
 export type ResearchContext = {
@@ -21,6 +22,9 @@ export type ResearchContext = {
   /** Real searcher questions (free PAA proxy via autocomplete) the article
    *  should answer — drives the brief's FAQ + answer-first blocks (AEO/GEO). */
   questions: string[];
+  /** What the live top-ranking pages actually cover — real SERP analysis used
+   *  to shape coverage + find gaps. Empty when SERP analysis is off/unavailable. */
+  serp: SerpCoverage;
 };
 
 export async function gatherContext(
@@ -35,13 +39,16 @@ export async function gatherContext(
   // too — it's what the article needs to rank for, so we want sources that
   // match the searcher's actual query, not just our paraphrased topic.
   const kw = targetKeyword?.trim();
-  const [primaryTopic, primaryKw, competitor, pain, questions] = await Promise.all([
+  const [primaryTopic, primaryKw, competitor, pain, questions, serp] = await Promise.all([
     webSearch(topic, 5),
     kw && kw.toLowerCase() !== topic.toLowerCase() ? webSearch(kw, 3) : Promise.resolve([]),
     webSearch(`best tools alternatives ${topic}`, 3),
     webSearch(`${topic} mistakes problems pitfalls ${audience}`, 3),
     // Free PAA proxy — what people actually ask about this exact query.
     gatherQuestions(kw || topic, { limit: 8 }).catch(() => [] as string[]),
+    // Real SERP analysis — what the live top-ranking pages cover (one advanced
+    // Tavily call; fail-soft + env-gated inside analyzeSerp).
+    analyzeSerp(kw || topic).catch(() => ({ subtopics: [], headings: [] } as SerpCoverage)),
   ]);
   const primary = [...primaryKw, ...primaryTopic];
 
@@ -58,6 +65,7 @@ export async function gatherContext(
     competitor: dedupe(competitor),
     pain: dedupe(pain),
     questions,
+    serp: { subtopics: serp.subtopics, headings: serp.headings },
   };
 }
 

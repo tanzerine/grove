@@ -62,7 +62,8 @@ export async function generatePost(postId: string) {
   try {
     context = await gatherContext(topic, profile, targetKeyword);
     await appendLog(postId, 'research', 'done',
-      `${context.primary.length} primary, ${context.competitor.length} competitor, ${context.pain.length} pain`);
+      `${context.primary.length} primary, ${context.competitor.length} competitor, ${context.pain.length} pain` +
+      `${context.serp.subtopics.length ? `, ${context.serp.subtopics.length} SERP subtopics` : ''}`);
   } catch (e) { await failAt(postId, 'research', e); return; }
 
   // 3. TOPIC REFINER
@@ -80,6 +81,7 @@ export async function generatePost(postId: string) {
       primary: context.primary.map((s) => ({ url: s.url, title: s.title })),
       competitor: context.competitor.map((s) => ({ url: s.url, title: s.title })),
       pain: context.pain.map((s) => ({ url: s.url, title: s.title })),
+      serp: context.serp,
     },
   }).eq('id', postId);
 
