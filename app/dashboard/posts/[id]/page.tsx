@@ -8,6 +8,7 @@ import LocalTime from '../../LocalTime';
 import Link from 'next/link';
 import { ScoreRing, RubricBars, bandColor, type RubricScores } from '../../QualityCharts';
 import { scoreAeo } from '@/lib/aeo-score';
+import { coverageGap } from '@/lib/pipeline/serp';
 
 export default async function PostPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -88,6 +89,13 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
 
       {validation?.stats && p.body_md && <AeoReadinessCard report={scoreAeo(validation.stats)} />}
 
+      {(() => {
+        const serp = (p.research as any)?.serp;
+        return serp?.subtopics?.length && p.body_md
+          ? <SerpIntelCard subtopics={serp.subtopics as string[]} body={p.body_md} />
+          : null;
+      })()}
+
       {validation?.issues && validation.issues.length > 0 && (
         <div style={{ background: '#fef9e8', border: '1px solid #f0d674', padding: 16, borderRadius: 10, marginTop: 20 }}>
           <b style={{ fontSize: 13 }}>Quality flags from validator</b>
@@ -134,6 +142,36 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
         </div>
       )}
     </>
+  );
+}
+
+function SerpIntelCard({ subtopics, body }: { subtopics: string[]; body: string }) {
+  const missing = new Set(coverageGap(subtopics, body, 99).map((s) => s.toLowerCase()));
+  return (
+    <div style={{ background: 'white', border: '1px solid var(--line)', borderRadius: 12, padding: 18, marginTop: 20 }}>
+      <span className="mono" style={{ fontSize: 11, letterSpacing: '0.1em', color: 'var(--clay)' }}>WHAT&apos;S RANKING FOR THIS TOPIC</span>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+        {subtopics.map((s) => {
+          const gap = missing.has(s.toLowerCase());
+          return (
+            <span
+              key={s}
+              style={{
+                fontSize: 12.5, padding: '4px 10px', borderRadius: 999,
+                background: gap ? 'rgba(193,80,60,0.08)' : 'rgba(89,148,94,0.10)',
+                color: gap ? '#b1503c' : 'var(--moss)',
+                border: `1px solid ${gap ? 'rgba(193,80,60,0.28)' : 'rgba(89,148,94,0.25)'}`,
+              }}
+            >
+              {gap ? '+ ' : '✓ '}{s}
+            </span>
+          );
+        })}
+      </div>
+      <p style={{ fontSize: 12, color: 'var(--clay)', margin: '12px 0 0', lineHeight: 1.5 }}>
+        Consensus subtopics from the live top-ranking pages. <b style={{ color: '#b1503c' }}>Red</b> = a gap this draft doesn&apos;t cover yet.
+      </p>
+    </div>
   );
 }
 
