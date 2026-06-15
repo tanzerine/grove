@@ -11,12 +11,16 @@
  * defensible angle and avoid sounding like a generic AI summary.
  */
 import { webSearch, type SearchResult } from '../search';
+import { gatherQuestions } from '../strategy/keywords';
 import type { SiteProfile } from './site-profile';
 
 export type ResearchContext = {
   primary: SearchResult[];
   competitor: SearchResult[];
   pain: SearchResult[];
+  /** Real searcher questions (free PAA proxy via autocomplete) the article
+   *  should answer — drives the brief's FAQ + answer-first blocks (AEO/GEO). */
+  questions: string[];
 };
 
 export async function gatherContext(
@@ -31,11 +35,13 @@ export async function gatherContext(
   // too — it's what the article needs to rank for, so we want sources that
   // match the searcher's actual query, not just our paraphrased topic.
   const kw = targetKeyword?.trim();
-  const [primaryTopic, primaryKw, competitor, pain] = await Promise.all([
+  const [primaryTopic, primaryKw, competitor, pain, questions] = await Promise.all([
     webSearch(topic, 5),
     kw && kw.toLowerCase() !== topic.toLowerCase() ? webSearch(kw, 3) : Promise.resolve([]),
     webSearch(`best tools alternatives ${topic}`, 3),
     webSearch(`${topic} mistakes problems pitfalls ${audience}`, 3),
+    // Free PAA proxy — what people actually ask about this exact query.
+    gatherQuestions(kw || topic, { limit: 8 }).catch(() => [] as string[]),
   ]);
   const primary = [...primaryKw, ...primaryTopic];
 
@@ -51,6 +57,7 @@ export async function gatherContext(
     primary: dedupe(primary),
     competitor: dedupe(competitor),
     pain: dedupe(pain),
+    questions,
   };
 }
 

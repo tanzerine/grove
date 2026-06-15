@@ -98,7 +98,7 @@ export async function generateProgrammaticPage(
 RULES
 - Open with a direct 2-3 sentence answer to the query. No "in today's world" throat-clearing.
 - Then back it up: 3-5 short H2 sections with specifics, examples, and steps.
-- End with a short FAQ: 2-3 real follow-up questions as "### Question" + a tight answer.
+- End with a section headed exactly "## FAQ": 2-3 real follow-up questions as "### Question" each, with a tight answer under each. (This powers FAQ structured data + AI answers.)
 - 700-1000 words. Plain, confident, skimmable. Markdown only. No H1 (the title is rendered separately).
 - ${productRule}
 

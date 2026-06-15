@@ -107,6 +107,39 @@ export async function gatherKeywordDemand(
   return rankSuggestions(lists, limit);
 }
 
+/**
+ * Mine the real questions searchers ask around a topic — the closest free proxy
+ * for a SERP's "People Also Ask" box. Seeds the topic with interrogative
+ * prefixes ("how to", "what is", "why"…) and harvests Google Autocomplete, which
+ * surfaces actual long-tail phrasings. Feeds the brief's FAQ + answer-first
+ * blocks (the AEO/GEO play), so it's worth a couple of extra polite requests.
+ *
+ * Fail-soft: [] on any hiccup. Returns clean, deduped phrases ranked by demand.
+ */
+export async function gatherQuestions(
+  seed: string,
+  opts: { limit?: number; timeoutMs?: number } = {},
+): Promise<string[]> {
+  const { limit = 8, timeoutMs = 4000 } = opts;
+  const s = seed.toLowerCase().trim();
+  if (!s) return [];
+
+  const queries = [
+    `how to ${s}`, `what is ${s}`, `why ${s}`,
+    `${s} vs`, `is ${s}`, `can you ${s}`, `${s} for`,
+  ];
+  const lists = await Promise.all(queries.map((q) => fetchAutocomplete(q, timeoutMs)));
+
+  // Rank by demand, then keep the genuinely question/subtopic-shaped phrases:
+  // either they open with an interrogative or they meaningfully extend the seed
+  // (i.e. add detail beyond the bare term).
+  const QUESTION_WORD = /^(how|what|why|when|where|which|who|can|do|does|is|are|should)\b/i;
+  return rankSuggestions(lists, limit * 3)
+    .map((idea) => idea.keyword)
+    .filter((kw) => QUESTION_WORD.test(kw) || kw.length > s.length + 3)
+    .slice(0, limit);
+}
+
 /** Render demand into a compact, prompt-friendly block grouped by intent. */
 export function formatDemandForPrompt(ideas: KeywordIdea[]): string {
   if (!ideas.length) return '(none captured — plan from the business profile)';

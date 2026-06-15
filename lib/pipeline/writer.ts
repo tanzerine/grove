@@ -91,6 +91,10 @@ export async function runWriter(opts: {
     context.pain.length ? fmt(context.pain, context.primary.length + context.competitor.length) : '(none)',
   ].join('\n');
 
+  const faqBlock = (brief.faq_questions ?? []).length
+    ? brief.faq_questions.map((q) => `  - ${q}`).join('\n')
+    : '  - (none supplied — write 2–3 genuinely useful Q&As a reader of this topic would ask)';
+
   const system = `You write articles for ${business.name}'s blog.
 You're given a tight editorial brief — your job is to execute it. Don't
 second-guess the title or angle; deliver on them.
@@ -128,6 +132,8 @@ Opening hook to use: "${brief.hook}"
 Promise to deliver: ${brief.promise}
 Specific details to weave in:
 ${brief.must_include.map((m) => `- ${m}`).join('\n') || '(none specified)'}
+Reader questions the FAQ must resolve (real search demand — answer these):
+${faqBlock}
 
 EXECUTION RULES (in priority order)
 1. Use the title above verbatim as the H1 of the article.
@@ -167,6 +173,21 @@ E-E-A-T RULES (not optional)
   - If a sentence reads fine without a citation, drop it
 - TRUSTWORTHINESS: include 1+ honest hedge ("but it depends…", "this won't work if…")
 
+ANSWER-ENGINE OPTIMIZATION (AEO/GEO — how AI search & featured snippets pick you up)
+- ANSWER-FIRST: in the 1–2 most important H2 sections, the FIRST 1–2 sentences are a
+  direct, self-contained answer (≤ 50 words) to that section's implied question — THEN
+  elaborate. Write it so it still makes sense quoted out of context. Don't open with "it depends".
+- STAT DENSITY: include at least 2 concrete, checkable numbers (a year, a count, a %, a
+  measured result), each with its inline source link. Specific cited stats are what AI
+  engines actually quote.
+- FAQ: end the article with a section headed exactly "## FAQ". Answer EACH reader question
+  from the brief as a "### <question>" heading followed by a tight 40–80 word answer that
+  resolves it directly and stands alone. 2–4 Q&As.
+- If the marketing rules call for a closing CTA paragraph, it goes RIGHT BEFORE "## FAQ"
+  so the FAQ stays the final section.
+- Stay informational, not salesy, in the body — answer engines demote promotional tone.
+  (The brand placement is already specified in the marketing rules; don't add more.)
+
 PROSE RHYTHM (40%+ of sentences must be under 12 words)
 - Every paragraph: at least one sentence under 8 words AND one over 20
 - 15–25% of sentences start with And, But, So, Because
@@ -183,7 +204,8 @@ STRUCTURE
 - inline \`code\` for product names / technical terms
 
 LENGTH (non-negotiable)
-- 900–1400 words. A draft under 800 words will be auto-rejected as thin.
+- 900–1400 words for the main body, PLUS the short FAQ (2–4 Q&As). A draft under
+  800 words will be auto-rejected as thin.
   Don't pad — go deeper: more concrete detail per section, not more sections.
 
 NEVER SEND THE READER ELSEWHERE
@@ -216,7 +238,7 @@ ${kb ? `CUSTOMER KNOWLEDGE BASE (weave specific details from this):\n${kb}\n` : 
 OUTPUT FORMAT — exact delimiters, nothing else:
 
 ---BLOG_POST---
-[the article — open with the hook line, # heading is the brief's title, 900–1400 words]
+[the article — open with the hook line, # heading is the brief's title, 900–1400 words, ending with the ## FAQ section]
 ---META_TITLE---
 [the brief's title, under 60 chars]
 ---META_DESCRIPTION---

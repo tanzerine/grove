@@ -50,6 +50,7 @@ export type RefinedBrief = {
   hook: string;                        // proposed first-person opening line
   promise: string;                     // what concrete value the reader walks away with
   must_include: string[];              // specific numbers / examples / anecdotes / refs
+  faq_questions: string[];             // 3-5 real searcher questions the FAQ must answer (AEO/GEO)
   alt_titles: string[];                // 2-3 other strong options for fallback
 };
 
@@ -103,6 +104,7 @@ export async function refineTopic(
 ): Promise<RefinedBrief> {
   const competitorList = context.competitor.map((s) => `- ${s.title}`).join('\n') || '(none)';
   const painList = context.pain.map((s) => `- ${s.title}`).join('\n') || '(none)';
+  const questionList = (context.questions ?? []).map((q) => `- ${q}`).join('\n') || '(none)';
 
   const system = `You are an editorial strategist. You take a vague topic and turn it
 into a sharp brief for a writer — picking the strongest angle a founder
@@ -158,6 +160,11 @@ ${competitorList}
 Common audience pain-points around this topic:
 ${painList}
 
+Real questions searchers ask (Google Autocomplete — the closest free proxy for
+"People Also Ask"). Pick the 3-5 most on-topic, dedupe near-duplicates, and
+rephrase into clean, natural questions for an FAQ the article will answer:
+${questionList}
+
 Pick ONE strong angle. Output:
 {
   "title": "the chosen title (uses one of the proven patterns, has specificity)",
@@ -167,6 +174,7 @@ Pick ONE strong angle. Output:
   "hook": "the proposed first-person opener — must start with I, we, or our",
   "promise": "the concrete value the reader walks away with",
   "must_include": ["specific number, name, example, or anecdote to reference", "..."],
+  "faq_questions": ["3-5 clean searcher questions the article's FAQ must answer (drawn from the list above when relevant; invent on-topic ones if the list is thin)", "..."],
   "alt_titles": ["strong alternative title 1", "strong alternative title 2"]
 }`;
 
@@ -182,6 +190,27 @@ Pick ONE strong angle. Output:
   }
   parsed.must_include = parsed.must_include ?? [];
   parsed.alt_titles = parsed.alt_titles ?? [];
+
+  // FAQ questions: trust the model's curated list, but fall back to the raw
+  // mined questions so the writer's FAQ block + FAQPage schema never go empty.
+  const normalizeQ = (q: string) => {
+    const t = q.trim().replace(/\s+/g, ' ');
+    return /[?]$/.test(t) || !/^(how|what|why|when|where|which|who|can|do|does|is|are|should)\b/i.test(t)
+      ? t : `${t}?`;
+  };
+  let faqs = (Array.isArray(parsed.faq_questions) ? parsed.faq_questions : [])
+    .map(normalizeQ).filter(Boolean);
+  if (faqs.length < 2) {
+    faqs = [...faqs, ...(context.questions ?? []).map(normalizeQ)];
+  }
+  // dedupe (case-insensitive) and cap at 5
+  const seenQ = new Set<string>();
+  parsed.faq_questions = faqs.filter((q) => {
+    const k = q.toLowerCase();
+    if (seenQ.has(k)) return false;
+    seenQ.add(k);
+    return true;
+  }).slice(0, 5);
 
   // sanity: marketing_intent must be one of three known values
   const validIntents: MarketingIntent[] = ['editorial', 'contextual', 'conversion'];

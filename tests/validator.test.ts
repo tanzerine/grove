@@ -3,8 +3,25 @@ import { validatePost } from '../lib/pipeline/validator';
 
 const TITLE = 'My Real Title';
 
+/** A clean 2-pair FAQ section so well-formed fixtures satisfy the FAQ rule. */
+const FAQ = [
+  '',
+  '## FAQ',
+  '',
+  '### Is this a real question?',
+  'Yes. It is a real question with a tight answer that resolves it directly for the reader.',
+  '',
+  '### Does it have a second question?',
+  'It does. The answer stands on its own so an answer engine could quote it cleanly.',
+].join('\n');
+
 /** Build an 800+ word post that satisfies every validator rule. */
 function goodBody(title = TITLE): string {
+  return goodBodyNoFaq(title) + '\n' + FAQ;
+}
+
+/** Same, but without the FAQ section — isolates the MISSING_FAQ rule. */
+function goodBodyNoFaq(title = TITLE): string {
   const short = 'It works well.';                       // 3 words
   const long =
     'This is a deliberately long sentence that runs well past twenty words so the variety check clearly sees both short and long forms here.'; // ~24 words
@@ -54,5 +71,17 @@ describe('validatePost', () => {
     const body = `# ${TITLE}\n\nI tested it. ${'Words here and there in a sentence. '.repeat(200)}`;
     const v = validatePost(body, { title: TITLE });
     expect(v.issues.some((i) => i.startsWith('LOW_CITATIONS'))).toBe(true);
+  });
+
+  it('flags a post with no FAQ section', () => {
+    const v = validatePost(goodBodyNoFaq(), { title: TITLE });
+    expect(v.issues.some((i) => i.startsWith('MISSING_FAQ'))).toBe(true);
+    expect(v.stats.faq_count).toBe(0);
+  });
+
+  it('counts FAQ pairs and stays clean when the FAQ is present', () => {
+    const v = validatePost(goodBody(), { title: TITLE });
+    expect(v.issues).toEqual([]);
+    expect(v.stats.faq_count).toBe(2);
   });
 });
