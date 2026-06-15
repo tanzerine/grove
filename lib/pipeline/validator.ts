@@ -1,6 +1,7 @@
 import { BANNED_PHRASES, RECYCLED_STATS } from './quality-rules';
 import { extractFaq } from '../faq';
 import { extractTakeaways } from '../takeaways';
+import { coverageGap } from './serp';
 
 export type Validation = { passed: boolean; issues: string[]; stats: Record<string, number> };
 
@@ -13,6 +14,8 @@ export type ValidateOpts = {
   wordFloor?: number;
   /** Word-count ceiling. Default 1900 (body + a short FAQ). */
   wordCeiling?: number;
+  /** Consensus subtopics from SERP analysis — flagged if the draft skips them. */
+  serpSubtopics?: string[];
 };
 
 /** Phrases that send the reader to a competitor, alternative tool, or third party.
@@ -82,6 +85,11 @@ export function validatePost(post: string, opts: ValidateOpts = {}): Validation 
   if (takeaways.length < 3)
     issues.push(`MISSING_KEY_TAKEAWAYS: ${takeaways.length} bullets under a "Key takeaways" intro (target 3–5 — extractable summary for AI + snippets)`);
 
+  // ── SERP coverage gap: consensus subtopics the ranking pages cover but we don't ──
+  const serpGap = coverageGap(opts.serpSubtopics ?? [], post);
+  if (serpGap.length)
+    issues.push(`SERP_GAP: top-ranking pages cover ${serpGap.map((s) => `"${s}"`).join(', ')} — your draft doesn't`);
+
   // ── H1 / title sync: the on-page H1 must match the canonical title ───────
   // (oveners.com shipped 4/4 posts whose H1 differed entirely from the slug/title.)
   const h1 = firstH1(post);
@@ -114,6 +122,7 @@ export function validatePost(post: string, opts: ValidateOpts = {}): Validation 
       citation_count: citations,
       faq_count: faqs.length,
       key_takeaways_count: takeaways.length,
+      serp_gap_count: serpGap.length,
     },
   };
 }

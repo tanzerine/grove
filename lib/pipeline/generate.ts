@@ -149,6 +149,7 @@ export async function generatePost(postId: string) {
   const validation = validatePost(writer.blog_post, {
     title,
     intent: brief.marketing_intent,
+    serpSubtopics: context.serp.subtopics,
   });
   if (evaluation) {
     (validation as any).manager = {

@@ -102,6 +102,33 @@ export function extractSerpCoverage(
 }
 
 /**
+ * Coverage gap — of the consensus subtopics the ranking pages cover, which ones
+ * does this draft NOT address? This is the Clearscope/Surfer "content grade"
+ * idea: a subtopic several competitors all cover but the article skips is a real
+ * ranking liability. Lenient on purpose (a subtopic counts as covered if its
+ * phrase appears, or — for multi-word — all its words appear) so we only flag
+ * genuine omissions. Returns up to `max` missing subtopics, in input order.
+ */
+export function coverageGap(subtopics: string[], body: string, max = 6): string[] {
+  if (!subtopics?.length || !body) return [];
+  const hay = ` ${body.toLowerCase().replace(/[^a-z0-9가-힣]+/gi, ' ')} `;
+  const has = (w: string) => hay.includes(` ${w} `);
+
+  const missing: string[] = [];
+  for (const raw of subtopics) {
+    const phrase = raw.toLowerCase().trim();
+    if (!phrase) continue;
+    const words = phrase.split(/\s+/);
+    const covered = words.length > 1
+      ? hay.includes(` ${phrase} `) || words.every(has)
+      : has(phrase);
+    if (!covered) missing.push(raw);
+    if (missing.length >= max) break;
+  }
+  return missing;
+}
+
+/**
  * Fetch the live top results for `query` and distill their coverage. One
  * advanced Tavily call. Returns empty insights on any failure, when there's no
  * Tavily key, or when GROVE_SERP_ANALYSIS=off — callers treat it as best-effort.
