@@ -69,6 +69,117 @@ export function jsonLdScript(obj: unknown): string {
 }
 
 /**
+ * Build the linked structured-data @graph for one article. One graph with @id
+ * cross-references (Organization → WebSite → WebPage → Article, plus Breadcrumb
+ * and FAQ) beats a pile of disconnected scripts: search + answer engines read
+ * it as a single connected entity, which strengthens entity recognition — a
+ * known signal for both rich results and AI-answer citations.
+ */
+export function buildArticleGraph(opts: {
+  hostname: string;
+  blogSlug: string;
+  postSlug: string;
+  title: string;
+  description?: string | null;
+  image?: string | null;
+  publishedAt?: string | null;
+  businessName: string;
+  homeUrl: string;            // the customer's own site (publisher/author url)
+  authorName: string;
+  authorIsOrg: boolean;
+  genreLabel: string;
+  wordCount: number;
+  faqs?: { question: string; answer: string }[];
+  inLanguage?: string;
+}): { '@context': string; '@graph': unknown[] } {
+  const {
+    hostname, blogSlug, postSlug, title, description, image, publishedAt,
+    businessName, homeUrl, authorName, authorIsOrg, genreLabel, wordCount,
+    faqs = [], inLanguage = 'en',
+  } = opts;
+
+  const blogHome = blogHomeUrl(blogSlug);
+  const pageUrl = blogPostUrl(blogSlug, postSlug);
+  const orgId = `${homeUrl}#org`;
+  const siteId = `${blogHome}#website`;
+  const pageId = `${pageUrl}#webpage`;
+  const articleId = `${pageUrl}#article`;
+  const breadcrumbId = `${pageUrl}#breadcrumb`;
+  const faqId = `${pageUrl}#faq`;
+  const undef = undefined;
+
+  const graph: unknown[] = [
+    {
+      '@type': 'Organization',
+      '@id': orgId,
+      name: businessName,
+      url: homeUrl,
+    },
+    {
+      '@type': 'WebSite',
+      '@id': siteId,
+      url: blogHome,
+      name: `${hostname} blog`,
+      publisher: { '@id': orgId },
+      inLanguage,
+      potentialAction: {
+        '@type': 'SearchAction',
+        target: { '@type': 'EntryPoint', urlTemplate: `${blogHome}?q={search_term_string}` },
+        'query-input': 'required name=search_term_string',
+      },
+    },
+    {
+      '@type': 'WebPage',
+      '@id': pageId,
+      url: pageUrl,
+      name: title,
+      isPartOf: { '@id': siteId },
+      primaryImageOfPage: image ? { '@type': 'ImageObject', url: image } : undef,
+      breadcrumb: { '@id': breadcrumbId },
+      inLanguage,
+    },
+    {
+      '@type': 'BlogPosting',
+      '@id': articleId,
+      isPartOf: { '@id': pageId },
+      mainEntityOfPage: { '@id': pageId },
+      headline: title,
+      description: description ?? undef,
+      image: image ?? undef,
+      datePublished: publishedAt ?? undef,
+      dateModified: publishedAt ?? undef,
+      articleSection: genreLabel,
+      wordCount: wordCount || undef,
+      inLanguage,
+      author: { '@type': authorIsOrg ? 'Organization' : 'Person', name: authorName, url: homeUrl },
+      publisher: { '@id': orgId },
+    },
+    {
+      '@type': 'BreadcrumbList',
+      '@id': breadcrumbId,
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: hostname, item: blogHome },
+        { '@type': 'ListItem', position: 2, name: title, item: pageUrl },
+      ],
+    },
+  ];
+
+  if (faqs.length >= 2) {
+    graph.push({
+      '@type': 'FAQPage',
+      '@id': faqId,
+      mainEntity: faqs.map((f) => ({
+        '@type': 'Question',
+        name: f.question,
+        acceptedAnswer: { '@type': 'Answer', text: f.answer },
+      })),
+    });
+  }
+
+  return { '@context': 'https://schema.org', '@graph': graph };
+}
+
+/**
  * Build an llms.txt (per llmstxt.org) for a blog — a plain markdown index that
  * tells AI assistants and answer engines (ChatGPT, Perplexity, Claude, AI
  * Overviews) what this blog covers and where every article lives. Served at

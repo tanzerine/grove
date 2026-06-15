@@ -101,18 +101,44 @@ export default async function BlogIndex({
     return `${prefix || '/'}${s ? `?${s}` : ''}`;
   };
 
+  const homeUrl = `https://${domain.hostname.replace(/^https?:\/\//, '').replace(/\/$/, '')}`;
+  const businessName = (domain as any).site_profile?.business?.name || domain.hostname.replace(/^www\./, '');
+  const blogHome = blogHomeUrl(slug);
+  const orgId = `${homeUrl}#org`;
+  const siteId = `${blogHome}#website`;
   const blogLd = {
     '@context': 'https://schema.org',
-    '@type': 'Blog',
-    name: `The ${domain.hostname} blog`,
-    url: blogHomeUrl(slug),
-    blogPost: all.slice(0, 20).map((p) => ({
-      '@type': 'BlogPosting',
-      headline: p.title,
-      url: blogPostUrl(slug, p.slug!),
-      datePublished: p.published_at ?? undefined,
-      author: { '@type': author.endsWith('Team') ? 'Organization' : 'Person', name: author },
-    })),
+    '@graph': [
+      { '@type': 'Organization', '@id': orgId, name: businessName, url: homeUrl },
+      {
+        '@type': 'WebSite',
+        '@id': siteId,
+        url: blogHome,
+        name: `${domain.hostname} blog`,
+        publisher: { '@id': orgId },
+        inLanguage: 'en',
+        potentialAction: {
+          '@type': 'SearchAction',
+          target: { '@type': 'EntryPoint', urlTemplate: `${blogHome}?q={search_term_string}` },
+          'query-input': 'required name=search_term_string',
+        },
+      },
+      {
+        '@type': 'Blog',
+        '@id': `${blogHome}#blog`,
+        url: blogHome,
+        name: `The ${domain.hostname} blog`,
+        isPartOf: { '@id': siteId },
+        inLanguage: 'en',
+        blogPost: all.slice(0, 20).map((p) => ({
+          '@type': 'BlogPosting',
+          headline: p.title,
+          url: blogPostUrl(slug, p.slug!),
+          datePublished: p.published_at ?? undefined,
+          author: { '@type': author.endsWith('Team') ? 'Organization' : 'Person', name: author },
+        })),
+      },
+    ],
   };
 
   return (

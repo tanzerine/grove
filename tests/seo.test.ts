@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   escapeXml, isBot, jsonLdScript, appBase,
-  blogHomeUrl, blogPostUrl, subdomainSlugFromHost, buildLlmsTxt,
+  blogHomeUrl, blogPostUrl, subdomainSlugFromHost, buildLlmsTxt, buildArticleGraph,
 } from '../lib/seo';
 
 describe('escapeXml', () => {
@@ -110,6 +110,59 @@ describe('buildLlmsTxt', () => {
       posts: [{ slug: 'a', title: 'Use [brackets] here', meta_description: '' }],
     });
     expect(out).toContain('- [Use brackets here]');
+  });
+});
+
+describe('buildArticleGraph', () => {
+  const base = {
+    hostname: 'acme.com', blogSlug: 'demo', postSlug: 'my-post',
+    title: 'My Post', description: 'A description.', image: 'https://img/c.webp',
+    publishedAt: '2026-06-15T00:00:00Z', businessName: 'Acme', homeUrl: 'https://acme.com',
+    authorName: 'Acme Team', authorIsOrg: true, genreLabel: 'Guides', wordCount: 1200,
+  };
+  const find = (g: any, type: string) => g['@graph'].find((n: any) => n['@type'] === type);
+
+  it('builds a @graph with the core linked nodes', () => {
+    const g = buildArticleGraph(base);
+    expect(g['@context']).toBe('https://schema.org');
+    for (const t of ['Organization', 'WebSite', 'WebPage', 'BlogPosting', 'BreadcrumbList']) {
+      expect(find(g, t)).toBeTruthy();
+    }
+  });
+
+  it('cross-references nodes by @id', () => {
+    const g = buildArticleGraph(base);
+    const org = find(g, 'Organization'), site = find(g, 'WebSite');
+    const page = find(g, 'WebPage'), article = find(g, 'BlogPosting');
+    expect(site.publisher['@id']).toBe(org['@id']);
+    expect(page.isPartOf['@id']).toBe(site['@id']);
+    expect(article.isPartOf['@id']).toBe(page['@id']);
+    expect(article.mainEntityOfPage['@id']).toBe(page['@id']);
+    expect(article.publisher['@id']).toBe(org['@id']);
+    expect(article.wordCount).toBe(1200);
+    expect(article.inLanguage).toBe('en');
+  });
+
+  it('exposes a SearchAction pointing at the blog search', () => {
+    const site = find(buildArticleGraph(base), 'WebSite');
+    expect(site.potentialAction['@type']).toBe('SearchAction');
+    expect(site.potentialAction.target.urlTemplate).toBe(`${blogHomeUrl('demo')}?q={search_term_string}`);
+  });
+
+  it('marks a Team author as Organization, a person as Person', () => {
+    expect(find(buildArticleGraph(base), 'BlogPosting').author['@type']).toBe('Organization');
+    const personGraph = buildArticleGraph({ ...base, authorName: 'Jane Roe', authorIsOrg: false });
+    expect(find(personGraph, 'BlogPosting').author['@type']).toBe('Person');
+  });
+
+  it('includes FAQPage only when there are >= 2 pairs', () => {
+    expect(find(buildArticleGraph(base), 'FAQPage')).toBeFalsy();
+    const withFaq = buildArticleGraph({
+      ...base, faqs: [{ question: 'Q1?', answer: 'A1.' }, { question: 'Q2?', answer: 'A2.' }],
+    });
+    const faq = find(withFaq, 'FAQPage');
+    expect(faq.mainEntity).toHaveLength(2);
+    expect(faq.mainEntity[0].acceptedAnswer.text).toBe('A1.');
   });
 });
 
