@@ -69,6 +69,37 @@ export function jsonLdScript(obj: unknown): string {
 }
 
 /**
+ * Build a blog's sitemap.xml. Includes the Google image-sitemap extension so a
+ * post's cover image is discoverable in Google Images — extra surface area for
+ * free. lastmod uses published_at (posts carry no separate updated timestamp).
+ */
+export function buildSitemapXml(opts: {
+  blogSlug: string;
+  posts: { slug: string | null; published_at?: string | null; cover_image_url?: string | null }[];
+}): string {
+  const { blogSlug, posts } = opts;
+  const day = (iso?: string | null) => (iso ? `<lastmod>${iso.slice(0, 10)}</lastmod>` : '');
+
+  const urls = posts
+    .filter((p) => p.slug)
+    .map((p) => {
+      const img = p.cover_image_url
+        ? `<image:image><image:loc>${escapeXml(p.cover_image_url)}</image:loc></image:image>`
+        : '';
+      return `<url><loc>${escapeXml(blogPostUrl(blogSlug, p.slug!))}</loc>${day(p.published_at)}${img}</url>`;
+    })
+    .join('');
+
+  // index lastmod = most recent post (posts arrive newest-first)
+  const indexLastmod = day(posts.find((p) => p.published_at)?.published_at);
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+<url><loc>${escapeXml(blogHomeUrl(blogSlug))}</loc>${indexLastmod}</url>${urls}
+</urlset>`;
+}
+
+/**
  * Build the linked structured-data @graph for one article. One graph with @id
  * cross-references (Organization → WebSite → WebPage → Article, plus Breadcrumb
  * and FAQ) beats a pile of disconnected scripts: search + answer engines read
