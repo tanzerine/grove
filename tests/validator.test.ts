@@ -3,7 +3,17 @@ import { validatePost } from '../lib/pipeline/validator';
 
 const TITLE = 'My Real Title';
 
-/** A clean 2-pair FAQ section so well-formed fixtures satisfy the FAQ rule. */
+/** A clean "Key takeaways" TL;DR (3 bullets) so fixtures satisfy that rule. */
+const TAKEAWAYS = [
+  '',
+  '**Key takeaways**',
+  '',
+  '- First takeaway that is specific and under fifteen words.',
+  '- Second takeaway that stands on its own as a claim.',
+  '- Third takeaway a reader could quote without any context.',
+].join('\n');
+
+/** A clean 2-pair FAQ section so fixtures satisfy the FAQ rule. */
 const FAQ = [
   '',
   '## FAQ',
@@ -15,13 +25,8 @@ const FAQ = [
   'It does. The answer stands on its own so an answer engine could quote it cleanly.',
 ].join('\n');
 
-/** Build an 800+ word post that satisfies every validator rule. */
-function goodBody(title = TITLE): string {
-  return goodBodyNoFaq(title) + '\n' + FAQ;
-}
-
-/** Same, but without the FAQ section — isolates the MISSING_FAQ rule. */
-function goodBodyNoFaq(title = TITLE): string {
+/** H1 + prose + two citations — no takeaways, no FAQ. Compose to isolate rules. */
+function coreBody(title = TITLE): string {
   const short = 'It works well.';                       // 3 words
   const long =
     'This is a deliberately long sentence that runs well past twenty words so the variety check clearly sees both short and long forms here.'; // ~24 words
@@ -30,6 +35,11 @@ function goodBodyNoFaq(title = TITLE): string {
   // exactly two citations (sweet spot 2–4)
   lines.push('Here is [a source](https://example.com/a) and [another](https://example.com/b).');
   return lines.join('\n');
+}
+
+/** Build an 800+ word post that satisfies every validator rule. */
+function goodBody(title = TITLE): string {
+  return [coreBody(title), TAKEAWAYS, FAQ].join('\n');
 }
 
 describe('validatePost', () => {
@@ -74,14 +84,21 @@ describe('validatePost', () => {
   });
 
   it('flags a post with no FAQ section', () => {
-    const v = validatePost(goodBodyNoFaq(), { title: TITLE });
+    const v = validatePost([coreBody(), TAKEAWAYS].join('\n'), { title: TITLE });
     expect(v.issues.some((i) => i.startsWith('MISSING_FAQ'))).toBe(true);
     expect(v.stats.faq_count).toBe(0);
   });
 
-  it('counts FAQ pairs and stays clean when the FAQ is present', () => {
+  it('flags a post with no key takeaways', () => {
+    const v = validatePost([coreBody(), FAQ].join('\n'), { title: TITLE });
+    expect(v.issues.some((i) => i.startsWith('MISSING_KEY_TAKEAWAYS'))).toBe(true);
+    expect(v.stats.key_takeaways_count).toBe(0);
+  });
+
+  it('counts FAQ + takeaways and stays clean when both are present', () => {
     const v = validatePost(goodBody(), { title: TITLE });
     expect(v.issues).toEqual([]);
     expect(v.stats.faq_count).toBe(2);
+    expect(v.stats.key_takeaways_count).toBe(3);
   });
 });

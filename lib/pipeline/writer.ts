@@ -174,6 +174,10 @@ E-E-A-T RULES (not optional)
 - TRUSTWORTHINESS: include 1+ honest hedge ("but it depends…", "this won't work if…")
 
 ANSWER-ENGINE OPTIMIZATION (AEO/GEO — how AI search & featured snippets pick you up)
+- TL;DR: right after the opening hook (before the first H2), add a line "**Key takeaways**"
+  followed by 3–5 tight bullets, each ≤ 15 words, stating the article's ACTUAL conclusions —
+  the lines a reader (or an AI assistant) could quote standalone. Be specific
+  ("Paper filters trap oils, so the cup tastes cleaner"), never a teaser ("we'll explore taste").
 - ANSWER-FIRST: in the 1–2 most important H2 sections, the FIRST 1–2 sentences are a
   direct, self-contained answer (≤ 50 words) to that section's implied question — THEN
   elaborate. Write it so it still makes sense quoted out of context. Don't open with "it depends".
