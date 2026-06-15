@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   escapeXml, isBot, jsonLdScript, appBase,
-  blogHomeUrl, blogPostUrl, subdomainSlugFromHost,
+  blogHomeUrl, blogPostUrl, subdomainSlugFromHost, buildLlmsTxt,
 } from '../lib/seo';
 
 describe('escapeXml', () => {
@@ -71,6 +71,45 @@ describe('blog URLs', () => {
   it('tolerates scheme/trailing-slash in the env value', () => {
     process.env.GROVE_BLOG_ROOT_DOMAIN = 'https://grove.so/';
     expect(blogHomeUrl('demo')).toBe('https://demo.grove.so');
+  });
+});
+
+describe('buildLlmsTxt', () => {
+  const posts = [
+    { slug: 'a', title: 'First Post', meta_description: 'About the first thing.' },
+    { slug: 'b', title: 'Second Post', meta_description: null },
+    { slug: null, title: 'No slug', meta_description: 'skip me' },
+    { slug: 'c', title: null, meta_description: 'skip me too' },
+  ];
+
+  it('emits an llmstxt.org-shaped index with a title, summary, and article links', () => {
+    const out = buildLlmsTxt({ hostname: 'acme.com', blogSlug: 'demo', description: 'We make widgets.', posts });
+    expect(out.startsWith('# acme.com\n')).toBe(true);
+    expect(out).toContain('> We make widgets.');
+    expect(out).toContain('## Articles');
+    expect(out).toContain(`- [First Post](${blogPostUrl('demo', 'a')}): About the first thing.`);
+    // no description → no trailing colon segment
+    expect(out).toContain(`- [Second Post](${blogPostUrl('demo', 'b')})\n`);
+    expect(out).toContain(`- [acme.com blog](${blogHomeUrl('demo')})`);
+  });
+
+  it('skips posts missing a slug or title', () => {
+    const out = buildLlmsTxt({ hostname: 'acme.com', blogSlug: 'demo', description: '', posts });
+    expect(out).not.toContain('No slug');
+    expect(out).not.toContain('skip me too');
+  });
+
+  it('falls back to a generated summary when no description is given', () => {
+    const out = buildLlmsTxt({ hostname: 'acme.com', blogSlug: 'demo', description: null, posts: [] });
+    expect(out).toContain('> Articles and guides from acme.com.');
+  });
+
+  it('neutralizes brackets in titles so link syntax cannot break', () => {
+    const out = buildLlmsTxt({
+      hostname: 'acme.com', blogSlug: 'demo', description: 'x',
+      posts: [{ slug: 'a', title: 'Use [brackets] here', meta_description: '' }],
+    });
+    expect(out).toContain('- [Use brackets here]');
   });
 });
 
