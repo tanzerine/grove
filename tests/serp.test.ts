@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractSerpCoverage } from '../lib/pipeline/serp';
+import { extractSerpCoverage, coverageGap } from '../lib/pipeline/serp';
 
 describe('extractSerpCoverage', () => {
   const pages = [
@@ -45,5 +45,29 @@ describe('extractSerpCoverage', () => {
   it('respects the limit', () => {
     const cov = extractSerpCoverage(pages, 'pour over coffee', 2);
     expect(cov.subtopics.length).toBeLessThanOrEqual(2);
+  });
+});
+
+describe('coverageGap', () => {
+  const body = 'We tested grind size with a burr grinder. Water temperature stayed near 93C.';
+
+  it('returns subtopics the draft does not address', () => {
+    const gap = coverageGap(['burr grinder', 'water temperature', 'paper filter', 'bloom phase'], body);
+    expect(gap).toEqual(['paper filter', 'bloom phase']);
+  });
+
+  it('counts a multi-word subtopic as covered when all its words appear', () => {
+    // "grind size" both present though not adjacent in this phrasing
+    expect(coverageGap(['grind size'], 'The size of your grind is everything.')).toEqual([]);
+  });
+
+  it('is empty when there are no subtopics or no body', () => {
+    expect(coverageGap([], body)).toEqual([]);
+    expect(coverageGap(['anything'], '')).toEqual([]);
+  });
+
+  it('respects the max', () => {
+    const subs = ['a-aa', 'b-bb', 'c-cc', 'd-dd', 'e-ee', 'f-ff', 'g-gg'];
+    expect(coverageGap(subs, 'none of them here', 3)).toHaveLength(3);
   });
 });

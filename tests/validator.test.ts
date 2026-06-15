@@ -101,4 +101,16 @@ describe('validatePost', () => {
     expect(v.stats.faq_count).toBe(2);
     expect(v.stats.key_takeaways_count).toBe(3);
   });
+
+  it('flags consensus SERP subtopics the draft skips', () => {
+    const v = validatePost(goodBody(), { title: TITLE, serpSubtopics: ['burr grinder', 'water temperature'] });
+    expect(v.issues.some((i) => i.startsWith('SERP_GAP'))).toBe(true);
+    expect(v.stats.serp_gap_count).toBe(2);
+  });
+
+  it('raises no SERP gap when subtopics are absent', () => {
+    const v = validatePost(goodBody(), { title: TITLE });
+    expect(v.issues.some((i) => i.startsWith('SERP_GAP'))).toBe(false);
+    expect(v.stats.serp_gap_count).toBe(0);
+  });
 });
