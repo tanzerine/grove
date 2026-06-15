@@ -7,6 +7,7 @@ import RichEditor from './RichEditor';
 import LocalTime from '../../LocalTime';
 import Link from 'next/link';
 import { ScoreRing, RubricBars, bandColor, type RubricScores } from '../../QualityCharts';
+import { scoreAeo } from '@/lib/aeo-score';
 
 export default async function PostPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -85,6 +86,8 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
 
       {evals && evals.length > 0 && <QualityScoreCard evals={evals as any} />}
 
+      {validation?.stats && p.body_md && <AeoReadinessCard report={scoreAeo(validation.stats)} />}
+
       {validation?.issues && validation.issues.length > 0 && (
         <div style={{ background: '#fef9e8', border: '1px solid #f0d674', padding: 16, borderRadius: 10, marginTop: 20 }}>
           <b style={{ fontSize: 13 }}>Quality flags from validator</b>
@@ -131,6 +134,31 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
         </div>
       )}
     </>
+  );
+}
+
+function AeoReadinessCard({ report }: { report: ReturnType<typeof scoreAeo> }) {
+  return (
+    <div style={{ background: 'white', border: '1px solid var(--line)', borderRadius: 12, padding: 18, marginTop: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span className="mono" style={{ fontSize: 11, letterSpacing: '0.1em', color: 'var(--clay)' }}>AI SEARCH READINESS</span>
+        <span style={{ fontFamily: 'Clash Display', fontSize: 22, color: bandColor(report.score) }}>
+          {report.score}<span style={{ fontSize: 13, color: 'var(--clay)' }}>/100</span>
+        </span>
+      </div>
+      <ul style={{ listStyle: 'none', margin: '12px 0 0', padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {report.checks.map((c) => (
+          <li key={c.label} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13 }}>
+            <span style={{ color: c.ok ? 'var(--moss)' : 'var(--clay)', width: 14 }}>{c.ok ? '✓' : '○'}</span>
+            <span style={{ fontWeight: 500 }}>{c.label}</span>
+            <span className="mono" style={{ fontSize: 11, color: 'var(--clay)', marginLeft: 'auto' }}>{c.detail}</span>
+          </li>
+        ))}
+      </ul>
+      <p style={{ fontSize: 12, color: 'var(--clay)', margin: '12px 0 0', lineHeight: 1.5 }}>
+        How ready this article is to be quoted by AI answers (ChatGPT, Perplexity, Google AI Overviews) and to win featured snippets.
+      </p>
+    </div>
   );
 }
 
