@@ -105,6 +105,7 @@ export async function refineTopic(
   const competitorList = context.competitor.map((s) => `- ${s.title}`).join('\n') || '(none)';
   const painList = context.pain.map((s) => `- ${s.title}`).join('\n') || '(none)';
   const questionList = (context.questions ?? []).map((q) => `- ${q}`).join('\n') || '(none)';
+  const serpList = (context.serp?.subtopics ?? []).map((s) => `- ${s}`).join('\n') || '(none)';
 
   const system = `You are an editorial strategist. You take a vague topic and turn it
 into a sharp brief for a writer — picking the strongest angle a founder
@@ -159,6 +160,11 @@ ${competitorList}
 
 Common audience pain-points around this topic:
 ${painList}
+
+Subtopics the live TOP-RANKING pages all cover (real SERP analysis). Treat this
+as table stakes: the angle should cover the relevant ones, then BEAT this generic
+consensus with a sharper POV, first-hand specifics, or a gap nobody addresses:
+${serpList}
 
 Real questions searchers ask (Google Autocomplete — the closest free proxy for
 "People Also Ask"). Pick the 3-5 most on-topic, dedupe near-duplicates, and

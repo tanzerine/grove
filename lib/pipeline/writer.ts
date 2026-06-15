@@ -96,6 +96,11 @@ export async function runWriter(opts: {
     ? brief.faq_questions.map((q) => `  - ${q}`).join('\n')
     : '  - (none supplied — write 2–3 genuinely useful Q&As a reader of this topic would ask)';
 
+  const serpSubtopics = context.serp?.subtopics ?? [];
+  const serpBlock = serpSubtopics.length
+    ? `\nSERP COVERAGE (real analysis of the live top-ranking pages — they all cover these subtopics). Address the relevant ones so the article is competitive, THEN beat this generic consensus with first-hand specifics, a sharper stance, or a gap none of them fill. Do NOT just mirror the list, and never name or link a competitor:\n${serpSubtopics.map((s) => `- ${s}`).join('\n')}\n`
+    : '';
+
   const system = `You write articles for ${business.name}'s blog.
 You're given a tight editorial brief — your job is to execute it. Don't
 second-guess the title or angle; deliver on them.
@@ -256,7 +261,7 @@ OUTPUT FORMAT — exact delimiters, nothing else:
   const user = `SOURCES (your only allowed citations — inline as [text](url) markdown links):
 
 ${sourcesBlock}
-${rewriteBlock}
+${serpBlock}${rewriteBlock}
 Deliver the article now. Open with the hook line verbatim. Use the title as your H1.`;
 
   // ─── single LLM draft. No revision pass on the hot path. ─────────────
