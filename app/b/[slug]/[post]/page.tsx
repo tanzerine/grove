@@ -22,6 +22,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const url = blogPostUrl(slug, post);
   const title = p.meta_title || p.title || undefined;
   const description = p.meta_description ?? undefined;
+  // Real cover wins; otherwise a branded card generated at {post}/og so every
+  // share still gets a rich preview instead of a bare link.
+  const ogImage = p.cover_image_url || `${url}/og`;
   return {
     title,
     description,
@@ -36,13 +39,13 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       type: 'article',
       siteName: domain.hostname,
       publishedTime: p.published_at ?? undefined,
-      images: p.cover_image_url ? [{ url: p.cover_image_url }] : undefined,
+      images: [{ url: ogImage, width: 1200, height: 630 }],
     },
     twitter: {
-      card: p.cover_image_url ? 'summary_large_image' : 'summary',
+      card: 'summary_large_image',
       title,
       description,
-      images: p.cover_image_url ? [p.cover_image_url] : undefined,
+      images: [ogImage],
     },
   };
 }
