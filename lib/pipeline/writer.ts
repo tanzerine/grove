@@ -4,6 +4,7 @@
  * format, and first-person opener. The writer's job is to execute on it.
  */
 import { llmCall } from '../llm';
+import { deriveMetaDescription } from '../meta';
 import { qualityRulesPrompt } from './quality-rules';
 import { postProcess, capCitations, ensureHomepageCta, forceCanonicalH1 } from './post-process';
 import type { SiteProfile } from './site-profile';
@@ -285,11 +286,14 @@ Deliver the article now. Open with the hook line verbatim. Use the title as your
   });
 
   // Title already computed above (canonical, forced onto the H1).
-  let metaDesc = parsed.meta_description?.trim() || brief.promise.slice(0, 155);
-  if (!metaDesc) {
-    const firstPara = body.split('\n').find((l) => l.trim() && !l.startsWith('#')) ?? '';
-    metaDesc = firstPara.replace(/[*_`#>]/g, '').slice(0, 155);
-  }
+  // Prefer a usable model description; otherwise fall back to the strongest
+  // standalone line (first Key Takeaway → promise → opening para), capped so
+  // Google won't truncate mid-word.
+  const metaDesc = deriveMetaDescription({
+    modelMeta: parsed.meta_description,
+    body,
+    promise: brief.promise,
+  });
 
   return {
     blog_post: body,
