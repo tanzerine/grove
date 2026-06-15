@@ -22,7 +22,7 @@ export async function middleware(req: NextRequest) {
       url.pathname = p.slice(`/b/${sub}`.length) || '/';
       return NextResponse.redirect(url, 301);
     }
-    if (p === '/robots.txt' || p === '/sitemap.xml' || p === '/rss.xml') {
+    if (p === '/robots.txt' || p === '/sitemap.xml' || p === '/rss.xml' || p === '/llms.txt') {
       url.pathname = `/b/${sub}${p}`;
       return NextResponse.rewrite(url);
     }

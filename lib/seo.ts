@@ -67,3 +67,42 @@ export function isBot(ua: string | null | undefined): boolean {
 export function jsonLdScript(obj: unknown): string {
   return JSON.stringify(obj).replace(/</g, '\\u003c');
 }
+
+/**
+ * Build an llms.txt (per llmstxt.org) for a blog — a plain markdown index that
+ * tells AI assistants and answer engines (ChatGPT, Perplexity, Claude, AI
+ * Overviews) what this blog covers and where every article lives. Served at
+ * {blog}/llms.txt next to robots.txt and sitemap.xml; the modern complement to
+ * a sitemap, aimed at LLM crawlers rather than search spiders.
+ */
+export function buildLlmsTxt(opts: {
+  hostname: string;
+  blogSlug: string;
+  description?: string | null;
+  posts: { slug: string | null; title: string | null; meta_description?: string | null }[];
+}): string {
+  const { hostname, blogSlug, description, posts } = opts;
+  const clean = (s: string | null | undefined) => (s ?? '').replace(/\s+/g, ' ').trim();
+  const summary = clean(description) || `Articles and guides from ${hostname}.`;
+
+  const lines: string[] = [
+    `# ${hostname}`,
+    '',
+    `> ${summary}`,
+    '',
+    'This file helps AI assistants and answer engines discover, read, and cite this blog. Every published article is listed below with its canonical URL.',
+    '',
+    '## Articles',
+    '',
+  ];
+  for (const p of posts) {
+    if (!p.slug || !p.title) continue;
+    // titles are markdown link text — neutralize brackets so a stray ] can't
+    // break the link syntax for a parser.
+    const title = clean(p.title).replace(/[[\]]/g, '');
+    const desc = clean(p.meta_description);
+    lines.push(`- [${title}](${blogPostUrl(blogSlug, p.slug)})${desc ? `: ${desc}` : ''}`);
+  }
+  lines.push('', '## Home', '', `- [${hostname} blog](${blogHomeUrl(blogSlug)})`, '');
+  return lines.join('\n');
+}
