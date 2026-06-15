@@ -69,6 +69,65 @@ export function jsonLdScript(obj: unknown): string {
 }
 
 /**
+ * Build a blog's RSS 2.0 feed. Enriched over a bare title/description feed with
+ * full article HTML (content:encoded), author (dc:creator), and category — what
+ * feed readers and syndicators actually render. The route renders markdown →
+ * HTML and resolves author/genre; this stays pure for easy testing.
+ */
+export function buildRssXml(opts: {
+  hostname: string;
+  blogSlug: string;
+  items: {
+    slug: string | null;
+    title?: string | null;
+    description?: string | null;
+    publishedAt?: string | null;
+    coverUrl?: string | null;
+    contentHtml?: string | null;
+    category?: string | null;
+    author?: string | null;
+  }[];
+}): string {
+  const { hostname, blogSlug, items } = opts;
+  const blogUrl = blogHomeUrl(blogSlug);
+  const cdata = (s: string) => `<![CDATA[${s.replace(/]]>/g, ']]]]><![CDATA[>')}]]>`;
+  const rfc822 = (iso: string) => new Date(iso).toUTCString();
+
+  const xmlItems = items.filter((i) => i.slug).map((i) => {
+    const url = blogPostUrl(blogSlug, i.slug!);
+    return [
+      '<item>',
+      `<title>${escapeXml(i.title ?? '')}</title>`,
+      `<link>${escapeXml(url)}</link>`,
+      `<guid isPermaLink="true">${escapeXml(url)}</guid>`,
+      i.author ? `<dc:creator>${escapeXml(i.author)}</dc:creator>` : '',
+      i.category ? `<category>${escapeXml(i.category)}</category>` : '',
+      i.description ? `<description>${escapeXml(i.description)}</description>` : '',
+      i.publishedAt ? `<pubDate>${rfc822(i.publishedAt)}</pubDate>` : '',
+      i.coverUrl ? `<enclosure url="${escapeXml(i.coverUrl)}" type="image/webp" length="0"/>` : '',
+      i.contentHtml ? `<content:encoded>${cdata(i.contentHtml)}</content:encoded>` : '',
+      '</item>',
+    ].filter(Boolean).join('\n');
+  }).join('\n');
+
+  const newest = items.find((i) => i.publishedAt)?.publishedAt;
+  const lastBuild = newest ? rfc822(newest) : new Date(0).toUTCString();
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/">
+<channel>
+<title>${escapeXml(`The ${hostname} blog`)}</title>
+<link>${escapeXml(blogUrl)}</link>
+<atom:link href="${escapeXml(`${blogUrl}/rss.xml`)}" rel="self" type="application/rss+xml"/>
+<description>${escapeXml(`Articles by ${hostname}`)}</description>
+<language>en</language>
+<lastBuildDate>${lastBuild}</lastBuildDate>
+${xmlItems}
+</channel>
+</rss>`;
+}
+
+/**
  * Build a blog's sitemap.xml. Includes the Google image-sitemap extension so a
  * post's cover image is discoverable in Google Images — extra surface area for
  * free. lastmod uses published_at (posts carry no separate updated timestamp).

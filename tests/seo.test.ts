@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   escapeXml, isBot, jsonLdScript, appBase,
-  blogHomeUrl, blogPostUrl, subdomainSlugFromHost, buildLlmsTxt, buildArticleGraph, buildSitemapXml,
+  blogHomeUrl, blogPostUrl, subdomainSlugFromHost, buildLlmsTxt, buildArticleGraph, buildSitemapXml, buildRssXml,
 } from '../lib/seo';
 
 describe('escapeXml', () => {
@@ -146,6 +146,44 @@ describe('buildSitemapXml', () => {
     });
     expect(xml).not.toMatch(/<loc>[^<]*null/);
     expect(xml).toContain('a&amp;b');
+  });
+});
+
+describe('buildRssXml', () => {
+  const items = [
+    {
+      slug: 'newest', title: 'Newest', description: 'desc one',
+      publishedAt: '2026-06-10T12:00:00Z', coverUrl: 'https://img/c.webp',
+      contentHtml: '<p>Full body</p>', category: 'Guides', author: 'Acme Team',
+    },
+    { slug: null, title: 'No slug', publishedAt: '2026-07-01T00:00:00Z' },
+  ];
+
+  it('renders a channel with enriched items (content, creator, category)', () => {
+    const xml = buildRssXml({ hostname: 'acme.com', blogSlug: 'demo', items });
+    expect(xml).toContain('xmlns:content="http://purl.org/rss/1.0/modules/content/"');
+    expect(xml).toContain('<title>The acme.com blog</title>');
+    expect(xml).toContain(`<link>${blogPostUrl('demo', 'newest')}</link>`);
+    expect(xml).toContain('<dc:creator>Acme Team</dc:creator>');
+    expect(xml).toContain('<category>Guides</category>');
+    expect(xml).toContain('<content:encoded><![CDATA[<p>Full body</p>]]></content:encoded>');
+    expect(xml).toContain('<pubDate>Wed, 10 Jun 2026 12:00:00 GMT</pubDate>');
+  });
+
+  it('skips slugless items and dates the build from the first (newest) item', () => {
+    const xml = buildRssXml({ hostname: 'acme.com', blogSlug: 'demo', items });
+    expect(xml).not.toContain('No slug');
+    // feed contract is newest-first, so lastBuildDate is the first item's date
+    expect(xml).toContain('<lastBuildDate>Wed, 10 Jun 2026 12:00:00 GMT</lastBuildDate>');
+  });
+
+  it('keeps CDATA intact when content contains a "]]>" sequence', () => {
+    const xml = buildRssXml({
+      hostname: 'a', blogSlug: 'demo',
+      items: [{ slug: 'x', title: 'X', contentHtml: 'before ]]> after', publishedAt: '2026-01-01T00:00:00Z' }],
+    });
+    expect(xml).toContain(']]]]><![CDATA[>');
+    expect(xml).not.toMatch(/CDATA\[[^]]*]]> after/);
   });
 });
 
