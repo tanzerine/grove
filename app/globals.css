@@ -551,3 +551,7 @@ html { scroll-behavior: smooth; }
 
 /* alternating section gets a whisper of gradient, not a flat slab */
 .section--alt { background: linear-gradient(180deg, #f5f2eb, #faf8f2); }
+
+/* dashboard depth: lift the pipeline rows off the flat canvas */
+.post-row { background: #fff; box-shadow: var(--sh-sm); border-radius: 12px; transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease; }
+.post-row:hover { transform: translateY(-2px); box-shadow: var(--sh-md); border-color: rgba(63,143,94,.24); }
