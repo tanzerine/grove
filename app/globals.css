@@ -4,13 +4,20 @@
 
 :root {
   --ink: #1a2e1f;
-  --moss: #4e9e6a;
+  --moss: #3f8f5e;
+  --moss2: #2f7a4d;
   --leaf: #6cc98a;
   --mint: #9de0b8;
   --clay: #7a8a7d;
-  --paper: #f6f4ee;
-  --bone: #fbfaf6;
-  --line: #e6e2d6;
+  --paper: #f4f1ea;
+  --bone: #fcfbf7;
+  --line: #e9e5da;
+  /* premium pass: gradient accent, radii + elevation scale */
+  --grad: linear-gradient(135deg, #56b97e, #2f7a4d);
+  --r-md: 14px; --r-lg: 18px; --r-xl: 24px;
+  --sh-sm: 0 1px 2px rgba(21,40,27,.05), 0 2px 6px -2px rgba(21,40,27,.07);
+  --sh-md: 0 6px 16px -8px rgba(21,40,27,.14), 0 12px 30px -12px rgba(21,40,27,.10);
+  --sh-lg: 0 30px 70px -28px rgba(21,40,27,.28), 0 10px 28px -14px rgba(63,143,94,.18);
 }
 
 * { box-sizing: border-box; }
@@ -495,3 +502,52 @@ html { scroll-behavior: smooth; }
 .prose h2, .prose h3 { scroll-margin-top: 28px; }
 .share-btn { display: inline-flex; align-items: center; gap: 6px; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--ink); background: white; border: 1px solid var(--line); border-radius: 999px; padding: 8px 16px; text-decoration: none; cursor: pointer; transition: border-color .14s ease, color .14s ease, transform .14s ease; }
 .share-btn:hover { border-color: var(--moss); color: var(--moss); transform: translateY(-1px); }
+
+/* ═══════════════════════ premium pass ═══════════════════════
+   Depth, gradient accent, and a calmer light hero. Mostly additive —
+   refines existing primitives so the lift carries across every surface. */
+
+/* gradient accent on emphasis words (headlines) */
+.ital {
+  background: linear-gradient(100deg, #56b97e, #2f7a4d 70%);
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent;
+}
+.section--ink .ital { background: linear-gradient(100deg, #9de0b8, #6cc98a 70%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+/* CTAs: brand gradient + soft elevation instead of a flat fill */
+.btn-primary { background: var(--grad); color: #fff; box-shadow: 0 10px 26px -12px rgba(47,122,77,.55); }
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 18px 40px -12px rgba(47,122,77,.62); }
+
+/* light hero: a soft moss wash + glow instead of flat paper */
+.hero { position: relative; background: radial-gradient(120% 115% at 80% -12%, rgba(108,201,138,.16), rgba(252,251,247,0) 46%); }
+.hero-art { position: relative; }
+.hero-art .window { box-shadow: var(--sh-lg); border-radius: var(--r-xl); }
+.window-bar .url { background: white; }
+
+/* hero eyebrow → a refined pill */
+.eyebrow.pill { text-transform: none; letter-spacing: .03em; color: var(--moss2);
+  background: rgba(63,143,94,.07); border: 1px solid rgba(63,143,94,.20);
+  padding: 7px 14px; border-radius: 999px; }
+.eyebrow.pill .pdot { width: 6px; height: 6px; border-radius: 50%; background: var(--leaf); box-shadow: 0 0 0 4px rgba(108,201,138,.18); }
+
+/* floating product chips for layered depth */
+.float-chip { position: absolute; z-index: 2; background: #fff; border: 1px solid var(--line);
+  border-radius: 13px; padding: 10px 13px; display: flex; align-items: center; gap: 9px; box-shadow: var(--sh-lg); }
+.float-chip .fc-ic { width: 26px; height: 26px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; }
+.float-chip .fc-k { font-size: 11px; color: var(--clay); }
+.float-chip .fc-v { font-size: 14px; font-weight: 600; font-family: 'Clash Display'; }
+.float-chip.tl { top: -22px; left: -26px; }
+.float-chip.br { bottom: -20px; right: -22px; }
+@media (max-width: 960px) { .float-chip { display: none; } }
+
+/* depth on the flat white cards (landing) */
+.step, .feat, .plan, .tcard, .qcard, .faq-item, .prose-demo, .social-card, .blog-card { box-shadow: var(--sh-sm); }
+.feat { transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+.feat:hover { transform: translateY(-3px); box-shadow: var(--sh-lg); border-color: rgba(63,143,94,.28); }
+.fic { background: linear-gradient(135deg, rgba(108,201,138,.20), rgba(108,201,138,.05)); border: 1px solid rgba(63,143,94,.16); color: var(--moss); }
+.domain-field { box-shadow: var(--sh-md); border-radius: var(--r-lg); }
+.step, .plan { border-radius: var(--r-xl); }
+
+/* alternating section gets a whisper of gradient, not a flat slab */
+.section--alt { background: linear-gradient(180deg, #f5f2eb, #faf8f2); }
