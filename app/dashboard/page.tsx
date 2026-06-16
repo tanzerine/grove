@@ -35,6 +35,16 @@ export default async function Page() {
     }
   }
 
+  // Outcome-framed AI-search readiness across published posts — uses the stored
+  // validation structure, no new tracking.
+  const publishedPosts = (posts ?? []).filter((p) => p.status === 'published');
+  const aeoReadyCount = publishedPosts.filter((p) => {
+    const s = (p.validation as any)?.stats;
+    return s && (s.faq_count ?? 0) >= 2 && (s.key_takeaways_count ?? 0) >= 3;
+  }).length;
+  const aeoReady = publishedPosts.length >= 2 ? { ready: aeoReadyCount, total: publishedPosts.length } : null;
+  const scoredCount = (posts ?? []).filter((p) => scoreByPost.has(p.id)).length;
+
   return (
     <>
       {domain && !domain.verified_at && (
@@ -49,9 +59,18 @@ export default async function Page() {
         </div>
       )}
 
-      {brief && <AgentBrief stats={brief} />}
+      {brief && <AgentBrief stats={brief} aeoReady={aeoReady} />}
 
-      <QualityCard posts={posts ?? []} scoreByPost={scoreByPost} />
+      {scoredCount >= 2 && (
+        <details style={{ marginBottom: 26 }}>
+          <summary style={{ cursor: 'pointer', fontSize: 13, color: 'var(--clay)', padding: '6px 2px' }}>
+            Quality &amp; process
+          </summary>
+          <div style={{ marginTop: 8 }}>
+            <QualityCard posts={posts ?? []} scoreByPost={scoreByPost} />
+          </div>
+        </details>
+      )}
 
       <div className="dm-top">
         <h4 style={{ fontFamily: 'Clash Display', fontSize: 28, margin: 0 }}>Content pipeline</h4>
@@ -119,7 +138,7 @@ function QualityCard({
 
 /* ───────── the agent's weekly report, in plain language ───────── */
 
-function AgentBrief({ stats }: { stats: BriefStats }) {
+function AgentBrief({ stats, aeoReady }: { stats: BriefStats; aeoReady?: { ready: number; total: number } | null }) {
   const sentences = composeBrief(stats);
   const action = nextAction(stats);
   const delta = stats.readsLastWeek > 0
@@ -160,6 +179,7 @@ function AgentBrief({ stats }: { stats: BriefStats }) {
         {stats.organicShare >= 0.05 && (
           <Chip label="From search" value={`${Math.round(stats.organicShare * 100)}%`} />
         )}
+        {aeoReady && <Chip label="AI-search ready" value={`${aeoReady.ready} / ${aeoReady.total}`} />}
         {stats.inReview > 0 && <Chip label="Awaiting review" value={String(stats.inReview)} />}
       </div>
     </section>
