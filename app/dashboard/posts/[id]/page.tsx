@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { ScoreRing, RubricBars, bandColor, type RubricScores } from '../../QualityCharts';
 import { scoreAeo } from '@/lib/aeo-score';
 import { coverageGap } from '@/lib/pipeline/serp';
+import { summarizeReadiness, type Readiness } from '@/lib/readiness';
 
 export default async function PostPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -39,6 +40,13 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
     }
     return count >= 2;
   })();
+
+  // Plain-language readiness — the calm face of the validator/manager/SERP data.
+  const managerOverall =
+    evals && evals.length ? ((evals[evals.length - 1] as any)?.scores?.overall ?? null) : null;
+  const readiness: Readiness | null = validation?.stats && p.body_md
+    ? summarizeReadiness({ stats: validation.stats, issues: validation.issues, managerOverall })
+    : null;
 
   return (
     <>
@@ -85,25 +93,34 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
         <PipelineTimeline log={(p.generation_log ?? []) as any} status={p.status} />
       </div>
 
-      {evals && evals.length > 0 && <QualityScoreCard evals={evals as any} />}
-
-      {validation?.stats && p.body_md && <AeoReadinessCard report={scoreAeo(validation.stats)} />}
+      {readiness && <ReadinessPanel r={readiness} />}
 
       {(() => {
         const serp = (p.research as any)?.serp;
-        return serp?.subtopics?.length && p.body_md
-          ? <SerpIntelCard subtopics={serp.subtopics as string[]} body={p.body_md} />
-          : null;
+        const hasSerp = !!serp?.subtopics?.length && !!p.body_md;
+        const hasDepth = (evals && evals.length > 0) || (validation?.stats && p.body_md) || (validation?.issues?.length ?? 0) > 0;
+        if (!hasDepth) return null;
+        return (
+          <details style={{ marginTop: 12 }}>
+            <summary style={{ cursor: 'pointer', fontSize: 13, color: 'var(--clay)', padding: '8px 2px' }}>
+              SEO &amp; AI details
+            </summary>
+            <div style={{ marginTop: 4 }}>
+              {evals && evals.length > 0 && <QualityScoreCard evals={evals as any} />}
+              {validation?.stats && p.body_md && <AeoReadinessCard report={scoreAeo(validation.stats)} />}
+              {hasSerp && <SerpIntelCard subtopics={serp.subtopics as string[]} body={p.body_md!} />}
+              {validation?.issues && validation.issues.length > 0 && (
+                <div style={{ background: '#fef9e8', border: '1px solid #f0d674', padding: 16, borderRadius: 10, marginTop: 20 }}>
+                  <b style={{ fontSize: 13 }}>Quality flags from validator</b>
+                  <ul style={{ margin: '8px 0 0 18px', fontSize: 13 }}>
+                    {validation.issues.map((i, idx) => <li key={idx} className="mono">{i}</li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </details>
+        );
       })()}
-
-      {validation?.issues && validation.issues.length > 0 && (
-        <div style={{ background: '#fef9e8', border: '1px solid #f0d674', padding: 16, borderRadius: 10, marginTop: 20 }}>
-          <b style={{ fontSize: 13 }}>Quality flags from validator</b>
-          <ul style={{ margin: '8px 0 0 18px', fontSize: 13 }}>
-            {validation.issues.map((i, idx) => <li key={idx} className="mono">{i}</li>)}
-          </ul>
-        </div>
-      )}
 
       {/* Single article block: rendered, and editable in place for finished
           posts. Manual drafts arrive with an empty body and open in edit mode. */}
@@ -142,6 +159,43 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
         </div>
       )}
     </>
+  );
+}
+
+function ReadinessPanel({ r }: { r: Readiness }) {
+  const tone = r.status === 'ready'
+    ? { bg: 'rgba(89,148,94,0.12)', fg: 'var(--moss)', icon: '✓' }
+    : r.status === 'almost'
+      ? { bg: 'rgba(224,160,64,0.14)', fg: '#b07a16', icon: '!' }
+      : { bg: 'rgba(120,120,120,0.10)', fg: 'var(--clay)', icon: '·' };
+  return (
+    <div style={{ background: 'white', border: '1px solid var(--line)', borderRadius: 14, padding: '20px 22px', marginTop: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span style={{ width: 34, height: 34, borderRadius: '50%', background: tone.bg, color: tone.fg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flex: 'none' }}>{tone.icon}</span>
+        <div style={{ fontFamily: 'Clash Display', fontSize: 20 }}>{r.headline}</div>
+      </div>
+      <p style={{ fontSize: 13.5, color: 'var(--clay)', margin: '12px 0 16px', lineHeight: 1.55 }}>
+        Built to rank on Google and get quoted by AI — written in your voice.
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {r.checks.map((c) => (
+          <div key={c.label} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14 }}>
+            <span style={{ color: c.ok ? 'var(--moss)' : 'var(--clay)', width: 16, fontSize: 15 }}>{c.ok ? '✓' : '○'}</span>
+            <span style={{ color: c.ok ? 'var(--ink)' : 'var(--clay)' }}>{c.label}</span>
+          </div>
+        ))}
+      </div>
+      {r.notes.length > 0 ? (
+        <div style={{ marginTop: 16, borderTop: '1px solid var(--line)', paddingTop: 14 }}>
+          <div className="mono" style={{ fontSize: 11, letterSpacing: '0.08em', color: 'var(--clay)', marginBottom: 8 }}>WORTH A LOOK</div>
+          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13.5, color: 'var(--ink)', lineHeight: 1.7 }}>
+            {r.notes.map((t, i) => <li key={i}>{t}</li>)}
+          </ul>
+        </div>
+      ) : r.status === 'ready' ? (
+        <div style={{ marginTop: 14, fontSize: 12.5, color: 'var(--clay)' }}>grove handled the SEO and AI optimization — nothing needed from you.</div>
+      ) : null}
+    </div>
   );
 }
 
