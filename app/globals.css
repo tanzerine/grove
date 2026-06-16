@@ -555,3 +555,7 @@ html { scroll-behavior: smooth; }
 /* dashboard depth: lift the pipeline rows off the flat canvas */
 .post-row { background: #fff; box-shadow: var(--sh-sm); border-radius: 12px; transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease; }
 .post-row:hover { transform: translateY(-2px); box-shadow: var(--sh-md); border-color: rgba(63,143,94,.24); }
+
+/* public blog: depth at rest, not only on hover */
+.bi-card, .feat-card { box-shadow: var(--sh-sm); }
+.bi-card:hover, .feat-card:hover { box-shadow: var(--sh-lg); }
