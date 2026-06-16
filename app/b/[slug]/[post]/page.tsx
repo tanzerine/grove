@@ -167,7 +167,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
 
           <article
             className="prose"
-            style={{ marginTop: 30, padding: '40px 36px', background: 'white', border: '1px solid var(--line)', borderRadius: 14, maxWidth: 'none' }}
+            style={{ marginTop: 30, padding: '44px 40px', background: 'white', border: '1px solid var(--line)', borderRadius: 18, boxShadow: 'var(--sh-md)', maxWidth: 'none' }}
             dangerouslySetInnerHTML={{ __html: html }}
           />
 
