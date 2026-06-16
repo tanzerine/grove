@@ -28,7 +28,7 @@ export default async function DashLayout({ children }: { children: React.ReactNo
           </div>
         )}
       </aside>
-      <main style={{ padding: '40px 48px', overflow: 'auto' }}>{children}</main>
+      <main style={{ padding: '40px 48px', overflow: 'auto', background: 'radial-gradient(90% 50% at 100% 0%, rgba(108,201,138,0.06), rgba(252,251,247,0) 60%), var(--bone)' }}>{children}</main>
     </div>
   );
 }

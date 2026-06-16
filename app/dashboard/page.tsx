@@ -117,7 +117,7 @@ function QualityCard({
 
   const avg = Math.round(items.reduce((a, i) => a + i.overall, 0) / items.length);
   return (
-    <section style={{ background: 'white', border: '1px solid var(--line)', borderRadius: 14, padding: '20px 24px', marginBottom: 26 }}>
+    <section style={{ background: 'white', border: '1px solid var(--line)', borderRadius: 18, boxShadow: 'var(--sh-md)', padding: '20px 24px', marginBottom: 26 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
         <div className="mono" style={{ fontSize: 11, letterSpacing: '0.1em', color: 'var(--clay)' }}>
           ARTICLE QUALITY · MANAGER SCORES
@@ -146,7 +146,7 @@ function AgentBrief({ stats, aeoReady }: { stats: BriefStats; aeoReady?: { ready
     : null;
 
   return (
-    <section style={{ background: 'white', border: '1px solid var(--line)', borderRadius: 14, padding: '22px 24px', marginBottom: 26 }}>
+    <section style={{ background: 'white', border: '1px solid var(--line)', borderRadius: 18, boxShadow: 'var(--sh-md)', padding: '22px 24px', marginBottom: 26 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
         <div>
           <div className="mono" style={{ fontSize: 11, letterSpacing: '0.1em', color: 'var(--clay)' }}>

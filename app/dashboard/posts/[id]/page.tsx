@@ -169,7 +169,7 @@ function ReadinessPanel({ r }: { r: Readiness }) {
       ? { bg: 'rgba(224,160,64,0.14)', fg: '#b07a16', icon: '!' }
       : { bg: 'rgba(120,120,120,0.10)', fg: 'var(--clay)', icon: '·' };
   return (
-    <div style={{ background: 'white', border: '1px solid var(--line)', borderRadius: 14, padding: '20px 22px', marginTop: 20 }}>
+    <div style={{ background: 'white', border: '1px solid var(--line)', borderRadius: 18, boxShadow: 'var(--sh-md)', padding: '22px 24px', marginTop: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <span style={{ width: 34, height: 34, borderRadius: '50%', background: tone.bg, color: tone.fg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flex: 'none' }}>{tone.icon}</span>
         <div style={{ fontFamily: 'Clash Display', fontSize: 20 }}>{r.headline}</div>
