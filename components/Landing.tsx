@@ -41,7 +41,7 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
         <section className="hero">
           <div className="wrap hero-grid">
             <div className="hero-copy">
-              <span className="eyebrow">SEO blog engine · on autopilot</span>
+              <span className="eyebrow pill"><span className="pdot" />SEO blog engine · on autopilot</span>
               <h1 className="display">
                 Plant your domain.<br />
                 The blog <span className="ital">grows itself.</span>
@@ -63,10 +63,18 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
             </div>
 
             <div className="hero-art">
+              <div className="float-chip tl">
+                <span className="fc-ic" style={{ background: 'rgba(108,201,138,0.18)', color: 'var(--moss)' }}>✓</span>
+                <span><span className="fc-k" style={{ display: 'block' }}>AI-search ready</span><span className="fc-v">9 / 12</span></span>
+              </div>
+              <div className="float-chip br">
+                <span className="fc-ic" style={{ background: 'rgba(221,155,42,0.18)', color: '#9b6b13' }}>★</span>
+                <span><span className="fc-k" style={{ display: 'block' }}>Avg rating</span><span className="fc-v">4.9</span></span>
+              </div>
               <div className="window">
                 <div className="window-bar">
                   <div className="tl"><i /><i /><i /></div>
-                  <div className="url">🔒 app.grove.so/pipeline</div>
+                  <div className="url">app.grove.so/pipeline</div>
                 </div>
                 <div className="dash">
                   <aside className="dash-side">
