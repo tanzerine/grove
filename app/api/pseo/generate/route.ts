@@ -4,6 +4,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { generateProgrammaticPage, type PseoPageSpec } from '@/lib/pseo';
 import { runCoverForPost } from '@/lib/pipeline/cover-image';
+import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
 import type { SiteProfile } from '@/lib/pipeline/site-profile';
 
 export const maxDuration = 300;
@@ -29,6 +30,11 @@ export async function POST(req: Request) {
   const sb = await supabaseServer();
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+
+  // Cost-bearing: each request fans out to a full page-gen pipeline + Replicate
+  // cover per spec (up to 12). Gate it like the article pipeline.
+  const limited = await enforceRateLimit(`gen:${user.id}`, LIMITS.generate);
+  if (limited) return limited;
 
   const parsed = body.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: 'invalid' }, { status: 400 });
