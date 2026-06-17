@@ -38,75 +38,52 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
 
       <main id="top">
         {/* HERO */}
-        <section className="hero">
-          <div className="wrap hero-grid">
-            <div className="hero-copy">
-              <span className="eyebrow pill"><span className="pdot" />SEO blog engine · on autopilot</span>
+        <section className="lz-hero">
+          <div className="lz-aurora"><i className="lz-a1" /><i className="lz-a2" /><i className="lz-a3" /></div>
+          <div className="wrap">
+            <div className="lz-in">
+              <span className="eyebrow pill"><span className="pdot" />SEO + answer-engine content, on autopilot</span>
               <h1 className="display">
                 Plant your domain.<br />
                 The blog <span className="ital">grows itself.</span>
               </h1>
-              <p className="lede">
-                grove researches, writes, and publishes SEO blog posts straight to your site — automatically.
-                Enter your domain once. That&apos;s the entire setup. No WordPress, no API keys, no calendar.
+              <p className="lz-sub">
+                grove reads the live SERP, writes content engineered to rank on Google and get quoted by
+                ChatGPT &amp; AI Overviews, and publishes it to your site — automatically.
               </p>
-
-              <PlantForm id="plantForm" />
-
+              <div className="lz-ctarow"><PlantForm id="plantForm" /></div>
               <div className="proof">
                 <div className="avatars"><span>JL</span><span>MR</span><span>AK</span><span>SP</span><span>TW</span></div>
                 <div className="proof-txt">
                   <div className="stars">★★★★★</div>
-                  <span><b>2,400+ founders</b> grow their blog on autopilot</span>
+                  <span><b>2,400+ teams</b> compounding organic + AI-search traffic</span>
                 </div>
               </div>
             </div>
 
-            <div className="hero-art">
-              <div className="float-chip tl">
-                <span className="fc-ic" style={{ background: 'rgba(108,201,138,0.18)', color: 'var(--moss)' }}>✓</span>
-                <span><span className="fc-k" style={{ display: 'block' }}>AI-search ready</span><span className="fc-v">9 / 12</span></span>
+            <div className="lz-shot">
+              <div className="lz-chip a">
+                <span className="ic" style={{ background: 'rgba(108,201,138,0.18)', color: 'var(--moss)' }}>✓</span>
+                <span><span className="k" style={{ display: 'block' }}>AI-search ready</span><span className="v">9 / 12 posts</span></span>
               </div>
-              <div className="float-chip br">
-                <span className="fc-ic" style={{ background: 'rgba(221,155,42,0.18)', color: '#9b6b13' }}>★</span>
-                <span><span className="fc-k" style={{ display: 'block' }}>Avg rating</span><span className="fc-v">4.9</span></span>
+              <div className="lz-chip b">
+                <span className="ic" style={{ background: 'rgba(221,155,42,0.18)', color: '#9b6b13' }}>↗</span>
+                <span><span className="k" style={{ display: 'block' }}>Organic traffic</span><span className="v">+312%</span></span>
               </div>
-              <div className="window">
-                <div className="window-bar">
-                  <div className="tl"><i /><i /><i /></div>
-                  <div className="url">app.grove.so/pipeline</div>
-                </div>
-                <div className="dash">
-                  <aside className="dash-side">
-                    <div className="sb-brand">
-                      <span className="mark"><svg viewBox="0 0 32 32"><use href="#grove-mark" /></svg></span>
-                      grove<span className="dot">.</span>
-                    </div>
-                    <div className="sb-item on"><span className="ic" />Pipeline</div>
-                    <div className="sb-item"><span className="ic" />Published</div>
-                    <div className="sb-item"><span className="ic" />Brand voice</div>
-                    <div className="sb-item"><span className="ic" />Analytics</div>
-                    <div className="sb-foot">
-                      <div className="verified-chip"><span className="v">✓</span>linear.app verified</div>
-                    </div>
-                  </aside>
-                  <div className="dash-main">
-                    <div className="dm-top">
-                      <h4>Content pipeline</h4>
-                      <span className="meta">4 posts / week</span>
-                    </div>
-                    <PostRow title="10 onboarding mistakes killing your activation" meta='Published · 1,204 reads · ranks #3 "saas onboarding"' badge="live" badgeText="LIVE" />
-                    <PostRow title="How we cut churn 31% with lifecycle email" meta="Drafting section 3 of 6 · fact-checking…" badge="writing" badgeText="WRITING" />
-                    <PostRow title="The indie hacker's guide to programmatic SEO" meta="Researching · 14 sources gathered" badge="queue" badgeText="QUEUED" />
-                    <div className="dash-stat">
-                      <div>
-                        <div className="num"><b>+312%</b></div>
-                        <div className="lbl">organic traffic · 90 days</div>
-                      </div>
-                      <svg className="spark" viewBox="0 0 120 38" preserveAspectRatio="none">
-                        <polyline points="0,34 18,32 34,30 52,24 70,21 88,13 104,9 120,3" fill="none" stroke="#4e9e6a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </div>
+              <div className="lz-frame">
+                <div className="lz-bar"><span className="lz-dots"><i /><i /><i /></span><span className="lz-addr">app.grove.so/pipeline</span></div>
+                <div className="lz-app">
+                  <div className="lz-side">
+                    <div className="lz-sb on"><span className="i" />Pipeline</div>
+                    <div className="lz-sb"><span className="i" />Published</div>
+                    <div className="lz-sb"><span className="i" />Brand voice</div>
+                    <div className="lz-sb"><span className="i" />Analytics</div>
+                  </div>
+                  <div className="lz-main">
+                    <div className="lz-mtop"><h4>Content pipeline</h4><span className="m">4 posts / week · autopilot on</span></div>
+                    <div className="lz-pr"><span className="th" /><div className="b"><div className="t">10 onboarding mistakes killing activation</div><div className="mm">Published · 1,204 reads · ranks #3 “saas onboarding”</div></div><span className="lz-tg l">LIVE</span></div>
+                    <div className="lz-pr"><span className="th" /><div className="b"><div className="t">How we cut churn 31% with lifecycle email</div><div className="mm">Drafting section 3 of 6 · checking sources</div></div><span className="lz-tg w">WRITING</span></div>
+                    <div className="lz-pr"><span className="th" /><div className="b"><div className="t">A founder’s guide to programmatic SEO</div><div className="mm">Researching · reading the live SERP</div></div><span className="lz-tg q">QUEUED</span></div>
                   </div>
                 </div>
               </div>
@@ -114,14 +91,12 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
           </div>
         </section>
 
-        <section className="logos">
-          <div className="wrap">
-            <div className="logos-lbl">Trusted by builders shipping content while they sleep</div>
-            <div className="logos-row">
-              {['Northwind', 'Loomly', 'Stacker', 'Cadence', 'Pebble', 'Driftwood'].map((n) => (
-                <span className="logo-item" key={n}><span className="gl" />{n}</span>
-              ))}
-            </div>
+        <section className="lz-band">
+          <div className="lz-band-in">
+            <div className="lz-stat"><div className="n">+312%</div><div className="l">organic traffic · 90 days</div></div>
+            <div className="lz-stat"><div className="n">2,400+</div><div className="l">teams growing on grove</div></div>
+            <div className="lz-stat"><div className="n">4 / wk</div><div className="l">published on autopilot</div></div>
+            <div className="lz-stat"><div className="n">4.9★</div><div className="l">average rating</div></div>
           </div>
         </section>
 
@@ -159,18 +134,46 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
 
         <section className="section" id="features">
           <div className="wrap">
-            <div className="sec-head">
+            <div className="sec-head center">
               <span className="eyebrow">Under the canopy</span>
               <h2 className="h2">A whole content team, <span className="ital">working invisibly.</span></h2>
-              <p className="lede">Every part of the workflow a marketing hire would own — research, voice, writing, publishing, distribution, measurement — runs on its own.</p>
+              <p className="lede" style={{ marginLeft: 'auto', marginRight: 'auto' }}>Every job a senior SEO and a content team would own — SERP research, voice, writing, optimization, distribution, measurement — running on its own.</p>
             </div>
-            <div className="feat-grid">
-              <Feat title="Topic research" body="Scans search demand and competitor gaps to pick keywords you can actually rank for — then gathers real, citable sources." />
-              <Feat title="Brand voice profiling" body="On signup grove reads your existing site, extracts your tone and vocabulary, and writes in your voice every time after." />
-              <Feat title="Human-grade writing" body="First-person experience, real examples, primary-source citations — prose written to pass Google's E-E-A-T." />
-              <Feat title="Auto-publishing" body="Posts go straight to a managed blog on your subdomain — SSL, sitemap, meta tags, structured data all handled." />
-              <Feat title="Cross-post everywhere" body="Each post ships as an X thread, a LinkedIn post, and an Instagram caption — written for each platform, not copy-pasted." />
-              <Feat title="Ranking analytics" body="See which posts climb, what they rank for, and the traffic each one earns — no Search Console spreadsheet required." />
+            <div className="lz-bento">
+              <div className="lz-bcard lz-w">
+                <div className="lz-bfic"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg></div>
+                <h3>Live SERP analysis</h3>
+                <p>For every keyword, grove reads the pages actually ranking, distills the subtopics they all cover, and briefs the writer to out-write them — then flags any gap before you publish.</p>
+                <div className="lz-mini">
+                  <div className="mh">WHAT&apos;S RANKING FOR “POUR OVER COFFEE”</div>
+                  <div className="lz-cov"><span className="ok">✓ grind size</span><span className="ok">✓ burr grinder</span><span className="gap">+ water temp</span><span className="gap">+ bloom phase</span><span className="ok">✓ ratio</span></div>
+                </div>
+              </div>
+              <div className="lz-bcard lz-2">
+                <div className="lz-bfic"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 3v18" /><path d="M5 8l7-5 7 5" /><path d="M5 16l7 5 7-5" /></svg></div>
+                <h3>Answer-engine ready</h3>
+                <p>Answer-first, a real FAQ, full schema — built the way ChatGPT, Perplexity &amp; AI Overviews quote.</p>
+              </div>
+              <div className="lz-bcard lz-2">
+                <div className="lz-bfic"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3V11a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z" /></svg></div>
+                <h3>Writes in your voice</h3>
+                <p>grove reads your site to learn your tone, then writes E-E-A-T content that sounds like you — not AI mush.</p>
+              </div>
+              <div className="lz-bcard lz-2">
+                <div className="lz-bfic"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 19V5" /><path d="M4 19h16" /><path d="M8 16l4-6 4 3 4-7" /></svg></div>
+                <h3>Ranking, in plain English</h3>
+                <p>See what each post earns and an AI-search readiness score — no Search Console spreadsheet required.</p>
+              </div>
+              <div className="lz-bcard lz-2">
+                <div className="lz-bfic"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="6" cy="12" r="2" /><circle cx="18" cy="6" r="2" /><circle cx="18" cy="18" r="2" /><path d="M8 11l8-4M8 13l8 4" /></svg></div>
+                <h3>Cross-posts everywhere</h3>
+                <p>Each post becomes an X thread, a LinkedIn post, and an Instagram caption — native to each, not copy-paste.</p>
+              </div>
+              <div className="lz-bcard lz-6">
+                <div className="lz-bfic"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="9" /><path d="M3 12h18" /><path d="M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18" /></svg></div>
+                <h3>Publishes itself on your domain</h3>
+                <p>Straight to a managed blog on your domain — SSL, sitemaps, structured data, llms.txt, RSS — so search engines and AI crawlers find it automatically. You approve each post, or let it run.</p>
+              </div>
             </div>
           </div>
         </section>
@@ -229,10 +232,10 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
           </div>
         </section>
 
-        <section className="section cta">
+        <section className="lz-ctab">
           <div className="wrap">
             <span className="eyebrow" style={{ justifyContent: 'center' }}>Start growing</span>
-            <h2 className="h2" style={{ marginTop: 16, maxWidth: '14ch', marginLeft: 'auto', marginRight: 'auto' }}>
+            <h2 className="h2" style={{ marginTop: 16 }}>
               Your blog is one <span className="ital">field away.</span>
             </h2>
             <PlantForm id="plantForm2" />
@@ -275,19 +278,6 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
   );
 }
 
-function PostRow({ title, meta, badge, badgeText }: { title: string; meta: string; badge: string; badgeText: string }) {
-  return (
-    <div className="post-row">
-      <div className="pthumb" />
-      <div className="pbody">
-        <div className="ptitle">{title}</div>
-        <div className="pmeta">{meta}</div>
-      </div>
-      <span className={`badge ${badge}`}><span className="d" />{badgeText}</span>
-    </div>
-  );
-}
-
 function Step({ n, h, p, children }: { n: string; h: string; p: string; children: React.ReactNode }) {
   return (
     <div className="step">
@@ -299,19 +289,6 @@ function Step({ n, h, p, children }: { n: string; h: string; p: string; children
   );
 }
 
-function Feat({ title, body }: { title: string; body: string }) {
-  return (
-    <div className="feat">
-      <div className="fic">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#2d7a4f" strokeWidth="2" strokeLinecap="round">
-          <circle cx="12" cy="12" r="7" />
-        </svg>
-      </div>
-      <h3>{title}</h3>
-      <p>{body}</p>
-    </div>
-  );
-}
 
 function Qrow({ t, m }: { t: string; m: string }) {
   return (
