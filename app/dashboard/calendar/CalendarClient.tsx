@@ -129,7 +129,7 @@ export default function CalendarClient({
         <Link href="/dashboard" style={{ fontSize: 12, color: 'var(--moss)', textDecoration: 'none' }}>← Pipeline</Link>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 24, alignItems: 'start' }}>
+      <div className="r-split">
         {/* Calendar grid */}
         <div style={{ background: 'white', border: '1px solid var(--line)', borderRadius: 16, overflow: 'hidden', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: '1px solid var(--line)' }}>
