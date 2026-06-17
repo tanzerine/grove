@@ -1,8 +1,7 @@
-import Link from 'next/link';
 import GroveMark from '@/components/GroveMark';
 import { supabaseServer } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import SideNav from './SideNav';
+import DashShell from './DashShell';
 
 export default async function DashLayout({ children }: { children: React.ReactNode }) {
   const sb = await supabaseServer();
@@ -14,21 +13,11 @@ export default async function DashLayout({ children }: { children: React.ReactNo
   if (!verified && (domains?.length ?? 0) === 0) redirect('/onboarding/domain');
 
   return (
-    <div className="dash" style={{ display: 'grid', gridTemplateColumns: '220px 1fr', minHeight: '100vh' }}>
+    <>
       <GroveMark />
-      <aside className="dash-side" style={{ padding: 24, background: 'var(--paper)', borderRight: '1px solid var(--line)' }}>
-        <Link href="/" className="sb-brand">
-          <span className="mark"><svg viewBox="0 0 32 32"><use href="#grove-mark" /></svg></span>
-          grove<span className="dot">.</span>
-        </Link>
-        <SideNav />
-        {verified && (
-          <div style={{ marginTop: 'auto', paddingTop: 24 }}>
-            <div className="verified-chip"><span className="v">✓</span>{verified.hostname} verified</div>
-          </div>
-        )}
-      </aside>
-      <main style={{ padding: '40px 48px', overflow: 'auto', background: 'radial-gradient(90% 50% at 100% 0%, rgba(108,201,138,0.06), rgba(252,251,247,0) 60%), var(--bone)' }}>{children}</main>
-    </div>
+      <DashShell verified={verified ? { hostname: verified.hostname } : null}>
+        {children}
+      </DashShell>
+    </>
   );
 }

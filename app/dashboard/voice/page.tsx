@@ -71,7 +71,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 function Row({ k, v }: { k: string; v?: string }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 12, padding: '8px 0', borderTop: '1px solid var(--paper)', fontSize: 14 }}>
+    <div className="r-kv" style={{ padding: '8px 0', borderTop: '1px solid var(--paper)', fontSize: 14 }}>
       <div style={{ color: 'var(--clay)' }}>{k}</div>
       <div>{v || '—'}</div>
     </div>

@@ -75,7 +75,7 @@ function Totals({ report }: { report: MonthlyReport }) {
   const t = report.totals;
   const fmtDwell = (sec: number) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
   return (
-    <div style={{ marginTop: 26, display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
+    <div className="r-stats" style={{ marginTop: 26 }}>
       <Stat label="Views" value={fmtNum(t.views)} />
       <Stat label="Unique sessions" value={fmtNum(t.unique_sessions)} />
       <Stat label="Median dwell" value={fmtDwell(t.median_dwell_sec)} />
@@ -125,7 +125,7 @@ function TopPosts({ report, hostname }: { report: MonthlyReport; hostname: strin
 
 function SideBySide({ children }: { children: React.ReactNode[] }) {
   return (
-    <div style={{ marginTop: 30, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+    <div className="r-two" style={{ marginTop: 30 }}>
       {children}
     </div>
   );

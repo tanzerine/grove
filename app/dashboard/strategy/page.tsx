@@ -139,7 +139,7 @@ function GoalsRow({ goals, kpis, report }: { goals: Goal[]; kpis: Strategy['kpis
       <div className="mono" style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--clay)', marginBottom: 12 }}>
         Goals
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(goals.length, 3)}, 1fr)`, gap: 14 }}>
+      <div className="r-goals" style={{ '--cols': Math.min(goals.length, 3) } as React.CSSProperties}>
         {goals.map((g) => {
           const kpi = kpis.find((k) => k.goal_id === g.id);
           const current = kpi ? currentMetricValue(kpi.metric, report) : 0;
