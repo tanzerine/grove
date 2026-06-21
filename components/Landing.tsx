@@ -16,22 +16,26 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
             <span className="mark"><svg viewBox="0 0 32 32"><use href="#grove-mark" /></svg></span>
             grove<span className="dot">.</span>
           </a>
-          <nav className="nav-links">
-            <a href="#how">How it works</a>
-            <a href="#features">Features</a>
-            <a href="#writes">Samples</a>
-            <a href="#pricing">Pricing</a>
-            <a href="#faq">FAQ</a>
-          </nav>
-          <div className="nav-cta">
-            {loggedIn ? (
-              <a href="/dashboard" className="btn btn-primary btn-sm">Dashboard <span className="arrow">→</span></a>
-            ) : (
-              <>
-                <a href="/login" className="signin">Sign in</a>
-                <a href="#pricing" className="btn btn-primary btn-sm">Start free <span className="arrow">→</span></a>
-              </>
-            )}
+          <input type="checkbox" id="nav-menu" className="nav-toggle" aria-label="Toggle menu" />
+          <label htmlFor="nav-menu" className="nav-burger" aria-hidden="true"><span /><span /><span /></label>
+          <div className="nav-panel">
+            <nav className="nav-links">
+              <a href="#how">How it works</a>
+              <a href="#features">Features</a>
+              <a href="#writes">Samples</a>
+              <a href="#pricing">Pricing</a>
+              <a href="#faq">FAQ</a>
+            </nav>
+            <div className="nav-cta">
+              {loggedIn ? (
+                <a href="/dashboard" className="btn btn-primary btn-sm">Dashboard <span className="arrow">→</span></a>
+              ) : (
+                <>
+                  <a href="/login" className="signin">Sign in</a>
+                  <a href="#pricing" className="btn btn-primary btn-sm">Start free <span className="arrow">→</span></a>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </header>
