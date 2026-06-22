@@ -6,6 +6,8 @@
  * report on its next planning call and decides what to keep / change.
  */
 import { supabaseAdmin } from '../supabase/admin';
+import { latestSnapshot } from '../search-console/sync';
+import { summarize, type Visibility, type MetricRow } from '../search-console/insights';
 
 export type ReportPostRow = {
   post_id: string;
@@ -53,6 +55,9 @@ export type MonthlyReport = {
   bottom_posts: ReportPostRow[];   // bottom 5
   top_referrers: ReportReferrer[];
   top_queries: ReportQuery[];
+  // Real Google Search Console signal (impressions/position/near-winners).
+  // null until the owner connects GSC — it's the loop's only pre-traffic signal.
+  search_console?: Visibility | null;
 };
 
 const ORGANIC_HOSTS = ['google.com', 'bing.com', 'duckduckgo.com', 'baidu.com', 'naver.com', 'yandex.com'];
@@ -219,6 +224,18 @@ export async function summarizeMonth(
     .slice(0, 20)
     .map(([query, sessions]) => ({ query, sessions }));
 
+  // Real search visibility from GSC (best-effort — null if not connected).
+  let search_console: Visibility | null = null;
+  try {
+    const snap = await latestSnapshot(domainId);
+    if (snap.pages.length || snap.queries.length) {
+      const toRow = (r: any): MetricRow => ({
+        key: r.key, clicks: r.clicks, impressions: r.impressions, position: r.position, post_id: r.post_id ?? null,
+      });
+      search_console = summarize(snap.pages.map(toRow), snap.queries.map(toRow));
+    }
+  } catch { /* GSC is optional signal */ }
+
   return {
     month: monthLabel,
     posts_count: rows.length,
@@ -229,5 +246,6 @@ export async function summarizeMonth(
     bottom_posts,
     top_referrers,
     top_queries,
+    search_console,
   };
 }

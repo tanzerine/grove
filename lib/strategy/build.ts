@@ -106,7 +106,7 @@ function digestReport(r: MonthlyReport): string {
   const queries = (r.top_queries || []).slice(0, 12)
     .map((q) => `"${q.query}" (${q.sessions})`).join(', ') || '(none captured)';
 
-  return [
+  const lines = [
     `MONTH ${r.month}: ${r.posts_count} posts, ${r.totals.views} views, ${r.totals.unique_sessions} sessions, ${(r.totals.organic_share * 100).toFixed(0)}% organic, ${r.totals.conversions} conversions.`,
     `BY INTENT: ${intents}`,
     `TOP POSTS (double down on these angles):`,
@@ -114,7 +114,24 @@ function digestReport(r: MonthlyReport): string {
     `BOTTOM POSTS (sharpen the angle or kill the pillar):`,
     ...(r.bottom_posts || []).slice(0, 5).map((p) => `  - ${row(p)}`),
     `REAL SEARCH QUERIES that brought readers (PRIORITIZE covering these — proven demand): ${queries}`,
-  ].join('\n');
+  ];
+
+  // Google Search Console — the strongest demand + opportunity signal we have,
+  // and it exists even before traffic does (impressions at position 30 still count).
+  const sc = r.search_console;
+  if (sc && sc.impressions > 0) {
+    const scQueries = sc.topQueries.slice(0, 12)
+      .map((q) => `"${q.query}" (${q.impressions} impr, pos ${q.position})`).join(', ');
+    const winners = sc.nearWinners.slice(0, 8)
+      .map((w) => `"${(w.key || '').replace(/^https?:\/\/[^/]+/, '')}" (${w.impressions} impr, pos ${w.position})`).join(', ');
+    lines.push(
+      `SEARCH CONSOLE (real Google data): ${sc.impressions} impressions, ${sc.clicks} clicks, avg position ${sc.avgPosition}, appearing for ${sc.queryCount} queries.`,
+      `GSC QUERIES YOU ALREADY RANK FOR (cover/strengthen these — proven demand at real positions): ${scQueries || '(none)'}`,
+      `NEAR-WINNERS — pages stuck on page 2 (pos 8-20) with real impressions. REFRESHING ONE INTO THE TOP 10 IS THE HIGHEST-ROI MOVE THIS MONTH. Dedicate slots to sharper/expanded angles on these exact topics: ${winners || '(none yet)'}`,
+    );
+  }
+
+  return lines.join('\n');
 }
 
 export async function buildStrategy(input: BuildStrategyInput): Promise<Strategy> {
@@ -165,6 +182,11 @@ PRIORITIES (in order)
    Match the phrase's search intent to the slot intent: informational →
    editorial/contextual, commercial → contextual/conversion, transactional →
    conversion. Don't force an unrelated keyword onto a slot.
+7. SEARCH CONSOLE NEAR-WINNERS FIRST: if the report lists near-winners (pages
+   on page 2 of Google with real impressions), dedicate your highest-priority
+   slots to refreshing/expanding those exact topics with a sharper angle and
+   set target_keyword to the query they already rank for. Moving an existing
+   page from position 12 to 8 wins traffic faster than any brand-new post.
 
 DON'T
 - Don't invent metrics we can't measure.

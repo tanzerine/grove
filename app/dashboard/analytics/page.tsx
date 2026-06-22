@@ -1,7 +1,11 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { summarizeMonth, type MonthlyReport } from '@/lib/strategy/review';
+import { isConfigured as gscConfigured } from '@/lib/search-console/client';
+import { latestSnapshot } from '@/lib/search-console/sync';
+import { summarize as gscSummarize, type MetricRow } from '@/lib/search-console/insights';
 import RangePicker from './RangePicker';
+import SearchConsolePanel, { type Visibility } from './SearchConsolePanel';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,8 +19,11 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return null;
 
+  // select('*') (not an explicit column list) so this stays safe to deploy
+  // before migration 0013 lands — missing gsc_* columns just read as undefined
+  // rather than erroring the whole row out.
   const { data: domain } = await sb
-    .from('domains').select('id,hostname')
+    .from('domains').select('*')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -29,6 +36,19 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
     report = await summarizeMonth(domain.id, from, to);
   } catch { /* noop */ }
 
+  // Search Console (leading indicator) — independent of the on-site report.
+  let gscData: Visibility | null = null;
+  const gscConnected = !!(domain as any).gsc_connected_at;
+  if (gscConnected) {
+    try {
+      const snap = await latestSnapshot(domain.id);
+      if (snap.pages.length || snap.queries.length) {
+        const toRow = (r: any): MetricRow => ({ key: r.key, clicks: r.clicks, impressions: r.impressions, position: r.position, post_id: r.post_id ?? null });
+        gscData = gscSummarize(snap.pages.map(toRow), snap.queries.map(toRow));
+      }
+    } catch { /* optional */ }
+  }
+
   return (
     <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
@@ -38,6 +58,13 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
         </div>
         <RangePicker current={range} />
       </div>
+
+      <SearchConsolePanel
+        configured={gscConfigured()}
+        connected={gscConnected}
+        data={gscData}
+        syncedAt={(domain as any).gsc_synced_at ?? null}
+      />
 
       {!report || report.totals.unique_sessions === 0 ? <EmptyState /> : (
         <>
