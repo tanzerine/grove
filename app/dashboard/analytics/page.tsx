@@ -31,10 +31,10 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
 
   return (
     <>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
         <div>
           <div className="mono" style={{ fontSize: 11, letterSpacing: '0.1em', color: 'var(--clay)' }}>ANALYTICS</div>
-          <h2 className="display" style={{ fontSize: 32, marginTop: 6 }}>{label}</h2>
+          <h2 className="display" style={{ fontSize: 'clamp(24px, 6vw, 32px)', marginTop: 6 }}>{label}</h2>
         </div>
         <RangePicker current={range} />
       </div>

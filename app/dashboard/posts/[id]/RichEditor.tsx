@@ -222,9 +222,10 @@ export default function RichEditor({ postId, initialBody, initialTitle, initialM
       {/* the single rendered block — reads like the article, editable on click */}
       <div
         onClick={enterEdit}
+        className="article-surface"
         style={{
           background: 'white', border: `1px solid ${editing ? 'var(--moss)' : 'var(--line)'}`,
-          borderRadius: 14, padding: '36px 44px', transition: 'border-color .15s',
+          borderRadius: 14, transition: 'border-color .15s',
           cursor: canEdit && !editing ? 'text' : 'default',
         }}
       >

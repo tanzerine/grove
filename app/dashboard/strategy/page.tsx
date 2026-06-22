@@ -82,10 +82,10 @@ function Header({ strategy, hostname }: { strategy: Strategy & { month: string; 
     month: 'long', year: 'numeric',
   });
   return (
-    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 16 }}>
+    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
       <div>
         <div className="mono" style={{ fontSize: 11, letterSpacing: '0.1em', color: 'var(--clay)' }}>STRATEGY</div>
-        <h2 className="display" style={{ fontSize: 32, marginTop: 6 }}>{monthLabel}</h2>
+        <h2 className="display" style={{ fontSize: 'clamp(24px, 6vw, 32px)', marginTop: 6 }}>{monthLabel}</h2>
         <div className="mono" style={{ fontSize: 12, color: 'var(--clay)', marginTop: 4 }}>{hostname}</div>
       </div>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
