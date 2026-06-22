@@ -37,20 +37,36 @@ export async function middleware(req: NextRequest) {
   // on protected routes the session would silently die after a visit to the
   // landing page. Running getUser here on every non-static request keeps the
   // cookie fresh everywhere and is what lets "log in once, stay logged in" hold.
+  //
+  // This block must NEVER throw: middleware runs on (almost) every route, so an
+  // unhandled error here returns MIDDLEWARE_INVOCATION_FAILED — a site-wide 500
+  // on the landing page and all. The two ways it can blow up are a misconfigured
+  // deploy (env unset → createServerClient throws) and an unreachable auth
+  // backend (e.g. a paused Supabase project → getUser's fetch rejects). In both
+  // cases we degrade instead of crashing: treat the request as logged-out, let
+  // public pages through, and only bounce the gated areas to /login.
   const path = req.nextUrl.pathname;
   const res = NextResponse.next();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => req.cookies.getAll(),
-        setAll: (toSet: { name: string; value: string; options?: Record<string, unknown> }[]) =>
-          toSet.forEach(({ name, value, options }) => res.cookies.set(name, value, options as any)),
-      },
+
+  let user: { id: string } | null = null;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (supabaseUrl && supabaseKey) {
+    try {
+      const supabase = createServerClient(supabaseUrl, supabaseKey, {
+        cookies: {
+          getAll: () => req.cookies.getAll(),
+          setAll: (toSet: { name: string; value: string; options?: Record<string, unknown> }[]) =>
+            toSet.forEach(({ name, value, options }) => res.cookies.set(name, value, options as any)),
+        },
+      });
+      ({ data: { user } } = await supabase.auth.getUser());
+    } catch {
+      // Auth backend unreachable or client misconfigured. Fail open for public
+      // routes; the gate below still protects /dashboard & /onboarding.
+      user = null;
     }
-  );
-  const { data: { user } } = await supabase.auth.getUser();
+  }
 
   // Gate protected areas; everything else passes through with the refreshed cookie.
   if (!user && PROTECTED.some((pre) => path.startsWith(pre))) {
