@@ -29,7 +29,7 @@ export default async function ReviewsPage() {
   return (
     <>
       <div className="mono" style={{ fontSize: 11, letterSpacing: '0.1em', color: 'var(--clay)' }}>MANAGER REVIEWS</div>
-      <h2 className="display" style={{ fontSize: 32, marginTop: 6 }}>What the editor decided</h2>
+      <h2 className="display" style={{ fontSize: 'clamp(24px, 6vw, 32px)', marginTop: 6 }}>What the editor decided</h2>
       <p style={{ fontSize: 14, color: 'var(--clay)', marginTop: 8 }}>
         Every gate decision the manager agent made — approve, rewrite, or reject — with the issues it flagged.
       </p>

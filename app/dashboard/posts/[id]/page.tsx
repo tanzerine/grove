@@ -52,8 +52,8 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
     <>
       <Link href="/dashboard" className="mono" style={{ fontSize: 12, color: 'var(--moss)' }}>← Pipeline</Link>
 
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 14, gap: 24 }}>
-        <h1 style={{ fontFamily: 'Clash Display', fontSize: 32, margin: 0, lineHeight: 1.15 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 14, gap: 16, flexWrap: 'wrap' }}>
+        <h1 style={{ fontFamily: 'Clash Display', fontSize: 'clamp(24px, 6vw, 32px)', margin: 0, lineHeight: 1.15 }}>
           {p.title ?? p.topic ?? '(no title)'}
         </h1>
         <StatusBadge status={p.status} />
@@ -136,8 +136,8 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
         />
       ) : p.body_md && bodyHtml ? (
         <article
-          className="prose"
-          style={{ marginTop: 16, padding: '36px 44px', background: 'white', border: '1px solid var(--line)', borderRadius: 14, maxWidth: 'none' }}
+          className="prose article-surface"
+          style={{ marginTop: 16, background: 'white', border: '1px solid var(--line)', borderRadius: 14, maxWidth: 'none' }}
           dangerouslySetInnerHTML={{ __html: bodyHtml }}
         />
       ) : null}

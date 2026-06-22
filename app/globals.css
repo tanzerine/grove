@@ -688,3 +688,41 @@ html { scroll-behavior: smooth; }
 .lz-ctab .ital { background: linear-gradient(100deg, #9de0b8, #6cc98a); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .lz-ctab .cta-foot { color: rgba(255,255,255,.6); }
 .lz-ctab .domain-demo { margin: 26px auto 0; }
+
+/* ─────────────────── Mobile dashboard usability ───────────────────
+   The shell drawer (#68) made the chrome responsive; this block makes the
+   content *inside* each page usable on a phone: legible row actions, a
+   readable article column, fitting tables, and compact calendar cells. */
+
+/* Pipeline/post action buttons sit on white cards — the old
+   light-on-transparent treatment was invisible there. */
+.qbtn { background: var(--paper); color: var(--ink); border: 1px solid var(--line); transition: background .14s ease, border-color .14s ease; }
+.qbtn:hover { background: #fff; border-color: rgba(63,143,94,.32); }
+.qbtn.go { background: var(--leaf); color: var(--ink); border-color: transparent; }
+.qbtn:disabled { opacity: .55; cursor: default; }
+
+/* Article body + in-place editor: generous on desktop, tightened on
+   phones so prose isn't squeezed into a sliver. */
+.article-surface { padding: 36px 44px; }
+
+/* Calendar day cells: roomy on desktop, compact on phones. */
+.cal-cell { min-height: 84px; padding: 8px 10px; }
+
+@media (max-width: 640px) {
+  /* Pipeline rows: keep the title on the first line and wrap the whole
+     action cluster onto its own full-width line below it, instead of
+     crushing buttons against the title. */
+  .post-row { flex-wrap: wrap; }
+  .post-row .pactions { flex-basis: 100%; justify-content: flex-start; flex-wrap: wrap; }
+  .qbtn { padding: 7px 11px; font-size: 12px; }   /* larger tap targets */
+
+  .article-surface { padding: 22px 18px; }
+
+  /* Data tables (analytics / reviews / strategy): shrink the chrome so
+     every column fits without a hidden horizontal scroll. */
+  .dash-content table { font-size: 12.5px; }
+  .dash-content table th,
+  .dash-content table td { padding: 9px 8px; }
+
+  .cal-cell { min-height: 58px; padding: 5px 6px; }
+}

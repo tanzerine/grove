@@ -73,7 +73,7 @@ export default async function Page() {
       )}
 
       <div className="dm-top">
-        <h4 style={{ fontFamily: 'Clash Display', fontSize: 28, margin: 0 }}>Content pipeline</h4>
+        <h4 style={{ fontFamily: 'Clash Display', fontSize: 'clamp(22px, 5.5vw, 28px)', margin: 0 }}>Content pipeline</h4>
       </div>
 
       {domain && (
@@ -147,7 +147,7 @@ function AgentBrief({ stats, aeoReady }: { stats: BriefStats; aeoReady?: { ready
 
   return (
     <section style={{ background: 'white', border: '1px solid var(--line)', borderRadius: 18, boxShadow: 'var(--sh-md)', padding: '22px 24px', marginBottom: 26 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
         <div>
           <div className="mono" style={{ fontSize: 11, letterSpacing: '0.1em', color: 'var(--clay)' }}>
             YOUR MARKETING AGENT · LAST 7 DAYS

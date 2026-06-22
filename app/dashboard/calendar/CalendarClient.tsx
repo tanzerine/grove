@@ -124,8 +124,8 @@ export default function CalendarClient({
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 24 }}>
-        <h4 style={{ fontFamily: 'Clash Display', fontSize: 28, margin: 0 }}>Calendar</h4>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 24, gap: 12, flexWrap: 'wrap' }}>
+        <h4 style={{ fontFamily: 'Clash Display', fontSize: 'clamp(22px, 5.5vw, 28px)', margin: 0 }}>Calendar</h4>
         <Link href="/dashboard" style={{ fontSize: 12, color: 'var(--moss)', textDecoration: 'none' }}>← Pipeline</Link>
       </div>
 
@@ -155,9 +155,9 @@ export default function CalendarClient({
               return (
                 <div
                   key={i}
+                  className="cal-cell"
                   onClick={() => day && (setSelectedDay(active ? null : day), setEdit(null))}
                   style={{
-                    minHeight: 84, padding: '8px 10px',
                     borderRight: (i + 1) % 7 !== 0 ? '1px solid var(--line)' : 'none',
                     borderBottom: i < cells.length - 7 ? '1px solid var(--line)' : 'none',
                     background: active ? '#f0f6ff' : 'white',

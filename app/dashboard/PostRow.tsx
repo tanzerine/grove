@@ -105,7 +105,7 @@ export default function PostRow({ p, score, blogSlug }: { p: any; score?: { over
            p.topic}
         </div>
       </Link>
-      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+      <div className="pactions" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
         {score && (
           <span
             title={`Manager quality score · last decision: ${score.action}`}
