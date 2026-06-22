@@ -16,6 +16,7 @@ import { runInlineImagesForPost } from '@/lib/pipeline/inline-images';
 import { runSocialAdapter } from '@/lib/pipeline/writer';
 import { materializeDuePlanSlots } from '@/lib/strategy/materialize';
 import { publishToSocials } from '@/lib/social/publish';
+import { syncDomain } from '@/lib/search-console/sync';
 
 export const maxDuration = 300;
 
@@ -118,6 +119,19 @@ export async function GET(req: Request) {
     inlineCount++;
   }
 
+  // 5) refresh Search Console snapshots for connected domains. This is the
+  //    loop's real-world feedback signal — impressions/position per page —
+  //    that the strategist reads on its next monthly planning call.
+  let gscSynced = 0;
+  const { data: gscDomains } = await sb
+    .from('domains').select('id').not('gsc_refresh_token', 'is', null);
+  for (const d of gscDomains ?? []) {
+    try {
+      const res = await syncDomain(d.id);
+      if (res.ok) gscSynced++;
+    } catch { /* a GSC outage must not stall the tick */ }
+  }
+
   return NextResponse.json({
     published: due?.length ?? 0,
     social_fanout: socialFanout,
@@ -125,5 +139,6 @@ export async function GET(req: Request) {
     generated: queued?.length ?? 0,
     covers: needCover?.length ?? 0,
     inline_images: inlineCount,
+    gsc_synced: gscSynced,
   });
 }
