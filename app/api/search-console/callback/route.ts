@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { supabaseServer } from '@/lib/supabase/server';
-import { exchangeCode, listSites, matchSite, storeConnection } from '@/lib/search-console/client';
-import { syncDomain } from '@/lib/search-console/sync';
+import { exchangeCode, storeConnection } from '@/lib/search-console/client';
+import { ensurePropertyOnConnect } from '@/lib/search-console/setup';
 
 /**
  * Google OAuth callback. Like the social callback, returns a tiny page that
@@ -54,14 +54,13 @@ export async function GET(req: Request) {
     const tok = await exchangeCode(code);
     if (!tok.refresh_token) return finish({ error: 'no_refresh_token' });
 
-    // Auto-pick the GSC property that matches this domain.
-    const sites = await listSites(tok.access_token);
-    const siteUrl = matchSite(sites, domain.hostname);
-    if (!siteUrl) return finish({ error: 'no_matching_property' });
-
-    await storeConnection(domain.id, tok.refresh_token, siteUrl);
-    // Best-effort first pull so the dashboard isn't empty right after connecting.
-    syncDomain(domain.id).catch(() => { /* the cron will retry */ });
+    // Phase 1: persist the token. The connection is "pending" until a property
+    // is verified — storing siteUrl=null keeps the refresh token for the setup
+    // routes to use.
+    await storeConnection(domain.id, tok.refresh_token, null);
+    // Phase 2: if they already have a matching verified property, wire it up now
+    // (the one-click path). Otherwise the dashboard shows the one-DNS-record step.
+    await ensurePropertyOnConnect(domain.id, domain.hostname, tok.access_token);
   } catch (e: any) {
     console.error('[gsc] connect failed:', e?.message ?? e);
     return finish({ error: 'connect_failed' });

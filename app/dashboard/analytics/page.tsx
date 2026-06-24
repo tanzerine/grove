@@ -37,9 +37,12 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   } catch { /* noop */ }
 
   // Search Console (leading indicator) — independent of the on-site report.
+  // "connected" = OAuth done (token stored); "verified" = a property is wired
+  // up and we can pull data. Between the two sits the one-DNS-record setup step.
   let gscData: Visibility | null = null;
   const gscConnected = !!(domain as any).gsc_connected_at;
-  if (gscConnected) {
+  const gscVerified = !!(domain as any).gsc_site_url;
+  if (gscVerified) {
     try {
       const snap = await latestSnapshot(domain.id);
       if (snap.pages.length || snap.queries.length) {
@@ -62,6 +65,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
       <SearchConsolePanel
         configured={gscConfigured()}
         connected={gscConnected}
+        verified={gscVerified}
         data={gscData}
         syncedAt={(domain as any).gsc_synced_at ?? null}
       />
