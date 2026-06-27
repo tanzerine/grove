@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500;1,600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #0a0b0a; }
+  ::selection { background: rgba(99,194,129,0.3); color: #fff; }
+  @keyframes drift1 { 0% { transform: translate3d(-6%,0,0) scale(1.1); } 50% { transform: translate3d(8%,-3%,0) scale(1.25); } 100% { transform: translate3d(-6%,0,0) scale(1.1); } }
+  @keyframes drift2 { 0% { transform: translate3d(5%,2%,0) scale(1.2); } 50% { transform: translate3d(-7%,-2%,0) scale(1.05); } 100% { transform: translate3d(5%,2%,0) scale(1.2); } }
+  @keyframes floaty { 0% { transform: translateY(0); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0); } }
+  @keyframes beam { 0%, 100% { opacity: 0.28; transform: scaleY(1); } 50% { opacity: 0.85; transform: scaleY(1.05); } }
+  @keyframes shimmer { 0% { transform: translateX(0); } 100% { transform: translateX(26px); } }
+  @keyframes blobdrift { 0% { transform: translate3d(-4%, 2%, 0) scale(1.1); } 50% { transform: translate3d(6%, -3%, 0) scale(1.28); } 100% { transform: translate3d(-4%, 2%, 0) scale(1.1); } }
+  @keyframes gvRise { from { opacity: 0; transform: translateY(26px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes gvFade { from { opacity: 0; } to { opacity: 1; } }
+  .gv-link:hover { color: #eef1ea !important; }
+  .gv-tile:hover .gv-tilecap { opacity: 1 !important; transform: translateY(0) !important; }
+  .gv-card:hover { border-color: rgba(99,194,129,0.35) !important; transform: translateY(-3px); }
+  .gv-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(99,194,129,0.25); }
+  .gv-ghost:hover { background: rgba(255,255,255,0.06) !important; }
+  .gv-scroll::-webkit-scrollbar { height: 6px; }
+  .gv-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 99px; }
+</style>
+</helmet>
+
+<div ref="{{ rootRef }}" style="--accent: {{ accentVar }}; --glow: {{ glowVar }}; background: #0a0b0a; color: #eef1ea; font-family: 'Plus Jakarta Sans', sans-serif; min-height: 100vh; overflow-x: hidden; position: relative; -webkit-font-smoothing: antialiased;">
+
+  <!-- NAV -->
+  <div style="position: fixed; top: 16px; left: 0; right: 0; z-index: 50; display: flex; justify-content: center; padding: 0 20px; pointer-events: none;">
+    <div style="pointer-events: auto; display: flex; align-items: center; gap: 28px; background: rgba(16,18,16,0.72); backdrop-filter: blur(18px); border: 1px solid rgba(255,255,255,0.08); border-radius: 999px; padding: 9px 9px 9px 22px; box-shadow: 0 12px 40px rgba(0,0,0,0.45);">
+      <a href="#hero" style="display: flex; align-items: center; gap: 9px; text-decoration: none; color: #eef1ea;">
+        <span style="width: 16px; height: 16px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #9ff0bb, var(--accent,#63c281)); box-shadow: 0 0 12px rgba(99,194,129,0.7);"></span>
+        <span style="font-weight: 700; font-size: 18px; letter-spacing: -0.02em;">grove</span>
+      </a>
+      <div style="display: flex; gap: 24px; font-size: 14px; font-weight: 500;">
+        <a class="gv-link" href="#features" style="color: #9aa096; text-decoration: none; transition: color .2s;">Features</a>
+        <a class="gv-link" href="#showcase" style="color: #9aa096; text-decoration: none; transition: color .2s;">Showcase</a>
+        <a class="gv-link" href="#pricing" style="color: #9aa096; text-decoration: none; transition: color .2s;">Pricing</a>
+        <a class="gv-link" href="#faq" style="color: #9aa096; text-decoration: none; transition: color .2s;">FAQ</a>
+      </div>
+      <a class="gv-btn" href="#" style="background: var(--accent,#63c281); color: #06120b; font-weight: 700; font-size: 14px; padding: 10px 18px; border-radius: 999px; text-decoration: none; transition: transform .2s, box-shadow .2s;">Dashboard</a>
+    </div>
+  </div>
+
+  <!-- HERO -->
+  <section id="hero" style="position: relative; padding: 184px 24px 72px; text-align: center; overflow: hidden;">
+    <sc-if value="{{ showSmoke }}" hint-placeholder-val="{{ true }}">
+      <div ref="{{ refractRef }}" style="position: absolute; inset: 0; pointer-events: none; overflow: hidden; opacity: var(--glow,0.6); transition: filter .6s ease-out; will-change: filter;">
+        <!-- glass refraction · base wash (peaks near the top, behind the nav) -->
+        <div style="position: absolute; inset: 0; background: radial-gradient(130% 82% at 50% 2%, rgba(99,194,129,0.24), rgba(10,11,10,0) 56%);"></div>
+        <!-- drifting color blobs feeding the beams -->
+        <div style="position: absolute; top: -24%; left: 26%; width: 46%; height: 90%; background: radial-gradient(ellipse at center, rgba(99,194,129,0.45), rgba(99,194,129,0) 60%); filter: blur(90px); animation: blobdrift 18s ease-in-out infinite;"></div>
+        <div style="position: absolute; top: -18%; left: 6%; width: 40%; height: 80%; background: radial-gradient(ellipse at center, rgba(150,230,185,0.3), rgba(150,230,185,0) 60%); filter: blur(96px); animation: blobdrift 24s ease-in-out infinite reverse;"></div>
+        <div style="position: absolute; top: -14%; right: 8%; width: 38%; height: 78%; background: radial-gradient(ellipse at center, rgba(70,180,140,0.32), rgba(70,180,140,0) 60%); filter: blur(86px); animation: blobdrift 21s ease-in-out infinite;"></div>
+        <!-- vertical light columns (refraction beams) -->
+        <div class="gv-beams" style="position: absolute; inset: 0; transform-origin: 50% 45%; transition: transform .55s ease-out, filter .55s ease-out; will-change: transform, filter;">
+        <div style="position: absolute; top: -8%; bottom: -8%; left: 9%;  width: 52px;  background: linear-gradient(180deg, transparent, rgba(160,235,190,0.22), transparent); filter: blur(16px); animation: beam 8s ease-in-out infinite; animation-delay: -1s;"></div>
+        <div style="position: absolute; top: -8%; bottom: -8%; left: 21%; width: 70px;  background: linear-gradient(180deg, transparent, rgba(190,245,210,0.3), transparent);  filter: blur(18px); animation: beam 7s ease-in-out infinite; animation-delay: -3s;"></div>
+        <div style="position: absolute; top: -8%; bottom: -8%; left: 35%; width: 90px;  background: linear-gradient(180deg, transparent, rgba(210,250,225,0.4), transparent);  filter: blur(20px); animation: beam 6.5s ease-in-out infinite; animation-delay: -2s;"></div>
+        <div style="position: absolute; top: -8%; bottom: -8%; left: 49%; width: 110px; background: linear-gradient(180deg, transparent, rgba(225,255,235,0.5), transparent);  filter: blur(22px); animation: beam 7.5s ease-in-out infinite;"></div>
+        <div style="position: absolute; top: -8%; bottom: -8%; left: 63%; width: 84px;  background: linear-gradient(180deg, transparent, rgba(200,248,220,0.36), transparent); filter: blur(20px); animation: beam 6.8s ease-in-out infinite; animation-delay: -1.5s;"></div>
+        <div style="position: absolute; top: -8%; bottom: -8%; left: 77%; width: 66px;  background: linear-gradient(180deg, transparent, rgba(170,238,198,0.28), transparent); filter: blur(18px); animation: beam 8.2s ease-in-out infinite; animation-delay: -4s;"></div>
+        <div style="position: absolute; top: -8%; bottom: -8%; left: 89%; width: 50px;  background: linear-gradient(180deg, transparent, rgba(150,232,185,0.2), transparent);  filter: blur(16px); animation: beam 7.2s ease-in-out infinite; animation-delay: -2.5s;"></div>
+        </div>
+        <!-- fine glass striation -->
+        <div style="position: absolute; inset: -30px; background: repeating-linear-gradient(90deg, transparent 0, rgba(190,245,212,0.05) 1px, transparent 2px, transparent 24px); mix-blend-mode: screen; animation: shimmer 9s linear infinite;"></div>
+        <!-- edge vignette so beams fade dark at the sides + base -->
+        <div style="position: absolute; inset: 0; background: linear-gradient(90deg, #0a0b0a 0%, rgba(10,11,10,0) 24%, rgba(10,11,10,0) 76%, #0a0b0a 100%);"></div>
+        <div style="position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10,11,10,0) 0%, rgba(10,11,10,0) 26%, rgba(10,11,10,0.78) 48%, #0a0b0a 62%);"></div>
+        <!-- soft top-edge vignette so the colour frames the nav instead of a hard void -->
+        <div style="position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10,11,10,0.72) 0%, rgba(10,11,10,0.28) 7%, rgba(10,11,10,0) 17%);"></div>
+      </div>
+    </sc-if>
+
+    <div class="gv-r" style="position: relative; max-width: 880px; margin: 0 auto;">
+      <div style="display: inline-flex; align-items: center; gap: 9px; background: rgba(255,255,255,0.045); border: 1px solid rgba(255,255,255,0.1); border-radius: 999px; padding: 7px 15px; font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #b6bcb1; margin-bottom: 30px;">
+        <span style="width: 7px; height: 7px; border-radius: 50%; background: var(--accent,#63c281); box-shadow: 0 0 8px var(--accent,#63c281);"></span>
+        AI marketing agent · now live
+      </div>
+      <h1 style="font-size: clamp(40px, 6.4vw, 76px); line-height: 1.04; font-weight: 700; letter-spacing: -0.03em; margin: 0 0 24px; color: rgba(241,248,243,0.95); text-shadow: 0 2px 50px rgba(99,194,129,0.28);">
+        Plant your domain.<br>The blog <span style="color: var(--accent,#63c281); font-style: italic; font-weight: 600;">grows itself.</span>
+      </h1>
+      <p style="font-size: 18px; line-height: 1.6; color: #9aa096; max-width: 600px; margin: 0 auto 34px;">
+        grove reads the live SERP, writes content engineered to rank on Google and get quoted by ChatGPT &amp; AI Overviews, then publishes it to your site — automatically.
+      </p>
+
+      <form onSubmit="{{ onSubmit }}" style="display: flex; gap: 8px; max-width: 460px; margin: 0 auto 16px; background: rgba(20,22,19,0.9); border: 1px solid rgba(255,255,255,0.1); border-radius: 999px; padding: 7px 7px 7px 18px; box-shadow: 0 14px 44px rgba(0,0,0,0.5);">
+        <span style="display: flex; align-items: center; color: #6b6f67; font-size: 15px;">https://</span>
+        <input value="{{ domain }}" onChange="{{ onDomain }}" placeholder="yourdomain.com" style="flex: 1; background: transparent; border: none; outline: none; color: #eef1ea; font-size: 15px; font-family: inherit; min-width: 0;">
+        <button class="gv-btn" type="submit" style="background: var(--accent,#63c281); color: #06120b; font-weight: 700; font-size: 15px; padding: 11px 22px; border-radius: 999px; border: none; cursor: pointer; white-space: nowrap; transition: transform .2s, box-shadow .2s;">Plant →</button>
+      </form>
+      <div style="font-size: 11.5px; letter-spacing: 0.04em; color: #6b6f67;">Free to start · First post live in minutes · No card required</div>
+
+      <div style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 26px; font-size: 13.5px; color: #9aa096;">
+        <span style="color: var(--accent,#63c281); letter-spacing: 2px;">★★★★★</span>
+        Loved by teams compounding organic traffic
+      </div>
+    </div>
+
+    <!-- PRODUCT MOCK -->
+    <div class="gv-rf" style="position: relative; max-width: 920px; margin: 56px auto 0; animation: floaty 7s ease-in-out infinite;">
+      <div style="position: absolute; inset: 12px 60px auto; height: 60px; background: var(--accent,#63c281); filter: blur(60px); opacity: 0.3; border-radius: 50%;"></div>
+      <div style="position: relative; background: linear-gradient(180deg, #14171400, #101310); border: 1px solid rgba(255,255,255,0.09); border-radius: 18px; overflow: hidden; box-shadow: 0 40px 100px rgba(0,0,0,0.6);">
+        <div style="display: flex; align-items: center; gap: 8px; padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.015);">
+          <span style="width: 11px; height: 11px; border-radius: 50%; background: #2a2d29;"></span>
+          <span style="width: 11px; height: 11px; border-radius: 50%; background: #2a2d29;"></span>
+          <span style="width: 11px; height: 11px; border-radius: 50%; background: #2a2d29;"></span>
+          <span style="margin-left: 14px; font-size: 12px; color: #6b6f67;">grove · content pipeline</span>
+          <span style="margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--accent,#63c281);"><span style="width: 6px; height: 6px; border-radius: 50%; background: var(--accent,#63c281);"></span> autopilot on</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 188px 1fr; min-height: 280px; text-align: left;">
+          <div style="border-right: 1px solid rgba(255,255,255,0.06); padding: 18px 16px; display: flex; flex-direction: column; gap: 6px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 9px 11px; border-radius: 9px; background: rgba(99,194,129,0.1); border: 1px solid rgba(99,194,129,0.2); font-size: 13px; font-weight: 600;">Pipeline <span style="color: var(--accent,#63c281);">3</span></div>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 9px 11px; border-radius: 9px; font-size: 13px; color: #9aa096;">Published <span>128</span></div>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 9px 11px; border-radius: 9px; font-size: 13px; color: #9aa096;">In review <span>2</span></div>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 9px 11px; border-radius: 9px; font-size: 13px; color: #9aa096;">Live now <span>9 / 12</span></div>
+            <div style="margin-top: auto; padding-top: 14px; font-size: 10.5px; color: #565a53; line-height: 1.5;">NEXT PUBLISH<br><span style="color: var(--accent,#63c281);">in 06h 12m</span></div>
+          </div>
+          <div style="padding: 18px;">
+            <div style="font-size: 11px; letter-spacing: 0.1em; color: #6b6f67; margin-bottom: 14px;">CONTENT PIPELINE</div>
+            <sc-for list="{{ pipeline }}" as="row" hint-placeholder-count="3">
+              <div style="display: flex; align-items: center; gap: 13px; padding: 13px 14px; border-radius: 12px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); margin-bottom: 9px;">
+                <span style="width: 26px; height: 26px; border-radius: 7px; background: rgba(99,194,129,0.12); border: 1px solid rgba(99,194,129,0.25); display: flex; align-items: center; justify-content: center; color: var(--accent,#63c281); font-size: 13px; flex-shrink: 0;">✓</span>
+                <div style="flex: 1; min-width: 0;">
+                  <div style="font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ row.title }}</div>
+                  <div style="font-size: 11.5px; color: #6b6f67; margin-top: 2px;">{{ row.meta }}</div>
+                </div>
+                <span style="font-size: 10.5px; padding: 4px 9px; border-radius: 999px; background: rgba(255,255,255,0.04); color: #b6bcb1; white-space: nowrap;">{{ row.status }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3 STEPS strip -->
+    <div class="gv-r" style="position: relative; max-width: 920px; margin: 22px auto 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+      <sc-for list="{{ steps }}" as="s" hint-placeholder-count="3">
+        <div style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; background: rgba(255,255,255,0.015); text-align: left;">
+          <span style="font-size: 12px; color: var(--accent,#63c281); border: 1px solid rgba(99,194,129,0.3); border-radius: 7px; padding: 4px 8px;">{{ s.n }}</span>
+          <div>
+            <div style="font-size: 13.5px; font-weight: 600;">{{ s.title }}</div>
+            <div style="font-size: 11.5px; color: #6b6f67;">{{ s.sub }}</div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- LOGO ROW -->
+  <section style="padding: 40px 24px 56px; text-align: center; border-top: 1px solid rgba(255,255,255,0.04);">
+    <div style="font-size: 11px; letter-spacing: 0.16em; color: #565a53; text-transform: uppercase; margin-bottom: 26px;">Publishes natively to</div>
+    <div class="gv-r" style="display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 40px 56px; opacity: 0.62;">
+      <sc-for list="{{ platforms }}" as="p" hint-placeholder-count="6">
+        <span style="font-size: 21px; font-weight: 700; letter-spacing: -0.02em; color: #cdd2c9;">{{ p }}</span>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <section style="padding: 0 24px 80px;">
+    <div class="gv-r" style="max-width: 1120px; margin: 0 auto; background: linear-gradient(135deg, #0b130e, #080d0a); border: 1px solid rgba(99,194,129,0.14); border-radius: 20px; padding: 38px 28px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;">
+      <sc-for list="{{ stats }}" as="st" hint-placeholder-count="4">
+        <div style="text-align: center;">
+          <div style="font-size: clamp(30px, 4vw, 44px); font-weight: 700; letter-spacing: -0.03em; color: #eef1ea;">{{ st.big }}</div>
+          <div style="font-size: 13px; color: #9aa096; margin-top: 6px;">{{ st.label }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section id="features" style="padding: 30px 24px 90px; max-width: 1120px; margin: 0 auto;">
+    <div class="gv-r" style="text-align: center; max-width: 640px; margin: 0 auto 50px;">
+      <div style="font-size: 11px; letter-spacing: 0.16em; color: var(--accent,#63c281); text-transform: uppercase; margin-bottom: 16px;">Under the hood</div>
+      <h2 style="font-size: clamp(30px, 4.6vw, 50px); font-weight: 700; letter-spacing: -0.03em; line-height: 1.08; margin: 0 0 16px;">A whole content team,<br><span style="font-style: italic; color: var(--accent,#63c281); font-weight: 600;">working invisibly.</span></h2>
+      <p style="font-size: 16.5px; color: #9aa096; line-height: 1.6; margin: 0;">Every job a real SEO and content team would own — research, voice, optimization, distribution, measurement — running on its own.</p>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 14px;">
+      <sc-for list="{{ features }}" as="f" hint-placeholder-count="6">
+        <div class="gv-card" style="background: #111311; border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; padding: 26px; transition: border-color .25s, transform .25s;">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+            <span style="font-size: 13px; color: var(--accent,#63c281); width: 34px; height: 34px; border-radius: 9px; background: rgba(99,194,129,0.1); border: 1px solid rgba(99,194,129,0.22); display: flex; align-items: center; justify-content: center;">{{ f.n }}</span>
+            <h3 style="font-size: 17px; font-weight: 600; margin: 0; letter-spacing: -0.01em;">{{ f.title }}</h3>
+          </div>
+          <p style="font-size: 14.5px; color: #9aa096; line-height: 1.6; margin: 0;">{{ f.body }}</p>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- SHOWCASE -->
+  <section id="showcase" style="padding: 40px 24px 90px; max-width: 1120px; margin: 0 auto;">
+    <div class="gv-r" style="display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 20px; margin-bottom: 36px;">
+      <div>
+        <div style="font-size: 11px; letter-spacing: 0.16em; color: var(--accent,#63c281); text-transform: uppercase; margin-bottom: 14px;">Inside the product</div>
+        <h2 style="font-size: clamp(30px, 4.6vw, 50px); font-weight: 700; letter-spacing: -0.03em; line-height: 1.08; margin: 0;">See it <span style="font-style: italic; color: var(--accent,#63c281); font-weight: 600;">actually work.</span></h2>
+      </div>
+      <p style="font-size: 15.5px; color: #9aa096; max-width: 360px; line-height: 1.6; margin: 0;">From SERP gap to published post — every surface of the engine, monochrome and out of your way.</p>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px;">
+
+      <div class="gv-tile" style="grid-column: span 4; position: relative; border-radius: 16px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); background: linear-gradient(160deg, #14171400, #0e110e); min-height: 300px; padding: 26px;">
+        <div style="font-size: 11px; color: #6b6f67; letter-spacing: 0.1em;">SERP GAP ANALYSIS · "ai onboarding checklist"</div>
+        <div style="display: flex; align-items: flex-end; gap: 10px; height: 170px; margin-top: 28px;">
+          <div style="flex: 1; background: linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.04)); border-radius: 8px 8px 0 0; height: 38%;"></div>
+          <div style="flex: 1; background: linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.04)); border-radius: 8px 8px 0 0; height: 56%;"></div>
+          <div style="flex: 1; background: linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.04)); border-radius: 8px 8px 0 0; height: 47%;"></div>
+          <div style="flex: 1; background: linear-gradient(180deg, var(--accent,#63c281), rgba(99,194,129,0.3)); border-radius: 8px 8px 0 0; height: 92%; box-shadow: 0 0 24px rgba(99,194,129,0.4);"></div>
+          <div style="flex: 1; background: linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.04)); border-radius: 8px 8px 0 0; height: 64%;"></div>
+          <div style="flex: 1; background: linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.04)); border-radius: 8px 8px 0 0; height: 50%;"></div>
+          <div style="flex: 1; background: linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.04)); border-radius: 8px 8px 0 0; height: 72%;"></div>
+        </div>
+        <div class="gv-tilecap" style="position: absolute; left: 26px; bottom: 22px; opacity: 0; transform: translateY(8px); transition: .3s; font-size: 13.5px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px;"><span style="color: var(--accent,#63c281);">●</span> Your opening — the gap nobody filled</div>
+      </div>
+
+      <div class="gv-tile" style="grid-column: span 2; position: relative; border-radius: 16px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); background: #0e110e; min-height: 300px; padding: 24px;">
+        <div style="font-size: 11px; color: #6b6f67; letter-spacing: 0.1em;">VOICE TRAINED</div>
+        <div style="display: flex; align-items: center; gap: 4px; height: 56px; margin-top: 30px;">
+          <sc-for list="{{ wave }}" as="h" hint-placeholder-count="22">
+            <span style="flex: 1; border-radius: 99px; background: var(--accent,#63c281); height: {{ h }}; opacity: 0.85;"></span>
+          </sc-for>
+        </div>
+        <p style="font-size: 13.5px; color: #9aa096; line-height: 1.55; margin: 26px 0 0;">Trained on 128 of your posts. Reads like your best writer — never a content mill.</p>
+        <div class="gv-tilecap" style="position: absolute; left: 24px; bottom: 22px; opacity: 0; transform: translateY(8px); transition: .3s; font-size: 13px; font-weight: 600; color: var(--accent,#63c281);">Tone match · 97%</div>
+      </div>
+
+      <div class="gv-tile" style="grid-column: span 2; position: relative; border-radius: 16px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); background: #0e110e; min-height: 230px; padding: 24px;">
+        <div style="font-size: 11px; color: #6b6f67; letter-spacing: 0.1em;">CROSS-POST COMPOSER</div>
+        <div style="display: flex; flex-direction: column; gap: 9px; margin-top: 22px;">
+          <sc-for list="{{ channels }}" as="c" hint-placeholder-count="4">
+            <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 9px; background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.05); font-size: 13px;">
+              <span style="width: 7px; height: 7px; border-radius: 50%; background: var(--accent,#63c281);"></span>{{ c }}<span style="margin-left: auto; font-size: 10.5px; color: #6b6f67;">queued</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div class="gv-tile" style="grid-column: span 2; position: relative; border-radius: 16px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); background: linear-gradient(160deg, #16191600, #0e110e); min-height: 230px; padding: 24px;">
+        <div style="font-size: 11px; color: #6b6f67; letter-spacing: 0.1em;">RANK MOVEMENT</div>
+        <svg viewBox="0 0 240 110" preserveAspectRatio="none" style="width: 100%; height: 120px; margin-top: 18px;">
+          <polyline points="0,95 40,86 80,72 120,60 160,38 200,24 240,10" fill="none" stroke="var(--accent,#63c281)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></polyline>
+          <circle cx="240" cy="10" r="4" fill="var(--accent,#63c281)"></circle>
+        </svg>
+        <div style="display: flex; justify-content: space-between; font-size: 13px; color: #9aa096; margin-top: 14px;"><span>Position 18 → 3</span><span style="color: var(--accent,#63c281); font-weight: 600;">+312%</span></div>
+      </div>
+
+      <div class="gv-tile" style="grid-column: span 2; position: relative; border-radius: 16px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); background: #0e110e; min-height: 230px; padding: 24px;">
+        <div style="font-size: 11px; color: #6b6f67; letter-spacing: 0.1em;">AUTO-PUBLISH</div>
+        <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 22px; font-size: 11.5px; color: #9aa096;">
+          <div style="color: var(--accent,#63c281);">✓ slug + canonical URL</div>
+          <div style="color: var(--accent,#63c281);">✓ sitemap + schema</div>
+          <div style="color: var(--accent,#63c281);">✓ internal links woven</div>
+          <div style="color: var(--accent,#63c281);">✓ metadata + OG image</div>
+          <div style="color: #6b6f67;">→ pushed to /blog · live</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TESTIMONIALS -->
+  <section id="testimonials" style="padding: 40px 0 90px;">
+    <div class="gv-r" style="max-width: 1120px; margin: 0 auto 36px; padding: 0 24px; text-align: center;">
+      <div style="font-size: 11px; letter-spacing: 0.16em; color: var(--accent,#63c281); text-transform: uppercase; margin-bottom: 14px;">Reviews</div>
+      <h2 style="font-size: clamp(30px, 4.6vw, 50px); font-weight: 700; letter-spacing: -0.03em; line-height: 1.08; margin: 0;">Founders who stopped<br><span style="font-style: italic; color: var(--accent,#63c281); font-weight: 600;">writing the blog.</span></h2>
+    </div>
+    <div class="gv-scroll" style="display: flex; gap: 16px; overflow-x: auto; padding: 8px 24px 20px; scroll-snap-type: x mandatory; justify-content: safe center;">
+      <sc-for list="{{ testimonials }}" as="t" hint-placeholder-count="4">
+        <div class="gv-tcard" style="scroll-snap-align: start; flex: 0 0 360px; background: #111311; border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; padding: 26px; display: flex; flex-direction: column;">
+          <div style="display: flex; align-items: center; gap: 13px; margin-bottom: 18px;">
+            <span style="width: 46px; height: 46px; border-radius: 50%; background: linear-gradient(135deg, rgba(99,194,129,0.25), rgba(99,194,129,0.08)); border: 1px solid rgba(99,194,129,0.3); display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--accent,#63c281); font-size: 15px;">{{ t.initials }}</span>
+            <div>
+              <div style="font-weight: 600; font-size: 15px;">{{ t.name }}</div>
+              <div style="font-size: 12.5px; color: #6b6f67;">{{ t.role }}</div>
+            </div>
+            <span style="margin-left: auto; color: var(--accent,#63c281); font-size: 12px; letter-spacing: 1px;">★★★★★</span>
+          </div>
+          <p style="font-size: 15px; line-height: 1.6; color: #cdd2c9; margin: 0;">{{ t.quote }}</p>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- PRICING -->
+  <section id="pricing" style="padding: 40px 24px 90px; max-width: 1120px; margin: 0 auto;">
+    <div class="gv-r" style="text-align: center; max-width: 600px; margin: 0 auto 36px;">
+      <div style="font-size: 11px; letter-spacing: 0.16em; color: var(--accent,#63c281); text-transform: uppercase; margin-bottom: 14px;">Plans</div>
+      <h2 style="font-size: clamp(30px, 4.6vw, 50px); font-weight: 700; letter-spacing: -0.03em; line-height: 1.08; margin: 0 0 24px;">Cheaper than <span style="font-style: italic; color: var(--accent,#63c281); font-weight: 600;">one freelance post.</span></h2>
+      <div style="display: inline-flex; padding: 5px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 999px; gap: 4px;">
+        <button onClick="{{ setMonthly }}" style="border: none; cursor: pointer; font-family: inherit; font-size: 13.5px; font-weight: 600; padding: 8px 20px; border-radius: 999px; transition: .2s; background: {{ monthlyBg }}; color: {{ monthlyColor }};">Monthly</button>
+        <button onClick="{{ setAnnual }}" style="border: none; cursor: pointer; font-family: inherit; font-size: 13.5px; font-weight: 600; padding: 8px 20px; border-radius: 999px; transition: .2s; background: {{ annualBg }}; color: {{ annualColor }};">Annual <span style="font-size: 11px; opacity: 0.8;">−20%</span></button>
+      </div>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; align-items: start;">
+      <sc-for list="{{ tiers }}" as="tier" hint-placeholder-count="3">
+        <div class="gv-pcard" style="position: relative; background: {{ tier.bg }}; border: 1px solid {{ tier.border }}; border-radius: 18px; padding: 30px 26px;">
+          <sc-if value="{{ tier.popular }}" hint-placeholder-val="{{ true }}">
+            <span style="position: absolute; top: 20px; right: 22px; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: #06120b; background: var(--accent,#63c281); padding: 4px 10px; border-radius: 999px; font-weight: 600;">Most popular</span>
+          </sc-if>
+          <div style="font-size: 15px; font-weight: 600; color: #cdd2c9;">{{ tier.name }}</div>
+          <div style="font-size: 13px; color: #6b6f67; margin: 4px 0 20px; min-height: 36px;">{{ tier.blurb }}</div>
+          <div style="display: flex; align-items: flex-end; gap: 4px; margin-bottom: 4px;">
+            <span style="font-size: 48px; font-weight: 700; letter-spacing: -0.03em;">${{ tier.price }}</span>
+            <span style="font-size: 14px; color: #6b6f67; margin-bottom: 10px;">/mo</span>
+          </div>
+          <div style="font-size: 11px; color: #565a53; margin-bottom: 22px; min-height: 14px;">{{ tier.note }}</div>
+          <button class="gv-btn" style="width: 100%; border: 1px solid {{ tier.ctaBorder }}; background: {{ tier.ctaBg }}; color: {{ tier.ctaColor }}; font-family: inherit; font-weight: 700; font-size: 14.5px; padding: 13px; border-radius: 11px; cursor: pointer; transition: transform .2s, box-shadow .2s; margin-bottom: 24px;">{{ tier.cta }}</button>
+          <div style="display: flex; flex-direction: column; gap: 11px;">
+            <sc-for list="{{ tier.feats }}" as="ft" hint-placeholder-count="5">
+              <div style="display: flex; gap: 10px; font-size: 13.5px; color: #b6bcb1; line-height: 1.4;"><span style="color: var(--accent,#63c281); flex-shrink: 0;">✓</span>{{ ft }}</div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq" style="padding: 40px 24px 90px; max-width: 1120px; margin: 0 auto;">
+    <div style="display: grid; grid-template-columns: 1fr 1.4fr; gap: 40px; align-items: start;">
+      <div class="gv-r">
+        <div style="font-size: 11px; letter-spacing: 0.16em; color: var(--accent,#63c281); text-transform: uppercase; margin-bottom: 14px;">FAQ</div>
+        <h2 style="font-size: clamp(30px, 4.4vw, 46px); font-weight: 700; letter-spacing: -0.03em; line-height: 1.08; margin: 0 0 16px;">The honest <span style="font-style: italic; color: var(--accent,#63c281); font-weight: 600;">FAQ.</span></h2>
+        <p style="font-size: 15px; color: #9aa096; line-height: 1.6; margin: 0 0 22px;">The questions skeptical founders actually ask before handing over their blog.</p>
+        <a class="gv-btn" href="#" style="display: inline-block; background: var(--accent,#63c281); color: #06120b; font-weight: 700; font-size: 14px; padding: 12px 22px; border-radius: 999px; text-decoration: none; transition: transform .2s, box-shadow .2s;">Book a walkthrough →</a>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <sc-for list="{{ faqs }}" as="faq" hint-placeholder-count="6">
+          <div class="gv-faq" style="border: 1px solid rgba(255,255,255,0.08); border-radius: 13px; background: #111311; overflow: hidden;">
+            <button onClick="{{ faq.toggle }}" style="width: 100%; display: flex; align-items: center; gap: 14px; text-align: left; background: transparent; border: none; cursor: pointer; padding: 18px 20px; color: #eef1ea; font-family: inherit; font-size: 15px; font-weight: 600;">
+              <span style="flex: 1;">{{ faq.q }}</span>
+              <span style="color: var(--accent,#63c281); font-size: 20px; line-height: 1; flex-shrink: 0;">{{ faq.sign }}</span>
+            </button>
+            <sc-if value="{{ faq.open }}" hint-placeholder-val="{{ false }}">
+              <div style="padding: 0 20px 20px; font-size: 14px; color: #9aa096; line-height: 1.62;">{{ faq.a }}</div>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </section>
+
+  <!-- FINAL CTA -->
+  <section style="position: relative; padding: 110px 24px 120px; text-align: center; overflow: hidden; border-top: 1px solid rgba(255,255,255,0.05);">
+    <sc-if value="{{ showSmoke }}" hint-placeholder-val="{{ true }}">
+      <div style="position: absolute; inset: auto -20% -30% -20%; height: 460px; pointer-events: none; opacity: var(--glow,0.5);">
+        <div style="position: absolute; bottom: 0; left: 16%; width: 60%; height: 340px; background: radial-gradient(ellipse at center, rgba(99,194,129,0.45), rgba(99,194,129,0) 62%); filter: blur(70px); animation: drift2 18s ease-in-out infinite;"></div>
+        <div style="position: absolute; bottom: 4%; right: 8%; width: 46%; height: 280px; background: radial-gradient(ellipse at center, rgba(255,255,255,0.14), rgba(255,255,255,0) 60%); filter: blur(70px); animation: drift1 24s ease-in-out infinite;"></div>
+      </div>
+    </sc-if>
+    <div class="gv-r" style="position: relative; max-width: 720px; margin: 0 auto;">
+      <div style="display: inline-flex; align-items: center; gap: 8px; font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent,#63c281); margin-bottom: 24px;"><span style="width: 7px; height: 7px; border-radius: 50%; background: var(--accent,#63c281); box-shadow: 0 0 8px var(--accent,#63c281);"></span> Available for new domains</div>
+      <h2 style="font-size: clamp(38px, 6vw, 68px); font-weight: 700; letter-spacing: -0.03em; line-height: 1.04; margin: 0 0 22px;">Your blog is one<br><span style="font-style: italic; color: var(--accent,#63c281); font-weight: 600;">field away.</span></h2>
+      <p style="font-size: 17px; color: #9aa096; margin: 0 0 32px;">Plant your domain tonight. Wake up to a researched, ranked, published post.</p>
+      <form onSubmit="{{ onSubmit }}" style="display: flex; gap: 8px; max-width: 460px; margin: 0 auto; background: rgba(20,22,19,0.9); border: 1px solid rgba(255,255,255,0.12); border-radius: 999px; padding: 7px 7px 7px 18px; box-shadow: 0 14px 44px rgba(0,0,0,0.5);">
+        <span style="display: flex; align-items: center; color: #6b6f67; font-size: 15px;">https://</span>
+        <input value="{{ domain }}" onChange="{{ onDomain }}" placeholder="yourdomain.com" style="flex: 1; background: transparent; border: none; outline: none; color: #eef1ea; font-size: 15px; font-family: inherit; min-width: 0;">
+        <button class="gv-btn" type="submit" style="background: var(--accent,#63c281); color: #06120b; font-weight: 700; font-size: 15px; padding: 11px 22px; border-radius: 999px; border: none; cursor: pointer; white-space: nowrap; transition: transform .2s, box-shadow .2s;">Plant →</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer style="border-top: 1px solid rgba(255,255,255,0.06); padding: 56px 24px 36px; max-width: 1120px; margin: 0 auto;">
+    <div class="gv-r" style="display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; gap: 32px; margin-bottom: 44px;">
+      <div>
+        <a href="#hero" style="display: flex; align-items: center; gap: 9px; text-decoration: none; color: #eef1ea; margin-bottom: 14px;">
+          <span style="width: 16px; height: 16px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #9ff0bb, var(--accent,#63c281)); box-shadow: 0 0 12px rgba(99,194,129,0.6);"></span>
+          <span style="font-weight: 700; font-size: 18px; letter-spacing: -0.02em;">grove</span>
+        </a>
+        <p style="font-size: 13.5px; color: #6b6f67; line-height: 1.6; max-width: 260px; margin: 0 0 16px;">The marketing agent that plants your domain once and grows the blog forever.</p>
+        <div style="display: flex; gap: 14px; font-size: 12px;">
+          <a class="gv-link" href="#" style="color: #9aa096; text-decoration: none;">X</a>
+          <a class="gv-link" href="#" style="color: #9aa096; text-decoration: none;">LinkedIn</a>
+          <a class="gv-link" href="#" style="color: #9aa096; text-decoration: none;">GitHub</a>
+        </div>
+      </div>
+      <sc-for list="{{ footcols }}" as="col" hint-placeholder-count="3">
+        <div>
+          <div style="font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #565a53; margin-bottom: 16px;">{{ col.head }}</div>
+          <div style="display: flex; flex-direction: column; gap: 11px;">
+            <sc-for list="{{ col.links }}" as="l" hint-placeholder-count="4">
+              <a class="gv-link" href="#" style="font-size: 13.5px; color: #9aa096; text-decoration: none; transition: color .2s;">{{ l }}</a>
+            </sc-for>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.06); font-size: 11.5px; color: #565a53;">
+      <span>© 2026 grove — plant once, grows forever.</span>
+      <span><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="29414c454546694e5b465f4c074840">[email&#160;protected]</a></span>
+    </div>
+  </footer>
+</div>
+</x-dc>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 1280, &quot;height&quot;: 900}, &quot;accent&quot;: {&quot;editor&quot;: &quot;color&quot;, &quot;default&quot;: &quot;#63c281&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;options&quot;: [&quot;#63c281&quot;, &quot;#7bd6a0&quot;, &quot;#4fae6e&quot;, &quot;#8fd9b0&quot;, &quot;#39b06a&quot;]}, &quot;glowIntensity&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;balanced&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;options&quot;: [&quot;subtle&quot;, &quot;balanced&quot;, &quot;intense&quot;]}, &quot;showSmoke&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;}}">
+class Component extends DCLogic {
+  state = { domain: '', billing: 'monthly', faqOpen: 0 };
+
+  _onMove = (e) => {
+    const el = this._refract;
+    if (!el) return;
+    const x = (e.clientX / window.innerWidth) - 0.5;   // -0.5 .. 0.5
+    const y = (e.clientY / window.innerHeight) - 0.5;
+    // colour shade shifts with the cursor — nothing translates left/right
+    el.style.filter = 'hue-rotate(' + (x * 18).toFixed(1) + 'deg) saturate(' + (1 + x * 0.12).toFixed(3) + ')';
+    // beams: interval (spacing via scaleX) + amplitude (brightness) breathe naturally
+    const beams = this._beams;
+    if (beams) {
+      beams.style.transform = 'scaleX(' + (1 + x * 0.2).toFixed(3) + ')';
+      beams.style.filter = 'brightness(' + (1.05 - y * 0.45).toFixed(3) + ')';
+    }
+  };
+
+  componentDidMount() {
+    if (this._revInit) return;        // run once, even across re-mounts
+    this._revInit = true;
+    const root = this._root;
+    if (!root) return;
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const targets = Array.from(root.querySelectorAll('.gv-r, .gv-rf, #features .gv-card, .gv-tile, .gv-tcard, .gv-pcard, .gv-faq'));
+    if (reduce || !targets.length) return;
+    const seen = new Map();
+    targets.forEach((node) => {
+      const fadeOnly = node.classList.contains('gv-rf') || node.classList.contains('gv-card') || node.classList.contains('gv-tile');
+      node._fadeOnly = fadeOnly;
+      const p = node.parentElement;
+      const c = seen.get(p) || 0;
+      node._revDelay = Math.min(c, 6) * 70;
+      seen.set(p, c + 1);
+      // hide initially via inline opacity (animations tick reliably here; transitions don't)
+      node.style.opacity = '0';
+    });
+    const reveal = (node) => {
+      if (node._revDone) return;
+      node._revDone = true;
+      const name = node._fadeOnly ? 'gvFade' : 'gvRise';
+      node.style.animation = name + ' .8s cubic-bezier(.22,.61,.36,1) ' + node._revDelay + 'ms both';
+      const dur = node._revDelay + 850;
+      setTimeout(() => {
+        node.style.animation = '';
+        node.style.opacity = '';
+      }, dur + 60);
+    };
+    const check = () => {
+      const h = window.innerHeight || document.documentElement.clientHeight;
+      let remaining = 0;
+      targets.forEach((node) => {
+        if (node._revDone) return;
+        if (node.getBoundingClientRect().top < h * 0.88) reveal(node);
+        else remaining++;
+      });
+      if (!remaining && this._scroll) {
+        window.removeEventListener('scroll', this._scroll);
+        window.removeEventListener('resize', this._scroll);
+        this._scroll = null;
+      }
+    };
+    let ticking = false;
+    this._scroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => { ticking = false; check(); });
+    };
+    window.addEventListener('scroll', this._scroll, { passive: true });
+    window.addEventListener('resize', this._scroll, { passive: true });
+    requestAnimationFrame(check);
+    // failsafe: never leave anything invisible if scroll detection misbehaves
+    this._failsafe = setTimeout(() => targets.forEach(reveal), 4000);
+  }
+
+  componentWillUnmount() {
+    if (this._onMove) window.removeEventListener('mousemove', this._onMove);
+    if (this._scroll) {
+      window.removeEventListener('scroll', this._scroll);
+      window.removeEventListener('resize', this._scroll);
+    }
+  }
+
+  renderVals() {
+    const accent = this.props.accent ?? '#63c281';
+    const glowMap = { subtle: '0.35', balanced: '0.6', intense: '0.95' };
+    const glow = glowMap[this.props.glowIntensity ?? 'balanced'] ?? '0.6';
+    const showSmoke = this.props.showSmoke ?? true;
+    const isMonthly = this.state.billing === 'monthly';
+
+    const rootRef = (el) => { this._root = el; };
+    const refractRef = (el) => {
+      this._refract = el;
+      this._beams = el ? el.querySelector('.gv-beams') : null;
+      if (el && !this._moveBound) {
+        this._moveBound = true;
+        window.addEventListener('mousemove', this._onMove, { passive: true });
+      }
+    };
+    const onDomain = (e) => this.setState({ domain: e.target.value });
+    const onSubmit = (e) => { e.preventDefault(); };
+    const setMonthly = () => this.setState({ billing: 'monthly' });
+    const setAnnual = () => this.setState({ billing: 'annual' });
+
+    const pipeline = [
+      { title: '10 onboarding mistakes killing activation', meta: 'researched · 1,840 words · scheduled', status: 'publishing' },
+      { title: 'How we cut SaaS churn 18% in a quarter', meta: 'drafted · in your voice', status: 'in review' },
+      { title: 'A buyer\u2019s guide to programmatic SEO', meta: 'ranking for 14 keywords', status: 'live' },
+    ];
+    const steps = [
+      { n: '01', title: 'Enter your domain', sub: 'One field. No plugins.' },
+      { n: '02', title: 'Verify ownership', sub: 'DNS or meta tag · 2 min' },
+      { n: '03', title: 'Posts go live', sub: 'Researched & published' },
+    ];
+    const platforms = ['WordPress', 'Webflow', 'Ghost', 'Framer', 'Shopify', 'Next.js'];
+    const stats = [
+      { big: '+312%', label: 'avg organic growth' },
+      { big: '2,400+', label: 'posts published' },
+      { big: '4 / wk', label: 'shipped on autopilot' },
+      { big: '4.9\u2605', label: 'avg content rating' },
+    ];
+    const features = [
+      { n: '01', title: 'Live SERP analysis', body: 'grove reads what\u2019s actually ranking for your keywords, then reverse-engineers the brief \u2014 gap, intent, structure and word count.' },
+      { n: '02', title: 'Answer-engine ready', body: 'Structured for AI Overviews and ChatGPT citations, so you show up where the next click now starts.' },
+      { n: '03', title: 'Writes in your voice', body: 'Trained on your site and past posts. Reads like your best writer \u2014 not a content mill.' },
+      { n: '04', title: 'Ranking in plain English', body: 'See exactly why each post moves \u2014 no Search Console spreadsheet required.' },
+      { n: '05', title: 'Cross-posts everywhere', body: 'One brief becomes a blog post, an X thread, a LinkedIn post and an Instagram caption.' },
+      { n: '06', title: 'Publishes itself', body: 'Straight to your domain \u2014 URL, sitemap, internal links, metadata, schema. No copy-paste, no plugins.' },
+    ];
+    const wave = ['40%','70%','55%','85%','45%','95%','60%','75%','50%','88%','42%','66%','80%','52%','92%','58%','72%','48%','84%','62%','46%','78%'];
+    const channels = ['Blog post', 'X thread', 'LinkedIn', 'Instagram'];
+    const testimonials = [
+      { initials: 'MR', name: 'Maya Rivera', role: 'Head of Growth, fintech', quote: '\u201CWe went from one post a quarter to four a week without hiring. Three of them are on page one now.\u201D' },
+      { initials: 'DK', name: 'Devin Kuo', role: 'Founder, dev tool', quote: '\u201CIt writes like someone who actually used the product. I edit a sentence, maybe. That\u2019s the whole job now.\u201D' },
+      { initials: 'LO', name: 'Lena Ortiz', role: 'Marketing lead, B2B SaaS', quote: '\u201CThe SERP briefs alone replaced a freelancer. The auto-publishing replaced our CMS busywork entirely.\u201D' },
+      { initials: 'TW', name: 'Tomas Weir', role: 'Indie SaaS', quote: '\u201CCheaper than one freelance post, and it never forgets to ship. My traffic just compounds while I build.\u201D' },
+    ];
+
+    const tierBase = [
+      { name: 'Starter', m: 29, a: 23, blurb: 'For founders testing the engine.', popular: false, cta: 'Start free trial',
+        feats: ['4 posts / month', '1 domain', 'Auto-publish + SEO', 'Answer-engine ready', 'Review queue'] },
+      { name: 'Growth', m: 79, a: 63, blurb: 'For teams compounding content.', popular: true, cta: 'Start free trial',
+        feats: ['16 posts / month', '3 domains', 'Cross-posting (X, LinkedIn, IG)', 'Voice training', 'Plain-English analytics', 'Auto + review modes'] },
+      { name: 'Agency', m: 199, a: 159, blurb: 'For agencies running client blogs.', popular: false, cta: 'Talk to sales',
+        feats: ['Unlimited posts', '10 domains', 'Everything in Growth', 'White-label exports', 'Shared team workspace'] },
+    ];
+    const tiers = tierBase.map(t => ({
+      name: t.name, blurb: t.blurb, popular: t.popular, cta: t.cta, feats: t.feats,
+      price: isMonthly ? t.m : t.a,
+      note: isMonthly ? 'billed monthly' : 'billed annually',
+      bg: t.popular ? 'linear-gradient(180deg, #0c130e, #090e0b)' : '#0f110f',
+      border: t.popular ? 'rgba(99,194,129,0.32)' : 'rgba(255,255,255,0.08)',
+      ctaBg: t.popular ? accent : 'transparent',
+      ctaColor: t.popular ? '#06120b' : '#eef1ea',
+      ctaBorder: t.popular ? accent : 'rgba(255,255,255,0.18)',
+    }));
+
+    const faqData = [
+      { q: 'Do I need WordPress or any hosting?', a: 'No. grove publishes to most major platforms \u2014 Webflow, Ghost, Framer, Shopify, Next.js \u2014 or hosts the blog for you on a subdomain at no extra cost.' },
+      { q: 'Will the posts actually sound like me?', a: 'Yes. grove trains on your existing content and tone, and you can steer the voice anytime. The first few drafts calibrate fast and only get closer.' },
+      { q: 'Isn\u2019t AI content bad for SEO now?', a: 'Thin, generic AI content is. grove writes from live SERP research with real structure, sources and intent \u2014 built to earn rankings and AI citations, not to flood pages.' },
+      { q: 'Can I review posts before they go live?', a: 'Always. Run in review mode and approve every post, or flip to full auto once you trust it. It\u2019s per-domain, and your call to change anytime.' },
+      { q: 'What\u2019s the catch with the subscription?', a: 'None. Cancel anytime and keep everything published. No long contracts, no per-seat surprises, no lock-in on your own content.' },
+      { q: 'How fast is the first post?', a: 'Minutes. Enter your domain, verify ownership, and grove ships the first researched draft to your queue in the same session.' },
+    ];
+    const faqs = faqData.map((f, i) => ({
+      q: f.q, a: f.a,
+      open: this.state.faqOpen === i,
+      sign: this.state.faqOpen === i ? '\u2013' : '+',
+      toggle: () => this.setState(s => ({ faqOpen: s.faqOpen === i ? -1 : i })),
+    }));
+
+    const footcols = [
+      { head: 'Product', links: ['Features', 'Showcase', 'Pricing', 'Changelog'] },
+      { head: 'Company', links: ['About', 'Blog', 'Careers', 'Contact'] },
+      { head: 'Legal', links: ['Privacy', 'Terms', 'Status'] },
+    ];
+
+    return {
+      accentVar: accent, glowVar: glow, showSmoke, refractRef, rootRef,
+      domain: this.state.domain, onDomain, onSubmit,
+      pipeline, steps, platforms, stats, features, wave, channels, testimonials,
+      tiers, faqs, footcols,
+      setMonthly, setAnnual,
+      monthlyBg: isMonthly ? accent : 'transparent',
+      monthlyColor: isMonthly ? '#06120b' : '#9aa096',
+      annualBg: isMonthly ? 'transparent' : accent,
+      annualColor: isMonthly ? '#9aa096' : '#06120b',
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500;1,600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #0a0b0a; }
+  ::selection { background: rgba(99,194,129,0.3); color: #fff; }
+  @keyframes gvPulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.8); } }
+  @keyframes gvBlob { 0% { transform: translate3d(-4%,2%,0) scale(1.1); } 50% { transform: translate3d(6%,-3%,0) scale(1.28); } 100% { transform: translate3d(-4%,2%,0) scale(1.1); } }
+  @keyframes gvThink { 0%,80%,100% { opacity: 0.25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+  @keyframes gvShimmer { 0% { transform: translateX(-120%); } 100% { transform: translateX(360%); } }
+  @keyframes gvLineIn { 0% { opacity: 0; transform: translateY(5px); } 100% { opacity: 1; transform: translateY(0); } }
+  .gv-nav:hover { background: rgba(255,255,255,0.04) !important; color: #eef1ea !important; }
+  .gv-nav:hover .gv-ico { color: #cdd2c9 !important; }
+  .gv-card { transition: border-color .25s, transform .25s; }
+  .gv-card:hover { border-color: rgba(99,194,129,0.28) !important; }
+  .gv-prow { transition: border-color .2s, background .2s; }
+  .gv-prow:hover { border-color: rgba(99,194,129,0.28) !important; background: rgba(255,255,255,0.018) !important; }
+  .gv-btn { transition: transform .18s, box-shadow .18s, background .18s; }
+  .gv-btn:hover { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(99,194,129,0.22); }
+  .gv-ghost:hover { background: rgba(255,255,255,0.06) !important; color: #eef1ea !important; }
+  .gv-sugg:hover { background: rgba(99,194,129,0.07) !important; border-color: rgba(99,194,129,0.3) !important; color: #eef1ea !important; }
+  .gv-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+  .gv-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 99px; }
+  .gv-scroll::-webkit-scrollbar-track { background: transparent; }
+  input::placeholder { color: #565a53; }
+  .gv-think { width: 5px; height: 5px; border-radius: 50%; background: var(--accent,#63c281); display: inline-block; animation: gvThink 1.2s ease-in-out infinite; }
+</style>
+</helmet>
+
+<div style="--accent: {{ accentVar }}; --glow: {{ glowVar }}; background: #0a0b0a; color: #eef1ea; font-family: 'Plus Jakarta Sans', sans-serif; min-height: 100vh; display: flex; -webkit-font-smoothing: antialiased; position: relative; overflow: hidden;">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="gv-scroll" style="width: 280px; flex-shrink: 0; height: 100vh; position: sticky; top: 0; border-right: 1px solid rgba(255,255,255,0.06); background: #0c0e0c; display: flex; flex-direction: column; overflow-y: auto;">
+    <div style="display: flex; align-items: center; gap: 9px; padding: 22px 22px 18px;">
+      <span style="width: 17px; height: 17px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #9ff0bb, var(--accent,#63c281)); box-shadow: 0 0 12px rgba(99,194,129,0.7);"></span>
+      <span style="font-weight: 700; font-size: 18px; letter-spacing: -0.02em;">grove</span>
+      <span style="margin-left: auto; font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent,#63c281); border: 1px solid rgba(99,194,129,0.3); border-radius: 6px; padding: 3px 7px;">Growth</span>
+    </div>
+
+    <nav style="padding: 8px 18px; display: flex; flex-direction: column; gap: 22px; flex: 1;">
+      <sc-for list="{{ navSections }}" as="sec" hint-placeholder-count="3">
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <div style="font-size: 10px; letter-spacing: 0.13em; text-transform: uppercase; color: #565a53; padding: 4px 12px 6px;">{{ sec.head }}</div>
+          <sc-for list="{{ sec.items }}" as="item" hint-placeholder-count="3">
+            <button class="gv-nav" onClick="{{ item.onSelect }}" style="display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; border: 1px solid {{ item.border }}; background: {{ item.bg }}; color: {{ item.color }}; font-family: inherit; font-size: 13.5px; font-weight: 500; padding: 9px 12px; border-radius: 10px; cursor: pointer; transition: background .18s, color .18s;">
+              <span class="gv-ico" style="color: {{ item.iconColor }}; display: flex; flex-shrink: 0;">{{ item.icon }}</span>
+              <span style="flex: 1;">{{ item.label }}</span>
+              <sc-if value="{{ item.badge }}" hint-placeholder-val="{{ false }}">
+                <span style="font-size: 10.5px; font-weight: 700; color: #06120b; background: var(--accent,#63c281); border-radius: 999px; padding: 1px 7px;">{{ item.badge }}</span>
+              </sc-if>
+            </button>
+          </sc-for>
+        </div>
+      </sc-for>
+    </nav>
+
+    <div style="padding: 14px; border-top: 1px solid rgba(255,255,255,0.06); margin-top: auto;">
+      <button class="gv-ghost" style="display: flex; align-items: center; gap: 11px; width: 100%; border: 1px solid rgba(255,255,255,0.09); background: rgba(255,255,255,0.02); border-radius: 12px; padding: 11px 13px; cursor: pointer; font-family: inherit; text-align: left; transition: background .2s;">
+        <span style="width: 30px; height: 30px; border-radius: 8px; background: rgba(99,194,129,0.12); border: 1px solid rgba(99,194,129,0.25); display: flex; align-items: center; justify-content: center; color: var(--accent,#63c281); font-weight: 700; font-size: 13px; flex-shrink: 0;">g</span>
+        <span style="flex: 1; min-width: 0;">
+          <span style="display: block; font-size: 13px; font-weight: 600; color: #eef1ea; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">grove.ai</span>
+          <span style="display: block; font-size: 11px; color: #6b6f67;">verified · autopilot on</span>
+        </span>
+        <span style="color: #6b6f67; font-size: 13px;">⌄</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main class="gv-scroll" style="flex: 1; min-width: 0; height: 100vh; overflow-y: auto; position: relative;">
+
+    <sc-if value="{{ showGlow }}" hint-placeholder-val="{{ true }}">
+      <div style="position: absolute; top: 0; left: 0; right: 0; height: 340px; pointer-events: none; opacity: var(--glow,0.6); overflow: hidden;">
+        <div style="position: absolute; top: -42%; left: 28%; width: 44%; height: 110%; background: radial-gradient(ellipse at center, rgba(99,194,129,0.38), rgba(99,194,129,0) 60%); filter: blur(92px); animation: gvBlob 22s ease-in-out infinite;"></div>
+        <div style="position: absolute; top: -38%; right: 6%; width: 34%; height: 100%; background: radial-gradient(ellipse at center, rgba(150,230,185,0.24), rgba(150,230,185,0) 62%); filter: blur(98px); animation: gvBlob 27s ease-in-out infinite reverse;"></div>
+        <div style="position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10,11,10,0) 0%, rgba(10,11,10,0.4) 60%, #0a0b0a 100%);"></div>
+      </div>
+    </sc-if>
+
+    <!-- TOP BAR -->
+    <header style="position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 16px; padding: 16px 30px; background: rgba(10,11,10,0.72); backdrop-filter: blur(18px); border-bottom: 1px solid rgba(255,255,255,0.06);">
+      <div>
+        <div style="font-size: 16px; font-weight: 700; letter-spacing: -0.01em;">Content pipeline</div>
+        <div style="font-size: 12px; color: #6b6f67; margin-top: 1px;">grove.ai · the agent loop, running live</div>
+      </div>
+      <div style="margin-left: auto; display: flex; align-items: center; gap: 14px;">
+        <div style="display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2;">
+          <span style="font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #565a53;">Next publish</span>
+          <span style="font-size: 13px; font-weight: 700; color: var(--accent,#63c281);">{{ countdown }}</span>
+        </div>
+        <button onClick="{{ toggleAutopilot }}" class="gv-btn" style="display: flex; align-items: center; gap: 9px; border: 1px solid {{ apBorder }}; background: {{ apBg }}; color: {{ apColor }}; font-family: inherit; font-size: 12.5px; font-weight: 600; padding: 8px 14px; border-radius: 999px; cursor: pointer;">
+          <span style="width: 7px; height: 7px; border-radius: 50%; background: {{ apDot }}; animation: {{ apAnim }};"></span>
+          {{ apLabel }}
+        </button>
+        <span style="width: 1px; height: 26px; background: rgba(255,255,255,0.08);"></span>
+        <button class="gv-ghost" style="position: relative; width: 38px; height: 38px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02); color: #9aa096; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .2s;">
+          {{ bellIcon }}
+          <span style="position: absolute; top: 9px; right: 9px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent,#63c281);"></span>
+        </button>
+        <span style="width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, rgba(99,194,129,0.3), rgba(99,194,129,0.1)); border: 1px solid rgba(99,194,129,0.3); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; color: var(--accent,#63c281);">MR</span>
+      </div>
+    </header>
+
+    <!-- BODY -->
+    <div style="position: relative; padding: 26px 36px 52px; max-width: 1500px; margin: 0 auto;">
+
+      <!-- AGENT WEEKLY BRIEF -->
+      <section class="gv-card" style="background: linear-gradient(135deg, #0c130e, #0a0d0a); border: 1px solid rgba(99,194,129,0.18); border-radius: 18px; padding: 24px 26px; margin-bottom: 16px;">
+        <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap;">
+          <div style="flex: 1; min-width: 280px;">
+            <div style="display: flex; align-items: center; gap: 9px; font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent,#63c281);">
+              <span style="display: flex;">{{ leafIcon }}</span> Your marketing agent · last 7 days
+            </div>
+            <p style="font-size: 15.5px; line-height: 1.62; color: #dfe4da; margin: 12px 0 0; max-width: 660px;">
+              grove published <span style="color: #fff; font-weight: 600;">3 posts</span> this week — they pulled <span style="color: #fff; font-weight: 600;">1,240 reads</span>, up 38% on last week. <span style="color: #fff; font-weight: 600;">"AI onboarding checklist"</span> broke into the top 3 and is now quoted by ChatGPT. Two drafts are waiting on your review.
+            </p>
+          </div>
+          <button class="gv-btn" style="border: none; background: var(--accent,#63c281); color: #06120b; font-family: inherit; font-size: 13px; font-weight: 700; padding: 11px 18px; border-radius: 10px; cursor: pointer; white-space: nowrap; flex-shrink: 0;">Review 2 drafts →</button>
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px;">
+          <sc-for list="{{ chips }}" as="c" hint-placeholder-count="6">
+            <div style="background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.07); border-radius: 11px; padding: 9px 15px;">
+              <span style="font-size: 19px; font-weight: 700; letter-spacing: -0.02em;">{{ c.value }}</span>
+              <sc-if value="{{ c.sub }}" hint-placeholder-val="{{ false }}"><span style="font-size: 12px; margin-left: 6px; font-weight: 600; color: {{ c.subColor }};">{{ c.sub }}</span></sc-if>
+              <div style="font-size: 9.5px; letter-spacing: 0.07em; text-transform: uppercase; color: #6b6f67; margin-top: 2px;">{{ c.label }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+
+      <!-- TWO COLUMNS -->
+      <div style="display: grid; grid-template-columns: 1.72fr 1fr; gap: 16px; align-items: start;">
+
+        <!-- ===== LEFT: controls + pipeline ===== -->
+        <div>
+          <!-- QUEUE TOPIC -->
+          <div style="background: #101310; border: 1px solid rgba(255,255,255,0.07); border-radius: 13px; padding: 16px 18px; margin-bottom: 12px;">
+            <div style="display: flex; gap: 8px;">
+              <input value="{{ topic }}" onChange="{{ onTopic }}" placeholder="Add a topic… e.g. 'reduce churn with onboarding nudges'" style="flex: 1; min-width: 0; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.09); border-radius: 10px; padding: 11px 14px; color: #eef1ea; font-size: 13.5px; font-family: inherit; outline: none;">
+              <button onClick="{{ toggleSuggest }}" class="gv-ghost" style="display: flex; align-items: center; gap: 6px; border: 1px solid rgba(99,194,129,0.25); background: rgba(99,194,129,0.06); color: var(--accent,#63c281); font-family: inherit; font-size: 13px; font-weight: 600; padding: 0 15px; border-radius: 10px; cursor: pointer; white-space: nowrap; transition: background .2s;">{{ sparkleIcon }} Suggest</button>
+              <button class="gv-btn" style="border: none; background: var(--accent,#63c281); color: #06120b; font-family: inherit; font-size: 13px; font-weight: 700; padding: 0 18px; border-radius: 10px; cursor: pointer; white-space: nowrap;">Queue topic</button>
+            </div>
+            <sc-if value="{{ showSuggest }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top: 14px;">
+                <div style="font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase; color: #6b6f67; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;"><span style="color: var(--accent,#63c281); display: flex;">{{ sparkleIcon }}</span> Grove suggests · from your strategy &amp; live SERP</div>
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                  <sc-for list="{{ suggestions }}" as="s" hint-placeholder-count="4">
+                    <button class="gv-sugg" onClick="{{ s.onPick }}" style="text-align: left; padding: 10px 14px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.07); border-radius: 9px; font-size: 13px; color: #cdd2c9; cursor: pointer; font-family: inherit; line-height: 1.4; transition: .15s; display: flex; align-items: center; gap: 10px;">
+                      <span style="font-size: 10px; color: var(--accent,#63c281); border: 1px solid rgba(99,194,129,0.3); border-radius: 5px; padding: 2px 6px; flex-shrink: 0;">{{ s.intent }}</span>{{ s.text }}
+                    </button>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-if>
+            <div style="font-size: 12px; color: #6b6f67; margin-top: 12px;">Prefer to write it yourself? <a href="#" style="color: var(--accent,#63c281); font-weight: 600; text-decoration: none;">Open the writing desk →</a></div>
+          </div>
+
+          <!-- SETTINGS STRIP -->
+          <div style="display: flex; align-items: center; gap: 16px; padding: 11px 16px; background: #101310; border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; margin: 14px 0 4px;">
+            <span style="font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #565a53;">Publishing</span>
+            <div style="display: inline-flex; padding: 3px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 999px; gap: 2px;">
+              <sc-for list="{{ modes }}" as="m" hint-placeholder-count="2">
+                <button onClick="{{ m.onSelect }}" style="border: none; cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 600; padding: 5px 15px; border-radius: 999px; transition: .2s; background: {{ m.bg }}; color: {{ m.color }};">{{ m.label }}</button>
+              </sc-for>
+            </div>
+            <span style="width: 1px; height: 20px; background: rgba(255,255,255,0.08);"></span>
+            <span style="font-size: 12px; color: #6b6f67;">Cadence</span>
+            <div style="display: flex; align-items: center; gap: 5px;">
+              <sc-for list="{{ freqs }}" as="f" hint-placeholder-count="5">
+                <button onClick="{{ f.onSelect }}" style="width: 28px; height: 28px; border-radius: 8px; border: 1px solid {{ f.border }}; background: {{ f.bg }}; color: {{ f.color }}; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; transition: .15s;">{{ f.n }}</button>
+              </sc-for>
+              <span style="font-size: 12px; color: #6b6f67; margin-left: 2px;">/ week</span>
+            </div>
+            <span style="margin-left: auto; font-size: 12px; color: #6b6f67; text-align: right; max-width: 240px;">{{ modeHint }}</span>
+          </div>
+
+          <!-- PIPELINE -->
+          <sc-for list="{{ groups }}" as="g" hint-placeholder-count="4">
+            <div style="display: flex; align-items: center; gap: 10px; margin: 22px 2px 11px;">
+              <span style="width: 7px; height: 7px; border-radius: 50%; background: {{ g.color }};"></span>
+              <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #cdd2c9;">{{ g.label }}</span>
+              <span style="font-size: 11px; font-weight: 700; color: #565a53; font-variant-numeric: tabular-nums;">{{ g.count }}</span>
+              <span style="flex: 1; height: 1px; background: rgba(255,255,255,0.06);"></span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 9px;">
+              <sc-for list="{{ g.items }}" as="p" hint-placeholder-count="2">
+                <div class="gv-prow" style="background: #101310; border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 14px 16px;">
+
+                  <!-- row head -->
+                  <div style="display: flex; align-items: center; gap: 13px;">
+                    <span style="width: 38px; height: 38px; border-radius: 10px; background: {{ p.thumbBg }}; border: 1px solid {{ p.thumbBorder }}; display: flex; align-items: center; justify-content: center; color: {{ p.iconColor }}; flex-shrink: 0;">{{ p.icon }}</span>
+                    <div style="flex: 1; min-width: 0;">
+                      <div style="font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 8px;">{{ p.title }}</div>
+                      <div style="font-size: 12px; color: {{ p.metaColor }}; margin-top: 3px; display: flex; align-items: center; gap: 6px;">
+                        <sc-if value="{{ p.liveDot }}" hint-placeholder-val="{{ false }}"><span style="width: 6px; height: 6px; border-radius: 50%; background: {{ p.liveColor }}; flex-shrink: 0; animation: {{ p.liveAnim }};"></span></sc-if>
+                        {{ p.meta }}
+                      </div>
+                    </div>
+                    <sc-if value="{{ p.hasScore }}" hint-placeholder-val="{{ false }}">
+                      <span title="Manager quality score" style="display: inline-flex; align-items: baseline; gap: 2px; flex-shrink: 0; font-variant-numeric: tabular-nums; border: 1px solid {{ p.thumbBorder }}; border-radius: 8px; padding: 4px 9px;">
+                        <span style="font-size: 13px; font-weight: 700; color: {{ p.scoreColor }};">{{ p.scoreText }}</span>
+                        <span style="font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase; color: #565a53;">score</span>
+                      </span>
+                    </sc-if>
+                    <sc-if value="{{ p.hasAction }}" hint-placeholder-val="{{ false }}">
+                      <button class="gv-btn" style="border: 1px solid {{ p.actBorder }}; background: {{ p.actBg }}; color: {{ p.actColor }}; font-family: inherit; font-size: 12.5px; font-weight: 600; padding: 7px 15px; border-radius: 9px; cursor: pointer; white-space: nowrap; flex-shrink: 0;">{{ p.actLabel }}</button>
+                    </sc-if>
+                  </div>
+                  <sc-if value="{{ p.hasLive }}" hint-placeholder-val="{{ false }}">{{ p.liveEl }}</sc-if>
+                </div>
+              </sc-for>
+            </div>
+          </sc-for>
+        </div>
+
+        <!-- ===== RIGHT RAIL ===== -->
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+
+          <!-- ARTICLE QUALITY -->
+          <div class="gv-card" style="background: #101310; border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; padding: 20px 22px;">
+            <div style="display: flex; align-items: baseline; justify-content: space-between;">
+              <div style="font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #6b6f67;">Article quality · manager scores</div>
+            </div>
+            <div style="display: flex; align-items: flex-end; gap: 10px; margin-top: 12px;">
+              <span style="font-size: 34px; font-weight: 700; letter-spacing: -0.03em; line-height: 1;">82</span>
+              <span style="font-size: 12px; color: #9aa096; padding-bottom: 4px;">avg / 100 · 12 scored</span>
+            </div>
+            <div style="display: flex; align-items: flex-end; gap: 4px; height: 66px; margin-top: 18px;">
+              <sc-for list="{{ qualityBars }}" as="q" hint-placeholder-count="12">
+                <span title="{{ q.score }}/100" style="flex: 1; border-radius: 4px 4px 0 0; background: {{ q.color }}; height: {{ q.h }}; opacity: 0.92;"></span>
+              </sc-for>
+            </div>
+            <p style="font-size: 11.5px; color: #6b6f67; line-height: 1.55; margin: 14px 0 0;">Every draft is graded 0–100 by the manager agent before it can publish — strategy fit, marketing intent, craft, safety.</p>
+          </div>
+
+          <!-- AI-SEARCH READY -->
+          <div class="gv-card" style="background: linear-gradient(150deg, #0c130e, #0a0d0a); border: 1px solid rgba(99,194,129,0.16); border-radius: 18px; padding: 20px 22px;">
+            <div style="font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #6b6f67;">AI-search readiness</div>
+            <div style="display: flex; align-items: center; gap: 16px; margin-top: 14px;">
+              <div style="position: relative; width: 66px; height: 66px; flex-shrink: 0;">
+                <svg viewBox="0 0 36 36" style="width: 66px; height: 66px; transform: rotate(-90deg);">
+                  <circle cx="18" cy="18" r="15.5" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="3.4"></circle>
+                  <circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--accent,#63c281)" stroke-width="3.4" stroke-linecap="round" stroke-dasharray="97.4" stroke-dashoffset="24.3"></circle>
+                </svg>
+                <span style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700;">9/12</span>
+              </div>
+              <div>
+                <div style="font-size: 13.5px; font-weight: 600; color: #eef1ea;">75% answer-engine ready</div>
+                <div style="font-size: 11.5px; color: #9aa096; line-height: 1.5; margin-top: 4px;">Published posts with FAQ blocks &amp; key-takeaways structured for AI Overviews &amp; ChatGPT.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- THE AGENT LOOP -->
+          <div class="gv-card" style="background: #101310; border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; padding: 20px 22px;">
+            <div style="font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #6b6f67; margin-bottom: 16px;">The agent loop</div>
+            <div style="display: flex; flex-direction: column; gap: 0;">
+              <sc-for list="{{ loop }}" as="l" hint-placeholder-count="4">
+                <div style="display: flex; gap: 13px; padding-bottom: 16px;">
+                  <div style="display: flex; flex-direction: column; align-items: center; flex-shrink: 0;">
+                    <span style="width: 26px; height: 26px; border-radius: 8px; background: rgba(99,194,129,0.1); border: 1px solid rgba(99,194,129,0.25); color: var(--accent,#63c281); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">{{ l.n }}</span>
+                    <sc-if value="{{ l.line }}" hint-placeholder-val="{{ true }}"><span style="flex: 1; width: 1px; min-height: 16px; background: rgba(99,194,129,0.18); margin-top: 4px;"></span></sc-if>
+                  </div>
+                  <div style="margin-top: 1px;">
+                    <div style="font-size: 13.5px; font-weight: 600;">{{ l.title }}</div>
+                    <div style="font-size: 11.5px; color: #6b6f67; margin-top: 2px; line-height: 1.45;">{{ l.sub }}</div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="font-size: 11px; color: #565a53; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; display: flex; align-items: center; gap: 7px;"><span style="color: var(--accent,#63c281);">↻</span> Strategy re-reviewed on the 1st of each month</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 1440, &quot;height&quot;: 1024}, &quot;accent&quot;: {&quot;editor&quot;: &quot;color&quot;, &quot;default&quot;: &quot;#63c281&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;options&quot;: [&quot;#63c281&quot;, &quot;#7bd6a0&quot;, &quot;#4fae6e&quot;, &quot;#8fd9b0&quot;, &quot;#39b06a&quot;]}, &quot;glowIntensity&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;balanced&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;options&quot;: [&quot;subtle&quot;, &quot;balanced&quot;, &quot;intense&quot;]}, &quot;showGlow&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;}}">
+class Component extends DCLogic {
+  state = { nav: 'Pipeline', autopilot: true, mode: 'Auto', freq: 2, filter: 'all', topic: '', showSuggest: false, tick: 0 };
+
+  componentDidMount() {
+    this._iv = setInterval(() => this.setState(s => ({ tick: s.tick + 1 })), 2200);
+  }
+  componentWillUnmount() { clearInterval(this._iv); }
+
+  _icon(name, size) {
+    const E = React.createElement;
+    const p = { width: size || 17, height: size || 17, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.8, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' };
+    const defs = {
+      strategy: ['circle:12,12,8.5', 'circle:12,12,4', 'M12 1v3', 'M12 20v3', 'M1 12h3', 'M20 12h3'],
+      write: ['M4 20l3.5-1 10-10a2 2 0 00-3-3l-10 10z', 'M13.5 6.5l3 3'],
+      pipeline: ['M4 7h16', 'M4 12h16', 'M4 17h10'],
+      calendar: ['rect:3,5,18,16,2', 'M3 9h18', 'M8 3v4', 'M16 3v4'],
+      reviews: ['circle:12,12,9', 'M8.5 12l2.4 2.4L15.5 9'],
+      analytics: ['M5 21V11', 'M12 21V4', 'M19 21v-7', 'M3 21h18'],
+      voice: ['M4 10v4', 'M8 6v12', 'M12 9v6', 'M16 4v16', 'M20 10v4'],
+      social: ['circle:6,12,2.5', 'circle:18,6,2.5', 'circle:18,18,2.5', 'M8.2 10.8l7.6-3.6', 'M8.2 13.2l7.6 3.6'],
+      embed: ['M9 8l-4 4 4 4', 'M15 8l4 4-4 4'],
+      bell: ['M6 9a6 6 0 0112 0c0 5 2 6 2 6H4s2-1 2-6', 'M10.5 20a2 2 0 003 0'],
+      sparkle: ['M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5z'],
+      leaf: ['M11 20c-4 0-7-3-7-8 0-5 6-9 15-9 0 9-4 15-9 15-3 0-4-2-4-4 0-3 3-5 7-6'],
+      doc: ['M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z', 'M14 3v5h5'],
+      pen: ['M4 20l3.5-1 10-10a2 2 0 00-3-3l-10 10z', 'M13.5 6.5l3 3'],
+      eye: ['circle:12,12,3', 'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z'],
+      globe: ['circle:12,12,9', 'M3 12h18', 'M12 3c2.5 2.8 2.5 15.2 0 18', 'M12 3c-2.5 2.8-2.5 15.2 0 18'],
+      search2: ['circle:11,11,7', 'M21 21l-3.5-3.5'],
+      alert: ['M12 4l9 16H3z', 'M12 10v4', 'M12 17.5v.2'],
+    };
+    const els = (defs[name] || []).map((d, i) => {
+      if (d.startsWith('circle:')) { const a = d.slice(7).split(','); return E('circle', { key: i, cx: a[0], cy: a[1], r: a[2] }); }
+      if (d.startsWith('rect:')) { const a = d.slice(5).split(','); return E('rect', { key: i, x: a[0], y: a[1], width: a[2], height: a[3], rx: a[4] || 1.5 }); }
+      return E('path', { key: i, d });
+    });
+    return E('svg', p, els);
+  }
+
+  _scoreColor(s, accent) { return s >= 70 ? accent : s >= 40 ? '#e0c878' : '#c97f7f'; }
+
+  renderVals() {
+    const accent = this.props.accent ?? '#63c281';
+    const glowMap = { subtle: '0.35', balanced: '0.6', intense: '0.95' };
+    const glow = glowMap[this.props.glowIntensity ?? 'balanced'] ?? '0.6';
+    const showGlow = this.props.showGlow ?? true;
+    const ap = this.state.autopilot;
+
+    // ---- nav (real product) ----
+    const navDef = [
+      { head: 'Create', items: [
+        { label: 'Strategy', icon: 'strategy' },
+        { label: 'Write', icon: 'write' },
+        { label: 'Pipeline', icon: 'pipeline', badge: '4' },
+      ]},
+      { head: 'Publish', items: [
+        { label: 'Calendar', icon: 'calendar' },
+        { label: 'Reviews', icon: 'reviews', badge: '2' },
+        { label: 'Analytics', icon: 'analytics' },
+      ]},
+      { head: 'Brand', items: [
+        { label: 'Brand voice', icon: 'voice' },
+        { label: 'Social', icon: 'social' },
+        { label: 'Embed', icon: 'embed' },
+      ]},
+    ];
+    const navSections = navDef.map(sec => ({
+      head: sec.head,
+      items: sec.items.map(it => {
+        const active = this.state.nav === it.label;
+        return { label: it.label, badge: it.badge || false, icon: this._icon(it.icon),
+          onSelect: () => this.setState({ nav: it.label }),
+          bg: active ? 'rgba(99,194,129,0.1)' : 'transparent',
+          border: active ? 'rgba(99,194,129,0.22)' : 'transparent',
+          color: active ? '#eef1ea' : '#9aa096',
+          iconColor: active ? accent : '#6b6f67' };
+      }),
+    }));
+
+    // ---- brief chips ----
+    const chips = [
+      { value: '1,240', sub: '+38%', subColor: accent, label: 'Reads' },
+      { value: '86', sub: false, label: 'Site clicks' },
+      { value: '3 / 128', sub: false, label: 'Published' },
+      { value: '71%', sub: false, label: 'From search' },
+      { value: '9 / 12', sub: false, label: 'AI-search ready' },
+      { value: '2', sub: false, label: 'Awaiting review' },
+    ];
+
+    // ---- mode + freq ----
+    const modes = ['Manual', 'Auto'].map(label => {
+      const active = this.state.mode === label;
+      return { label, onSelect: () => this.setState({ mode: label }),
+        bg: active ? accent : 'transparent', color: active ? '#06120b' : '#9aa096' };
+    });
+    const modeHint = this.state.mode === 'Auto' ? 'Posts publish automatically on schedule' : 'Posts go to the review queue for approval';
+    const freqs = [1, 2, 3, 5, 7].map(n => {
+      const active = this.state.freq === n;
+      return { n, onSelect: () => this.setState({ freq: n }),
+        bg: active ? accent : 'transparent', color: active ? '#06120b' : '#cdd2c9',
+        border: active ? accent : 'rgba(255,255,255,0.1)' };
+    });
+
+    // ---- suggestions ----
+    const suggestions = [
+      { intent: 'TOFU', text: 'The complete guide to reducing SaaS churn with onboarding' },
+      { intent: 'MOFU', text: 'Activation metrics that actually predict retention' },
+      { intent: 'BOFU', text: 'grove vs. hiring a content team: a real cost breakdown' },
+      { intent: 'TOFU', text: 'How AI Overviews are reshaping B2B search in 2026' },
+    ].map(s => ({ ...s, onPick: () => this.setState({ topic: s.text, showSuggest: false }) }));
+
+    // ---- pipeline (grouped · stage track) ----
+    const muted = 'rgba(255,255,255,0.1)';
+    const STAGES = ['Research', 'Draft', 'Review', 'Publish'];
+    const buildSteps = (si, kind) => STAGES.map((label, i) => {
+      const state = i < si ? 'done' : i === si ? kind : 'pending';
+      let dotBg = 'transparent', dotBorder = 'rgba(255,255,255,0.18)', dotFg = '#06120b', mark = '', anim = 'none', labelColor = '#565a53';
+      if (state === 'done') { dotBg = accent; dotBorder = accent; mark = '✓'; labelColor = '#aeb4a8'; }
+      else if (state === 'active') { dotBg = accent; dotBorder = accent; labelColor = '#eef1ea'; anim = 'gvPulse 1.7s ease-in-out infinite'; }
+      else if (state === 'gate') { dotBg = '#e0c878'; dotBorder = '#e0c878'; labelColor = '#eef1ea'; anim = 'gvPulse 2.2s ease-in-out infinite'; }
+      else if (state === 'scheduled') { dotBorder = '#9aa096'; labelColor = '#9aa096'; }
+      else if (state === 'failed') { dotBg = '#c97f7f'; dotBorder = '#c97f7f'; dotFg = '#2a1010'; mark = '✕'; labelColor = '#e6b8b8'; }
+      return { label, dotBg, dotBorder, dotFg, mark, anim, labelColor,
+        leftLine: i > 0, rightLine: i < STAGES.length - 1,
+        leftColor: (i - 1 < si) ? accent : muted,
+        rightColor: (i < si) ? accent : muted };
+    });
+
+    const tick = this.state.tick;
+    const buildLivePanel = (activity, offset) => {
+      const E = React.createElement;
+      const total = activity.length;
+      const k = tick + (offset || 0);
+      const stepIndex = ((k % total) + total) % total;
+      const prog = Math.min(95, 95 - 80 * Math.pow(0.8, k + 1));
+      return E('div', { style: { marginTop: '13px' } },
+        E('div', { style: { position: 'relative', height: '3px', borderRadius: '99px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' } },
+          E('div', { style: { position: 'absolute', top: 0, bottom: 0, left: 0, width: prog + '%', borderRadius: '99px', background: accent, opacity: 0.55, transition: 'width 1.6s cubic-bezier(.4,0,.2,1)' } })
+        ),
+        E('div', { key: 'l' + stepIndex, style: { display: 'flex', alignItems: 'center', gap: '9px', marginTop: '10px', animation: 'gvLineIn .45s ease both' } },
+          E('span', { style: { display: 'inline-flex', gap: '3px', alignItems: 'center', flexShrink: 0 } },
+            E('span', { className: 'gv-think' }),
+            E('span', { className: 'gv-think', style: { animationDelay: '.15s' } }),
+            E('span', { className: 'gv-think', style: { animationDelay: '.3s' } })
+          ),
+          E('span', { style: { fontSize: '12.5px', color: '#cdd2c9', fontWeight: 500, flex: '1 1 auto' } }, activity[stepIndex]),
+          E('span', { style: { marginLeft: 'auto', fontSize: '10px', color: '#565a53', fontVariantNumeric: 'tabular-nums', flexShrink: 0 } }, 'step ' + (stepIndex + 1) + ' / ' + total)
+        )
+      );
+    };
+
+    const ACT = {
+      review: { label: 'Review', bg: accent, color: '#06120b', border: accent },
+      edit:   { label: 'Edit', bg: 'rgba(255,255,255,0.03)', color: '#cdd2c9', border: 'rgba(255,255,255,0.12)' },
+      view:   { label: 'View ↗', bg: 'rgba(255,255,255,0.03)', color: '#cdd2c9', border: 'rgba(255,255,255,0.12)' },
+      retry:  { label: 'Retry', bg: accent, color: '#06120b', border: accent },
+    };
+
+    const groupDefs = [
+      { key: 'flight', label: 'In flight', color: accent, live: true },
+      { key: 'review', label: 'Needs your review', color: '#e0c878' },
+      { key: 'scheduled', label: 'Scheduled', color: '#9aa096' },
+      { key: 'live', label: 'Published', color: accent },
+      { key: 'failed', label: 'Needs attention', color: '#c97f7f' },
+    ];
+
+    const pipeDef = [
+      { group: 'flight', si: 0, kind: 'active', icon: 'search2', title: 'How to reduce churn with onboarding nudges',
+        meta: 'Researching · started 40s ago', live: true, offset: 0,
+        activity: ['Crawling grove.ai for product context', 'Reading 14 competitor articles', 'Pulling live SERP for "reduce churn"', 'Spotted 3 ranking gaps to target', 'Structuring the outline', 'Drafting section 2 of 8'] },
+      { group: 'flight', si: 1, kind: 'active', icon: 'pen', title: 'A buyer\u2019s guide to programmatic SEO',
+        meta: 'Writing · ~1,600 words so far', live: true, offset: 3,
+        activity: ['Loaded your brand voice profile', 'Drafting the introduction', 'Writing "How it works"', 'Building a comparison table', 'Weaving in internal links', 'Tightening the conclusion'] },
+      { group: 'review', si: 2, kind: 'gate', icon: 'eye', title: '10 onboarding mistakes killing activation',
+        meta: '1,840 words · ready for you', score: 84, action: 'review' },
+      { group: 'review', si: 2, kind: 'gate', icon: 'eye', title: 'Why AI Overviews changed B2B SEO',
+        meta: '1,930 words · ready for you', score: 79, action: 'review' },
+      { group: 'scheduled', si: 3, kind: 'scheduled', icon: 'doc', title: 'Cold email benchmarks worth trusting in 2026',
+        meta: 'Publishes tomorrow at 9:00', score: 76, action: 'edit' },
+      { group: 'live', si: 3, kind: 'done', icon: 'globe', title: 'The SaaS founder\u2019s guide to compounding traffic',
+        meta: 'Live 2d · 1,240 reads · ranking #3', score: 91, action: 'view' },
+      { group: 'live', si: 3, kind: 'done', icon: 'globe', title: 'Programmatic SEO without a dev team',
+        meta: 'Live 5d · 980 reads · ranking #5', score: 73, action: 'view' },
+      { group: 'failed', si: 0, kind: 'failed', icon: 'alert', title: 'Pricing-page copywriting teardown',
+        meta: 'Research step timed out', action: 'retry' },
+    ];
+
+    const groups = groupDefs.map(g => {
+      const items = pipeDef.filter(p => p.group === g.key).map(p => {
+        const accentIcon = p.kind === 'done' || p.group === 'flight';
+        const a = p.action ? ACT[p.action] : null;
+        return {
+          title: p.title, meta: p.meta,
+          metaColor: p.kind === 'failed' ? '#c98f8f' : '#9aa096',
+          icon: this._icon(p.icon, 18),
+          thumbBg: accentIcon ? 'rgba(99,194,129,0.1)' : 'rgba(255,255,255,0.04)',
+          thumbBorder: accentIcon ? 'rgba(99,194,129,0.2)' : 'rgba(255,255,255,0.07)',
+          iconColor: p.kind === 'failed' ? '#c97f7f' : accentIcon ? accent : '#9aa096',
+          liveDot: !!p.live, liveColor: g.color, liveAnim: p.live ? 'gvPulse 1.8s ease-in-out infinite' : 'none',
+          hasAction: !!a, actLabel: a ? a.label : '', actBg: a ? a.bg : '', actColor: a ? a.color : '', actBorder: a ? a.border : '',
+          hasScore: !!p.score, scoreText: p.score ? String(p.score) : '', scoreColor: this._scoreColor(p.score || 0, accent),
+          steps: buildSteps(p.si, p.kind),
+          hasLive: !!p.activity, liveEl: p.activity ? buildLivePanel(p.activity, p.offset) : null,
+        };
+      });
+      return { label: g.label, color: g.color, count: items.length, items, show: items.length > 0 };
+    }).filter(g => g.show);
+
+    // ---- quality bars ----
+    const scores = [68, 74, 71, 82, 79, 88, 84, 73, 91, 86, 79, 84];
+    const qualityBars = scores.map(s => ({ score: s, h: (30 + (s / 100) * 70) + '%', color: this._scoreColor(s, accent) }));
+
+    // ---- agent loop ----
+    const loop = [
+      { n: '1', title: 'Strategy', sub: 'A monthly plan — goals, KPIs, content pillars per domain.' },
+      { n: '2', title: 'Generation', sub: 'The writer pipeline: research live SERP, draft in your voice.' },
+      { n: '3', title: 'Manager', sub: 'Evaluator scores every draft 0–100 and gates publish.' },
+      { n: '4', title: 'Analytics', sub: 'First-party events feed next month\u2019s strategy.', line: false },
+    ];
+
+    return {
+      accentVar: accent, glowVar: glow, showGlow, navSections,
+      bellIcon: this._icon('bell'), sparkleIcon: this._icon('sparkle', 13), leafIcon: this._icon('leaf', 13),
+      countdown: '06h 12m',
+      toggleAutopilot: () => this.setState(s => ({ autopilot: !s.autopilot })),
+      apLabel: ap ? 'Autopilot on' : 'Autopilot off',
+      apBg: ap ? 'rgba(99,194,129,0.1)' : 'rgba(255,255,255,0.03)',
+      apBorder: ap ? 'rgba(99,194,129,0.3)' : 'rgba(255,255,255,0.1)',
+      apColor: ap ? accent : '#9aa096', apDot: ap ? accent : '#6b6f67',
+      apAnim: ap ? 'gvPulse 2.4s ease-in-out infinite' : 'none',
+      chips, modes, modeHint, freqs,
+      topic: this.state.topic, onTopic: (e) => this.setState({ topic: e.target.value }),
+      showSuggest: this.state.showSuggest, toggleSuggest: () => this.setState(s => ({ showSuggest: !s.showSuggest })),
+      suggestions, groups, qualityBars, loop,
+    };
+  }
+}
+</script>
+</body>
+</html>

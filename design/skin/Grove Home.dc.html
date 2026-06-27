@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500;1,600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #0a0b0a; }
+  ::selection { background: rgba(99,194,129,0.3); color: #fff; }
+  @keyframes gvPulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.45; transform: scale(0.85); } }
+  @keyframes gvBlob { 0% { transform: translate3d(-4%,2%,0) scale(1.1); } 50% { transform: translate3d(6%,-3%,0) scale(1.28); } 100% { transform: translate3d(-4%,2%,0) scale(1.1); } }
+  @keyframes gvThink { 0%,80%,100% { opacity: 0.25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+  .gv-nav:hover { background: rgba(255,255,255,0.04) !important; color: #eef1ea !important; }
+  .gv-nav:hover .gv-ico { color: #cdd2c9 !important; }
+  .gv-card { transition: border-color .25s, transform .25s; }
+  .gv-card:hover { border-color: rgba(99,194,129,0.28) !important; }
+  .gv-row:hover { background: rgba(99,194,129,0.05) !important; }
+  .gv-btn { transition: transform .18s, box-shadow .18s, background .18s; }
+  .gv-btn:hover { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(99,194,129,0.22); }
+  .gv-ghost:hover { background: rgba(255,255,255,0.06) !important; color: #eef1ea !important; }
+  .gv-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+  .gv-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 99px; }
+  .gv-scroll::-webkit-scrollbar-track { background: transparent; }
+  input::placeholder { color: #565a53; }
+  .gv-think { width: 5px; height: 5px; border-radius: 50%; background: var(--accent,#63c281); display: inline-block; animation: gvThink 1.2s ease-in-out infinite; }
+</style>
+</helmet>
+
+<div style="--accent: {{ accentVar }}; --glow: {{ glowVar }}; background: #0a0b0a; color: #eef1ea; font-family: 'Plus Jakarta Sans', sans-serif; min-height: 100vh; display: flex; -webkit-font-smoothing: antialiased; position: relative; overflow: hidden;">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="gv-scroll" style="width: 280px; flex-shrink: 0; height: 100vh; position: sticky; top: 0; border-right: 1px solid rgba(255,255,255,0.06); background: #0c0e0c; display: flex; flex-direction: column; overflow-y: auto;">
+    <div style="display: flex; align-items: center; gap: 9px; padding: 22px 22px 18px;">
+      <span style="width: 17px; height: 17px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #9ff0bb, var(--accent,#63c281)); box-shadow: 0 0 12px rgba(99,194,129,0.7);"></span>
+      <span style="font-weight: 700; font-size: 18px; letter-spacing: -0.02em;">grove</span>
+      <span style="margin-left: auto; font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent,#63c281); border: 1px solid rgba(99,194,129,0.3); border-radius: 6px; padding: 3px 7px;">Growth</span>
+    </div>
+    <nav style="padding: 8px 18px; display: flex; flex-direction: column; gap: 22px; flex: 1;">
+      <sc-for list="{{ navSections }}" as="sec" hint-placeholder-count="3">
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <div style="font-size: 10px; letter-spacing: 0.13em; text-transform: uppercase; color: #565a53; padding: 4px 12px 6px;">{{ sec.head }}</div>
+          <sc-for list="{{ sec.items }}" as="item" hint-placeholder-count="4">
+            <button class="gv-nav" onClick="{{ item.onSelect }}" style="display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; border: 1px solid {{ item.border }}; background: {{ item.bg }}; color: {{ item.color }}; font-family: inherit; font-size: 13.5px; font-weight: 500; padding: 9px 12px; border-radius: 10px; cursor: pointer; transition: background .18s, color .18s;">
+              <span class="gv-ico" style="color: {{ item.iconColor }}; display: flex; flex-shrink: 0;">{{ item.icon }}</span>
+              <span style="flex: 1;">{{ item.label }}</span>
+              <sc-if value="{{ item.badge }}" hint-placeholder-val="{{ false }}">
+                <span style="font-size: 10.5px; font-weight: 700; color: #06120b; background: var(--accent,#63c281); border-radius: 999px; padding: 1px 7px;">{{ item.badge }}</span>
+              </sc-if>
+            </button>
+          </sc-for>
+        </div>
+      </sc-for>
+    </nav>
+    <div style="padding: 14px; border-top: 1px solid rgba(255,255,255,0.06); margin-top: auto;">
+      <button class="gv-ghost" style="display: flex; align-items: center; gap: 11px; width: 100%; border: 1px solid rgba(255,255,255,0.09); background: rgba(255,255,255,0.02); border-radius: 12px; padding: 11px 13px; cursor: pointer; font-family: inherit; text-align: left; transition: background .2s;">
+        <span style="width: 30px; height: 30px; border-radius: 8px; background: rgba(99,194,129,0.12); border: 1px solid rgba(99,194,129,0.25); display: flex; align-items: center; justify-content: center; color: var(--accent,#63c281); font-weight: 700; font-size: 13px; flex-shrink: 0;">g</span>
+        <span style="flex: 1; min-width: 0;">
+          <span style="display: block; font-size: 13px; font-weight: 600; color: #eef1ea; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">grove.ai</span>
+          <span style="display: block; font-size: 11px; color: #6b6f67;">3 domains · 1 active</span>
+        </span>
+        <span style="color: #6b6f67; font-size: 13px;">⌄</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main class="gv-scroll" style="flex: 1; min-width: 0; height: 100vh; overflow-y: auto; position: relative;">
+    <sc-if value="{{ showGlow }}" hint-placeholder-val="{{ true }}">
+      <div style="position: absolute; top: 0; left: 0; right: 0; height: 380px; pointer-events: none; opacity: var(--glow,0.6); overflow: hidden;">
+        <div style="position: absolute; top: -42%; left: 30%; width: 44%; height: 110%; background: radial-gradient(ellipse at center, rgba(99,194,129,0.36), rgba(99,194,129,0) 60%); filter: blur(92px); animation: gvBlob 22s ease-in-out infinite;"></div>
+        <div style="position: absolute; top: -38%; right: 4%; width: 36%; height: 100%; background: radial-gradient(ellipse at center, rgba(150,230,185,0.22), rgba(150,230,185,0) 62%); filter: blur(98px); animation: gvBlob 27s ease-in-out infinite reverse;"></div>
+        <div style="position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10,11,10,0) 0%, rgba(10,11,10,0.4) 60%, #0a0b0a 100%);"></div>
+      </div>
+    </sc-if>
+
+    <!-- TOP BAR -->
+    <header style="position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 16px; padding: 16px 30px; background: rgba(10,11,10,0.72); backdrop-filter: blur(18px); border-bottom: 1px solid rgba(255,255,255,0.06);">
+      <div>
+        <div style="font-size: 16px; font-weight: 700; letter-spacing: -0.01em;">Home</div>
+        <div style="font-size: 12px; color: #6b6f67; margin-top: 1px;">grove.ai · autopilot active</div>
+      </div>
+      <div style="flex: 1; max-width: 360px; margin-left: 12px; display: flex; align-items: center; gap: 9px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 9px 13px;">
+        <span style="color: #565a53; display: flex;">{{ searchIcon }}</span>
+        <input placeholder="Search posts, keywords, domains…" style="flex: 1; background: transparent; border: none; outline: none; color: #eef1ea; font-size: 13px; font-family: inherit; min-width: 0;">
+        <span style="font-size: 10.5px; color: #565a53; border: 1px solid rgba(255,255,255,0.1); border-radius: 5px; padding: 1px 6px;">⌘K</span>
+      </div>
+      <div style="margin-left: auto; display: flex; align-items: center; gap: 14px;">
+        <div style="display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2;">
+          <span style="font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #565a53;">Next publish</span>
+          <span style="font-size: 13px; font-weight: 700; color: var(--accent,#63c281);">{{ countdown }}</span>
+        </div>
+        <button onClick="{{ toggleAutopilot }}" class="gv-btn" style="display: flex; align-items: center; gap: 9px; border: 1px solid {{ apBorder }}; background: {{ apBg }}; color: {{ apColor }}; font-family: inherit; font-size: 12.5px; font-weight: 600; padding: 8px 14px; border-radius: 999px; cursor: pointer;">
+          <span style="width: 7px; height: 7px; border-radius: 50%; background: {{ apDot }}; animation: {{ apAnim }};"></span>{{ apLabel }}
+        </button>
+        <span style="width: 1px; height: 26px; background: rgba(255,255,255,0.08);"></span>
+        <button class="gv-ghost" style="position: relative; width: 38px; height: 38px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02); color: #9aa096; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .2s;">{{ bellIcon }}<span style="position: absolute; top: 9px; right: 9px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent,#63c281);"></span></button>
+        <span style="width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, rgba(99,194,129,0.3), rgba(99,194,129,0.1)); border: 1px solid rgba(99,194,129,0.3); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; color: var(--accent,#63c281);">MR</span>
+      </div>
+    </header>
+
+    <!-- BODY -->
+    <div style="position: relative; padding: 28px 36px 48px; max-width: 1500px; margin: 0 auto;">
+
+      <!-- AGENT HERO -->
+      <section class="gv-card" style="background: linear-gradient(135deg, #0c130e, #0a0d0a); border: 1px solid rgba(99,194,129,0.18); border-radius: 20px; padding: 28px 30px; margin-bottom: 14px;">
+        <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; flex-wrap: wrap;">
+          <div style="flex: 1; min-width: 320px;">
+            <div style="display: flex; align-items: center; gap: 9px; font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent,#63c281);">
+              <span style="display: flex;">{{ leafIcon }}</span> Your marketing agent
+              <span style="display: inline-flex; align-items: center; gap: 6px; color: #9aa096; font-weight: 600; margin-left: 4px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: var(--accent,#63c281); animation: gvPulse 1.8s ease-in-out infinite;"></span>working</span>
+            </div>
+            <h1 style="font-size: 27px; font-weight: 700; letter-spacing: -0.025em; margin: 14px 0 0;">Good evening, Maya.</h1>
+            <p style="font-size: 15.5px; line-height: 1.62; color: #dfe4da; margin: 10px 0 0; max-width: 680px;">
+              While you were away grove shipped <span style="color: #fff; font-weight: 600;">2 posts</span> — one is already ranking <span style="color: #fff; font-weight: 600;">#3</span> and got quoted by ChatGPT. Right now it's drafting your next one, and <span style="color: #fff; font-weight: 600;">2 drafts</span> are waiting on your sign-off.
+            </p>
+            <div style="display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;">
+              <button class="gv-btn" style="border: none; background: var(--accent,#63c281); color: #06120b; font-family: inherit; font-size: 13px; font-weight: 700; padding: 11px 18px; border-radius: 10px; cursor: pointer;">Review 2 drafts →</button>
+              <button class="gv-ghost" style="border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.02); color: #cdd2c9; font-family: inherit; font-size: 13px; font-weight: 600; padding: 11px 18px; border-radius: 10px; cursor: pointer; transition: .2s;">Write something</button>
+            </div>
+          </div>
+
+          <!-- live activity ticker -->
+          <div style="width: 300px; flex-shrink: 0; background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 16px 18px;">
+            <div style="font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #6b6f67; margin-bottom: 12px;">Working on now</div>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <sc-for list="{{ nowItems }}" as="a" hint-placeholder-count="2">
+                <div style="display: flex; align-items: flex-start; gap: 10px;">
+                  <span style="display: inline-flex; gap: 3px; align-items: center; flex-shrink: 0; margin-top: 4px;">
+                    <span class="gv-think"></span><span class="gv-think" style="animation-delay: .15s;"></span><span class="gv-think" style="animation-delay: .3s;"></span>
+                  </span>
+                  <div style="min-width: 0;">
+                    <div style="font-size: 12.5px; font-weight: 600; color: #eef1ea;">{{ a.title }}</div>
+                    <div style="font-size: 11.5px; color: #6b6f67; margin-top: 1px; line-height: 1.4;">{{ a.detail }}</div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="font-size: 11px; color: #565a53; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 11px; margin-top: 13px; display: flex; align-items: center; gap: 7px;">
+              <span style="color: var(--accent,#63c281);">↻</span> Next post live in <span style="color: var(--accent,#63c281); font-weight: 600;">{{ countdown }}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- OUTCOME STATS -->
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 14px;">
+        <sc-for list="{{ stats }}" as="s" hint-placeholder-count="4">
+          <div class="gv-card" style="background: #101310; border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; padding: 18px 20px;">
+            <div style="display: flex; align-items: center; gap: 9px; color: #9aa096; font-size: 12.5px;">
+              <span style="display: flex; color: var(--accent,#63c281);">{{ s.icon }}</span>{{ s.label }}
+            </div>
+            <div style="display: flex; align-items: flex-end; gap: 9px; margin-top: 13px;">
+              <span style="font-size: 28px; font-weight: 700; letter-spacing: -0.03em; line-height: 1;">{{ s.value }}</span>
+              <span style="display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 600; color: {{ s.deltaColor }}; padding-bottom: 3px;">{{ s.delta }}</span>
+            </div>
+            <svg viewBox="0 0 120 32" preserveAspectRatio="none" style="width: 100%; height: 28px; margin-top: 12px; overflow: visible;">
+              <path d="{{ s.sparkArea }}" fill="{{ s.sparkFill }}" stroke="none"></path>
+              <path d="{{ s.sparkLine }}" fill="none" stroke="var(--accent,#63c281)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+            <div style="font-size: 11px; color: #6b6f67; margin-top: 6px;">{{ s.sub }}</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <!-- TWO COLUMNS -->
+      <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 14px; align-items: start;">
+
+        <!-- ===== RECENT WINS ===== -->
+        <div class="gv-card" style="background: #101310; border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; overflow: hidden;">
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; border-bottom: 1px solid rgba(255,255,255,0.06);">
+            <div>
+              <div style="font-size: 15px; font-weight: 700;">What grove shipped</div>
+              <div style="font-size: 12px; color: #6b6f67; margin-top: 2px;">Recent posts and how they're doing</div>
+            </div>
+            <a href="#" style="font-size: 12.5px; color: #9aa096; text-decoration: none;">View all 128 →</a>
+          </div>
+          <sc-for list="{{ wins }}" as="w" hint-placeholder-count="4">
+            <div class="gv-row" style="display: flex; align-items: center; gap: 14px; padding: 15px 22px; border-bottom: 1px solid rgba(255,255,255,0.04); transition: background .15s; cursor: pointer;">
+              <span style="width: 30px; height: 30px; border-radius: 8px; background: rgba(99,194,129,0.1); border: 1px solid rgba(99,194,129,0.22); display: flex; align-items: center; justify-content: center; color: var(--accent,#63c281); flex-shrink: 0;">{{ w.icon }}</span>
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ w.title }}</div>
+                <div style="font-size: 11.5px; color: #6b6f67; margin-top: 2px;">{{ w.meta }}</div>
+              </div>
+              <sc-if value="{{ w.cited }}" hint-placeholder-val="{{ false }}">
+                <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; color: #c8a6e8; background: rgba(200,166,232,0.1); border: 1px solid rgba(200,166,232,0.25); padding: 4px 9px; border-radius: 999px; flex-shrink: 0;">{{ quoteIcon }} cited</span>
+              </sc-if>
+              <div style="text-align: right; flex-shrink: 0; min-width: 88px;">
+                <div style="font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums;">{{ w.reads }}</div>
+                <div style="font-size: 11px; color: #6b6f67;">reads</div>
+              </div>
+              <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 600; color: var(--accent,#63c281); width: 64px; justify-content: flex-end; font-variant-numeric: tabular-nums;">#{{ w.pos }} <span style="font-size: 10.5px;">{{ w.posChange }}</span></span>
+            </div>
+          </sc-for>
+        </div>
+
+        <!-- ===== RIGHT RAIL ===== -->
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+
+          <!-- NEEDS YOU -->
+          <div class="gv-card" style="background: #101310; border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; padding: 20px 22px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+              <div style="font-size: 14px; font-weight: 700;">Needs you</div>
+              <span style="font-size: 11px; font-weight: 700; color: #06120b; background: #e0c878; border-radius: 999px; padding: 2px 9px;">{{ needsCount }}</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 9px;">
+              <sc-for list="{{ needs }}" as="n" hint-placeholder-count="2">
+                <div style="display: flex; align-items: flex-start; gap: 11px; padding: 12px 13px; border-radius: 11px; background: {{ n.bg }}; border: 1px solid {{ n.border }};">
+                  <span style="display: flex; color: {{ n.iconColor }}; flex-shrink: 0; margin-top: 1px;">{{ n.icon }}</span>
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="font-size: 12.5px; font-weight: 600; color: #eef1ea;">{{ n.title }}</div>
+                    <div style="font-size: 11.5px; color: #6b6f67; margin-top: 1px; line-height: 1.4;">{{ n.detail }}</div>
+                  </div>
+                  <sc-if value="{{ n.action }}" hint-placeholder-val="{{ false }}">
+                    <button class="gv-btn" style="border: 1px solid {{ n.actBorder }}; background: {{ n.actBg }}; color: {{ n.actColor }}; font-family: inherit; font-size: 11.5px; font-weight: 600; padding: 6px 11px; border-radius: 8px; cursor: pointer; white-space: nowrap; flex-shrink: 0;">{{ n.action }}</button>
+                  </sc-if>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <!-- AGENT INSIGHT -->
+          <div class="gv-card" style="background: linear-gradient(150deg, #0c130e, #0a0d0a); border: 1px solid rgba(99,194,129,0.16); border-radius: 18px; padding: 20px 22px;">
+            <div style="display: flex; align-items: center; gap: 7px; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent,#63c281); margin-bottom: 11px;">{{ sparkIcon }} Agent insight</div>
+            <div style="font-size: 13.5px; color: #dfe4da; line-height: 1.6;">{{ insight }}</div>
+            <div style="display: flex; gap: 8px; margin-top: 14px;">
+              <button class="gv-btn" style="border: none; background: var(--accent,#63c281); color: #06120b; font-family: inherit; font-size: 12px; font-weight: 700; padding: 8px 14px; border-radius: 9px; cursor: pointer;">Approve plan</button>
+              <button class="gv-ghost" style="border: 1px solid rgba(255,255,255,0.12); background: transparent; color: #9aa096; font-family: inherit; font-size: 12px; font-weight: 600; padding: 8px 14px; border-radius: 9px; cursor: pointer; transition: .2s;">Dismiss</button>
+            </div>
+          </div>
+
+          <!-- THIS WEEK -->
+          <div class="gv-card" style="background: #101310; border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; padding: 20px 22px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+              <div style="font-size: 14px; font-weight: 700;">This week</div>
+              <span style="font-size: 11.5px; color: #6b6f67;">3 of 4 shipped</span>
+            </div>
+            <div style="font-size: 12px; color: #6b6f67; margin-bottom: 16px;">On a 4-posts-per-week cadence</div>
+            <div style="display: flex; gap: 6px; margin-bottom: 16px;">
+              <sc-for list="{{ weekDots }}" as="d" hint-placeholder-count="4">
+                <div style="flex: 1; height: 6px; border-radius: 99px; background: {{ d.color }};"></div>
+              </sc-for>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 11px;">
+              <sc-for list="{{ channels }}" as="c" hint-placeholder-count="4">
+                <div style="display: flex; align-items: center; gap: 11px;">
+                  <span style="width: 8px; height: 8px; border-radius: 50%; background: {{ c.dot }}; flex-shrink: 0;"></span>
+                  <span style="font-size: 13px; color: #cdd2c9; flex: 1;">{{ c.name }}</span>
+                  <span style="font-size: 11.5px; font-weight: 600; color: {{ c.color }};">{{ c.state }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 1440, &quot;height&quot;: 1040}, &quot;accent&quot;: {&quot;editor&quot;: &quot;color&quot;, &quot;default&quot;: &quot;#63c281&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;options&quot;: [&quot;#63c281&quot;, &quot;#7bd6a0&quot;, &quot;#4fae6e&quot;, &quot;#8fd9b0&quot;, &quot;#39b06a&quot;]}, &quot;glowIntensity&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;balanced&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;options&quot;: [&quot;subtle&quot;, &quot;balanced&quot;, &quot;intense&quot;]}, &quot;showGlow&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;}}">
+class Component extends DCLogic {
+  state = { nav: 'Home', autopilot: true };
+
+  _icon(name, size) {
+    const E = React.createElement;
+    const p = { width: size || 17, height: size || 17, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.8, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' };
+    const defs = {
+      home: ['M3 11l9-8 9 8', 'M5 10v10h14V10'],
+      strategy: ['circle:12,12,8.5', 'circle:12,12,4', 'M12 1v3', 'M12 20v3', 'M1 12h3', 'M20 12h3'],
+      write: ['M4 20l3.5-1 10-10a2 2 0 00-3-3l-10 10z', 'M13.5 6.5l3 3'],
+      pipeline: ['M4 7h16', 'M4 12h16', 'M4 17h10'],
+      calendar: ['rect:3,5,18,16,2', 'M3 9h18', 'M8 3v4', 'M16 3v4'],
+      reviews: ['circle:12,12,9', 'M8.5 12l2.4 2.4L15.5 9'],
+      analytics: ['M5 21V11', 'M12 21V4', 'M19 21v-7', 'M3 21h18'],
+      voice: ['M4 10v4', 'M8 6v12', 'M12 9v6', 'M16 4v16', 'M20 10v4'],
+      social: ['circle:6,12,2.5', 'circle:18,6,2.5', 'circle:18,18,2.5', 'M8.2 10.8l7.6-3.6', 'M8.2 13.2l7.6 3.6'],
+      embed: ['M9 8l-4 4 4 4', 'M15 8l4 4-4 4'],
+      search: ['circle:11,11,7', 'M21 21l-3.6-3.6'],
+      bell: ['M6 9a6 6 0 0112 0c0 5 2 6 2 6H4s2-1 2-6', 'M10.5 20a2 2 0 003 0'],
+      leaf: ['M11 20c-4 0-7-3-7-8 0-5 6-9 15-9 0 9-4 15-9 15-3 0-4-2-4-4 0-3 3-5 7-6'],
+      globe: ['circle:12,12,9', 'M3 12h18', 'M12 3c2.5 2.8 2.5 15.2 0 18', 'M12 3c-2.5 2.8-2.5 15.2 0 18'],
+      cursor: ['M4 4l7 16 2.5-6.5L20 11z'],
+      eye: ['circle:12,12,3', 'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z'],
+      target: ['circle:12,12,8.5', 'circle:12,12,4.5', 'circle:12,12,0.6'],
+      spark: ['M12 3l2.2 5.6L20 11l-5.8 2.4L12 19l-2.2-5.6L4 11l5.8-2.4z'],
+      quote: ['M7 7H4v6h5V9c0-1 0-2-2-2z', 'M19 7h-3v6h5V9c0-1 0-2-2-2z'],
+      search2: ['circle:11,11,7', 'M21 21l-3.5-3.5'],
+      sparkle: ['M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5z'],
+    };
+    const els = (defs[name] || []).map((d, i) => {
+      if (d.startsWith('circle:')) { const a = d.slice(7).split(','); return E('circle', { key: i, cx: a[0], cy: a[1], r: a[2] }); }
+      if (d.startsWith('rect:')) { const a = d.slice(5).split(','); return E('rect', { key: i, x: a[0], y: a[1], width: a[2], height: a[3], rx: a[4] || 1.5 }); }
+      return E('path', { key: i, d });
+    });
+    return E('svg', p, els);
+  }
+
+  _spark(vals, w, h, pad) {
+    const n = vals.length, max = Math.max(...vals), min = Math.min(...vals), rng = (max - min) || 1;
+    const pts = vals.map((v, i) => ({ x: pad + (i / (n - 1)) * (w - 2 * pad), y: pad + (1 - (v - min) / rng) * (h - 2 * pad) }));
+    let d = 'M ' + pts[0].x.toFixed(1) + ' ' + pts[0].y.toFixed(1);
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+      const c1x = p1.x + (p2.x - p0.x) / 6, c1y = p1.y + (p2.y - p0.y) / 6;
+      const c2x = p2.x - (p3.x - p1.x) / 6, c2y = p2.y - (p3.y - p1.y) / 6;
+      d += ' C ' + c1x.toFixed(1) + ' ' + c1y.toFixed(1) + ' ' + c2x.toFixed(1) + ' ' + c2y.toFixed(1) + ' ' + p2.x.toFixed(1) + ' ' + p2.y.toFixed(1);
+    }
+    const area = d + ' L ' + pts[n - 1].x.toFixed(1) + ' ' + (h - pad) + ' L ' + pts[0].x.toFixed(1) + ' ' + (h - pad) + ' Z';
+    return { line: d, area };
+  }
+
+  renderVals() {
+    const accent = this.props.accent ?? '#63c281';
+    const glowMap = { subtle: '0.35', balanced: '0.6', intense: '0.95' };
+    const glow = glowMap[this.props.glowIntensity ?? 'balanced'] ?? '0.6';
+    const showGlow = this.props.showGlow ?? true;
+    const ap = this.state.autopilot;
+
+    // ---- nav ----
+    const navDef = [
+      { head: 'Create', items: [
+        { label: 'Home', icon: 'home' },
+        { label: 'Strategy', icon: 'strategy' },
+        { label: 'Write', icon: 'write' },
+        { label: 'Pipeline', icon: 'pipeline', badge: '4' },
+      ]},
+      { head: 'Publish', items: [
+        { label: 'Calendar', icon: 'calendar' },
+        { label: 'Reviews', icon: 'reviews', badge: '2' },
+        { label: 'Analytics', icon: 'analytics' },
+      ]},
+      { head: 'Brand', items: [
+        { label: 'Brand voice', icon: 'voice' },
+        { label: 'Social', icon: 'social' },
+        { label: 'Embed', icon: 'embed' },
+      ]},
+    ];
+    const navSections = navDef.map(sec => ({
+      head: sec.head,
+      items: sec.items.map(it => {
+        const active = this.state.nav === it.label;
+        return { label: it.label, badge: it.badge || false, icon: this._icon(it.icon),
+          onSelect: () => this.setState({ nav: it.label }),
+          bg: active ? 'rgba(99,194,129,0.1)' : 'transparent',
+          border: active ? 'rgba(99,194,129,0.22)' : 'transparent',
+          color: active ? '#eef1ea' : '#9aa096',
+          iconColor: active ? accent : '#6b6f67' };
+      }),
+    }));
+
+    // ---- now items ----
+    const nowItems = [
+      { title: 'Researching live SERP', detail: '“reduce saas churn” · ~3 min left' },
+      { title: 'Drafting in your voice', detail: 'A buyer’s guide to programmatic SEO' },
+    ];
+
+    // ---- outcome stats ----
+    const statDef = [
+      { icon: 'cursor', label: 'Organic clicks', value: '48.2k', delta: '▲ 312%', sub: 'vs. 11.7k last quarter', spark: [12,15,14,19,22,21,27,31,30,38,44,52], fill: true },
+      { icon: 'spark', label: 'AI citations', value: '401', delta: '▲ 41%', sub: 'ChatGPT, AI Overviews, Perplexity', spark: [8,10,12,16,15,22,28,30,36,42,48,57], fill: true },
+      { icon: 'target', label: 'Page-1 keywords', value: '42', delta: '▲ 15', sub: 'of 214 tracked terms', spark: [10,12,14,18,20,24,28,30,34,37,40,42], fill: false },
+      { icon: 'eye', label: 'Trial signups', value: '742', delta: '▲ 22%', sub: 'attributed to blog content', spark: [20,24,26,30,33,38,44,49,55,62,69,74], fill: false },
+    ];
+    const stats = statDef.map(s => {
+      const sp = this._spark(s.spark, 120, 32, 4);
+      return { icon: this._icon(s.icon), label: s.label, value: s.value, delta: s.delta, sub: s.sub,
+        deltaColor: accent, sparkLine: sp.line, sparkArea: sp.area,
+        sparkFill: s.fill ? 'rgba(99,194,129,0.14)' : 'transparent' };
+    });
+
+    // ---- recent wins ----
+    const wins = [
+      { icon: 'globe', title: '10 onboarding mistakes killing activation', meta: 'Published 6 min ago · ai onboarding checklist', reads: '1,240', pos: '3', posChange: '▲12', cited: true },
+      { icon: 'globe', title: 'The SaaS founder’s guide to compounding traffic', meta: 'Live 2d · compounding organic traffic', reads: '9,120', pos: '3', posChange: '▲4', cited: true },
+      { icon: 'globe', title: 'How to write for answer engines', meta: 'Live 1w · write for answer engines', reads: '6,740', pos: '2', posChange: '▲8', cited: false },
+      { icon: 'globe', title: 'Programmatic SEO without a dev team', meta: 'Live 5d · programmatic seo no code', reads: '980', pos: '5', posChange: '▲6', cited: false },
+    ].map(w => ({ ...w, icon: this._icon(w.icon, 16) }));
+
+    // ---- needs you ----
+    const ATTN = { bg: 'rgba(224,200,120,0.06)', border: 'rgba(224,200,120,0.22)', iconColor: '#e0c878' };
+    const LIVE = { bg: 'rgba(255,255,255,0.02)', border: 'rgba(255,255,255,0.06)', iconColor: '#9aa096' };
+    const needs = [
+      { icon: this._icon('reviews', 16), title: '2 drafts ready for review', detail: 'Approve to let autopilot publish them', action: 'Review', ...ATTN,
+        actBg: 'var(--accent,#63c281)', actColor: '#06120b', actBorder: 'var(--accent,#63c281)' },
+      { icon: this._icon('strategy', 16), title: 'July plan is ready', detail: 'grove drafted next month from your results', action: 'Open', ...LIVE,
+        actBg: 'rgba(255,255,255,0.04)', actColor: '#eef1ea', actBorder: 'rgba(255,255,255,0.14)' },
+    ];
+
+    // ---- insight ----
+    const insight = 'Your churn-themed posts pull 2.4× the clicks of everything else. I’ve drafted two more in that cluster and can prioritize them this week.';
+
+    // ---- this week ----
+    const weekDots = [
+      { color: accent }, { color: accent }, { color: accent }, { color: 'rgba(255,255,255,0.1)' },
+    ];
+    const channels = [
+      { name: 'Blog post', dot: accent, state: 'Published', color: accent },
+      { name: 'X thread', dot: '#8ea596', state: 'Queued', color: '#9aa096' },
+      { name: 'LinkedIn', dot: '#8ea596', state: 'Queued', color: '#9aa096' },
+      { name: 'Instagram', dot: '#565a53', state: 'Drafting', color: '#6b6f67' },
+    ];
+
+    return {
+      accentVar: accent, glowVar: glow, showGlow, navSections,
+      searchIcon: this._icon('search'), bellIcon: this._icon('bell'),
+      leafIcon: this._icon('leaf', 13), quoteIcon: this._icon('quote', 12), sparkIcon: this._icon('sparkle', 13),
+      countdown: '06h 12m',
+      toggleAutopilot: () => this.setState(s => ({ autopilot: !s.autopilot })),
+      apLabel: ap ? 'Autopilot on' : 'Autopilot off',
+      apBg: ap ? 'rgba(99,194,129,0.1)' : 'rgba(255,255,255,0.03)',
+      apBorder: ap ? 'rgba(99,194,129,0.3)' : 'rgba(255,255,255,0.1)',
+      apColor: ap ? accent : '#9aa096', apDot: ap ? accent : '#6b6f67',
+      apAnim: ap ? 'gvPulse 2.4s ease-in-out infinite' : 'none',
+      nowItems, stats, wins,
+      needs, needsCount: 2, insight, weekDots, channels,
+    };
+  }
+}
+</script>
+</body>
+</html>

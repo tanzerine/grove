@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500;1,600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #0a0b0a; }
+  ::selection { background: rgba(99,194,129,0.3); color: #fff; }
+  @keyframes gvPulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.45; transform: scale(0.85); } }
+  @keyframes gvBlob { 0% { transform: translate3d(-4%,2%,0) scale(1.1); } 50% { transform: translate3d(6%,-3%,0) scale(1.28); } 100% { transform: translate3d(-4%,2%,0) scale(1.1); } }
+  @keyframes gvMark { 0%,100% { background: rgba(99,194,129,0.12); } 50% { background: rgba(99,194,129,0.22); } }
+  @keyframes gvRingIn { from { stroke-dashoffset: 97.4; } }
+  .gv-nav:hover { background: rgba(255,255,255,0.04) !important; color: #eef1ea !important; }
+  .gv-nav:hover .gv-ico { color: #cdd2c9 !important; }
+  .gv-card { transition: border-color .25s, transform .25s; }
+  .gv-card:hover { border-color: rgba(99,194,129,0.28) !important; }
+  .gv-btn { transition: transform .18s, box-shadow .18s, background .18s, filter .18s; }
+  .gv-btn:hover { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(99,194,129,0.22); }
+  .gv-ghost:hover { background: rgba(255,255,255,0.06) !important; color: #eef1ea !important; }
+  .gv-iconbtn:hover { background: rgba(255,255,255,0.06) !important; color: #eef1ea !important; border-color: rgba(255,255,255,0.18) !important; }
+  .gv-chip:hover { border-color: rgba(99,194,129,0.4) !important; }
+  .gv-qrow:hover { background: rgba(255,255,255,0.025) !important; }
+  .gv-det summary { list-style: none; cursor: pointer; }
+  .gv-det summary::-webkit-details-marker { display: none; }
+  .gv-det[open] .gv-det-caret { transform: rotate(90deg); }
+  .gv-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+  .gv-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 99px; }
+  .gv-scroll::-webkit-scrollbar-track { background: transparent; }
+  .gv-prose h2 { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; color: #eef1ea; margin: 30px 0 10px; }
+  .gv-prose p { font-size: 15px; line-height: 1.72; color: #c4c9bf; margin: 0 0 16px; }
+  .gv-prose mark { background: rgba(99,194,129,0.16); color: #eef1ea; border-radius: 3px; padding: 0 3px; animation: gvMark 3.4s ease-in-out infinite; }
+</style>
+</helmet>
+
+<div style="--accent: {{ accentVar }}; --glow: {{ glowVar }}; background: #0a0b0a; color: #eef1ea; font-family: 'Plus Jakarta Sans', sans-serif; min-height: 100vh; display: flex; -webkit-font-smoothing: antialiased; position: relative; overflow: hidden;">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="gv-scroll" style="width: 280px; flex-shrink: 0; height: 100vh; position: sticky; top: 0; border-right: 1px solid rgba(255,255,255,0.06); background: #0c0e0c; display: flex; flex-direction: column; overflow-y: auto;">
+    <div style="display: flex; align-items: center; gap: 9px; padding: 22px 22px 18px;">
+      <span style="width: 17px; height: 17px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #9ff0bb, var(--accent,#63c281)); box-shadow: 0 0 12px rgba(99,194,129,0.7);"></span>
+      <span style="font-weight: 700; font-size: 18px; letter-spacing: -0.02em;">grove</span>
+      <span style="margin-left: auto; font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent,#63c281); border: 1px solid rgba(99,194,129,0.3); border-radius: 6px; padding: 3px 7px;">Growth</span>
+    </div>
+
+    <nav style="padding: 8px 18px; display: flex; flex-direction: column; gap: 22px; flex: 1;">
+      <sc-for list="{{ navSections }}" as="sec" hint-placeholder-count="3">
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <div style="font-size: 10px; letter-spacing: 0.13em; text-transform: uppercase; color: #565a53; padding: 4px 12px 6px;">{{ sec.head }}</div>
+          <sc-for list="{{ sec.items }}" as="item" hint-placeholder-count="3">
+            <button class="gv-nav" onClick="{{ item.onSelect }}" style="display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; border: 1px solid {{ item.border }}; background: {{ item.bg }}; color: {{ item.color }}; font-family: inherit; font-size: 13.5px; font-weight: 500; padding: 9px 12px; border-radius: 10px; cursor: pointer; transition: background .18s, color .18s;">
+              <span class="gv-ico" style="color: {{ item.iconColor }}; display: flex; flex-shrink: 0;">{{ item.icon }}</span>
+              <span style="flex: 1;">{{ item.label }}</span>
+              <sc-if value="{{ item.badge }}" hint-placeholder-val="{{ false }}">
+                <span style="font-size: 10.5px; font-weight: 700; color: #06120b; background: var(--accent,#63c281); border-radius: 999px; padding: 1px 7px;">{{ item.badge }}</span>
+              </sc-if>
+            </button>
+          </sc-for>
+        </div>
+      </sc-for>
+    </nav>
+
+    <div style="padding: 14px; border-top: 1px solid rgba(255,255,255,0.06); margin-top: auto;">
+      <button class="gv-ghost" style="display: flex; align-items: center; gap: 11px; width: 100%; border: 1px solid rgba(255,255,255,0.09); background: rgba(255,255,255,0.02); border-radius: 12px; padding: 11px 13px; cursor: pointer; font-family: inherit; text-align: left; transition: background .2s;">
+        <span style="width: 30px; height: 30px; border-radius: 8px; background: rgba(99,194,129,0.12); border: 1px solid rgba(99,194,129,0.25); display: flex; align-items: center; justify-content: center; color: var(--accent,#63c281); font-weight: 700; font-size: 13px; flex-shrink: 0;">g</span>
+        <span style="flex: 1; min-width: 0;">
+          <span style="display: block; font-size: 13px; font-weight: 600; color: #eef1ea; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">grove.ai</span>
+          <span style="display: block; font-size: 11px; color: #6b6f67;">review mode · 2 in queue</span>
+        </span>
+        <span style="color: #6b6f67; font-size: 13px;">⌄</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main class="gv-scroll" style="flex: 1; min-width: 0; height: 100vh; overflow-y: auto; position: relative;">
+
+    <sc-if value="{{ showGlow }}" hint-placeholder-val="{{ true }}">
+      <div style="position: absolute; top: 0; left: 0; right: 0; height: 340px; pointer-events: none; opacity: var(--glow,0.6); overflow: hidden;">
+        <div style="position: absolute; top: -42%; left: 30%; width: 44%; height: 110%; background: radial-gradient(ellipse at center, rgba(99,194,129,0.34), rgba(99,194,129,0) 60%); filter: blur(92px); animation: gvBlob 22s ease-in-out infinite;"></div>
+        <div style="position: absolute; top: -38%; right: 6%; width: 34%; height: 100%; background: radial-gradient(ellipse at center, rgba(150,230,185,0.22), rgba(150,230,185,0) 62%); filter: blur(98px); animation: gvBlob 27s ease-in-out infinite reverse;"></div>
+        <div style="position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10,11,10,0) 0%, rgba(10,11,10,0.4) 60%, #0a0b0a 100%);"></div>
+      </div>
+    </sc-if>
+
+    <!-- TOP BAR -->
+    <header style="position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 16px; padding: 14px 30px; background: rgba(10,11,10,0.72); backdrop-filter: blur(18px); border-bottom: 1px solid rgba(255,255,255,0.06);">
+      <button class="gv-iconbtn" style="display: flex; align-items: center; gap: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02); color: #9aa096; font-family: inherit; font-size: 12.5px; font-weight: 600; padding: 7px 12px; border-radius: 9px; cursor: pointer; transition: .2s;">{{ backIcon }} Pipeline</button>
+      <div style="line-height: 1.2;">
+        <div style="font-size: 16px; font-weight: 700; letter-spacing: -0.01em;">Review draft</div>
+        <div style="font-size: 12px; color: #6b6f67;">grove.ai · the manager scored it — your call to publish</div>
+      </div>
+      <div style="margin-left: auto; display: flex; align-items: center; gap: 14px;">
+        <div style="display: inline-flex; align-items: center; gap: 2px; padding: 4px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;">
+          <button onClick="{{ onPrev }}" class="gv-iconbtn" style="width: 30px; height: 30px; border-radius: 7px; border: 1px solid transparent; background: transparent; color: #9aa096; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: .2s;">{{ prevIcon }}</button>
+          <span style="font-size: 12px; font-weight: 600; color: #cdd2c9; padding: 0 8px; font-variant-numeric: tabular-nums;">{{ queuePos }}</span>
+          <button onClick="{{ onNext }}" class="gv-iconbtn" style="width: 30px; height: 30px; border-radius: 7px; border: 1px solid transparent; background: transparent; color: #9aa096; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: .2s;">{{ nextIcon }}</button>
+        </div>
+        <span style="width: 1px; height: 26px; background: rgba(255,255,255,0.08);"></span>
+        <button class="gv-ghost" style="position: relative; width: 38px; height: 38px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02); color: #9aa096; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .2s;">
+          {{ bellIcon }}
+          <span style="position: absolute; top: 9px; right: 9px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent,#63c281);"></span>
+        </button>
+        <span style="width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, rgba(99,194,129,0.3), rgba(99,194,129,0.1)); border: 1px solid rgba(99,194,129,0.3); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; color: var(--accent,#63c281);">MR</span>
+      </div>
+    </header>
+
+    <!-- BODY -->
+    <div style="position: relative; padding: 26px 36px 56px; max-width: 1500px; margin: 0 auto;">
+
+      <!-- decision confirmation banner -->
+      <sc-if value="{{ decided }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; align-items: center; gap: 12px; background: linear-gradient(135deg, #0c130e, #0a0d0a); border: 1px solid rgba(99,194,129,0.28); border-radius: 14px; padding: 14px 18px; margin-bottom: 16px;">
+          <span style="width: 28px; height: 28px; border-radius: 8px; background: rgba(99,194,129,0.14); border: 1px solid rgba(99,194,129,0.3); color: var(--accent,#63c281); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">{{ checkIcon }}</span>
+          <span style="font-size: 13.5px; color: #dfe4da;">{{ decidedMsg }}</span>
+          <button onClick="{{ onUndo }}" class="gv-ghost" style="margin-left: auto; border: 1px solid rgba(255,255,255,0.12); background: transparent; color: #9aa096; font-family: inherit; font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 8px; cursor: pointer; transition: .2s;">Undo</button>
+        </div>
+      </sc-if>
+
+      <div style="display: grid; grid-template-columns: 1.7fr 1fr; gap: 18px; align-items: start;">
+
+        <!-- ===== LEFT: the draft ===== -->
+        <div class="gv-card" style="background: #101310; border: 1px solid rgba(255,255,255,0.07); border-radius: 20px; overflow: hidden;">
+
+          <!-- cover -->
+          <div style="position: relative; height: 180px; background: {{ coverBg }}; overflow: hidden;">
+            <div style="position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10,11,10,0) 40%, rgba(16,19,16,0.9) 100%);"></div>
+            <div style="position: absolute; top: 16px; left: 18px; display: inline-flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 600; color: #06120b; background: var(--accent,#63c281); padding: 5px 11px; border-radius: 999px;">{{ genreIcon }} {{ genre }}</div>
+            <div style="position: absolute; top: 16px; right: 18px; display: inline-flex; align-items: center; gap: 7px; font-size: 11.5px; font-weight: 600; color: #cdd2c9; background: rgba(10,11,10,0.55); backdrop-filter: blur(6px); border: 1px solid rgba(255,255,255,0.1); padding: 5px 11px; border-radius: 999px;">{{ imgIcon }} AI cover · editable</div>
+          </div>
+
+          <div style="padding: 26px 40px 40px;">
+            <!-- title + byline -->
+            <h1 style="font-size: 30px; font-weight: 700; letter-spacing: -0.025em; line-height: 1.15; margin: 0;">{{ title }}</h1>
+            <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 14px; font-size: 12.5px; color: #9aa096;">
+              <span style="display: inline-flex; align-items: center; gap: 7px;"><span style="width: 22px; height: 22px; border-radius: 50%; background: linear-gradient(135deg, rgba(99,194,129,0.3), rgba(99,194,129,0.1)); border: 1px solid rgba(99,194,129,0.3); display: flex; align-items: center; justify-content: center; font-size: 9.5px; font-weight: 700; color: var(--accent,#63c281);">{{ authorInitials }}</span>{{ author }}</span>
+              <span style="color: #3a4640;">•</span><span>{{ readMin }} min read</span>
+              <span style="color: #3a4640;">•</span><span>{{ words }} words</span>
+              <span style="color: #3a4640;">•</span>
+              <span style="display: inline-flex; align-items: center; gap: 6px;">{{ targetIcon }} targets <span style="color: #cdd2c9; font-weight: 600;">{{ keyword }}</span></span>
+            </div>
+
+            <div style="height: 1px; background: rgba(255,255,255,0.06); margin: 24px 0 4px;"></div>
+
+            <!-- ARTICLE BODY (data-driven blocks) -->
+            <div class="gv-prose">
+              <sc-for list="{{ blocks }}" as="b" hint-placeholder-count="7">
+
+                <sc-if value="{{ b.isH2 }}" hint-placeholder-val="{{ false }}">
+                  <h2>{{ b.text }}</h2>
+                </sc-if>
+
+                <sc-if value="{{ b.isP }}" hint-placeholder-val="{{ false }}">
+                  <p>{{ b.pre }}<sc-if value="{{ b.mark }}" hint-placeholder-val="{{ false }}"><mark>{{ b.mark }}</mark></sc-if>{{ b.post }}</p>
+                </sc-if>
+
+                <sc-if value="{{ b.isTakeaways }}" hint-placeholder-val="{{ false }}">
+                  <div style="background: linear-gradient(150deg, #0c130e, #0a0d0a); border: 1px solid rgba(99,194,129,0.18); border-radius: 14px; padding: 18px 20px; margin: 4px 0 20px;">
+                    <div style="display: flex; align-items: center; gap: 8px; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent,#63c281); margin-bottom: 12px;">{{ boltIcon }} Key takeaways</div>
+                    <div style="display: flex; flex-direction: column; gap: 9px;">
+                      <sc-for list="{{ b.items }}" as="t" hint-placeholder-count="3">
+                        <div style="display: flex; gap: 10px; font-size: 14px; line-height: 1.5; color: #dfe4da;"><span style="color: var(--accent,#63c281); flex-shrink: 0;">{{ tickIcon }}</span>{{ t }}</div>
+                      </sc-for>
+                    </div>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ b.isNote }}" hint-placeholder-val="{{ false }}">
+                  <div style="display: flex; gap: 12px; background: rgba(224,200,120,0.06); border: 1px solid rgba(224,200,120,0.22); border-left: 3px solid #e0c878; border-radius: 10px; padding: 13px 15px; margin: 0 0 20px;">
+                    <span style="color: #e0c878; flex-shrink: 0; display: flex; margin-top: 1px;">{{ noteIcon }}</span>
+                    <div style="flex: 1;">
+                      <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #e0c878; margin-bottom: 4px;">Agent flagged this</div>
+                      <div style="font-size: 13.5px; line-height: 1.55; color: #d8d2bf;">{{ b.text }}</div>
+                      <div style="display: flex; gap: 8px; margin-top: 11px;">
+                        <button class="gv-btn" style="border: none; background: rgba(224,200,120,0.16); color: #e8d79a; font-family: inherit; font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 8px; cursor: pointer;">{{ b.cta }}</button>
+                        <button class="gv-ghost" style="border: 1px solid rgba(255,255,255,0.12); background: transparent; color: #9aa096; font-family: inherit; font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 8px; cursor: pointer; transition: .2s;">Keep as is</button>
+                      </div>
+                    </div>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ b.isFaq }}" hint-placeholder-val="{{ false }}">
+                  <h2>FAQ</h2>
+                  <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 8px;">
+                    <sc-for list="{{ b.items }}" as="q" hint-placeholder-count="2">
+                      <div style="border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; background: rgba(255,255,255,0.015); padding: 15px 17px;">
+                        <div style="font-size: 14.5px; font-weight: 600; color: #eef1ea;">{{ q.q }}</div>
+                        <div style="font-size: 13.5px; line-height: 1.6; color: #9aa096; margin-top: 6px;">{{ q.a }}</div>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+
+              </sc-for>
+            </div>
+
+            <!-- in-body links woven indicator -->
+            <div style="display: flex; align-items: center; gap: 10px; margin-top: 26px; padding: 13px 16px; border-radius: 11px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); font-size: 12.5px; color: #9aa096;">
+              <span style="color: var(--accent,#63c281); display: flex;">{{ linkIcon }}</span>
+              grove wove <span style="color: #cdd2c9; font-weight: 600;">{{ internalLinks }} internal links</span> to your related posts &amp; <span style="color: #cdd2c9; font-weight: 600;">{{ sourceCount }} outbound sources</span>. All metadata, slug, schema &amp; OG image are ready.
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== RIGHT RAIL ===== -->
+        <div style="display: flex; flex-direction: column; gap: 16px; position: sticky; top: 88px;">
+
+          <!-- DECISION CARD -->
+          <div class="gv-card" style="background: linear-gradient(150deg, #0c130e, #0a0d0a); border: 1px solid rgba(99,194,129,0.18); border-radius: 18px; padding: 22px;">
+            <div style="display: flex; align-items: center; gap: 16px;">
+              <!-- score ring -->
+              <div style="position: relative; width: 78px; height: 78px; flex-shrink: 0;">
+                <svg viewBox="0 0 36 36" style="width: 78px; height: 78px; transform: rotate(-90deg);">
+                  <circle cx="18" cy="18" r="15.5" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="3.4"></circle>
+                  <circle cx="18" cy="18" r="15.5" fill="none" stroke="{{ scoreColor }}" stroke-width="3.4" stroke-linecap="round" stroke-dasharray="97.4" stroke-dashoffset="{{ scoreOffset }}" style="animation: gvRingIn 1.1s cubic-bezier(.4,0,.2,1);"></circle>
+                </svg>
+                <span style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1;">
+                  <span style="font-size: 21px; font-weight: 700; letter-spacing: -0.02em;">{{ score }}</span>
+                  <span style="font-size: 8.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #6b6f67; margin-top: 2px;">/ 100</span>
+                </span>
+              </div>
+              <div style="min-width: 0;">
+                <div style="font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #6b6f67;">Manager verdict</div>
+                <div style="font-size: 15px; font-weight: 700; color: {{ scoreColor }}; margin-top: 3px;">{{ verdict }}</div>
+                <div style="font-size: 12px; color: #9aa096; line-height: 1.45; margin-top: 4px;">{{ verdictSub }}</div>
+              </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 9px; margin-top: 20px;">
+              <button onClick="{{ onApprove }}" class="gv-btn" style="display: flex; align-items: center; justify-content: center; gap: 9px; border: none; background: var(--accent,#63c281); color: #06120b; font-family: inherit; font-size: 14px; font-weight: 700; padding: 13px; border-radius: 11px; cursor: pointer;">{{ sendIcon }} Approve &amp; publish</button>
+              <div style="display: flex; gap: 9px;">
+                <button onClick="{{ onSchedule }}" class="gv-ghost" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.02); color: #cdd2c9; font-family: inherit; font-size: 12.5px; font-weight: 600; padding: 11px; border-radius: 10px; cursor: pointer; transition: .2s;">{{ calIcon }} Schedule</button>
+                <button onClick="{{ onChanges }}" class="gv-ghost" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.02); color: #cdd2c9; font-family: inherit; font-size: 12.5px; font-weight: 600; padding: 11px; border-radius: 10px; cursor: pointer; transition: .2s;">{{ editIcon }} Changes</button>
+              </div>
+            </div>
+            <div style="font-size: 11.5px; color: #6b6f67; line-height: 1.5; margin-top: 14px; text-align: center;">Approving lets autopilot publish to <span style="color: #9aa096; font-weight: 600;">/blog</span> at the next slot · {{ nextSlot }}</div>
+          </div>
+
+          <!-- READINESS (plain language) -->
+          <div class="gv-card" style="background: #101310; border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; padding: 20px 22px;">
+            <div style="font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #6b6f67; margin-bottom: 4px;">Is it ready?</div>
+            <div style="font-size: 13px; color: #9aa096; margin-bottom: 16px;">In plain language — no SEO jargon.</div>
+            <div style="display: flex; flex-direction: column; gap: 13px;">
+              <sc-for list="{{ readiness }}" as="r" hint-placeholder-count="4">
+                <div style="display: flex; align-items: flex-start; gap: 11px;">
+                  <span style="width: 20px; height: 20px; border-radius: 6px; background: {{ r.bg }}; border: 1px solid {{ r.border }}; color: {{ r.color }}; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px;">{{ r.icon }}</span>
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="font-size: 13.5px; font-weight: 600; color: #eef1ea;">{{ r.label }}</div>
+                    <div style="font-size: 12px; color: #6b6f67; line-height: 1.45; margin-top: 2px;">{{ r.note }}</div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <!-- QUALITY BREAKDOWN -->
+          <div class="gv-card" style="background: #101310; border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; padding: 20px 22px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+              <div style="font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #6b6f67;">Quality breakdown</div>
+              <span style="font-size: 11px; color: #565a53;">manager rubric</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 14px;">
+              <sc-for list="{{ rubric }}" as="m" hint-placeholder-count="4">
+                <div>
+                  <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 7px;">
+                    <span style="font-size: 12.5px; color: #cdd2c9;">{{ m.label }}</span>
+                    <span style="font-size: 12.5px; font-weight: 700; color: {{ m.color }}; font-variant-numeric: tabular-nums;">{{ m.value }}</span>
+                  </div>
+                  <div style="height: 7px; border-radius: 99px; background: rgba(255,255,255,0.05); overflow: hidden;"><div style="height: 100%; width: {{ m.pct }}; border-radius: 99px; background: {{ m.color }};"></div></div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <!-- SERP COVERAGE -->
+          <div class="gv-card" style="background: #101310; border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; padding: 20px 22px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+              <div style="font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #6b6f67;">What's ranking for this topic</div>
+            </div>
+            <div style="font-size: 13px; color: #9aa096; margin-bottom: 14px;">Covered <span style="color: var(--accent,#63c281); font-weight: 600;">{{ coveredCount }}</span> of {{ subtopicCount }} subtopics the top pages share.</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 7px;">
+              <sc-for list="{{ serp }}" as="s" hint-placeholder-count="6">
+                <span class="gv-chip" style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: {{ s.color }}; background: {{ s.bg }}; border: 1px solid {{ s.border }}; border-radius: 999px; padding: 5px 11px; transition: .2s; cursor: default;">{{ s.mark }} {{ s.text }}</span>
+              </sc-for>
+            </div>
+            <div style="font-size: 11.5px; color: #6b6f67; line-height: 1.5; margin-top: 14px; padding-top: 13px; border-top: 1px solid rgba(255,255,255,0.06);">2 gaps left open on purpose — your strategy says go <span style="color: #9aa096;">deeper, not wider</span>.</div>
+          </div>
+
+          <!-- SOURCES + RAW FLAGS (progressive disclosure) -->
+          <details class="gv-det gv-card" style="background: #101310; border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; padding: 4px 22px;">
+            <summary style="display: flex; align-items: center; gap: 10px; padding: 16px 0; font-size: 12.5px; font-weight: 600; color: #cdd2c9;">
+              <span class="gv-det-caret" style="color: #6b6f67; display: flex; transition: transform .2s;">{{ caretIcon }}</span>
+              Sources &amp; raw SEO flags
+              <span style="margin-left: auto; font-size: 11px; color: #565a53;">{{ sourceCount }} sources · {{ flagCount }} flags</span>
+            </summary>
+            <div style="padding: 4px 0 20px;">
+              <div style="font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #565a53; margin-bottom: 11px;">Sources cited</div>
+              <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px;">
+                <sc-for list="{{ sources }}" as="src" hint-placeholder-count="3">
+                  <div class="gv-qrow" style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 9px; transition: background .15s;">
+                    <span style="color: #6b6f67; display: flex; flex-shrink: 0;">{{ src.icon }}</span>
+                    <span style="font-size: 12.5px; color: #cdd2c9; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ src.name }}</span>
+                    <span style="font-size: 11px; color: #565a53; flex-shrink: 0;">{{ src.host }}</span>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #565a53; margin-bottom: 11px;">Validator flags</div>
+              <div style="display: flex; flex-direction: column; gap: 7px;">
+                <sc-for list="{{ flags }}" as="fl" hint-placeholder-count="3">
+                  <div style="display: flex; align-items: center; gap: 9px; font-size: 12px;">
+                    <span style="width: 7px; height: 7px; border-radius: 50%; background: {{ fl.dot }}; flex-shrink: 0;"></span>
+                    <span style="color: #9aa096; font-family: 'SFMono-Regular', ui-monospace, monospace; font-size: 11px;">{{ fl.code }}</span>
+                    <span style="margin-left: auto; color: #565a53;">{{ fl.note }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </details>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 1440, &quot;height&quot;: 1100}, &quot;accent&quot;: {&quot;editor&quot;: &quot;color&quot;, &quot;default&quot;: &quot;#63c281&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;options&quot;: [&quot;#63c281&quot;, &quot;#7bd6a0&quot;, &quot;#4fae6e&quot;, &quot;#8fd9b0&quot;, &quot;#39b06a&quot;]}, &quot;glowIntensity&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;balanced&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;options&quot;: [&quot;subtle&quot;, &quot;balanced&quot;, &quot;intense&quot;]}, &quot;showGlow&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;}}">
+class Component extends DCLogic {
+  state = { nav: 'Reviews', draftIndex: 0, decision: null };
+
+  _icon(name, size) {
+    const E = React.createElement;
+    const p = { width: size || 17, height: size || 17, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.8, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' };
+    const defs = {
+      strategy: ['circle:12,12,8.5', 'circle:12,12,4', 'M12 1v3', 'M12 20v3', 'M1 12h3', 'M20 12h3'],
+      write: ['M4 20l3.5-1 10-10a2 2 0 00-3-3l-10 10z', 'M13.5 6.5l3 3'],
+      pipeline: ['M4 7h16', 'M4 12h16', 'M4 17h10'],
+      calendar: ['rect:3,5,18,16,2', 'M3 9h18', 'M8 3v4', 'M16 3v4'],
+      reviews: ['circle:12,12,9', 'M8.5 12l2.4 2.4L15.5 9'],
+      analytics: ['M5 21V11', 'M12 21V4', 'M19 21v-7', 'M3 21h18'],
+      voice: ['M4 10v4', 'M8 6v12', 'M12 9v6', 'M16 4v16', 'M20 10v4'],
+      social: ['circle:6,12,2.5', 'circle:18,6,2.5', 'circle:18,18,2.5', 'M8.2 10.8l7.6-3.6', 'M8.2 13.2l7.6 3.6'],
+      embed: ['M9 8l-4 4 4 4', 'M15 8l4 4-4 4'],
+      bell: ['M6 9a6 6 0 0112 0c0 5 2 6 2 6H4s2-1 2-6', 'M10.5 20a2 2 0 003 0'],
+      back: ['M19 12H5', 'M12 19l-7-7 7-7'],
+      chevL: ['M15 18l-6-6 6-6'],
+      chevR: ['M9 18l6-6-6-6'],
+      caret: ['M9 18l6-6-6-6'],
+      check: ['M20 6L9 17l-5-5'],
+      tick: ['M20 6L9 17l-5-5'],
+      send: ['M22 2L11 13', 'M22 2l-7 20-4-9-9-4z'],
+      edit: ['M4 20l3.5-1 10-10a2 2 0 00-3-3l-10 10z', 'M13.5 6.5l3 3'],
+      target: ['circle:12,12,8.5', 'circle:12,12,4.5', 'circle:12,12,0.6'],
+      link: ['M9 15l6-6', 'M11 6l1-1a4 4 0 016 6l-1 1', 'M13 18l-1 1a4 4 0 01-6-6l1-1'],
+      bolt: ['M13 2L4.5 13.5H11l-1 8.5L19.5 10.5H13z'],
+      note: ['M12 4l9 16H3z', 'M12 10v4', 'M12 17.5v.2'],
+      image: ['rect:3,3,18,18,3', 'circle:8.5,8.5,1.6', 'M21 15l-5-5L5 21'],
+      doc: ['M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z', 'M14 3v5h5'],
+      book: ['M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2z', 'M19 19v2'],
+      globe: ['circle:12,12,9', 'M3 12h18', 'M12 3c2.5 2.8 2.5 15.2 0 18', 'M12 3c-2.5 2.8-2.5 15.2 0 18'],
+      quote: ['M7 7H4v6h5V9c0-1 0-2-2-2z', 'M19 7h-3v6h5V9c0-1 0-2-2-2z'],
+      x: ['M18 6L6 18', 'M6 6l12 12'],
+      sparkle: ['M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5z'],
+      gauge: ['M12 13l4-4', 'M5.5 18a8 8 0 1113 0z'],
+    };
+    const els = (defs[name] || []).map((d, i) => {
+      if (d.startsWith('circle:')) { const a = d.slice(7).split(','); return E('circle', { key: i, cx: a[0], cy: a[1], r: a[2] }); }
+      if (d.startsWith('rect:')) { const a = d.slice(5).split(','); return E('rect', { key: i, x: a[0], y: a[1], width: a[2], height: a[3], rx: a[4] || 1.5 }); }
+      return E('path', { key: i, d });
+    });
+    return E('svg', p, els);
+  }
+
+  _band(s, accent) { return s >= 70 ? accent : s >= 40 ? '#e0c878' : '#c97f7f'; }
+
+  renderVals() {
+    const accent = this.props.accent ?? '#63c281';
+    const glowMap = { subtle: '0.35', balanced: '0.6', intense: '0.95' };
+    const glow = glowMap[this.props.glowIntensity ?? 'balanced'] ?? '0.6';
+    const showGlow = this.props.showGlow ?? true;
+
+    // ---- nav (matches the real product nav) ----
+    const navDef = [
+      { head: 'Create', items: [
+        { label: 'Strategy', icon: 'strategy' },
+        { label: 'Write', icon: 'write' },
+        { label: 'Pipeline', icon: 'pipeline', badge: '4' },
+      ]},
+      { head: 'Publish', items: [
+        { label: 'Calendar', icon: 'calendar' },
+        { label: 'Reviews', icon: 'reviews', badge: '2' },
+        { label: 'Analytics', icon: 'analytics' },
+      ]},
+      { head: 'Brand', items: [
+        { label: 'Brand voice', icon: 'voice' },
+        { label: 'Social', icon: 'social' },
+        { label: 'Embed', icon: 'embed' },
+      ]},
+    ];
+    const navSections = navDef.map(sec => ({
+      head: sec.head,
+      items: sec.items.map(it => {
+        const active = this.state.nav === it.label;
+        return { label: it.label, badge: it.badge || false, icon: this._icon(it.icon),
+          onSelect: () => this.setState({ nav: it.label }),
+          bg: active ? 'rgba(99,194,129,0.1)' : 'transparent',
+          border: active ? 'rgba(99,194,129,0.22)' : 'transparent',
+          color: active ? '#eef1ea' : '#9aa096',
+          iconColor: active ? accent : '#6b6f67' };
+      }),
+    }));
+
+    // ---- the review queue (2 drafts, prev/next navigable) ----
+    const draftDefs = [
+      {
+        title: '10 onboarding mistakes killing your activation rate',
+        genre: 'Playbook', author: 'Maya Rivera', authorInitials: 'MR',
+        keyword: 'ai onboarding checklist', readMin: 8, words: '1,840',
+        score: 84, verdict: 'Clear to publish', verdictSub: 'Strong strategy fit. One stat worth adding.',
+        coverBg: 'radial-gradient(120% 140% at 20% 10%, rgba(99,194,129,0.45), rgba(16,19,16,0) 55%), linear-gradient(135deg, #14241a, #0c130e)',
+        rubric: [
+          { label: 'Strategy fit', value: 88 },
+          { label: 'Marketing intent', value: 82 },
+          { label: 'Craft & readability', value: 85 },
+          { label: 'Safety & accuracy', value: 96 },
+        ],
+        readiness: [
+          { label: 'Covers what people are searching', note: 'Matches 6 of the 8 questions people ask.', ok: true },
+          { label: 'Easy for AI to quote', note: 'Has key takeaways + a real FAQ block.', ok: true },
+          { label: 'Backed by real sources', note: '5 sources, 3 with 2026 data.', ok: true },
+          { label: 'Sounds like you', note: 'A touch more direct than your usual — fine to keep.', ok: 'soft' },
+        ],
+        serp: [
+          { text: 'time-to-value', ok: true }, { text: 'activation metrics', ok: true },
+          { text: 'onboarding checklist', ok: true }, { text: 'in-app guidance', ok: true },
+          { text: 'empty states', ok: false }, { text: 'churn correlation', ok: false },
+        ],
+        sources: [
+          { name: 'First Round — Activation benchmarks 2026', host: 'firstround.com', icon: 'globe' },
+          { name: 'Reforge — Onboarding teardown', host: 'reforge.com', icon: 'book' },
+          { name: 'OpenView SaaS Benchmarks', host: 'openviewpartners.com', icon: 'doc' },
+        ],
+        flags: [
+          { code: 'MISSING_STAT_DENSITY', note: 'section 4 has no figure', dot: '#e0c878' },
+          { code: 'FAQ_PRESENT', note: 'ok', dot: accent },
+          { code: 'KEY_TAKEAWAYS', note: 'ok · 4 bullets', dot: accent },
+        ],
+        blocks: [
+          { type: 'p', pre: 'Most activation problems do not start at sign-up. They start in the first ninety seconds after it — the moment a new user is staring at an empty screen, deciding whether your product is worth a second visit. ', mark: 'Teams that obsess over acquisition and ignore this window quietly lose the majority of the users they paid to get.', post: '' },
+          { type: 'takeaways', items: [
+            'Activation is decided in the first session, not the first week.',
+            'The biggest leak is asking users to configure before they get value.',
+            'A guided "first win" beats a feature tour every time.',
+          ]},
+          { type: 'h2', text: '1. Treating the empty state as an afterthought' },
+          { type: 'p', pre: 'An empty dashboard is the most-viewed screen in your product, yet it is usually the least designed. The fix is not a cheerful illustration — it is a single, obvious next action that produces a visible result. ', mark: 'Replace "No data yet" with one button that creates the user’s first real outcome.', post: ' That one change routinely lifts day-one activation more than any onboarding email sequence.' },
+          { type: 'note', text: 'You cite a stat in every other section, but this one leans on "routinely" with no number. Competitors ranking here all quote a figure. Want me to pull a benchmark from the OpenView source already in your references?', cta: 'Add a stat' },
+          { type: 'h2', text: '2. Confusing a feature tour with onboarding' },
+          { type: 'p', pre: 'A tooltip tour shows people where the buttons are. It does not show them why they should care. The products with the best retention skip the tour entirely and instead walk the user through completing one meaningful task end to end — what we call the ', mark: 'first win', post: '. Measure time-to-first-win, not tour completion, and optimize relentlessly against it.' },
+          { type: 'faq', items: [
+            { q: 'How long should onboarding take?', a: 'As long as it takes to reach the first win — usually under two minutes. Anything longer is a sign you are configuring, not activating.' },
+            { q: 'Should onboarding be skippable?', a: 'Yes. Forcing a flow trains power users to resent you. Make the first win the path of least resistance instead of a wall.' },
+          ]},
+        ],
+      },
+      {
+        title: 'Why AI Overviews quietly rewrote the rules of B2B SEO',
+        genre: 'Trend', author: 'Maya Rivera', authorInitials: 'MR',
+        keyword: 'ai overviews b2b seo', readMin: 9, words: '1,930',
+        score: 79, verdict: 'Clear to publish', verdictSub: 'Good coverage. Intro could lead harder.',
+        coverBg: 'radial-gradient(120% 140% at 80% 10%, rgba(127,182,230,0.4), rgba(16,19,16,0) 55%), linear-gradient(135deg, #131c24, #0c130e)',
+        rubric: [
+          { label: 'Strategy fit', value: 84 },
+          { label: 'Marketing intent', value: 80 },
+          { label: 'Craft & readability', value: 81 },
+          { label: 'Safety & accuracy', value: 92 },
+        ],
+        readiness: [
+          { label: 'Covers what people are searching', note: 'Matches 7 of the 9 questions people ask.', ok: true },
+          { label: 'Easy for AI to quote', note: 'Answer-first openers + FAQ in place.', ok: true },
+          { label: 'Backed by real sources', note: '4 sources, all from 2026.', ok: true },
+          { label: 'Sounds like you', note: 'Right on voice.', ok: true },
+        ],
+        serp: [
+          { text: 'zero-click search', ok: true }, { text: 'citation share', ok: true },
+          { text: 'schema markup', ok: true }, { text: 'answer-first writing', ok: true },
+          { text: 'brand mentions', ok: false }, { text: 'prompt volume', ok: false },
+        ],
+        sources: [
+          { name: 'Search Engine Land — AI Overviews study', host: 'searchengineland.com', icon: 'globe' },
+          { name: 'Ahrefs — Zero-click report 2026', host: 'ahrefs.com', icon: 'doc' },
+          { name: 'a16z — The answer-engine shift', host: 'a16z.com', icon: 'book' },
+        ],
+        flags: [
+          { code: 'WEAK_OPENER', note: 'BLUF could be tighter', dot: '#e0c878' },
+          { code: 'FAQ_PRESENT', note: 'ok', dot: accent },
+          { code: 'SERP_GAP', note: '2 subtopics open', dot: '#e0c878' },
+        ],
+        blocks: [
+          { type: 'p', pre: 'For fifteen years the deal was simple: rank on Google, earn the click, win the visit. ', mark: 'That deal is being quietly renegotiated, and most B2B teams have not noticed the new terms.', post: ' AI Overviews now answer the question on the results page itself — and the click you used to own may never happen.' },
+          { type: 'takeaways', items: [
+            'A growing share of searches end without a click — answered in-page.',
+            'Being cited by the answer engine is the new page-one.',
+            'Structured, answer-first content wins the citation.',
+          ]},
+          { type: 'h2', text: 'The click is no longer the finish line' },
+          { type: 'p', pre: 'When an AI Overview summarizes three sources to answer a query, the prize shifts from the click to the citation. ', mark: 'Your goal is to be one of the sources the model quotes', post: ' — which means writing in the clear, factual, answer-first structure these systems prefer to lift.' },
+          { type: 'faq', items: [
+            { q: 'Does this kill traditional SEO?', a: 'No — it raises the bar. The same fundamentals win, but generic, padded content no longer survives the summary step.' },
+            { q: 'How do I get cited?', a: 'Lead with the answer, back every claim with a source, and structure the page so a model can extract a clean, quotable sentence.' },
+          ]},
+        ],
+      },
+    ];
+
+    const i = ((this.state.draftIndex % draftDefs.length) + draftDefs.length) % draftDefs.length;
+    const d = draftDefs[i];
+
+    // score ring math (r=15.5 → circumference ≈ 97.4)
+    const C = 97.4;
+    const scoreColor = this._band(d.score, accent);
+    const scoreOffset = (C * (1 - d.score / 100)).toFixed(1);
+
+    const rubric = d.rubric.map(m => ({ label: m.label, value: m.value, pct: m.value + '%', color: this._band(m.value, accent) }));
+
+    const READY_OK = { bg: 'rgba(99,194,129,0.12)', border: 'rgba(99,194,129,0.28)', color: accent };
+    const READY_SOFT = { bg: 'rgba(224,200,120,0.1)', border: 'rgba(224,200,120,0.25)', color: '#e0c878' };
+    const readiness = d.readiness.map(r => {
+      const soft = r.ok === 'soft';
+      const s = soft ? READY_SOFT : READY_OK;
+      return { label: r.label, note: r.note, ...s, icon: this._icon(soft ? 'note' : 'check', 12) };
+    });
+
+    const coveredCount = d.serp.filter(s => s.ok).length;
+    const serp = d.serp.map(s => s.ok
+      ? { text: s.text, color: accent, bg: 'rgba(99,194,129,0.08)', border: 'rgba(99,194,129,0.25)', mark: '✓' }
+      : { text: s.text, color: '#9aa096', bg: 'rgba(255,255,255,0.02)', border: 'rgba(255,255,255,0.1)', mark: '+' });
+
+    const sources = d.sources.map(s => ({ name: s.name, host: s.host, icon: this._icon(s.icon, 14) }));
+
+    // article blocks → flagged template booleans
+    const blocks = d.blocks.map(b => ({
+      isH2: b.type === 'h2', isP: b.type === 'p',
+      isTakeaways: b.type === 'takeaways', isNote: b.type === 'note', isFaq: b.type === 'faq',
+      text: b.text || '', pre: b.pre || '', mark: b.mark || false, post: b.post || '',
+      cta: b.cta || '', items: b.items || [],
+    }));
+
+    // decision state
+    const decided = !!this.state.decision;
+    const decidedMsg = this.state.decision === 'approve'
+        ? 'Approved — autopilot will publish this to /blog at the next slot, then cross-post to X & LinkedIn.'
+      : this.state.decision === 'schedule'
+        ? 'Scheduled — this will go live tomorrow at 9:00 and move out of your review queue.'
+      : this.state.decision === 'changes'
+        ? 'Sent back to the writer with your note — grove will revise the flagged section and re-score it.'
+        : '';
+
+    return {
+      accentVar: accent, glowVar: glow, showGlow, navSections,
+      bellIcon: this._icon('bell'), backIcon: this._icon('back', 15),
+      prevIcon: this._icon('chevL', 16), nextIcon: this._icon('chevR', 16),
+      caretIcon: this._icon('caret', 14), checkIcon: this._icon('check', 16),
+      sendIcon: this._icon('send', 16), calIcon: this._icon('calendar', 15), editIcon: this._icon('edit', 15),
+      genreIcon: this._icon('bolt', 13), imgIcon: this._icon('image', 13), targetIcon: this._icon('target', 14),
+      linkIcon: this._icon('link', 15), boltIcon: this._icon('bolt', 13), tickIcon: this._icon('tick', 14),
+      noteIcon: this._icon('note', 16),
+
+      queuePos: (i + 1) + ' / ' + draftDefs.length,
+      onPrev: () => this.setState(s => ({ draftIndex: s.draftIndex - 1, decision: null })),
+      onNext: () => this.setState(s => ({ draftIndex: s.draftIndex + 1, decision: null })),
+
+      title: d.title, genre: d.genre, author: d.author, authorInitials: d.authorInitials,
+      keyword: d.keyword, readMin: d.readMin, words: d.words, coverBg: d.coverBg,
+      blocks,
+      internalLinks: 3, sourceCount: d.sources.length, flagCount: d.flags.length,
+
+      score: d.score, scoreColor, scoreOffset, verdict: d.verdict, verdictSub: d.verdictSub,
+      nextSlot: 'today 6:00 PM',
+      rubric, readiness, serp, sources,
+      coveredCount, subtopicCount: d.serp.length,
+      flags: d.flags,
+
+      decided, decidedMsg,
+      onApprove: () => this.setState({ decision: 'approve' }),
+      onSchedule: () => this.setState({ decision: 'schedule' }),
+      onChanges: () => this.setState({ decision: 'changes' }),
+      onUndo: () => this.setState({ decision: null }),
+    };
+  }
+}
+</script>
+</body>
+</html>

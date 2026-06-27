@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500;1,600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #0a0b0a; }
+  ::selection { background: rgba(99,194,129,0.3); color: #fff; }
+  @keyframes gvPulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.45; transform: scale(0.85); } }
+  @keyframes gvBlob { 0% { transform: translate3d(-4%,2%,0) scale(1.1); } 50% { transform: translate3d(6%,-3%,0) scale(1.28); } 100% { transform: translate3d(-4%,2%,0) scale(1.1); } }
+  .gv-nav:hover { background: rgba(255,255,255,0.04) !important; color: #eef1ea !important; }
+  .gv-nav:hover .gv-ico { color: #cdd2c9 !important; }
+  .gv-card { transition: border-color .25s, transform .25s; }
+  .gv-card:hover { border-color: rgba(99,194,129,0.28) !important; }
+  .gv-row:hover { background: rgba(99,194,129,0.05) !important; }
+  .gv-btn { transition: transform .18s, box-shadow .18s, background .18s; }
+  .gv-btn:hover { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(99,194,129,0.2); }
+  .gv-ghost:hover { background: rgba(255,255,255,0.06) !important; color: #eef1ea !important; }
+  .gv-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+  .gv-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 99px; }
+  .gv-scroll::-webkit-scrollbar-track { background: transparent; }
+  input::placeholder { color: #565a53; }
+</style>
+</helmet>
+
+<div style="--accent: {{ accentVar }}; --glow: {{ glowVar }}; background: #0a0b0a; color: #eef1ea; font-family: 'Plus Jakarta Sans', sans-serif; min-height: 100vh; display: flex; -webkit-font-smoothing: antialiased; position: relative; overflow: hidden;">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="gv-scroll" style="width: 280px; flex-shrink: 0; height: 100vh; position: sticky; top: 0; border-right: 1px solid rgba(255,255,255,0.06); background: #0c0e0c; display: flex; flex-direction: column; overflow-y: auto;">
+    <div style="display: flex; align-items: center; gap: 9px; padding: 22px 22px 18px;">
+      <span style="width: 17px; height: 17px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #9ff0bb, var(--accent,#63c281)); box-shadow: 0 0 12px rgba(99,194,129,0.7);"></span>
+      <span style="font-weight: 700; font-size: 18px; letter-spacing: -0.02em;">grove</span>
+      <span style="margin-left: auto; font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; color: #9aa79e; border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; padding: 3px 7px;">Growth</span>
+    </div>
+
+    <nav style="padding: 8px 18px; display: flex; flex-direction: column; gap: 22px; flex: 1;">
+      <sc-for list="{{ navSections }}" as="sec" hint-placeholder-count="3">
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <div style="font-size: 10px; letter-spacing: 0.13em; text-transform: uppercase; color: #565a53; padding: 4px 12px 6px;">{{ sec.head }}</div>
+          <sc-for list="{{ sec.items }}" as="item" hint-placeholder-count="4">
+            <button class="gv-nav" onClick="{{ item.onSelect }}" style="display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; border: 1px solid {{ item.border }}; background: {{ item.bg }}; color: {{ item.color }}; font-family: inherit; font-size: 13.5px; font-weight: 500; padding: 9px 12px; border-radius: 10px; cursor: pointer; transition: background .18s, color .18s;">
+              <span class="gv-ico" style="color: {{ item.iconColor }}; display: flex; flex-shrink: 0;">{{ item.icon }}</span>
+              <span style="flex: 1;">{{ item.label }}</span>
+              <sc-if value="{{ item.badge }}" hint-placeholder-val="{{ false }}">
+                <span style="font-size: 10.5px; font-weight: 700; color: #cdd2c9; background: rgba(255,255,255,0.08); border-radius: 999px; padding: 1px 7px;">{{ item.badge }}</span>
+              </sc-if>
+            </button>
+          </sc-for>
+        </div>
+      </sc-for>
+    </nav>
+
+    <div style="padding: 14px; border-top: 1px solid rgba(255,255,255,0.06); margin-top: auto;">
+      <button class="gv-ghost" style="display: flex; align-items: center; gap: 11px; width: 100%; border: 1px solid rgba(255,255,255,0.09); background: rgba(255,255,255,0.02); border-radius: 12px; padding: 11px 13px; cursor: pointer; font-family: inherit; text-align: left; transition: background .2s;">
+        <span style="width: 30px; height: 30px; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; color: #cdd2c9; font-weight: 700; font-size: 13px; flex-shrink: 0;">g</span>
+        <span style="flex: 1; min-width: 0;">
+          <span style="display: block; font-size: 13px; font-weight: 600; color: #eef1ea; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">grove.ai</span>
+          <span style="display: block; font-size: 11px; color: #6b6f67;">3 domains · 1 active</span>
+        </span>
+        <span style="color: #6b6f67; font-size: 13px;">⌄</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main class="gv-scroll" style="flex: 1; min-width: 0; height: 100vh; overflow-y: auto; position: relative;">
+
+    <!-- ambient glow (neutralized) -->
+    <sc-if value="{{ showGlow }}" hint-placeholder-val="{{ true }}">
+      <div style="position: absolute; top: 0; left: 0; right: 0; height: 360px; pointer-events: none; opacity: var(--glow,0.6); overflow: hidden;">
+        <div style="position: absolute; top: -42%; left: 30%; width: 44%; height: 110%; background: radial-gradient(ellipse at center, rgba(99,194,129,0.32), rgba(99,194,129,0) 60%); filter: blur(92px); animation: gvBlob 22s ease-in-out infinite;"></div>
+        <div style="position: absolute; top: -38%; right: 4%; width: 36%; height: 100%; background: radial-gradient(ellipse at center, rgba(150,230,185,0.2), rgba(150,230,185,0) 62%); filter: blur(98px); animation: gvBlob 27s ease-in-out infinite reverse;"></div>
+        <div style="position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10,11,10,0) 0%, rgba(10,11,10,0.4) 60%, #0a0b0a 100%);"></div>
+      </div>
+    </sc-if>
+
+    <!-- TOP BAR -->
+    <header style="position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 16px; padding: 16px 30px; background: rgba(10,11,10,0.72); backdrop-filter: blur(18px); border-bottom: 1px solid rgba(255,255,255,0.06);">
+      <div>
+        <div style="font-size: 16px; font-weight: 700; letter-spacing: -0.01em;">Overview</div>
+        <div style="font-size: 12px; color: #6b6f67; margin-top: 1px;">grove.ai · autopilot active</div>
+      </div>
+      <div style="flex: 1; max-width: 360px; margin-left: 12px; display: flex; align-items: center; gap: 9px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 9px 13px;">
+        <span style="color: #565a53; display: flex;">{{ searchIcon }}</span>
+        <input placeholder="Search posts, keywords, domains…" style="flex: 1; background: transparent; border: none; outline: none; color: #eef1ea; font-size: 13px; font-family: inherit; min-width: 0;">
+        <span style="font-size: 10.5px; color: #565a53; border: 1px solid rgba(255,255,255,0.1); border-radius: 5px; padding: 1px 6px;">⌘K</span>
+      </div>
+      <div style="margin-left: auto; display: flex; align-items: center; gap: 14px;">
+        <div style="display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2;">
+          <span style="font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #565a53;">Next publish</span>
+          <span style="font-size: 13px; font-weight: 700; color: #eef1ea;">{{ countdown }}</span>
+        </div>
+        <button onClick="{{ toggleAutopilot }}" class="gv-btn" style="display: flex; align-items: center; gap: 9px; border: 1px solid {{ apBorder }}; background: {{ apBg }}; color: {{ apColor }}; font-family: inherit; font-size: 12.5px; font-weight: 600; padding: 8px 14px; border-radius: 999px; cursor: pointer;">
+          <span style="width: 7px; height: 7px; border-radius: 50%; background: {{ apDot }}; animation: {{ apAnim }};"></span>
+          {{ apLabel }}
+        </button>
+        <span style="width: 1px; height: 26px; background: rgba(255,255,255,0.08);"></span>
+        <button class="gv-ghost" style="position: relative; width: 38px; height: 38px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02); color: #9aa096; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .2s;">
+          {{ bellIcon }}
+          <span style="position: absolute; top: 9px; right: 9px; width: 6px; height: 6px; border-radius: 50%; background: #8ea596;"></span>
+        </button>
+        <span style="width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, rgba(255,255,255,0.13), rgba(255,255,255,0.04)); border: 1px solid rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; color: #cdd2c9;">MR</span>
+      </div>
+    </header>
+
+    <!-- BODY -->
+    <div style="position: relative; padding: 28px 36px 48px; max-width: 1680px; margin: 0 auto;">
+
+      <!-- greeting -->
+      <div style="display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-bottom: 22px;">
+        <div>
+          <h1 style="font-size: 26px; font-weight: 700; letter-spacing: -0.025em; margin: 0;">Good evening, Maya</h1>
+          <p style="font-size: 14px; color: #9aa096; margin: 6px 0 0;">grove shipped <span style="color: #eef1ea; font-weight: 600;">2 posts</span> while you were away. 1 is already ranking on page one.</p>
+        </div>
+        <div style="display: flex; gap: 9px;">
+          <button class="gv-ghost" style="border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02); color: #cdd2c9; font-family: inherit; font-size: 13px; font-weight: 600; padding: 10px 16px; border-radius: 10px; cursor: pointer; transition: background .2s;">Review queue (2)</button>
+          <button class="gv-btn" style="border: none; background: var(--accent,#63c281); color: #06120b; font-family: inherit; font-size: 13px; font-weight: 700; padding: 10px 18px; border-radius: 10px; cursor: pointer;">Write</button>
+        </div>
+      </div>
+
+      <!-- STAT CARDS -->
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 14px;">
+        <sc-for list="{{ stats }}" as="s" hint-placeholder-count="4">
+          <div class="gv-card" style="background: #101310; border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; padding: 18px 20px;">
+            <div style="display: flex; align-items: center; gap: 9px; color: #9aa096; font-size: 12.5px;">
+              <span style="display: flex; color: #9aa79e;">{{ s.icon }}</span>{{ s.label }}
+            </div>
+            <div style="display: flex; align-items: flex-end; gap: 9px; margin-top: 14px;">
+              <span style="font-size: 30px; font-weight: 700; letter-spacing: -0.03em; line-height: 1;">{{ s.value }}</span>
+              <span style="display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 600; color: {{ s.deltaColor }}; padding-bottom: 3px;">{{ s.delta }}</span>
+            </div>
+            <div style="font-size: 11.5px; color: #6b6f67; margin-top: 8px;">{{ s.sub }}</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <!-- CALENDAR + AGENT -->
+      <div style="display: grid; grid-template-columns: 1.85fr 1fr; gap: 14px; margin-bottom: 14px;">
+
+        <!-- publishing calendar -->
+        <div class="gv-card" style="background: #101310; border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; padding: 22px 24px;">
+          <div style="display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+            <div>
+              <div style="font-size: 15px; font-weight: 700; letter-spacing: -0.01em;">Publishing calendar</div>
+              <div style="font-size: 12.5px; color: #6b6f67; margin-top: 3px;">When each post goes live, and where it is now</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <button class="gv-ghost" style="width: 30px; height: 30px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02); color: #9aa096; cursor: pointer; font-family: inherit; font-size: 14px; transition: background .2s;">‹</button>
+              <span style="font-size: 13px; font-weight: 600; min-width: 110px; text-align: center;">{{ calMonth }}</span>
+              <button class="gv-ghost" style="width: 30px; height: 30px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02); color: #9aa096; cursor: pointer; font-family: inherit; font-size: 14px; transition: background .2s;">›</button>
+            </div>
+          </div>
+
+          <div style="display: flex; flex-wrap: wrap; gap: 14px; margin: 16px 0 14px;">
+            <sc-for list="{{ calLegend }}" as="l" hint-placeholder-count="4">
+              <div style="display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: #9aa096;"><span style="width: 9px; height: 9px; border-radius: 3px; background: {{ l.color }};"></span>{{ l.label }}</div>
+            </sc-for>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px;">
+            <sc-for list="{{ weekdays }}" as="w" hint-placeholder-count="7">
+              <div style="font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: #565a53; text-align: center; padding-bottom: 2px;">{{ w }}</div>
+            </sc-for>
+            <sc-for list="{{ calDays }}" as="d" hint-placeholder-count="35">
+              <div style="min-height: 62px; min-width: 0; overflow: hidden; border-radius: 9px; background: {{ d.bg }}; border: 1px solid {{ d.border }}; padding: 6px 6px 5px; display: flex; flex-direction: column; gap: 3px;">
+                <span style="font-size: 10.5px; font-weight: 600; color: {{ d.numColor }}; align-self: flex-end; font-variant-numeric: tabular-nums;">{{ d.num }}</span>
+                <sc-for list="{{ d.events }}" as="ev" hint-placeholder-count="1">
+                  <span title="{{ ev.full }}" style="display: block; font-size: 9.5px; font-weight: 600; line-height: 1.25; color: {{ ev.color }}; background: {{ ev.chipBg }}; border-left: 2px solid {{ ev.color }}; border-radius: 4px; padding: 2px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ ev.label }}</span>
+                </sc-for>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <!-- agent panel -->
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <div class="gv-card" style="background: #101310; border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; padding: 20px 22px;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="width: 30px; height: 30px; border-radius: 9px; background: rgba(99,194,129,0.12); border: 1px solid rgba(99,194,129,0.25); display: flex; align-items: center; justify-content: center; color: var(--accent,#63c281);">{{ leafIcon }}</span>
+                <div style="line-height: 1.2;"><div style="font-size: 14px; font-weight: 700;">Your marketing agent</div><div style="font-size: 11px; color: #6b6f67;">autonomous · loop running</div></div>
+              </div>
+              <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: #9aa79e; font-weight: 600;"><span style="width: 6px; height: 6px; border-radius: 50%; background: var(--accent,#63c281); animation: gvPulse 1.8s ease-in-out infinite;"></span>working</span>
+            </div>
+
+            <div style="font-size: 13px; color: #cdd2c9; line-height: 1.6; margin: 16px 0 16px;">{{ agentSummary }}</div>
+
+            <div style="font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #565a53; margin-bottom: 9px;">Working on now</div>
+            <div style="display: flex; flex-direction: column; gap: 9px;">
+              <sc-for list="{{ agentItems }}" as="a" hint-placeholder-count="3">
+                <div style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: 10px; background: {{ a.bg }}; border: 1px solid {{ a.border }};">
+                  <span style="display: flex; color: {{ a.iconColor }}; flex-shrink: 0; margin-top: 1px;">{{ a.icon }}</span>
+                  <span style="flex: 1; min-width: 0;">
+                    <span style="display: block; font-size: 12.5px; font-weight: 600; color: #eef1ea;">{{ a.title }}</span>
+                    <span style="display: block; font-size: 11.5px; color: #6b6f67; margin-top: 1px; line-height: 1.4;">{{ a.detail }}</span>
+                  </span>
+                  <sc-if value="{{ a.action }}" hint-placeholder-val="{{ false }}">
+                    <button onClick="{{ a.onAction }}" style="border: 1px solid {{ a.actionBorder }}; background: {{ a.actionBg }}; color: {{ a.actionColor }}; font-family: inherit; font-size: 11.5px; font-weight: 600; padding: 5px 11px; border-radius: 8px; cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: filter .15s, transform .1s, border-color .15s;" style-hover="filter: brightness(1.18); border-color: rgba(255,255,255,0.3);" style-active="transform: translateY(1px);">{{ a.action }}</button>
+                  </sc-if>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="margin-top: 18px; padding: 14px 15px; border-radius: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);">
+              <div style="display: flex; align-items: center; gap: 7px; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #9aa79e; margin-bottom: 8px;"><span style="display: flex;">{{ sparkIcon }}</span> Agent insight</div>
+              <div style="font-size: 12.5px; color: #dfe4da; line-height: 1.55;">{{ agentInsight }}</div>
+              <div style="display: flex; gap: 8px; margin-top: 12px;">
+                <button class="gv-btn" style="border: none; background: var(--accent,#63c281); color: #06120b; font-family: inherit; font-size: 11.5px; font-weight: 700; padding: 7px 13px; border-radius: 8px; cursor: pointer;">{{ insightCta }}</button>
+                <button class="gv-ghost" style="border: 1px solid rgba(255,255,255,0.12); background: transparent; color: #9aa096; font-family: inherit; font-size: 11.5px; font-weight: 600; padding: 7px 13px; border-radius: 8px; cursor: pointer; transition: background .2s;">Dismiss</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CONTENT PIPELINE TABLE -->
+      <div class="gv-card" style="background: #101310; border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; overflow: hidden; margin-bottom: 14px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 18px 22px; border-bottom: 1px solid rgba(255,255,255,0.06);">
+          <div style="display: flex; align-items: center; gap: 14px;">
+            <span style="font-size: 15px; font-weight: 700;">Content pipeline</span>
+            <div style="display: flex; gap: 4px;">
+              <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="3">
+                <button onClick="{{ t.onSelect }}" style="border: 1px solid {{ t.border }}; background: {{ t.bg }}; color: {{ t.color }}; font-family: inherit; font-size: 12px; font-weight: 600; padding: 6px 13px; border-radius: 999px; cursor: pointer; transition: .2s;">{{ t.label }} <span style="opacity: 0.6;">{{ t.count }}</span></button>
+              </sc-for>
+            </div>
+          </div>
+          <a href="#" style="font-size: 12.5px; color: #9aa096; text-decoration: none;">View all →</a>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 200px 90px 130px 120px; gap: 0; padding: 11px 22px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #565a53; border-bottom: 1px solid rgba(255,255,255,0.04);">
+          <span>Post</span><span>Target keyword</span><span>Words</span><span>Status</span><span style="text-align: right;">Schedule</span>
+        </div>
+        <sc-for list="{{ rows }}" as="r" hint-placeholder-count="5">
+          <div class="gv-row" style="display: grid; grid-template-columns: 1fr 200px 90px 130px 120px; gap: 0; align-items: center; padding: 15px 22px; border-bottom: 1px solid rgba(255,255,255,0.04); transition: background .15s; cursor: pointer;">
+            <div style="display: flex; align-items: center; gap: 12px; min-width: 0; padding-right: 18px;">
+              <span style="width: 28px; height: 28px; border-radius: 8px; background: {{ r.iconBg }}; border: 1px solid {{ r.iconBorder }}; display: flex; align-items: center; justify-content: center; color: {{ r.iconColor }}; flex-shrink: 0;">{{ r.icon }}</span>
+              <span style="min-width: 0;"><span style="display: block; font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ r.title }}</span><span style="display: block; font-size: 11.5px; color: #6b6f67;">{{ r.meta }}</span></span>
+            </div>
+            <span style="font-size: 12.5px; color: #9aa096; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 12px;">{{ r.keyword }}</span>
+            <span style="font-size: 12.5px; color: #cdd2c9;">{{ r.words }}</span>
+            <span><span style="display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; color: {{ r.statusColor }}; background: {{ r.statusBg }}; border: 1px solid {{ r.statusBorder }}; padding: 4px 10px; border-radius: 999px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: {{ r.statusDot }};"></span>{{ r.status }}</span></span>
+            <span style="font-size: 12.5px; color: #9aa096; text-align: right;">{{ r.schedule }}</span>
+          </div>
+        </sc-for>
+      </div>
+
+      <!-- BOTTOM ROW: channels, keywords, activity -->
+      <div style="display: grid; grid-template-columns: 1fr 1.15fr 1fr; gap: 14px;">
+
+        <!-- channels -->
+        <div class="gv-card" style="background: #101310; border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; padding: 20px 22px;">
+          <div style="font-size: 14px; font-weight: 700; margin-bottom: 4px;">Cross-post queue</div>
+          <div style="font-size: 12px; color: #6b6f67; margin-bottom: 18px;">One brief, every channel</div>
+          <div style="display: flex; flex-direction: column; gap: 9px;">
+            <sc-for list="{{ channels }}" as="c" hint-placeholder-count="4">
+              <div style="display: flex; align-items: center; gap: 11px; padding: 11px 13px; border-radius: 11px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05);">
+                <span style="width: 8px; height: 8px; border-radius: 50%; background: {{ c.dot }};"></span>
+                <span style="font-size: 13px; color: #cdd2c9;">{{ c.name }}</span>
+                <span style="margin-left: auto; font-size: 11px; font-weight: 600; color: {{ c.color }};">{{ c.state }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <!-- top keywords -->
+        <div class="gv-card" style="background: #101310; border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; padding: 20px 22px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+            <div style="font-size: 14px; font-weight: 700;">Top movers</div>
+            <span style="font-size: 11.5px; color: #6b6f67;">7-day rank change</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 3px;">
+            <sc-for list="{{ keywords }}" as="k" hint-placeholder-count="5">
+              <div class="gv-row" style="display: flex; align-items: center; gap: 12px; padding: 9px 10px; border-radius: 9px; transition: background .15s;">
+                <span style="font-size: 13px; color: #cdd2c9; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ k.term }}</span>
+                <span style="font-size: 12px; color: #6b6f67; font-variant-numeric: tabular-nums;">#{{ k.pos }}</span>
+                <span style="display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 600; color: {{ k.color }}; width: 52px; justify-content: flex-end; font-variant-numeric: tabular-nums;">{{ k.change }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <!-- activity -->
+        <div class="gv-card" style="background: #101310; border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; padding: 20px 22px;">
+          <div style="font-size: 14px; font-weight: 700; margin-bottom: 18px;">Recent activity</div>
+          <div style="display: flex; flex-direction: column; gap: 0;">
+            <sc-for list="{{ activity }}" as="a" hint-placeholder-count="5">
+              <div style="display: flex; gap: 13px; padding-bottom: 16px;">
+                <div style="display: flex; flex-direction: column; align-items: center; flex-shrink: 0;">
+                  <span style="width: 9px; height: 9px; border-radius: 50%; background: {{ a.dot }}; border: 2px solid #101310; box-shadow: 0 0 0 1px {{ a.ring }};"></span>
+                  <span style="flex: 1; width: 1px; background: rgba(255,255,255,0.07); margin-top: 4px;"></span>
+                </div>
+                <div style="margin-top: -3px;">
+                  <div style="font-size: 12.5px; color: #cdd2c9; line-height: 1.45;">{{ a.text }}</div>
+                  <div style="font-size: 11px; color: #565a53; margin-top: 3px;">{{ a.time }}</div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 1440, &quot;height&quot;: 980}, &quot;accent&quot;: {&quot;editor&quot;: &quot;color&quot;, &quot;default&quot;: &quot;#63c281&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;options&quot;: [&quot;#63c281&quot;, &quot;#7bd6a0&quot;, &quot;#4fae6e&quot;, &quot;#8fd9b0&quot;, &quot;#39b06a&quot;]}, &quot;glowIntensity&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;balanced&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;options&quot;: [&quot;subtle&quot;, &quot;balanced&quot;, &quot;intense&quot;]}, &quot;showGlow&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;}}">
+class Component extends DCLogic {
+  state = { nav: 'Overview', autopilot: true, period: '30d', tab: 'Pipeline' };
+
+  _icon(name) {
+    const p = { width: 17, height: 17, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.8, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' };
+    const E = React.createElement;
+    const paths = {
+      overview: ['rect:3,3,7,7', 'rect:14,3,7,7', 'rect:14,14,7,7', 'rect:3,14,7,7'],
+      pipeline: ['M4 7h16', 'M4 12h16', 'M4 17h10'],
+      published: ['circle:12,12,9', 'M3 12h18', 'M12 3c2.6 2.8 2.6 15.2 0 18', 'M12 3c-2.6 2.8-2.6 15.2 0 18'],
+      calendar: ['rect:3,5,18,16,2', 'M3 9h18', 'M8 3v4', 'M16 3v4'],
+      rankings: ['M3 17l5-5 4 4 8-8', 'M16 8h5v5'],
+      answers: ['M12 3l2.2 5.6L20 11l-5.8 2.4L12 19l-2.2-5.6L4 11l5.8-2.4z'],
+      channels: ['circle:6,12,2.5', 'circle:18,6,2.5', 'circle:18,18,2.5', 'M8.2 10.8l7.6-3.6', 'M8.2 13.2l7.6 3.6'],
+      voice: ['M4 10v4', 'M8 6v12', 'M12 9v6', 'M16 4v16', 'M20 10v4'],
+      domains: ['M9 15l6-6', 'M11 6l1-1a4 4 0 016 6l-1 1', 'M13 18l-1 1a4 4 0 01-6-6l1-1'],
+      settings: ['M4 7h11', 'M19 7h1', 'M4 17h5', 'M13 17h7', 'circle:17,7,2', 'circle:11,17,2'],
+      search: ['circle:11,11,7', 'M21 21l-3.6-3.6'],
+      bell: ['M6 9a6 6 0 0112 0c0 5 2 6 2 6H4s2-1 2-6', 'M10.5 20a2 2 0 003 0'],
+      doc: ['M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z', 'M14 3v5h5'],
+      eye: ['circle:12,12,3', 'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z'],
+      pen: ['M4 20l4-1 10-10-3-3L5 16z'],
+      clock: ['circle:12,12,9', 'M12 7v5l3 2'],
+      leaf: ['M11 20c-4 0-7-3-7-8 0-5 6-9 15-9 0 9-4 15-9 15-3 0-4-2-4-4 0-3 3-5 7-6'],
+      eyeReview: ['circle:12,12,3', 'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z'],
+      search2: ['circle:11,11,7', 'M21 21l-3.5-3.5'],
+      check: ['M20 6L9 17l-5-5'],
+    };
+    const els = (paths[name] || []).map((d, i) => {
+      if (d.startsWith('rect:')) { const a = d.slice(5).split(','); return E('rect', { key: i, x: a[0], y: a[1], width: a[2], height: a[3], rx: a[4] || 1.5 }); }
+      if (d.startsWith('circle:')) { const a = d.slice(7).split(','); return E('circle', { key: i, cx: a[0], cy: a[1], r: a[2] }); }
+      return E('path', { key: i, d });
+    });
+    return E('svg', { ...p }, els);
+  }
+
+  renderVals() {
+    const accent = this.props.accent ?? '#63c281';
+    const sage = '#9aa79e';       // slightly green-tinted grey — soft accents, icons, positive deltas
+    const sageDot = '#8ea596';    // faint green-grey for tiny live dots
+    const glowMap = { subtle: '0.35', balanced: '0.6', intense: '0.95' };
+    const glow = glowMap[this.props.glowIntensity ?? 'balanced'] ?? '0.6';
+    const showGlow = this.props.showGlow ?? true;
+    const ap = this.state.autopilot;
+
+    // ---- nav ----
+    const navDef = [
+      { head: 'Workspace', items: [
+        { label: 'Overview', icon: 'overview' },
+        { label: 'Content pipeline', icon: 'pipeline', badge: '3' },
+        { label: 'Published', icon: 'published' },
+        { label: 'Calendar', icon: 'calendar' },
+      ]},
+      { head: 'Growth', items: [
+        { label: 'Rankings', icon: 'rankings' },
+        { label: 'Answer engine', icon: 'answers' },
+        { label: 'Channels', icon: 'channels' },
+      ]},
+      { head: 'Setup', items: [
+        { label: 'Voice', icon: 'voice' },
+        { label: 'Domains', icon: 'domains' },
+        { label: 'Settings', icon: 'settings' },
+      ]},
+    ];
+    const navSections = navDef.map(sec => ({
+      head: sec.head,
+      items: sec.items.map(it => {
+        const active = this.state.nav === it.label;
+        return {
+          label: it.label, badge: it.badge || false, icon: this._icon(it.icon),
+          onSelect: () => this.setState({ nav: it.label }),
+          bg: active ? 'rgba(255,255,255,0.05)' : 'transparent',
+          border: active ? 'rgba(255,255,255,0.08)' : 'transparent',
+          color: active ? '#eef1ea' : '#9aa096',
+          iconColor: active ? '#cdd2c9' : '#6b6f67',
+        };
+      }),
+    }));
+
+    // ---- stats (deltas in tinted grey, not green) ----
+    const stats = [
+      { icon: this._icon('rankings'), label: 'Organic clicks', value: '48.2k', delta: '▲ 312%', deltaColor: accent, sub: 'vs. 11.7k last quarter' },
+      { icon: this._icon('published'), label: 'Posts published', value: '128', delta: '+4', deltaColor: accent, sub: '4 / week on autopilot' },
+      { icon: this._icon('pipeline'), label: 'In pipeline', value: '3', delta: 'live', deltaColor: '#9aa096', sub: 'next publish in 6h 12m' },
+      { icon: this._icon('clock'), label: 'Avg. position', value: '4.2', delta: '▲ from 18', deltaColor: accent, sub: 'across 214 tracked terms' },
+    ];
+
+    // ---- agent status ----
+    const agentSummary = 'I’m mid-cycle on your June plan — researching one post, drafting another, and holding 2 finished drafts for your sign-off. Everything else is on schedule.';
+    const agentInsight = 'Your churn-themed posts are pulling 2.4× the clicks of the rest. I’ve drafted two more in that cluster and can prioritize them this week.';
+    const insightCta = 'Approve plan';
+    const AI_ATTN = { bg: 'rgba(224,200,120,0.06)', border: 'rgba(224,200,120,0.22)', iconColor: '#e0c878' };
+    const AI_LIVE = { bg: 'rgba(255,255,255,0.025)', border: 'rgba(255,255,255,0.06)', iconColor: sage };
+    const agentItems = [
+      { icon: this._icon('eyeReview'), title: '2 drafts need review', detail: 'Approve to let autopilot publish them', action: 'Review', ...AI_ATTN,
+        actionBg: 'rgba(255,255,255,0.06)', actionColor: '#eef1ea', actionBorder: 'rgba(255,255,255,0.16)',
+        onAction: () => this.setState({ tab: 'In review' }) },
+      { icon: this._icon('search2'), title: 'Researching live SERP', detail: '“ai onboarding checklist” · ~3 min left', action: false, ...AI_LIVE,
+        actionBg: 'transparent', actionColor: '#9aa096', actionBorder: 'rgba(255,255,255,0.12)' },
+      { icon: this._icon('check'), title: 'Next publish in 6h 12m', detail: 'Drafting “reduce SaaS churn” in your voice', action: false, ...AI_LIVE,
+        actionBg: 'transparent', actionColor: '#9aa096', actionBorder: 'rgba(255,255,255,0.12)' },
+    ];
+
+    // ---- publishing calendar ----
+    const ES = {
+      published: { color: sage,       chipBg: 'rgba(255,255,255,0.05)', name: 'Published' },
+      scheduled: { color: '#9bb0e8',  chipBg: 'rgba(123,158,240,0.12)', name: 'Scheduled' },
+      review:    { color: '#e0c878',  chipBg: 'rgba(224,200,120,0.12)', name: 'In review' },
+      draft:     { color: '#7fb6e6',  chipBg: 'rgba(127,182,230,0.12)', name: 'Draft' },
+    };
+    const calYear = 2026, calMonthIdx = 5, todayNum = 26; // June 2026
+    const calMonth = 'June 2026';
+    const weekdays = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const calLegend = ['published','scheduled','review','draft'].map(k => ({ label: ES[k].name, color: ES[k].color }));
+    const eventsByDay = {
+      3:  [{ s: 'published', label: 'Compounding traffic' }],
+      8:  [{ s: 'published', label: 'Programmatic SEO' }],
+      12: [{ s: 'published', label: 'Answer-engine writing' }],
+      18: [{ s: 'published', label: 'Onboarding mistakes' }],
+      24: [{ s: 'review', label: 'In-house content cost' }],
+      26: [{ s: 'scheduled', label: 'AI onboarding checklist' }],
+      27: [{ s: 'scheduled', label: 'Reduce SaaS churn' }],
+      30: [{ s: 'draft', label: 'Programmatic SEO guide' }],
+    };
+    const firstWeekday = new Date(calYear, calMonthIdx, 1).getDay();
+    const daysInMonth = new Date(calYear, calMonthIdx + 1, 0).getDate();
+    const prevDays = new Date(calYear, calMonthIdx, 0).getDate();
+    const cells = [];
+    for (let i = 0; i < firstWeekday; i++) cells.push({ num: prevDays - firstWeekday + 1 + i, out: true });
+    for (let d = 1; d <= daysInMonth; d++) cells.push({ num: d, out: false });
+    while (cells.length % 7 !== 0) cells.push({ num: cells.length - (firstWeekday + daysInMonth) + 1, out: true });
+    const calDays = cells.map(c => {
+      const isToday = !c.out && c.num === todayNum;
+      const evs = (!c.out && eventsByDay[c.num]) ? eventsByDay[c.num].map(e => ({
+        label: e.label, full: ES[e.s].name + ' · ' + e.label, color: ES[e.s].color, chipBg: ES[e.s].chipBg,
+      })) : [];
+      return {
+        num: c.num,
+        numColor: c.out ? '#3a4640' : isToday ? accent : '#9aa096',
+        bg: c.out ? 'transparent' : 'rgba(255,255,255,0.015)',
+        border: c.out ? 'transparent' : isToday ? accent : 'rgba(255,255,255,0.05)',
+        events: evs,
+      };
+    });
+
+    // ---- pipeline table ----
+    const tabDef = [
+      { label: 'Pipeline', count: '3' },
+      { label: 'In review', count: '2' },
+      { label: 'Published', count: '128' },
+    ];
+    const tabs = tabDef.map(t => {
+      const active = this.state.tab === t.label;
+      return { label: t.label, count: t.count, onSelect: () => this.setState({ tab: t.label }),
+        bg: active ? 'rgba(255,255,255,0.06)' : 'transparent',
+        border: active ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.08)',
+        color: active ? '#eef1ea' : '#9aa096' };
+    });
+    const ST = {
+      publishing: { status: 'Publishing', color: accent, bg: 'rgba(99,194,129,0.1)', border: 'rgba(99,194,129,0.25)', dot: accent },
+      review:     { status: 'In review', color: '#e0c878', bg: 'rgba(224,200,120,0.08)', border: 'rgba(224,200,120,0.22)', dot: '#e0c878' },
+      live:       { status: 'Live', color: '#9aa096', bg: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.08)', dot: '#9aa096' },
+      writing:    { status: 'Drafting', color: '#7fb6e6', bg: 'rgba(127,182,230,0.08)', border: 'rgba(127,182,230,0.2)', dot: '#7fb6e6' },
+    };
+    const allRows = {
+      Pipeline: [
+        { icon: 'pen', title: '10 onboarding mistakes killing activation', meta: 'researched · in your voice', keyword: 'ai onboarding checklist', words: '1,840', s: 'publishing', schedule: 'in 6h 12m' },
+        { icon: 'doc', title: 'How we cut SaaS churn 18% in a quarter', meta: 'SERP brief locked', keyword: 'reduce saas churn', words: '2,210', s: 'writing', schedule: 'Tomorrow' },
+        { icon: 'doc', title: 'A buyer\u2019s guide to programmatic SEO', meta: 'targeting 14 keywords', keyword: 'programmatic seo guide', words: '2,640', s: 'writing', schedule: 'Thu, 9:00' },
+      ],
+      'In review': [
+        { icon: 'eye', title: 'The honest cost of an in-house content team', meta: 'awaiting your approval', keyword: 'content team cost', words: '1,520', s: 'review', schedule: 'Hold' },
+        { icon: 'eye', title: 'Why AI Overviews changed B2B SEO', meta: 'awaiting your approval', keyword: 'ai overviews b2b seo', words: '1,930', s: 'review', schedule: 'Hold' },
+      ],
+      Published: [
+        { icon: 'published', title: 'The SaaS founder\u2019s guide to compounding traffic', meta: 'ranking #3 · cited by ChatGPT', keyword: 'compounding organic traffic', words: '2,480', s: 'live', schedule: '2d ago' },
+        { icon: 'published', title: 'Programmatic SEO without a dev team', meta: 'ranking #5 · 1.2k clicks', keyword: 'programmatic seo no code', words: '2,090', s: 'live', schedule: '5d ago' },
+        { icon: 'published', title: 'How to write for answer engines', meta: 'ranking #2 · 3.4k clicks', keyword: 'write for answer engines', words: '1,760', s: 'live', schedule: '1w ago' },
+      ],
+    };
+    const rows = (allRows[this.state.tab] || allRows.Pipeline).map(r => {
+      const st = ST[r.s];
+      const accentIcon = r.s === 'publishing' || r.s === 'live';
+      return { ...r, icon: this._icon(r.icon),
+        iconBg: accentIcon ? 'rgba(99,194,129,0.1)' : 'rgba(255,255,255,0.04)',
+        iconBorder: accentIcon ? 'rgba(99,194,129,0.22)' : 'rgba(255,255,255,0.07)',
+        iconColor: accentIcon ? accent : '#9aa096',
+        status: st.status, statusColor: st.color, statusBg: st.bg, statusBorder: st.border, statusDot: st.dot };
+    });
+
+    // ---- channels ----
+    const channels = [
+      { name: 'Blog post', dot: accent, state: 'Published', color: accent },
+      { name: 'X thread', dot: sageDot, state: 'Queued', color: '#9aa096' },
+      { name: 'LinkedIn', dot: sageDot, state: 'Queued', color: '#9aa096' },
+      { name: 'Instagram', dot: '#565a53', state: 'Drafting', color: '#6b6f67' },
+    ];
+
+    // ---- keywords ----
+    const keywords = [
+      { term: 'ai onboarding checklist', pos: 3, change: '▲ 15', color: accent },
+      { term: 'reduce saas churn', pos: 5, change: '▲ 9', color: sage },
+      { term: 'programmatic seo guide', pos: 8, change: '▲ 6', color: sage },
+      { term: 'compounding traffic', pos: 3, change: '▲ 4', color: sage },
+      { term: 'content team cost', pos: 14, change: '▼ 2', color: '#c97f7f' },
+    ];
+
+    // ---- activity ----
+    const activity = [
+      { text: 'Published \u201C10 onboarding mistakes\u2026\u201D to /blog', time: '6 min ago', dot: accent, ring: 'rgba(99,194,129,0.3)' },
+      { text: 'Ranked #3 for \u201Cai onboarding checklist\u201D', time: '1 hour ago', dot: sageDot, ring: 'rgba(142,165,150,0.3)' },
+      { text: 'Cited by ChatGPT for \u201Csaas churn\u201D', time: '3 hours ago', dot: '#7fb6e6', ring: 'rgba(127,182,230,0.3)' },
+      { text: 'Cross-posted to LinkedIn + X', time: '5 hours ago', dot: '#9aa096', ring: 'rgba(255,255,255,0.12)' },
+      { text: 'Voice model retrained on 4 posts', time: 'Yesterday', dot: '#9aa096', ring: 'rgba(255,255,255,0.12)' },
+    ];
+
+    return {
+      accentVar: accent, glowVar: glow, showGlow,
+      navSections,
+      searchIcon: this._icon('search'), bellIcon: this._icon('bell'),
+      countdown: '06h 12m',
+      toggleAutopilot: () => this.setState(s => ({ autopilot: !s.autopilot })),
+      apLabel: ap ? 'Autopilot on' : 'Autopilot off',
+      apBg: ap ? 'rgba(99,194,129,0.1)' : 'rgba(255,255,255,0.03)',
+      apBorder: ap ? 'rgba(99,194,129,0.3)' : 'rgba(255,255,255,0.1)',
+      apColor: ap ? accent : '#9aa096',
+      apDot: ap ? accent : '#6b6f67',
+      apAnim: ap ? 'gvPulse 2.4s ease-in-out infinite' : 'none',
+      stats,
+      leafIcon: this._icon('leaf'), sparkIcon: this._icon('answers'), agentSummary, agentInsight, insightCta, agentItems,
+      calMonth, weekdays, calLegend, calDays,
+      tabs, rows,
+      channels, keywords, activity,
+    };
+  }
+}
+</script>
+</body>
+</html>
