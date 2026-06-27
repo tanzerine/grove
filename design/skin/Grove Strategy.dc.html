@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500;1,600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #0a0b0a; }
+  ::selection { background: rgba(99,194,129,0.3); color: #fff; }
+  @keyframes gvPulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.45; transform: scale(0.85); } }
+  @keyframes gvBlob { 0% { transform: translate3d(-4%,2%,0) scale(1.1); } 50% { transform: translate3d(6%,-3%,0) scale(1.28); } 100% { transform: translate3d(-4%,2%,0) scale(1.1); } }
+  @keyframes gvDash { to { stroke-dashoffset: -22; } }
+  @keyframes gvRingIn { from { stroke-dashoffset: 100; } }
+  .gv-nav:hover { background: rgba(255,255,255,0.04) !important; color: #eef1ea !important; }
+  .gv-nav:hover .gv-ico { color: #cdd2c9 !important; }
+  .gv-card { transition: border-color .25s, transform .25s; }
+  .gv-card:hover { border-color: rgba(99,194,129,0.28) !important; }
+  .gv-btn { transition: transform .18s, box-shadow .18s, background .18s; }
+  .gv-btn:hover { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(99,194,129,0.22); }
+  .gv-ghost:hover { background: rgba(255,255,255,0.06) !important; color: #eef1ea !important; }
+  .gv-pill:hover { border-color: rgba(99,194,129,0.4) !important; }
+  .gv-row:hover { background: rgba(255,255,255,0.025) !important; }
+  .gv-node { transition: r .2s, opacity .2s; cursor: default; }
+  .gv-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+  .gv-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 99px; }
+  .gv-scroll::-webkit-scrollbar-track { background: transparent; }
+  input::placeholder { color: #565a53; }
+</style>
+</helmet>
+
+<div style="--accent: {{ accentVar }}; --glow: {{ glowVar }}; background: #0a0b0a; color: #eef1ea; font-family: 'Plus Jakarta Sans', sans-serif; min-height: 100vh; display: flex; -webkit-font-smoothing: antialiased; position: relative; overflow: hidden;">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="gv-scroll" style="width: 280px; flex-shrink: 0; height: 100vh; position: sticky; top: 0; border-right: 1px solid rgba(255,255,255,0.06); background: #0c0e0c; display: flex; flex-direction: column; overflow-y: auto;">
+    <div style="display: flex; align-items: center; gap: 9px; padding: 22px 22px 18px;">
+      <span style="width: 17px; height: 17px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #9ff0bb, var(--accent,#63c281)); box-shadow: 0 0 12px rgba(99,194,129,0.7);"></span>
+      <span style="font-weight: 700; font-size: 18px; letter-spacing: -0.02em;">grove</span>
+      <span style="margin-left: auto; font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent,#63c281); border: 1px solid rgba(99,194,129,0.3); border-radius: 6px; padding: 3px 7px;">Growth</span>
+    </div>
+    <nav style="padding: 8px 18px; display: flex; flex-direction: column; gap: 22px; flex: 1;">
+      <sc-for list="{{ navSections }}" as="sec" hint-placeholder-count="3">
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <div style="font-size: 10px; letter-spacing: 0.13em; text-transform: uppercase; color: #565a53; padding: 4px 12px 6px;">{{ sec.head }}</div>
+          <sc-for list="{{ sec.items }}" as="item" hint-placeholder-count="4">
+            <button class="gv-nav" onClick="{{ item.onSelect }}" style="display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; border: 1px solid {{ item.border }}; background: {{ item.bg }}; color: {{ item.color }}; font-family: inherit; font-size: 13.5px; font-weight: 500; padding: 9px 12px; border-radius: 10px; cursor: pointer; transition: background .18s, color .18s;">
+              <span class="gv-ico" style="color: {{ item.iconColor }}; display: flex; flex-shrink: 0;">{{ item.icon }}</span>
+              <span style="flex: 1;">{{ item.label }}</span>
+              <sc-if value="{{ item.badge }}" hint-placeholder-val="{{ false }}">
+                <span style="font-size: 10.5px; font-weight: 700; color: #06120b; background: var(--accent,#63c281); border-radius: 999px; padding: 1px 7px;">{{ item.badge }}</span>
+              </sc-if>
+            </button>
+          </sc-for>
+        </div>
+      </sc-for>
+    </nav>
+    <div style="padding: 14px; border-top: 1px solid rgba(255,255,255,0.06); margin-top: auto;">
+      <button class="gv-ghost" style="display: flex; align-items: center; gap: 11px; width: 100%; border: 1px solid rgba(255,255,255,0.09); background: rgba(255,255,255,0.02); border-radius: 12px; padding: 11px 13px; cursor: pointer; font-family: inherit; text-align: left; transition: background .2s;">
+        <span style="width: 30px; height: 30px; border-radius: 8px; background: rgba(99,194,129,0.12); border: 1px solid rgba(99,194,129,0.25); display: flex; align-items: center; justify-content: center; color: var(--accent,#63c281); font-weight: 700; font-size: 13px; flex-shrink: 0;">g</span>
+        <span style="flex: 1; min-width: 0;">
+          <span style="display: block; font-size: 13px; font-weight: 600; color: #eef1ea; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">grove.ai</span>
+          <span style="display: block; font-size: 11px; color: #6b6f67;">June plan · active</span>
+        </span>
+        <span style="color: #6b6f67; font-size: 13px;">⌄</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main class="gv-scroll" style="flex: 1; min-width: 0; height: 100vh; overflow-y: auto; position: relative;">
+    <sc-if value="{{ showGlow }}" hint-placeholder-val="{{ true }}">
+      <div style="position: absolute; top: 0; left: 0; right: 0; height: 360px; pointer-events: none; opacity: var(--glow,0.6); overflow: hidden;">
+        <div style="position: absolute; top: -42%; left: 30%; width: 44%; height: 110%; background: radial-gradient(ellipse at center, rgba(99,194,129,0.34), rgba(99,194,129,0) 60%); filter: blur(92px); animation: gvBlob 22s ease-in-out infinite;"></div>
+        <div style="position: absolute; top: -38%; right: 4%; width: 36%; height: 100%; background: radial-gradient(ellipse at center, rgba(150,230,185,0.22), rgba(150,230,185,0) 62%); filter: blur(98px); animation: gvBlob 27s ease-in-out infinite reverse;"></div>
+        <div style="position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10,11,10,0) 0%, rgba(10,11,10,0.4) 60%, #0a0b0a 100%);"></div>
+      </div>
+    </sc-if>
+
+    <!-- TOP BAR -->
+    <header style="position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 16px; padding: 16px 30px; background: rgba(10,11,10,0.72); backdrop-filter: blur(18px); border-bottom: 1px solid rgba(255,255,255,0.06);">
+      <div>
+        <div style="font-size: 16px; font-weight: 700; letter-spacing: -0.01em;">Strategy</div>
+        <div style="font-size: 12px; color: #6b6f67; margin-top: 1px;">grove.ai · the monthly plan your agent works from</div>
+      </div>
+      <div style="margin-left: auto; display: flex; align-items: center; gap: 14px;">
+        <div style="display: inline-flex; align-items: center; gap: 2px; padding: 4px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;">
+          <button class="gv-ghost" style="width: 30px; height: 30px; border-radius: 7px; border: none; background: transparent; color: #9aa096; cursor: pointer; font-family: inherit; font-size: 14px; transition: .2s;">‹</button>
+          <span style="font-size: 12.5px; font-weight: 600; color: #cdd2c9; padding: 0 10px;">{{ planMonth }}</span>
+          <button class="gv-ghost" style="width: 30px; height: 30px; border-radius: 7px; border: none; background: transparent; color: #9aa096; cursor: pointer; font-family: inherit; font-size: 14px; transition: .2s;">›</button>
+        </div>
+        <button class="gv-btn" style="display: flex; align-items: center; gap: 8px; border: none; background: var(--accent,#63c281); color: #06120b; font-family: inherit; font-size: 12.5px; font-weight: 700; padding: 9px 16px; border-radius: 10px; cursor: pointer;">{{ checkIcon }} Approve plan</button>
+        <span style="width: 1px; height: 26px; background: rgba(255,255,255,0.08);"></span>
+        <button class="gv-ghost" style="position: relative; width: 38px; height: 38px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02); color: #9aa096; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .2s;">{{ bellIcon }}<span style="position: absolute; top: 9px; right: 9px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent,#63c281);"></span></button>
+        <span style="width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, rgba(99,194,129,0.3), rgba(99,194,129,0.1)); border: 1px solid rgba(99,194,129,0.3); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; color: var(--accent,#63c281);">MR</span>
+      </div>
+    </header>
+
+    <!-- BODY -->
+    <div style="position: relative; padding: 28px 36px 56px; max-width: 1500px; margin: 0 auto;">
+
+      <!-- PLAN HERO -->
+      <section class="gv-card" style="background: linear-gradient(135deg, #0c130e, #0a0d0a); border: 1px solid rgba(99,194,129,0.18); border-radius: 20px; padding: 26px 28px; margin-bottom: 16px;">
+        <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap;">
+          <div style="flex: 1; min-width: 300px;">
+            <div style="display: flex; align-items: center; gap: 9px; font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent,#63c281);">{{ compassIcon }} This month's plan · auto-drafted from last month's results</div>
+            <p style="font-size: 16px; line-height: 1.62; color: #dfe4da; margin: 13px 0 0; max-width: 720px;">
+              Your churn &amp; activation posts pulled <span style="color: #fff; font-weight: 600;">2.4× the clicks</span> of everything else, so June leans in: <span style="color: #fff; font-weight: 600;">16 posts</span> across 4 pillars, weighted toward <span style="color: #fff; font-weight: 600;">activation</span>. The goal — cross <span style="color: #fff; font-weight: 600;">60k organic clicks</span> and get cited <span style="color: #fff; font-weight: 600;">500 times</span> by answer engines.
+            </p>
+          </div>
+          <div style="display: flex; gap: 9px; flex-shrink: 0;">
+            <button class="gv-ghost" style="border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.02); color: #cdd2c9; font-family: inherit; font-size: 13px; font-weight: 600; padding: 10px 15px; border-radius: 10px; cursor: pointer; transition: .2s;">Edit goals</button>
+            <button class="gv-btn" style="border: none; background: var(--accent,#63c281); color: #06120b; font-family: inherit; font-size: 13px; font-weight: 700; padding: 10px 16px; border-radius: 10px; cursor: pointer; white-space: nowrap;">Queue all 16 →</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- GOAL CARDS -->
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 14px;">
+        <sc-for list="{{ goals }}" as="g" hint-placeholder-count="4">
+          <div class="gv-card" style="background: #101310; border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; padding: 18px 20px; display: flex; align-items: center; gap: 16px;">
+            <div style="position: relative; width: 58px; height: 58px; flex-shrink: 0;">
+              {{ g.ring }}
+              <span style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;">{{ g.pctLabel }}</span>
+            </div>
+            <div style="min-width: 0;">
+              <div style="font-size: 12px; color: #9aa096;">{{ g.label }}</div>
+              <div style="font-size: 21px; font-weight: 700; letter-spacing: -0.02em; margin-top: 3px;">{{ g.current }}</div>
+              <div style="font-size: 11.5px; color: #6b6f67; margin-top: 1px;">of {{ g.target }} goal</div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+
+      <!-- TWO COLUMNS -->
+      <div style="display: grid; grid-template-columns: 1.45fr 1fr; gap: 14px; align-items: start; margin-bottom: 14px;">
+
+        <!-- ===== TOPICAL CLUSTER MAP ===== -->
+        <div class="gv-card" style="background: #101310; border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; padding: 22px 24px;">
+          <div style="display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+            <div>
+              <div style="font-size: 15px; font-weight: 700; letter-spacing: -0.01em;">Topical authority map</div>
+              <div style="font-size: 12.5px; color: #6b6f67; margin-top: 3px;">Hub-and-spoke clusters — own a topic, not just a keyword</div>
+            </div>
+            <div style="display: flex; gap: 16px;">
+              <sc-for list="{{ mapLegend }}" as="l" hint-placeholder-count="3">
+                <div style="display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: #9aa096;"><span style="width: 9px; height: 9px; border-radius: 3px; background: {{ l.color }};"></span>{{ l.label }}</div>
+              </sc-for>
+            </div>
+          </div>
+
+          <!-- pillar switcher -->
+          <div style="display: flex; flex-wrap: wrap; gap: 7px; margin: 18px 0 6px;">
+            <sc-for list="{{ pillarTabs }}" as="t" hint-placeholder-count="4">
+              <button onClick="{{ t.onSelect }}" class="gv-pill" style="display: inline-flex; align-items: center; gap: 8px; border: 1px solid {{ t.border }}; background: {{ t.bg }}; color: {{ t.color }}; font-family: inherit; font-size: 12.5px; font-weight: 600; padding: 7px 13px; border-radius: 999px; cursor: pointer; transition: .2s;"><span style="width: 8px; height: 8px; border-radius: 50%; background: {{ t.dot }};"></span>{{ t.label }}</button>
+            </sc-for>
+          </div>
+
+          <!-- the map (built in JS) -->
+          <div style="margin-top: 6px;">{{ clusterEl }}</div>
+
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; font-size: 12px; color: #6b6f67; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 14px; margin-top: 6px;">
+            <span><span style="color: var(--accent,#63c281); font-weight: 600;">{{ clusterCovered }}</span> of {{ clusterTotal }} spokes covered · {{ clusterGaps }} gaps worth filling</span>
+            <button class="gv-btn" style="border: 1px solid rgba(99,194,129,0.25); background: rgba(99,194,129,0.08); color: var(--accent,#63c281); font-family: inherit; font-size: 12px; font-weight: 600; padding: 7px 13px; border-radius: 9px; cursor: pointer;">Queue the {{ clusterGaps }} gaps →</button>
+          </div>
+        </div>
+
+        <!-- ===== CONTENT PILLARS ===== -->
+        <div class="gv-card" style="background: #101310; border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; padding: 22px 24px;">
+          <div style="font-size: 15px; font-weight: 700;">Content pillars</div>
+          <div style="font-size: 12.5px; color: #6b6f67; margin: 3px 0 18px;">How June's effort is allocated</div>
+
+          <!-- allocation bar -->
+          <div style="display: flex; height: 12px; border-radius: 99px; overflow: hidden; margin-bottom: 20px;">
+            <sc-for list="{{ pillars }}" as="p" hint-placeholder-count="4">
+              <span title="{{ p.name }}" style="width: {{ p.share }}; background: {{ p.color }};"></span>
+            </sc-for>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <sc-for list="{{ pillars }}" as="p" hint-placeholder-count="4">
+              <div class="gv-row" style="display: flex; align-items: center; gap: 12px; padding: 11px 10px; border-radius: 10px; transition: background .15s;">
+                <span style="width: 10px; height: 10px; border-radius: 3px; background: {{ p.color }}; flex-shrink: 0;"></span>
+                <div style="flex: 1; min-width: 0;">
+                  <div style="font-size: 13.5px; font-weight: 600; color: #eef1ea; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ p.name }}</div>
+                  <div style="font-size: 11.5px; color: #6b6f67; margin-top: 1px;">{{ p.posts }} posts · {{ p.note }}</div>
+                </div>
+                <div style="text-align: right; flex-shrink: 0;">
+                  <div style="font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums;">{{ p.share }}</div>
+                  <div style="font-size: 11px; font-weight: 600; color: {{ p.trendColor }};">{{ p.trend }}</div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOTTOM: PLAN TIMELINE + OPPORTUNITIES -->
+      <div style="display: grid; grid-template-columns: 1.45fr 1fr; gap: 14px; align-items: start;">
+
+        <!-- plan timeline -->
+        <div class="gv-card" style="background: #101310; border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; padding: 22px 24px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px;">
+            <div style="font-size: 15px; font-weight: 700;">The month, week by week</div>
+            <span style="font-size: 11.5px; color: #6b6f67;">16 posts · {{ planMonth }}</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            <sc-for list="{{ weeks }}" as="w" hint-placeholder-count="4">
+              <div style="display: flex; gap: 14px;">
+                <div style="width: 64px; flex-shrink: 0; padding-top: 2px;">
+                  <div style="font-size: 12px; font-weight: 700; color: {{ w.labelColor }};">{{ w.label }}</div>
+                  <div style="font-size: 10.5px; color: #565a53; margin-top: 2px;">{{ w.state }}</div>
+                </div>
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 7px;">
+                  <sc-for list="{{ w.items }}" as="it" hint-placeholder-count="2">
+                    <div style="display: flex; align-items: center; gap: 10px; padding: 10px 13px; border-radius: 11px; background: {{ it.bg }}; border: 1px solid {{ it.border }};">
+                      <span style="font-size: 9.5px; font-weight: 700; letter-spacing: 0.04em; color: {{ it.intentColor }}; border: 1px solid {{ it.intentBorder }}; border-radius: 5px; padding: 2px 6px; flex-shrink: 0;">{{ it.intent }}</span>
+                      <span style="flex: 1; min-width: 0; font-size: 13px; color: #cdd2c9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ it.title }}</span>
+                      <span style="width: 8px; height: 8px; border-radius: 50%; background: {{ it.pillarColor }}; flex-shrink: 0;"></span>
+                      <span style="font-size: 11px; color: {{ it.statusColor }}; flex-shrink: 0; min-width: 64px; text-align: right;">{{ it.status }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <!-- opportunities -->
+        <div class="gv-card" style="background: linear-gradient(150deg, #0c130e, #0a0d0a); border: 1px solid rgba(99,194,129,0.16); border-radius: 18px; padding: 22px 24px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+            <div style="font-size: 15px; font-weight: 700;">Openings grove spotted</div>
+            <span style="font-size: 11px; color: var(--accent,#63c281); font-weight: 600;">live SERP</span>
+          </div>
+          <div style="font-size: 12.5px; color: #6b6f67; margin-bottom: 16px;">Gaps competitors left — ranked by upside</div>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <sc-for list="{{ opportunities }}" as="o" hint-placeholder-count="4">
+              <div style="padding: 13px 15px; border-radius: 12px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06);">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                  <span style="font-size: 9.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: {{ o.tagColor }}; background: {{ o.tagBg }}; border-radius: 5px; padding: 2px 7px;">{{ o.tag }}</span>
+                  <span style="margin-left: auto; font-size: 11.5px; color: #9aa096; font-variant-numeric: tabular-nums;">{{ o.volume }}</span>
+                </div>
+                <div style="font-size: 13.5px; font-weight: 600; color: #eef1ea; line-height: 1.4;">{{ o.title }}</div>
+                <div style="font-size: 12px; color: #6b6f67; margin-top: 4px; line-height: 1.45;">{{ o.why }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <button class="gv-btn" style="width: 100%; margin-top: 14px; border: none; background: var(--accent,#63c281); color: #06120b; font-family: inherit; font-size: 13px; font-weight: 700; padding: 11px; border-radius: 10px; cursor: pointer;">Add all to the plan</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 1440, &quot;height&quot;: 1120}, &quot;accent&quot;: {&quot;editor&quot;: &quot;color&quot;, &quot;default&quot;: &quot;#63c281&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;options&quot;: [&quot;#63c281&quot;, &quot;#7bd6a0&quot;, &quot;#4fae6e&quot;, &quot;#8fd9b0&quot;, &quot;#39b06a&quot;]}, &quot;glowIntensity&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;balanced&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;options&quot;: [&quot;subtle&quot;, &quot;balanced&quot;, &quot;intense&quot;]}, &quot;showGlow&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;}}">
+class Component extends DCLogic {
+  state = { nav: 'Strategy', pillar: 0 };
+
+  _icon(name, size) {
+    const E = React.createElement;
+    const p = { width: size || 17, height: size || 17, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.8, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' };
+    const defs = {
+      home: ['M3 11l9-8 9 8', 'M5 10v10h14V10'],
+      strategy: ['circle:12,12,8.5', 'circle:12,12,4', 'M12 1v3', 'M12 20v3', 'M1 12h3', 'M20 12h3'],
+      write: ['M4 20l3.5-1 10-10a2 2 0 00-3-3l-10 10z', 'M13.5 6.5l3 3'],
+      pipeline: ['M4 7h16', 'M4 12h16', 'M4 17h10'],
+      calendar: ['rect:3,5,18,16,2', 'M3 9h18', 'M8 3v4', 'M16 3v4'],
+      reviews: ['circle:12,12,9', 'M8.5 12l2.4 2.4L15.5 9'],
+      analytics: ['M5 21V11', 'M12 21V4', 'M19 21v-7', 'M3 21h18'],
+      voice: ['M4 10v4', 'M8 6v12', 'M12 9v6', 'M16 4v16', 'M20 10v4'],
+      social: ['circle:6,12,2.5', 'circle:18,6,2.5', 'circle:18,18,2.5', 'M8.2 10.8l7.6-3.6', 'M8.2 13.2l7.6 3.6'],
+      embed: ['M9 8l-4 4 4 4', 'M15 8l4 4-4 4'],
+      bell: ['M6 9a6 6 0 0112 0c0 5 2 6 2 6H4s2-1 2-6', 'M10.5 20a2 2 0 003 0'],
+      check: ['M20 6L9 17l-5-5'],
+      compass: ['circle:12,12,9', 'M16 8l-2.4 5.6L8 16l2.4-5.6z'],
+    };
+    const els = (defs[name] || []).map((d, i) => {
+      if (d.startsWith('circle:')) { const a = d.slice(7).split(','); return E('circle', { key: i, cx: a[0], cy: a[1], r: a[2] }); }
+      if (d.startsWith('rect:')) { const a = d.slice(5).split(','); return E('rect', { key: i, x: a[0], y: a[1], width: a[2], height: a[3], rx: a[4] || 1.5 }); }
+      return E('path', { key: i, d });
+    });
+    return E('svg', p, els);
+  }
+
+  _ring(pct, color, size) {
+    const E = React.createElement, r = 15.5, C = 2 * Math.PI * r;
+    return E('svg', { viewBox: '0 0 36 36', width: size, height: size, style: { transform: 'rotate(-90deg)' } },
+      E('circle', { cx: 18, cy: 18, r, fill: 'none', stroke: 'rgba(255,255,255,0.07)', strokeWidth: 3.4 }),
+      E('circle', { cx: 18, cy: 18, r, fill: 'none', stroke: color, strokeWidth: 3.4, strokeLinecap: 'round',
+        strokeDasharray: C.toFixed(1), strokeDashoffset: (C * (1 - pct / 100)).toFixed(1),
+        style: { animation: 'gvRingIn 1.1s cubic-bezier(.4,0,.2,1)' } })
+    );
+  }
+
+  // hub-and-spoke cluster, built as an SVG element
+  _cluster(hub, spokes, accent) {
+    const E = React.createElement;
+    const W = 540, H = 392, cx = 270, cy = 196, R = 138;
+    const STYLE = {
+      published: { fill: accent, stroke: accent, line: 'rgba(99,194,129,0.45)', dash: '0', text: '#cdd2c9', tr: false },
+      planned:   { fill: 'rgba(127,182,230,0.18)', stroke: '#7fb6e6', line: 'rgba(127,182,230,0.4)', dash: '0', text: '#9aa096', tr: false },
+      gap:       { fill: 'rgba(224,200,120,0.08)', stroke: '#e0c878', line: 'rgba(224,200,120,0.4)', dash: '4 4', text: '#9aa79e', tr: true },
+    };
+    const n = spokes.length;
+    const lines = [], nodes = [];
+    spokes.forEach((s, i) => {
+      const a = -Math.PI / 2 + i * (2 * Math.PI / n);
+      const nx = cx + R * Math.cos(a), ny = cy + R * Math.sin(a);
+      const st = STYLE[s.status] || STYLE.planned;
+      lines.push(E('line', { key: 'l' + i, x1: cx, y1: cy, x2: nx, y2: ny, stroke: st.line, strokeWidth: 1.4,
+        strokeDasharray: st.dash, style: st.tr ? { animation: 'gvDash 1.6s linear infinite' } : null }));
+      const lx = cx + (R + 16) * Math.cos(a), ly = cy + (R + 16) * Math.sin(a);
+      const anchor = Math.cos(a) > 0.2 ? 'start' : Math.cos(a) < -0.2 ? 'end' : 'middle';
+      nodes.push(E('g', { key: 'n' + i },
+        E('circle', { className: 'gv-node', cx: nx, cy: ny, r: 8.5, fill: st.fill, stroke: st.stroke, strokeWidth: 1.8, strokeDasharray: st.dash }),
+        E('text', { x: lx, y: ly + 3.5, textAnchor: anchor, fontSize: 11, fontWeight: 600, fontFamily: 'Plus Jakarta Sans, sans-serif', fill: st.text }, s.label)
+      ));
+    });
+    return E('svg', { viewBox: '0 0 ' + W + ' ' + H, width: '100%', style: { height: '360px', overflow: 'visible' } },
+      E('circle', { cx, cy, r: R, fill: 'none', stroke: 'rgba(255,255,255,0.05)', strokeWidth: 1 }),
+      E('circle', { cx, cy, r: R * 0.5, fill: 'none', stroke: 'rgba(255,255,255,0.035)', strokeWidth: 1 }),
+      ...lines,
+      E('circle', { cx, cy, r: 40, fill: 'rgba(99,194,129,0.08)', stroke: 'rgba(99,194,129,0.3)', strokeWidth: 1.5 }),
+      E('circle', { cx, cy, r: 34, fill: '#101310', stroke: 'rgba(99,194,129,0.5)', strokeWidth: 1.5 }),
+      E('text', { x: cx, y: cy - 3, textAnchor: 'middle', fontSize: 10, fontWeight: 700, fontFamily: 'Plus Jakarta Sans, sans-serif', fill: '#6b6f67', letterSpacing: '0.08em' }, 'HUB'),
+      E('text', { x: cx, y: cy + 11, textAnchor: 'middle', fontSize: 12, fontWeight: 700, fontFamily: 'Plus Jakarta Sans, sans-serif', fill: '#eef1ea' }, hub),
+      ...nodes
+    );
+  }
+
+  renderVals() {
+    const accent = this.props.accent ?? '#63c281';
+    const glowMap = { subtle: '0.35', balanced: '0.6', intense: '0.95' };
+    const glow = glowMap[this.props.glowIntensity ?? 'balanced'] ?? '0.6';
+    const showGlow = this.props.showGlow ?? true;
+
+    // ---- nav ----
+    const navDef = [
+      { head: 'Create', items: [
+        { label: 'Home', icon: 'home' },
+        { label: 'Strategy', icon: 'strategy' },
+        { label: 'Write', icon: 'write' },
+        { label: 'Pipeline', icon: 'pipeline', badge: '4' },
+      ]},
+      { head: 'Publish', items: [
+        { label: 'Calendar', icon: 'calendar' },
+        { label: 'Reviews', icon: 'reviews', badge: '2' },
+        { label: 'Analytics', icon: 'analytics' },
+      ]},
+      { head: 'Brand', items: [
+        { label: 'Brand voice', icon: 'voice' },
+        { label: 'Social', icon: 'social' },
+        { label: 'Embed', icon: 'embed' },
+      ]},
+    ];
+    const navSections = navDef.map(sec => ({
+      head: sec.head,
+      items: sec.items.map(it => {
+        const active = this.state.nav === it.label;
+        return { label: it.label, badge: it.badge || false, icon: this._icon(it.icon),
+          onSelect: () => this.setState({ nav: it.label }),
+          bg: active ? 'rgba(99,194,129,0.1)' : 'transparent',
+          border: active ? 'rgba(99,194,129,0.22)' : 'transparent',
+          color: active ? '#eef1ea' : '#9aa096',
+          iconColor: active ? accent : '#6b6f67' };
+      }),
+    }));
+
+    // ---- goals ----
+    const goalDef = [
+      { label: 'Organic clicks', current: '48.2k', target: '60k', pct: 80 },
+      { label: 'AI citations', current: '401', target: '500', pct: 80 },
+      { label: 'Page-1 keywords', current: '42', target: '50', pct: 84 },
+      { label: 'Trial signups', current: '742', target: '900', pct: 82 },
+    ];
+    const goals = goalDef.map(g => ({ label: g.label, current: g.current, target: g.target,
+      pctLabel: g.pct + '%', ring: this._ring(g.pct, accent, 58) }));
+
+    // ---- pillars ----
+    const pillarDef = [
+      { name: 'Activation & onboarding', share: 34, posts: 6, note: 'your top performer', color: accent, trend: '▲ 2.4×', up: true },
+      { name: 'Churn & retention', share: 28, posts: 5, note: 'compounding', color: '#7fb6e6', trend: '▲ 38%', up: true },
+      { name: 'Answer-engine (AEO)', share: 22, posts: 3, note: 'new bet', color: '#c8a6e8', trend: 'new', up: true },
+      { name: 'Programmatic SEO', share: 16, posts: 2, note: 'steady', color: '#e0c878', trend: '▲ 6%', up: true },
+    ];
+    const pillars = pillarDef.map(p => ({ name: p.name, share: p.share + '%', posts: p.posts, note: p.note, color: p.color,
+      trend: p.trend, trendColor: p.up ? accent : '#c97f7f' }));
+
+    // ---- clusters per pillar ----
+    const clusterDef = [
+      { hub: 'Activation', spokes: [
+        { label: 'Onboarding checklist', status: 'published' },
+        { label: 'Time-to-first-win', status: 'published' },
+        { label: 'Activation metrics', status: 'published' },
+        { label: 'Onboarding emails', status: 'planned' },
+        { label: 'In-app guidance', status: 'planned' },
+        { label: 'Empty states', status: 'gap' },
+        { label: 'Free-trial UX', status: 'gap' },
+      ]},
+      { hub: 'Retention', spokes: [
+        { label: 'Reduce churn', status: 'published' },
+        { label: 'NRR benchmarks', status: 'published' },
+        { label: 'Churn prediction', status: 'planned' },
+        { label: 'Cancellation flow', status: 'planned' },
+        { label: 'Win-back emails', status: 'gap' },
+      ]},
+      { hub: 'AEO', spokes: [
+        { label: 'Write for answer engines', status: 'published' },
+        { label: 'FAQ schema', status: 'published' },
+        { label: 'AI Overviews B2B', status: 'planned' },
+        { label: 'llms.txt', status: 'gap' },
+        { label: 'Citation tracking', status: 'gap' },
+      ]},
+      { hub: 'pSEO', spokes: [
+        { label: 'Programmatic SEO', status: 'published' },
+        { label: 'Comparison pages', status: 'planned' },
+        { label: 'Glossary hub', status: 'planned' },
+        { label: 'Integration pages', status: 'gap' },
+      ]},
+    ];
+    const pi = this.state.pillar % clusterDef.length;
+    const curCluster = clusterDef[pi];
+    const clusterEl = this._cluster(curCluster.hub, curCluster.spokes, accent);
+    const clusterCovered = curCluster.spokes.filter(s => s.status === 'published').length;
+    const clusterGaps = curCluster.spokes.filter(s => s.status === 'gap').length;
+
+    const tabLabels = ['Activation', 'Retention', 'AEO', 'pSEO'];
+    const pillarTabs = pillarDef.map((p, idx) => {
+      const active = idx === pi;
+      return { label: tabLabels[idx],
+        onSelect: () => this.setState({ pillar: idx }), dot: p.color,
+        bg: active ? 'rgba(99,194,129,0.1)' : 'rgba(255,255,255,0.02)',
+        border: active ? 'rgba(99,194,129,0.28)' : 'rgba(255,255,255,0.08)',
+        color: active ? '#eef1ea' : '#9aa096' };
+    });
+
+    const mapLegend = [
+      { label: 'Published', color: accent },
+      { label: 'Planned', color: '#7fb6e6' },
+      { label: 'Gap', color: '#e0c878' },
+    ];
+
+    // ---- plan timeline ----
+    const INTENT = {
+      TOFU: { color: '#7fb6e6', border: 'rgba(127,182,230,0.35)' },
+      MOFU: { color: '#c8a6e8', border: 'rgba(200,166,232,0.35)' },
+      BOFU: { color: accent, border: 'rgba(99,194,129,0.35)' },
+    };
+    const PC = { act: accent, ret: '#7fb6e6', aeo: '#c8a6e8', pseo: '#e0c878' };
+    const ST = {
+      live:   { status: 'Live', color: accent },
+      review: { status: 'In review', color: '#e0c878' },
+      now:    { status: 'Drafting', color: accent },
+      planned:{ status: 'Planned', color: '#6b6f67' },
+    };
+    const mkItem = (intent, title, pillar, s) => ({
+      intent, title, intentColor: INTENT[intent].color, intentBorder: INTENT[intent].border,
+      pillarColor: PC[pillar], status: ST[s].status, statusColor: ST[s].color,
+      bg: s === 'now' ? 'rgba(99,194,129,0.05)' : 'rgba(255,255,255,0.02)',
+      border: s === 'now' ? 'rgba(99,194,129,0.22)' : 'rgba(255,255,255,0.06)',
+    });
+    const weeks = [
+      { label: 'Week 1', state: 'shipped', labelColor: '#9aa096', items: [
+        mkItem('TOFU', 'The SaaS founder’s guide to compounding traffic', 'act', 'live'),
+        mkItem('MOFU', 'Activation metrics that predict retention', 'act', 'live'),
+      ]},
+      { label: 'Week 2', state: 'shipped', labelColor: '#9aa096', items: [
+        mkItem('TOFU', 'How to write for answer engines', 'aeo', 'live'),
+        mkItem('BOFU', 'Programmatic SEO without a dev team', 'pseo', 'live'),
+      ]},
+      { label: 'Week 3', state: 'this week', labelColor: accent, items: [
+        mkItem('TOFU', '10 onboarding mistakes killing activation', 'act', 'review'),
+        mkItem('MOFU', 'How we cut SaaS churn 18% in a quarter', 'ret', 'now'),
+      ]},
+      { label: 'Week 4', state: 'planned', labelColor: '#6b6f67', items: [
+        mkItem('MOFU', 'Why AI Overviews changed B2B SEO', 'aeo', 'planned'),
+        mkItem('BOFU', 'grove vs. hiring a content team', 'ret', 'planned'),
+      ]},
+    ];
+
+    // ---- opportunities ----
+    const opportunities = [
+      { tag: 'High intent', tagColor: '#06120b', tagBg: accent, volume: '2.4k/mo', title: 'saas onboarding email templates', why: 'You rank #14. Top result is thin — a real teardown wins page one.' },
+      { tag: 'AEO gap', tagColor: '#06120b', tagBg: '#c8a6e8', volume: '1.1k/mo', title: 'time to value benchmark', why: 'AI Overview cites no one. First structured answer takes the citation.' },
+      { tag: 'Competitor', tagColor: '#06120b', tagBg: '#7fb6e6', volume: '900/mo', title: 'activation rate by industry', why: 'A rival owns this with 2023 data. Fresh 2026 numbers beat it.' },
+    ];
+
+    return {
+      accentVar: accent, glowVar: glow, showGlow, navSections,
+      bellIcon: this._icon('bell'), checkIcon: this._icon('check', 15), compassIcon: this._icon('compass', 13),
+      planMonth: 'June 2026',
+      goals, pillars,
+      clusterEl, clusterCovered, clusterGaps, clusterTotal: curCluster.spokes.length,
+      pillarTabs, mapLegend,
+      weeks, opportunities,
+    };
+  }
+}
+</script>
+</body>
+</html>

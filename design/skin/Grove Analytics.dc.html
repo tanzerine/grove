@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500;1,600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #0a0b0a; }
+  ::selection { background: rgba(99,194,129,0.3); color: #fff; }
+  @keyframes gvPulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.45; transform: scale(0.85); } }
+  @keyframes gvBlob { 0% { transform: translate3d(-4%,2%,0) scale(1.1); } 50% { transform: translate3d(6%,-3%,0) scale(1.28); } 100% { transform: translate3d(-4%,2%,0) scale(1.1); } }
+  .gv-nav:hover { background: rgba(255,255,255,0.04) !important; color: #eef1ea !important; }
+  .gv-nav:hover .gv-ico { color: #cdd2c9 !important; }
+  .gv-card { transition: border-color .25s, transform .25s; }
+  .gv-card:hover { border-color: rgba(99,194,129,0.28) !important; }
+  .gv-row:hover { background: rgba(255,255,255,0.025) !important; }
+  .gv-btn { transition: transform .18s, box-shadow .18s, background .18s; }
+  .gv-btn:hover { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(99,194,129,0.22); }
+  .gv-ghost:hover { background: rgba(255,255,255,0.06) !important; color: #eef1ea !important; }
+  .gv-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+  .gv-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 99px; }
+  .gv-scroll::-webkit-scrollbar-track { background: transparent; }
+  input::placeholder { color: #565a53; }
+</style>
+</helmet>
+
+<div style="--accent: {{ accentVar }}; --glow: {{ glowVar }}; background: #0a0b0a; color: #eef1ea; font-family: 'Plus Jakarta Sans', sans-serif; min-height: 100vh; display: flex; -webkit-font-smoothing: antialiased; position: relative; overflow: hidden;">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="gv-scroll" style="width: 280px; flex-shrink: 0; height: 100vh; position: sticky; top: 0; border-right: 1px solid rgba(255,255,255,0.06); background: #0c0e0c; display: flex; flex-direction: column; overflow-y: auto;">
+    <div style="display: flex; align-items: center; gap: 9px; padding: 22px 22px 18px;">
+      <span style="width: 17px; height: 17px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #9ff0bb, var(--accent,#63c281)); box-shadow: 0 0 12px rgba(99,194,129,0.7);"></span>
+      <span style="font-weight: 700; font-size: 18px; letter-spacing: -0.02em;">grove</span>
+      <span style="margin-left: auto; font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent,#63c281); border: 1px solid rgba(99,194,129,0.3); border-radius: 6px; padding: 3px 7px;">Growth</span>
+    </div>
+
+    <nav style="padding: 8px 18px; display: flex; flex-direction: column; gap: 22px; flex: 1;">
+      <sc-for list="{{ navSections }}" as="sec" hint-placeholder-count="3">
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <div style="font-size: 10px; letter-spacing: 0.13em; text-transform: uppercase; color: #565a53; padding: 4px 12px 6px;">{{ sec.head }}</div>
+          <sc-for list="{{ sec.items }}" as="item" hint-placeholder-count="4">
+            <button class="gv-nav" onClick="{{ item.onSelect }}" style="display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; border: 1px solid {{ item.border }}; background: {{ item.bg }}; color: {{ item.color }}; font-family: inherit; font-size: 13.5px; font-weight: 500; padding: 9px 12px; border-radius: 10px; cursor: pointer; transition: background .18s, color .18s;">
+              <span class="gv-ico" style="color: {{ item.iconColor }}; display: flex; flex-shrink: 0;">{{ item.icon }}</span>
+              <span style="flex: 1;">{{ item.label }}</span>
+              <sc-if value="{{ item.badge }}" hint-placeholder-val="{{ false }}">
+                <span style="font-size: 10.5px; font-weight: 700; color: #06120b; background: var(--accent,#63c281); border-radius: 999px; padding: 1px 7px;">{{ item.badge }}</span>
+              </sc-if>
+            </button>
+          </sc-for>
+        </div>
+      </sc-for>
+    </nav>
+
+    <div style="padding: 14px; border-top: 1px solid rgba(255,255,255,0.06); margin-top: auto;">
+      <button class="gv-ghost" style="display: flex; align-items: center; gap: 11px; width: 100%; border: 1px solid rgba(255,255,255,0.09); background: rgba(255,255,255,0.02); border-radius: 12px; padding: 11px 13px; cursor: pointer; font-family: inherit; text-align: left; transition: background .2s;">
+        <span style="width: 30px; height: 30px; border-radius: 8px; background: rgba(99,194,129,0.12); border: 1px solid rgba(99,194,129,0.25); display: flex; align-items: center; justify-content: center; color: var(--accent,#63c281); font-weight: 700; font-size: 13px; flex-shrink: 0;">g</span>
+        <span style="flex: 1; min-width: 0;">
+          <span style="display: block; font-size: 13px; font-weight: 600; color: #eef1ea; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">grove.ai</span>
+          <span style="display: block; font-size: 11px; color: #6b6f67;">3 domains · 1 active</span>
+        </span>
+        <span style="color: #6b6f67; font-size: 13px;">⌄</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main class="gv-scroll" style="flex: 1; min-width: 0; height: 100vh; overflow-y: auto; position: relative;">
+
+    <sc-if value="{{ showGlow }}" hint-placeholder-val="{{ true }}">
+      <div style="position: absolute; top: 0; left: 0; right: 0; height: 360px; pointer-events: none; opacity: var(--glow,0.6); overflow: hidden;">
+        <div style="position: absolute; top: -42%; left: 30%; width: 44%; height: 110%; background: radial-gradient(ellipse at center, rgba(99,194,129,0.4), rgba(99,194,129,0) 60%); filter: blur(92px); animation: gvBlob 22s ease-in-out infinite;"></div>
+        <div style="position: absolute; top: -38%; right: 4%; width: 36%; height: 100%; background: radial-gradient(ellipse at center, rgba(150,230,185,0.26), rgba(150,230,185,0) 62%); filter: blur(98px); animation: gvBlob 27s ease-in-out infinite reverse;"></div>
+        <div style="position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10,11,10,0) 0%, rgba(10,11,10,0.4) 60%, #0a0b0a 100%);"></div>
+      </div>
+    </sc-if>
+
+    <!-- TOP BAR -->
+    <header style="position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 16px; padding: 16px 30px; background: rgba(10,11,10,0.72); backdrop-filter: blur(18px); border-bottom: 1px solid rgba(255,255,255,0.06);">
+      <div>
+        <div style="font-size: 16px; font-weight: 700; letter-spacing: -0.01em;">Analytics</div>
+        <div style="font-size: 12px; color: #6b6f67; margin-top: 1px;">grove.ai · how the blog is compounding</div>
+      </div>
+      <div style="margin-left: auto; display: flex; align-items: center; gap: 14px;">
+        <div style="display: inline-flex; padding: 4px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 999px; gap: 3px;">
+          <sc-for list="{{ periods }}" as="p" hint-placeholder-count="4">
+            <button onClick="{{ p.onSelect }}" style="border: none; cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 999px; transition: .2s; background: {{ p.bg }}; color: {{ p.color }};">{{ p.label }}</button>
+          </sc-for>
+        </div>
+        <button class="gv-ghost" style="display: flex; align-items: center; gap: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02); color: #cdd2c9; font-family: inherit; font-size: 12.5px; font-weight: 600; padding: 8px 14px; border-radius: 10px; cursor: pointer; transition: background .2s;">{{ exportIcon }} Export</button>
+        <span style="width: 1px; height: 26px; background: rgba(255,255,255,0.08);"></span>
+        <button class="gv-ghost" style="position: relative; width: 38px; height: 38px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02); color: #9aa096; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .2s;">
+          {{ bellIcon }}
+          <span style="position: absolute; top: 9px; right: 9px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent,#63c281);"></span>
+        </button>
+        <span style="width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, rgba(99,194,129,0.3), rgba(99,194,129,0.1)); border: 1px solid rgba(99,194,129,0.3); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; color: var(--accent,#63c281);">MR</span>
+      </div>
+    </header>
+
+    <!-- BODY -->
+    <div style="position: relative; padding: 28px 36px 48px; max-width: 1680px; margin: 0 auto;">
+
+      <!-- summary line -->
+      <div style="display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-bottom: 22px;">
+        <div>
+          <h1 style="font-size: 26px; font-weight: 700; letter-spacing: -0.025em; margin: 0;">Performance report</h1>
+          <p style="font-size: 14px; color: #9aa096; margin: 6px 0 0;">Over the {{ rangeLabel }}, grove content earned <span style="color: #eef1ea; font-weight: 600;">{{ headlineClicks }} clicks</span> and was quoted <span style="color: #eef1ea; font-weight: 600;">{{ headlineCites }} times</span> by answer engines.</p>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #6b6f67;">
+          <span style="width: 7px; height: 7px; border-radius: 50%; background: var(--accent,#63c281); animation: gvPulse 2.4s ease-in-out infinite;"></span>
+          Synced from Search Console &amp; first-party events · {{ syncedAgo }}
+        </div>
+      </div>
+
+      <!-- KPI ROW -->
+      <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 14px;">
+        <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="5">
+          <div class="gv-card" style="background: #101310; border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; padding: 18px 18px 14px;">
+            <div style="display: flex; align-items: center; gap: 9px; color: #9aa096; font-size: 12px;">
+              <span style="display: flex; color: var(--accent,#63c281);">{{ k.icon }}</span>{{ k.label }}
+            </div>
+            <div style="display: flex; align-items: flex-end; gap: 8px; margin-top: 12px;">
+              <span style="font-size: 27px; font-weight: 700; letter-spacing: -0.03em; line-height: 1;">{{ k.value }}</span>
+              <span style="display: inline-flex; align-items: center; gap: 3px; font-size: 11.5px; font-weight: 600; color: {{ k.deltaColor }}; padding-bottom: 2px;">{{ k.delta }}</span>
+            </div>
+            <svg viewBox="0 0 120 34" preserveAspectRatio="none" style="width: 100%; height: 30px; margin-top: 12px; overflow: visible;">
+              <path d="{{ k.sparkArea }}" fill="{{ k.sparkFill }}" stroke="none"></path>
+              <path d="{{ k.sparkLine }}" fill="none" stroke="{{ k.sparkStroke }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+          </div>
+        </sc-for>
+      </div>
+
+      <!-- MAIN CHART + TRAFFIC SOURCES -->
+      <div style="display: grid; grid-template-columns: 1.85fr 1fr; gap: 14px; margin-bottom: 14px;">
+
+        <!-- chart -->
+        <div class="gv-card" style="background: #101310; border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; padding: 22px 24px;">
+          <div style="display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+            <div>
+              <div style="font-size: 15px; font-weight: 700; letter-spacing: -0.01em;">Organic performance</div>
+              <div style="font-size: 12.5px; color: #6b6f67; margin-top: 3px;">Clicks &amp; impressions from Google + answer engines</div>
+            </div>
+            <div style="display: flex; gap: 18px;">
+              <div style="display: flex; align-items: center; gap: 7px; font-size: 12px; color: #9aa096;"><span style="width: 10px; height: 10px; border-radius: 3px; background: var(--accent,#63c281);"></span>Clicks</div>
+              <div style="display: flex; align-items: center; gap: 7px; font-size: 12px; color: #9aa096;"><span style="width: 10px; height: 10px; border-radius: 3px; background: rgba(255,255,255,0.22);"></span>Impressions</div>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 28px; margin: 18px 0 6px;">
+            <div>
+              <div style="font-size: 24px; font-weight: 700; letter-spacing: -0.02em;">{{ kpiClicks }}</div>
+              <div style="display: flex; align-items: center; gap: 7px; font-size: 12px; color: #9aa096; margin-top: 3px;">Clicks <span style="color: var(--accent,#63c281); font-weight: 600;">{{ kpiClicksDelta }}</span></div>
+            </div>
+            <div>
+              <div style="font-size: 24px; font-weight: 700; letter-spacing: -0.02em; color: #cdd2c9;">{{ kpiImpr }}</div>
+              <div style="font-size: 12px; color: #9aa096; margin-top: 3px;">Impressions</div>
+            </div>
+            <div>
+              <div style="font-size: 24px; font-weight: 700; letter-spacing: -0.02em; color: #cdd2c9;">{{ kpiCtr }}</div>
+              <div style="font-size: 12px; color: #9aa096; margin-top: 3px;">Avg. CTR</div>
+            </div>
+          </div>
+
+          <svg viewBox="0 0 640 220" preserveAspectRatio="none" style="width: 100%; height: 210px; margin-top: 6px; overflow: visible;">
+            <defs>
+              <linearGradient id="gvAreaA" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="var(--accent,#63c281)" stop-opacity="0.34"></stop>
+                <stop offset="100%" stop-color="var(--accent,#63c281)" stop-opacity="0"></stop>
+              </linearGradient>
+            </defs>
+            <line x1="0" y1="40" x2="640" y2="40" stroke="rgba(255,255,255,0.05)" stroke-width="1"></line>
+            <line x1="0" y1="100" x2="640" y2="100" stroke="rgba(255,255,255,0.05)" stroke-width="1"></line>
+            <line x1="0" y1="160" x2="640" y2="160" stroke="rgba(255,255,255,0.05)" stroke-width="1"></line>
+            <path d="{{ imprLine }}" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="2" stroke-dasharray="4 5" stroke-linecap="round"></path>
+            <path d="{{ clicksArea }}" fill="url(#gvAreaA)" stroke="none"></path>
+            <path d="{{ clicksLine }}" fill="none" stroke="var(--accent,#63c281)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></path>
+            <circle cx="{{ lastX }}" cy="{{ lastY }}" r="4.5" fill="var(--accent,#63c281)" stroke="#0a0b0a" stroke-width="2.5"></circle>
+          </svg>
+          <div style="display: flex; justify-content: space-between; font-size: 11px; color: #565a53; margin-top: 10px;">
+            <sc-for list="{{ axisLabels }}" as="lab" hint-placeholder-count="6">
+              <span>{{ lab }}</span>
+            </sc-for>
+          </div>
+        </div>
+
+        <!-- traffic sources -->
+        <div class="gv-card" style="background: #101310; border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; padding: 22px 24px; display: flex; flex-direction: column;">
+          <div style="font-size: 14px; font-weight: 700;">Traffic sources</div>
+          <div style="font-size: 12px; color: #6b6f67; margin: 3px 0 16px;">Where the clicks came from</div>
+          <div style="display: flex; align-items: center; gap: 22px;">
+            <div style="position: relative; width: 132px; height: 132px; flex-shrink: 0; border-radius: 50%; background: {{ donutGradient }};">
+              <div style="position: absolute; inset: 19px; border-radius: 50%; background: #101310; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                <span style="font-size: 22px; font-weight: 700; letter-spacing: -0.02em; line-height: 1;">{{ sourcesTotal }}</span>
+                <span style="font-size: 10px; color: #6b6f67; margin-top: 3px;">total clicks</span>
+              </div>
+            </div>
+            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px;">
+              <sc-for list="{{ sources }}" as="s" hint-placeholder-count="4">
+                <div style="display: flex; align-items: center; gap: 9px;">
+                  <span style="width: 9px; height: 9px; border-radius: 3px; background: {{ s.color }}; flex-shrink: 0;"></span>
+                  <span style="font-size: 12.5px; color: #cdd2c9; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ s.name }}</span>
+                  <span style="font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums;">{{ s.pct }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="margin-top: auto; padding-top: 18px; font-size: 11.5px; color: #6b6f67; line-height: 1.55; border-top: 1px solid rgba(255,255,255,0.06); margin-top: 20px;">
+            <span style="color: var(--accent,#63c281); font-weight: 600;">Answer engines</span> now drive {{ aiShare }} of all clicks — up from 4% a quarter ago.
+          </div>
+        </div>
+      </div>
+
+      <!-- TOP CONTENT TABLE -->
+      <div class="gv-card" style="background: #101310; border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; overflow: hidden; margin-bottom: 14px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 18px 22px; border-bottom: 1px solid rgba(255,255,255,0.06);">
+          <div style="display: flex; align-items: center; gap: 14px;">
+            <span style="font-size: 15px; font-weight: 700;">Top performing content</span>
+            <div style="display: flex; gap: 4px;">
+              <sc-for list="{{ sortTabs }}" as="t" hint-placeholder-count="3">
+                <button onClick="{{ t.onSelect }}" style="border: 1px solid {{ t.border }}; background: {{ t.bg }}; color: {{ t.color }}; font-family: inherit; font-size: 12px; font-weight: 600; padding: 6px 13px; border-radius: 999px; cursor: pointer; transition: .2s;">{{ t.label }}</button>
+              </sc-for>
+            </div>
+          </div>
+          <a href="#" style="font-size: 12.5px; color: #9aa096; text-decoration: none;">View all 128 →</a>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 110px 120px 80px 90px 110px; gap: 0; padding: 11px 22px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #565a53; border-bottom: 1px solid rgba(255,255,255,0.04);">
+          <span>Post</span><span style="text-align: right;">Clicks</span><span style="text-align: right;">Impressions</span><span style="text-align: right;">CTR</span><span style="text-align: right;">Avg. pos</span><span style="text-align: right;">30-day trend</span>
+        </div>
+        <sc-for list="{{ topPosts }}" as="r" hint-placeholder-count="6">
+          <div class="gv-row" style="display: grid; grid-template-columns: 1fr 110px 120px 80px 90px 110px; gap: 0; align-items: center; padding: 14px 22px; border-bottom: 1px solid rgba(255,255,255,0.04); transition: background .15s; cursor: pointer;">
+            <div style="display: flex; align-items: center; gap: 12px; min-width: 0; padding-right: 18px;">
+              <span style="width: 28px; height: 28px; border-radius: 8px; background: rgba(99,194,129,0.1); border: 1px solid rgba(99,194,129,0.22); display: flex; align-items: center; justify-content: center; color: var(--accent,#63c281); flex-shrink: 0;">{{ r.icon }}</span>
+              <span style="min-width: 0;"><span style="display: block; font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ r.title }}</span><span style="display: block; font-size: 11.5px; color: #6b6f67;">{{ r.keyword }}</span></span>
+            </div>
+            <span style="font-size: 13px; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums;">{{ r.clicks }}</span>
+            <span style="font-size: 12.5px; color: #9aa096; text-align: right; font-variant-numeric: tabular-nums;">{{ r.impr }}</span>
+            <span style="font-size: 12.5px; color: #cdd2c9; text-align: right; font-variant-numeric: tabular-nums;">{{ r.ctr }}</span>
+            <span style="text-align: right;"><span style="display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; color: #cdd2c9; font-variant-numeric: tabular-nums;">#{{ r.pos }}<span style="font-size: 11px; font-weight: 600; color: {{ r.posColor }};">{{ r.posChange }}</span></span></span>
+            <span style="display: flex; justify-content: flex-end;">
+              <svg viewBox="0 0 96 28" preserveAspectRatio="none" style="width: 92px; height: 26px; overflow: visible;">
+                <path d="{{ r.sparkLine }}" fill="none" stroke="{{ r.sparkStroke }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+              </svg>
+            </span>
+          </div>
+        </sc-for>
+      </div>
+
+      <!-- BOTTOM ROW -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px;">
+
+        <!-- rank distribution -->
+        <div class="gv-card" style="background: #101310; border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; padding: 20px 22px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+            <div style="font-size: 14px; font-weight: 700;">Ranking distribution</div>
+            <span style="font-size: 11.5px; color: var(--accent,#63c281); font-weight: 600;">{{ trackedTerms }} terms</span>
+          </div>
+          <div style="font-size: 12px; color: #6b6f67; margin-bottom: 18px;">Keyword positions on Google</div>
+          <div style="display: flex; height: 12px; border-radius: 99px; overflow: hidden; margin-bottom: 20px;">
+            <sc-for list="{{ rankBands }}" as="b" hint-placeholder-count="4">
+              <span style="width: {{ b.pct }}; background: {{ b.color }};"></span>
+            </sc-for>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 13px;">
+            <sc-for list="{{ rankBands }}" as="b" hint-placeholder-count="4">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="width: 9px; height: 9px; border-radius: 3px; background: {{ b.color }}; flex-shrink: 0;"></span>
+                <span style="font-size: 12.5px; color: #cdd2c9; flex: 1;">{{ b.label }}</span>
+                <span style="font-size: 12.5px; color: #6b6f67; font-variant-numeric: tabular-nums;">{{ b.pct }}</span>
+                <span style="font-size: 13px; font-weight: 700; width: 34px; text-align: right; font-variant-numeric: tabular-nums;">{{ b.count }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <!-- answer engine citations -->
+        <div class="gv-card" style="background: linear-gradient(150deg, #0c130e, #0a0d0a); border: 1px solid rgba(99,194,129,0.16); border-radius: 18px; padding: 20px 22px;">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="font-size: 14px; font-weight: 700;">Answer-engine citations</div>
+            <span style="font-size: 11px; color: var(--accent,#63c281); font-weight: 600;">▲ 41%</span>
+          </div>
+          <div style="font-size: 12px; color: #6b6f67; margin: 3px 0 18px;">Times grove content was quoted</div>
+          <div style="display: flex; flex-direction: column; gap: 15px;">
+            <sc-for list="{{ engines }}" as="e" hint-placeholder-count="3">
+              <div>
+                <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 7px;"><span style="color: #cdd2c9;">{{ e.name }}</span><span style="font-weight: 700;">{{ e.count }}</span></div>
+                <div style="height: 7px; border-radius: 99px; background: rgba(255,255,255,0.05); overflow: hidden;"><div style="height: 100%; width: {{ e.pct }}; border-radius: 99px; background: linear-gradient(90deg, rgba(99,194,129,0.5), var(--accent,#63c281));"></div></div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="font-size: 11.5px; color: #6b6f67; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 14px; margin-top: 18px;">{{ aiReady }} of published posts are structured for AI Overviews.</div>
+        </div>
+
+        <!-- conversion funnel -->
+        <div class="gv-card" style="background: #101310; border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; padding: 20px 22px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+            <div style="font-size: 14px; font-weight: 700;">Content funnel</div>
+            <span style="font-size: 11.5px; color: #6b6f67;">{{ rangeLabelShort }}</span>
+          </div>
+          <div style="font-size: 12px; color: #6b6f67; margin-bottom: 18px;">From a click to a signup</div>
+          <div style="display: flex; flex-direction: column; gap: 11px;">
+            <sc-for list="{{ funnel }}" as="f" hint-placeholder-count="4">
+              <div>
+                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
+                  <span style="font-size: 12.5px; color: #cdd2c9;">{{ f.label }}</span>
+                  <span style="font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums;">{{ f.value }} <span style="font-size: 11px; font-weight: 500; color: #6b6f67;">{{ f.rate }}</span></span>
+                </div>
+                <div style="height: 26px; border-radius: 8px; background: rgba(255,255,255,0.03); overflow: hidden;"><div style="height: 100%; width: {{ f.pct }}; border-radius: 8px; background: {{ f.bar }};"></div></div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 1440, &quot;height&quot;: 1100}, &quot;accent&quot;: {&quot;editor&quot;: &quot;color&quot;, &quot;default&quot;: &quot;#63c281&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;options&quot;: [&quot;#63c281&quot;, &quot;#7bd6a0&quot;, &quot;#4fae6e&quot;, &quot;#8fd9b0&quot;, &quot;#39b06a&quot;]}, &quot;glowIntensity&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;balanced&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;options&quot;: [&quot;subtle&quot;, &quot;balanced&quot;, &quot;intense&quot;]}, &quot;showGlow&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;}}">
+class Component extends DCLogic {
+  state = { nav: 'Analytics', period: '30d', sort: 'Clicks' };
+
+  _icon(name) {
+    const p = { width: 17, height: 17, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.8, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' };
+    const E = React.createElement;
+    const paths = {
+      overview: ['rect:3,3,7,7', 'rect:14,3,7,7', 'rect:14,14,7,7', 'rect:3,14,7,7'],
+      pipeline: ['M4 7h16', 'M4 12h16', 'M4 17h10'],
+      published: ['circle:12,12,9', 'M3 12h18', 'M12 3c2.6 2.8 2.6 15.2 0 18', 'M12 3c-2.6 2.8-2.6 15.2 0 18'],
+      calendar: ['rect:3,5,18,16,2', 'M3 9h18', 'M8 3v4', 'M16 3v4'],
+      rankings: ['M3 17l5-5 4 4 8-8', 'M16 8h5v5'],
+      analytics: ['M5 21V11', 'M12 21V4', 'M19 21v-7', 'M3 21h18'],
+      answers: ['M12 3l2.2 5.6L20 11l-5.8 2.4L12 19l-2.2-5.6L4 11l5.8-2.4z'],
+      channels: ['circle:6,12,2.5', 'circle:18,6,2.5', 'circle:18,18,2.5', 'M8.2 10.8l7.6-3.6', 'M8.2 13.2l7.6 3.6'],
+      voice: ['M4 10v4', 'M8 6v12', 'M12 9v6', 'M16 4v16', 'M20 10v4'],
+      domains: ['M9 15l6-6', 'M11 6l1-1a4 4 0 016 6l-1 1', 'M13 18l-1 1a4 4 0 01-6-6l1-1'],
+      settings: ['M4 7h11', 'M19 7h1', 'M4 17h5', 'M13 17h7', 'circle:17,7,2', 'circle:11,17,2'],
+      bell: ['M6 9a6 6 0 0112 0c0 5 2 6 2 6H4s2-1 2-6', 'M10.5 20a2 2 0 003 0'],
+      doc: ['M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z', 'M14 3v5h5'],
+      cursor: ['M4 4l7 16 2.5-6.5L20 11z'],
+      eye: ['circle:12,12,3', 'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z'],
+      target: ['circle:12,12,8.5', 'circle:12,12,4.5', 'circle:12,12,0.6'],
+      spark: ['M12 3l2.2 5.6L20 11l-5.8 2.4L12 19l-2.2-5.6L4 11l5.8-2.4z'],
+      download: ['M12 4v11', 'M7 11l5 5 5-5', 'M5 20h14'],
+    };
+    const els = (paths[name] || []).map((d, i) => {
+      if (d.startsWith('rect:')) { const a = d.slice(5).split(','); return E('rect', { key: i, x: a[0], y: a[1], width: a[2], height: a[3], rx: a[4] || 1.5 }); }
+      if (d.startsWith('circle:')) { const a = d.slice(7).split(','); return E('circle', { key: i, cx: a[0], cy: a[1], r: a[2] }); }
+      return E('path', { key: i, d });
+    });
+    return E('svg', { ...p }, els);
+  }
+
+  _buildPaths(vals, w, h, pad) {
+    const n = vals.length, max = Math.max(...vals), min = Math.min(...vals), rng = (max - min) || 1;
+    const pts = vals.map((v, i) => ({ x: pad + (i / (n - 1)) * (w - 2 * pad), y: pad + (1 - (v - min) / rng) * (h - 2 * pad) }));
+    let d = 'M ' + pts[0].x.toFixed(1) + ' ' + pts[0].y.toFixed(1);
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+      const c1x = p1.x + (p2.x - p0.x) / 6, c1y = p1.y + (p2.y - p0.y) / 6;
+      const c2x = p2.x - (p3.x - p1.x) / 6, c2y = p2.y - (p3.y - p1.y) / 6;
+      d += ' C ' + c1x.toFixed(1) + ' ' + c1y.toFixed(1) + ' ' + c2x.toFixed(1) + ' ' + c2y.toFixed(1) + ' ' + p2.x.toFixed(1) + ' ' + p2.y.toFixed(1);
+    }
+    const area = d + ' L ' + pts[n - 1].x.toFixed(1) + ' ' + (h - pad) + ' L ' + pts[0].x.toFixed(1) + ' ' + (h - pad) + ' Z';
+    return { line: d, area, last: pts[n - 1] };
+  }
+
+  renderVals() {
+    const accent = this.props.accent ?? '#63c281';
+    const glowMap = { subtle: '0.35', balanced: '0.6', intense: '0.95' };
+    const glow = glowMap[this.props.glowIntensity ?? 'balanced'] ?? '0.6';
+    const showGlow = this.props.showGlow ?? true;
+
+    // ---- nav ----
+    const navDef = [
+      { head: 'Workspace', items: [
+        { label: 'Overview', icon: 'overview' },
+        { label: 'Content pipeline', icon: 'pipeline', badge: '3' },
+        { label: 'Published', icon: 'published' },
+        { label: 'Calendar', icon: 'calendar' },
+      ]},
+      { head: 'Growth', items: [
+        { label: 'Analytics', icon: 'analytics' },
+        { label: 'Rankings', icon: 'rankings' },
+        { label: 'Answer engine', icon: 'answers' },
+        { label: 'Channels', icon: 'channels' },
+      ]},
+      { head: 'Setup', items: [
+        { label: 'Voice', icon: 'voice' },
+        { label: 'Domains', icon: 'domains' },
+        { label: 'Settings', icon: 'settings' },
+      ]},
+    ];
+    const navSections = navDef.map(sec => ({
+      head: sec.head,
+      items: sec.items.map(it => {
+        const active = this.state.nav === it.label;
+        return {
+          label: it.label, badge: it.badge || false, icon: this._icon(it.icon),
+          onSelect: () => this.setState({ nav: it.label }),
+          bg: active ? 'rgba(99,194,129,0.1)' : 'transparent',
+          border: active ? 'rgba(99,194,129,0.22)' : 'transparent',
+          color: active ? '#eef1ea' : '#9aa096',
+          iconColor: active ? accent : '#6b6f67',
+        };
+      }),
+    }));
+
+    // ---- period ----
+    const periodDef = [
+      { key: '7d', label: '7d', range: 'past 7 days', short: '7 days', clicks: '9,840', cites: '38' },
+      { key: '30d', label: '30d', range: 'past 30 days', short: '30 days', clicks: '48,210', cites: '401' },
+      { key: '90d', label: '90d', range: 'past quarter', short: '90 days', clicks: '128k', cites: '1,140' },
+      { key: '12mo', label: '12mo', range: 'past year', short: '12 months', clicks: '486k', cites: '4,820' },
+    ];
+    const periods = periodDef.map(p => ({
+      label: p.label, onSelect: () => this.setState({ period: p.key }),
+      bg: this.state.period === p.key ? accent : 'transparent',
+      color: this.state.period === p.key ? '#06120b' : '#9aa096',
+    }));
+    const curP = periodDef.find(p => p.key === this.state.period) || periodDef[1];
+
+    // ---- KPI cards ----
+    const kpiDef = [
+      { icon: 'rankings', label: 'Organic clicks', value: '48.2k', delta: '▲ 312%', up: true,
+        spark: [12,15,14,19,22,21,27,31,30,38,44,52], fill: true },
+      { icon: 'eye', label: 'Impressions', value: '1.2M', delta: '▲ 38%', up: true,
+        spark: [40,44,42,49,53,52,58,63,62,69,74,80], fill: false },
+      { icon: 'cursor', label: 'Avg. CTR', value: '4.0%', delta: '▲ 0.6pt', up: true,
+        spark: [28,30,29,33,31,35,34,38,37,40,39,42], fill: false },
+      { icon: 'target', label: 'Avg. position', value: '4.2', delta: '▲ from 18', up: true,
+        spark: [62,58,55,49,44,40,33,28,22,17,12,9], fill: false },
+      { icon: 'spark', label: 'AI citations', value: '401', delta: '▲ 41%', up: true,
+        spark: [8,10,12,16,15,22,28,30,36,42,48,57], fill: true },
+    ];
+    const kpis = kpiDef.map(k => {
+      const sp = this._buildPaths(k.spark, 120, 34, 4);
+      return { icon: this._icon(k.icon), label: k.label, value: k.value, delta: k.delta,
+        deltaColor: k.up ? accent : '#c97f7f',
+        sparkLine: sp.line, sparkArea: sp.area,
+        sparkStroke: accent,
+        sparkFill: k.fill ? 'rgba(99,194,129,0.14)' : 'transparent' };
+    });
+
+    // ---- main chart ----
+    const series = {
+      '7d':  { clicks: [30,34,33,39,44,42,50], impr: [55,58,57,62,67,66,72], labels: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'], c: '9,840', cd: '▲ 22%', im: '241k', ctr: '4.1%' },
+      '30d': { clicks: [18,21,20,26,30,29,34,38,37,44,48,52], impr: [40,44,42,49,53,52,58,63,62,69,74,80], labels: ['','Wk 1','','Wk 2','','Wk 3','','Wk 4',''], c: '48,210', cd: '▲ 38%', im: '1.2M', ctr: '4.0%' },
+      '90d': { clicks: [8,10,12,14,13,18,22,26,30,34,40,46,52,60,68], impr: [25,28,32,36,38,44,50,56,60,66,72,78,84,90,96], labels: ['Apr','','','May','','','Jun',''], c: '128k', cd: '▲ 312%', im: '3.4M', ctr: '3.8%' },
+      '12mo': { clicks: [4,6,9,12,16,20,27,34,42,51,60,72], impr: [15,20,26,33,40,48,57,66,74,82,90,98], labels: ['Jul','','Sep','','Nov','','Jan','','Mar','','May',''], c: '486k', cd: '▲ 1,180%', im: '12.4M', ctr: '3.9%' },
+    };
+    const cur = series[this.state.period] || series['30d'];
+    const cP = this._buildPaths(cur.clicks, 640, 220, 14);
+    const iP = this._buildPaths(cur.impr.map((v, i) => Math.max(v, cur.clicks[i] + 6)), 640, 220, 14);
+
+    // ---- traffic sources (donut via conic-gradient) ----
+    const sourceDef = [
+      { name: 'Google Search', pct: 58, color: accent },
+      { name: 'Answer engines', pct: 24, color: '#7fb6e6' },
+      { name: 'Direct', pct: 11, color: '#9aa096' },
+      { name: 'Social + referral', pct: 7, color: '#565a53' },
+    ];
+    let acc = 0;
+    const segs = sourceDef.map(s => { const start = acc; acc += s.pct; return s.color + ' ' + start + '% ' + acc + '%'; });
+    const donutGradient = 'conic-gradient(' + segs.join(', ') + ')';
+    const sources = sourceDef.map(s => ({ name: s.name, color: s.color, pct: s.pct + '%' }));
+
+    // ---- top posts ----
+    const postDef = [
+      { title: 'The SaaS founder\u2019s guide to compounding traffic', keyword: 'compounding organic traffic', clicks: '9,120', impr: '184k', ctr: '4.9%', pos: '3', posChange: '▲12', up: true, spark: [10,14,18,22,30,38,46,52] },
+      { title: 'How to write for answer engines', keyword: 'write for answer engines', clicks: '6,740', impr: '142k', ctr: '4.7%', pos: '2', posChange: '▲8', up: true, spark: [6,9,12,18,24,30,40,48] },
+      { title: '10 onboarding mistakes killing activation', keyword: 'ai onboarding checklist', clicks: '5,310', impr: '121k', ctr: '4.4%', pos: '3', posChange: '▲15', up: true, spark: [4,6,10,14,22,30,38,44] },
+      { title: 'Programmatic SEO without a dev team', keyword: 'programmatic seo no code', clicks: '4,180', impr: '108k', ctr: '3.9%', pos: '5', posChange: '▲6', up: true, spark: [8,10,9,14,18,22,28,34] },
+      { title: 'How we cut SaaS churn 18% in a quarter', keyword: 'reduce saas churn', clicks: '3,640', impr: '96k', ctr: '3.8%', pos: '6', posChange: '▲4', up: true, spark: [12,14,13,16,18,20,24,28] },
+      { title: 'The honest cost of an in-house content team', keyword: 'content team cost', clicks: '2,210', impr: '88k', ctr: '2.5%', pos: '14', posChange: '▼2', up: false, spark: [20,18,19,16,15,14,13,12] },
+    ];
+    const topPosts = postDef.map(p => {
+      const sp = this._buildPaths(p.spark, 96, 28, 3);
+      return { title: p.title, keyword: p.keyword, clicks: p.clicks, impr: p.impr, ctr: p.ctr, pos: p.pos,
+        posChange: p.posChange, posColor: p.up ? accent : '#c97f7f',
+        icon: this._icon('doc'), sparkLine: sp.line, sparkStroke: p.up ? accent : '#c97f7f' };
+    });
+
+    const sortTabs = ['Clicks', 'Impressions', 'CTR'].map(label => {
+      const active = this.state.sort === label;
+      return { label, onSelect: () => this.setState({ sort: label }),
+        bg: active ? 'rgba(99,194,129,0.12)' : 'transparent',
+        border: active ? 'rgba(99,194,129,0.25)' : 'rgba(255,255,255,0.08)',
+        color: active ? '#eef1ea' : '#9aa096' };
+    });
+
+    // ---- rank distribution ----
+    const rankDef = [
+      { label: 'Positions 1–3', count: 42, color: accent },
+      { label: 'Positions 4–10', count: 76, color: 'rgba(99,194,129,0.55)' },
+      { label: 'Positions 11–20', count: 58, color: '#7f8a86' },
+      { label: 'Positions 21+', count: 38, color: '#3a4640' },
+    ];
+    const rankTotal = rankDef.reduce((a, b) => a + b.count, 0);
+    const rankBands = rankDef.map(b => ({ label: b.label, count: b.count, color: b.color,
+      pct: Math.round((b.count / rankTotal) * 100) + '%' }));
+
+    // ---- engines ----
+    const engines = [
+      { name: 'ChatGPT', count: '186', pct: '88%' },
+      { name: 'Google AI Overviews', count: '142', pct: '67%' },
+      { name: 'Perplexity', count: '73', pct: '34%' },
+    ];
+
+    // ---- funnel ----
+    const funnelDef = [
+      { label: 'Clicks to blog', value: '48.2k', rate: '100%', pct: '100%', bar: accent },
+      { label: 'Read past 50%', value: '21.7k', rate: '45%', pct: '45%', bar: 'rgba(99,194,129,0.7)' },
+      { label: 'Email captured', value: '3,180', rate: '6.6%', pct: '28%', bar: 'rgba(99,194,129,0.5)' },
+      { label: 'Started trial', value: '742', rate: '1.5%', pct: '14%', bar: 'rgba(99,194,129,0.35)' },
+    ];
+
+    return {
+      accentVar: accent, glowVar: glow, showGlow, navSections,
+      bellIcon: this._icon('bell'), exportIcon: this._icon('download'),
+      rangeLabel: curP.range, rangeLabelShort: curP.short,
+      headlineClicks: curP.clicks, headlineCites: curP.cites, syncedAgo: '12 min ago',
+      periods, kpis,
+      axisLabels: cur.labels,
+      kpiClicks: cur.c, kpiClicksDelta: cur.cd, kpiImpr: cur.im, kpiCtr: cur.ctr,
+      clicksLine: cP.line, clicksArea: cP.area, imprLine: iP.line,
+      lastX: cP.last.x.toFixed(1), lastY: cP.last.y.toFixed(1),
+      donutGradient, sources, sourcesTotal: cur.c, aiShare: '24%',
+      topPosts, sortTabs,
+      rankBands, trackedTerms: rankTotal,
+      engines, aiReady: '75%',
+      funnel: funnelDef,
+    };
+  }
+}
+</script>
+</body>
+</html>
