@@ -14,7 +14,12 @@ export default async function ConnectionsPage() {
     .order('created_at', { ascending: false }).limit(1).maybeSingle();
 
   if (!domain) {
-    return <p style={{ marginTop: 40, color: 'var(--clay)' }}>Connect a domain first.</p>;
+    return (
+      <>
+        <header className="gv-header"><div style={{ fontSize: 16, fontWeight: 700 }}>Social</div></header>
+        <div className="gv-body"><p style={{ color: '#9aa096' }}>Connect a domain first.</p></div>
+      </>
+    );
   }
 
   const { data: conns } = await sb
@@ -32,12 +37,22 @@ export default async function ConnectionsPage() {
   }));
 
   return (
-    <ConnectionsClient
-      domainId={domain.id}
-      autoSocial={!!domain.auto_social}
-      platforms={platforms}
-      webhookUrl={domain.social_webhook_url ?? null}
-      webhookSecret={domain.social_webhook_secret ?? null}
-    />
+    <>
+      <header className="gv-header">
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em' }}>Social</div>
+          <div style={{ fontSize: 12, color: '#6b6f67', marginTop: 1 }}>cross-post every article to your channels</div>
+        </div>
+      </header>
+      <div className="gv-body">
+        <ConnectionsClient
+          domainId={domain.id}
+          autoSocial={!!domain.auto_social}
+          platforms={platforms}
+          webhookUrl={domain.social_webhook_url ?? null}
+          webhookSecret={domain.social_webhook_secret ?? null}
+        />
+      </div>
+    </>
   );
 }

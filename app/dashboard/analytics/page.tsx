@@ -54,32 +54,33 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
 
   return (
     <>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+      <header className="gv-header">
         <div>
-          <div className="mono" style={{ fontSize: 11, letterSpacing: '0.1em', color: 'var(--clay)' }}>ANALYTICS</div>
-          <h2 className="display" style={{ fontSize: 'clamp(24px, 6vw, 32px)', marginTop: 6 }}>{label}</h2>
+          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em' }}>Analytics</div>
+          <div style={{ fontSize: 12, color: '#6b6f67', marginTop: 1 }}>{domain.hostname} · how the blog is compounding · {label}</div>
         </div>
-        <RangePicker current={range} />
+        <div style={{ marginLeft: 'auto' }}><RangePicker current={range} /></div>
+      </header>
+      <div className="gv-body">
+        <SearchConsolePanel
+          configured={gscConfigured()}
+          connected={gscConnected}
+          verified={gscVerified}
+          data={gscData}
+          syncedAt={(domain as any).gsc_synced_at ?? null}
+        />
+
+        {!report || report.totals.unique_sessions === 0 ? <EmptyState /> : (
+          <>
+            <Totals report={report} />
+            <TopPosts report={report} hostname={domain.hostname} />
+            <SideBySide>
+              <Referrers report={report} />
+              <Queries report={report} />
+            </SideBySide>
+          </>
+        )}
       </div>
-
-      <SearchConsolePanel
-        configured={gscConfigured()}
-        connected={gscConnected}
-        verified={gscVerified}
-        data={gscData}
-        syncedAt={(domain as any).gsc_synced_at ?? null}
-      />
-
-      {!report || report.totals.unique_sessions === 0 ? <EmptyState /> : (
-        <>
-          <Totals report={report} />
-          <TopPosts report={report} hostname={domain.hostname} />
-          <SideBySide>
-            <Referrers report={report} />
-            <Queries report={report} />
-          </SideBySide>
-        </>
-      )}
     </>
   );
 }
@@ -118,7 +119,7 @@ function Totals({ report }: { report: MonthlyReport }) {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{ background: 'white', padding: 18, borderRadius: 14, border: '1px solid var(--line)' }}>
+    <div style={{ background: '#101310', padding: 18, borderRadius: 14, border: '1px solid var(--line)' }}>
       <div style={{ fontFamily: 'Clash Display', fontSize: 28, color: 'var(--moss)' }}>{value}</div>
       <div style={{ fontSize: 12, color: 'var(--clay)', marginTop: 4 }}>{label}</div>
     </div>
@@ -130,7 +131,7 @@ function TopPosts({ report, hostname }: { report: MonthlyReport; hostname: strin
   return (
     <div style={{ marginTop: 30 }}>
       <SectionLabel>Top posts</SectionLabel>
-      <div style={{ background: 'white', border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden' }}>
+      <div style={{ background: '#101310', border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
           <thead>
             <tr style={{ background: 'var(--paper)' }}>
@@ -166,7 +167,7 @@ function Referrers({ report }: { report: MonthlyReport }) {
   return (
     <div>
       <SectionLabel>Referrers</SectionLabel>
-      <div style={{ background: 'white', border: '1px solid var(--line)', borderRadius: 14, padding: '6px 0' }}>
+      <div style={{ background: '#101310', border: '1px solid var(--line)', borderRadius: 14, padding: '6px 0' }}>
         {report.top_referrers.length === 0 && (
           <div style={{ padding: '14px 18px', color: 'var(--clay)', fontSize: 13 }}>No referrers yet — mostly direct traffic.</div>
         )}
@@ -185,7 +186,7 @@ function Queries({ report }: { report: MonthlyReport }) {
   return (
     <div>
       <SectionLabel>Search queries</SectionLabel>
-      <div style={{ background: 'white', border: '1px solid var(--line)', borderRadius: 14, padding: '6px 0' }}>
+      <div style={{ background: '#101310', border: '1px solid var(--line)', borderRadius: 14, padding: '6px 0' }}>
         {report.top_queries.length === 0 && (
           <div style={{ padding: '14px 18px', color: 'var(--clay)', fontSize: 13 }}>No search queries captured yet. Most engines strip these from referrers.</div>
         )}
@@ -202,14 +203,19 @@ function Queries({ report }: { report: MonthlyReport }) {
 
 function EmptyState() {
   return (
-    <div style={{ marginTop: 26, background: 'white', border: '1px dashed var(--line)', borderRadius: 14, padding: '40px 30px', textAlign: 'center', color: 'var(--clay)' }}>
+    <div style={{ marginTop: 26, background: '#101310', border: '1px dashed var(--line)', borderRadius: 14, padding: '40px 30px', textAlign: 'center', color: 'var(--clay)' }}>
       No events yet for this range. Publish a post and check back in a day.
     </div>
   );
 }
 
 function Empty() {
-  return <p style={{ color: 'var(--clay)' }}>Connect a domain first.</p>;
+  return (
+    <>
+      <header className="gv-header"><div style={{ fontSize: 16, fontWeight: 700 }}>Analytics</div></header>
+      <div className="gv-body"><p style={{ color: '#9aa096' }}>Connect a domain first.</p></div>
+    </>
+  );
 }
 
 const SectionLabel = ({ children }: { children: React.ReactNode }) => (

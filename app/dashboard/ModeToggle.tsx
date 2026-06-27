@@ -2,6 +2,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+const ACCENT = '#63c281';
+
 export default function ModeToggle({
   domainId, autoPublish, postsPerWeek,
 }: { domainId: string; autoPublish: boolean; postsPerWeek: number }) {
@@ -13,85 +15,44 @@ export default function ModeToggle({
   async function save(patch: { auto_publish?: boolean; posts_per_week?: number }) {
     setSaving(true);
     await fetch('/api/domains/settings', {
-      method: 'PATCH',
-      headers: { 'content-type': 'application/json' },
+      method: 'PATCH', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ domain_id: domainId, ...patch }),
     });
-    setSaving(false);
-    r.refresh();
+    setSaving(false); r.refresh();
   }
 
-  async function toggleMode() {
-    const next = !auto;
-    setAuto(next);
-    await save({ auto_publish: next });
-  }
-
-  async function changeFreq(v: number) {
-    setFreq(v);
-    await save({ posts_per_week: v });
-  }
+  const modeHint = auto ? 'Posts publish automatically on schedule' : 'Posts go to the review queue for approval';
 
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 20,
-      padding: '14px 18px', background: 'var(--paper)',
-      border: '1px solid var(--line)', borderRadius: 12,
-      marginBottom: 20, flexWrap: 'wrap',
-    }}>
-      {/* Auto / Manual pill */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--clay)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Mode</span>
-        <button
-          onClick={toggleMode}
-          disabled={saving}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 0,
-            background: 'var(--line)', borderRadius: 100, border: 'none',
-            padding: 3, cursor: 'pointer', transition: 'opacity .15s',
-            opacity: saving ? 0.6 : 1,
-          }}
-        >
-          {['Manual', 'Auto'].map((label) => {
-            const active = label === 'Auto' ? auto : !auto;
-            return (
-              <span key={label} style={{
-                padding: '5px 14px', borderRadius: 100, fontSize: 12, fontWeight: 600,
-                background: active ? (label === 'Auto' ? 'var(--moss)' : 'white') : 'transparent',
-                color: active ? (label === 'Auto' ? 'white' : 'var(--ink)') : 'var(--clay)',
-                transition: 'all .15s',
-              }}>
-                {label}
-              </span>
-            );
-          })}
-        </button>
-        <span style={{ fontSize: 12, color: 'var(--clay)' }}>
-          {auto ? 'Posts publish automatically on schedule' : 'Posts go to review queue for approval'}
-        </span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '11px 16px', background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, margin: '14px 0 4px', flexWrap: 'wrap' }}>
+      <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#565a53' }}>Publishing</span>
+      <div style={{ display: 'inline-flex', padding: 3, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 999, gap: 2 }}>
+        {(['Manual', 'Auto'] as const).map((label) => {
+          const active = label === 'Auto' ? auto : !auto;
+          return (
+            <button key={label} disabled={saving}
+              onClick={() => { const next = label === 'Auto'; setAuto(next); save({ auto_publish: next }); }}
+              style={{ border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '5px 15px', borderRadius: 999, transition: '.2s', background: active ? ACCENT : 'transparent', color: active ? '#06120b' : '#9aa096' }}>
+              {label}
+            </button>
+          );
+        })}
       </div>
-
-      {/* Frequency (only meaningful in auto) */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
-        <span style={{ fontSize: 12, color: 'var(--clay)' }}>Posts per week</span>
-        {[1, 2, 3, 5, 7].map((n) => (
-          <button
-            key={n}
-            onClick={() => changeFreq(n)}
-            disabled={saving}
-            style={{
-              width: 32, height: 32, borderRadius: 8, border: '1px solid',
-              borderColor: freq === n ? 'var(--moss)' : 'var(--line)',
-              background: freq === n ? 'var(--moss)' : 'white',
-              color: freq === n ? 'white' : 'var(--ink)',
-              fontSize: 12, fontWeight: 600, cursor: 'pointer',
-              fontFamily: 'inherit',
-            }}
-          >
-            {n}
-          </button>
-        ))}
+      <span style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.08)' }} />
+      <span style={{ fontSize: 12, color: '#6b6f67' }}>Cadence</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+        {[1, 2, 3, 5, 7].map((n) => {
+          const active = freq === n;
+          return (
+            <button key={n} disabled={saving} onClick={() => { setFreq(n); save({ posts_per_week: n }); }}
+              style={{ width: 28, height: 28, borderRadius: 8, border: `1px solid ${active ? ACCENT : 'rgba(255,255,255,0.1)'}`, background: active ? ACCENT : 'transparent', color: active ? '#06120b' : '#cdd2c9', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+              {n}
+            </button>
+          );
+        })}
+        <span style={{ fontSize: 12, color: '#6b6f67', marginLeft: 2 }}>/ week</span>
       </div>
+      <span style={{ marginLeft: 'auto', fontSize: 12, color: '#6b6f67', textAlign: 'right', maxWidth: 240 }}>{modeHint}</span>
     </div>
   );
 }

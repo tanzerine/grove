@@ -13,16 +13,20 @@ export default async function Page() {
 
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 24 }}>
-        <h2 className="h2">Business profile</h2>
-        {domain?.id && <CrawlButton domainId={domain.id} hostname={domain.hostname} />}
-      </div>
+      <header className="gv-header">
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em' }}>Brand voice</div>
+          <div style={{ fontSize: 12, color: '#6b6f67', marginTop: 1 }}>the context grove writes from</div>
+        </div>
+        <div style={{ marginLeft: 'auto' }}>{domain?.id && <CrawlButton domainId={domain.id} hostname={domain.hostname} />}</div>
+      </header>
+      <div className="gv-body">
       <p className="lede">
         Context grove uses for every article. The more accurate, the more on-brand the writing.
       </p>
 
       {!hasProfile && (
-        <div style={{ background: '#fef9e8', border: '1px solid #f0d674', padding: 18, borderRadius: 10, marginTop: 20 }}>
+        <div style={{ background: 'rgba(224,200,120,0.06)', border: '1px solid rgba(224,200,120,0.24)', color: '#d8d2bf', padding: 18, borderRadius: 12, marginTop: 20 }}>
           <b>No profile yet.</b>
           <p style={{ margin: '6px 0 0', fontSize: 14 }}>
             Click <b>Crawl my site</b> above. It hits your homepage, /about, /pricing, /products, /services,
@@ -57,13 +61,14 @@ export default async function Page() {
           </Section>
         </>
       )}
+      </div>
     </>
   );
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ background: 'white', padding: 24, borderRadius: 14, border: '1px solid var(--line)', marginTop: 18 }}>
+    <div style={{ background: '#101310', padding: 24, borderRadius: 14, border: '1px solid rgba(255,255,255,0.07)', marginTop: 18 }}>
       <div className="mono" style={{ fontSize: 11, color: 'var(--moss)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>{title}</div>
       {children}
     </div>

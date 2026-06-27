@@ -12,10 +12,36 @@ export default async function DashLayout({ children }: { children: React.ReactNo
   const verified = domains?.find((d) => d.verified_at);
   if (!verified && (domains?.length ?? 0) === 0) redirect('/onboarding/domain');
 
+  // Nav badges — small, best-effort counts (never block render on failure).
+  const badges: Record<string, number> = {};
+  try {
+    const domainIds = (domains ?? []).map((d) => d.id);
+    if (domainIds.length) {
+      const { data: posts } = await sb
+        .from('posts').select('status,domain_id').in('domain_id', domainIds);
+      const inPipeline = (posts ?? []).filter((p) =>
+        !['published', 'failed', 'archived'].includes((p as any).status)).length;
+      const inReview = (posts ?? []).filter((p) =>
+        ['review', 'needs_review', 'awaiting_review'].includes((p as any).status)).length;
+      if (inPipeline) badges.pipeline = inPipeline;
+      if (inReview) badges.reviews = inReview;
+    }
+  } catch { /* badges are optional */ }
+
+  const acct = verified
+    ? { name: verified.hostname, sub: 'verified · autopilot on' }
+    : domains?.[0]
+      ? { name: domains[0].hostname, sub: 'setup in progress' }
+      : null;
+
   return (
     <>
       <GroveMark />
-      <DashShell verified={verified ? { hostname: verified.hostname } : null}>
+      <DashShell
+        verified={verified ? { hostname: verified.hostname } : null}
+        account={acct}
+        badges={badges}
+      >
         {children}
       </DashShell>
     </>

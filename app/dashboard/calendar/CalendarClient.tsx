@@ -131,7 +131,7 @@ export default function CalendarClient({
 
       <div className="r-split">
         {/* Calendar grid */}
-        <div style={{ background: 'white', border: '1px solid var(--line)', borderRadius: 16, overflow: 'hidden', minWidth: 0 }}>
+        <div style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, overflow: 'hidden', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: '1px solid var(--line)' }}>
             <button onClick={prevMonth} style={navBtn}>‹</button>
             <span style={{ fontFamily: 'Clash Display', fontSize: 20, fontWeight: 600 }}>{MONTHS[month]} {year}</span>
@@ -160,7 +160,7 @@ export default function CalendarClient({
                   style={{
                     borderRight: (i + 1) % 7 !== 0 ? '1px solid var(--line)' : 'none',
                     borderBottom: i < cells.length - 7 ? '1px solid var(--line)' : 'none',
-                    background: active ? '#f0f6ff' : 'white',
+                    background: active ? 'rgba(99,194,129,0.1)' : 'rgba(255,255,255,0.015)',
                     cursor: day ? 'pointer' : 'default', transition: 'background .12s',
                     minWidth: 0, overflow: 'hidden',   // keep long titles from blowing out the grid
                   }}
@@ -215,7 +215,7 @@ export default function CalendarClient({
         {/* Right panel */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {selectedDay && (
-            <div style={{ background: 'white', border: '1px solid var(--line)', borderRadius: 14, padding: 20 }}>
+            <div style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: 20 }}>
               <div style={{ fontFamily: 'Clash Display', fontSize: 15, marginBottom: 12 }}>
                 {MONTHS[month]} {selectedDay}
               </div>
@@ -290,7 +290,7 @@ export default function CalendarClient({
                             style={{
                               textAlign: 'left', width: '100%', padding: '8px 12px', borderRadius: 8,
                               border: `2px solid ${editing ? 'var(--moss)' : 'var(--line)'}`,
-                              background: editing ? 'rgba(89,148,94,0.07)' : 'white',
+                              background: editing ? 'rgba(99,194,129,0.08)' : 'rgba(255,255,255,0.03)',
                               cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, color: 'var(--ink)',
                               overflowWrap: 'anywhere',
                             }}>
@@ -320,7 +320,7 @@ export default function CalendarClient({
           )}
 
           {unscheduledReview.length > 0 && (
-            <div style={{ background: 'white', border: '1px solid var(--line)', borderRadius: 14, padding: 20 }}>
+            <div style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: 20 }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: '#E0A040', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
                 Needs scheduling ({unscheduledReview.length})
               </div>

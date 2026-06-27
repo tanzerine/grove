@@ -68,10 +68,13 @@ export default async function StrategyPage() {
   return (
     <>
       <Header strategy={s} hostname={domain.hostname} />
-      {s.notes && <NotesCard notes={s.notes} />}
-      <GoalsRow goals={s.goals} kpis={s.kpis} report={report} />
-      <PillarsList pillars={s.pillars} plan={s.publishing_plan} slotStatus={slotStatusByTopic} report={report} />
-      <PublishingPlanTable plan={s.publishing_plan} pillars={s.pillars} statusFor={statusForSlot} />
+      <div className="gv-body">
+        <div style={{ marginBottom: 6 }} />
+        {s.notes && <NotesCard notes={s.notes} />}
+        <GoalsRow goals={s.goals} kpis={s.kpis} report={report} />
+        <PillarsList pillars={s.pillars} plan={s.publishing_plan} slotStatus={slotStatusByTopic} report={report} />
+        <PublishingPlanTable plan={s.publishing_plan} pillars={s.pillars} statusFor={statusForSlot} />
+      </div>
     </>
   );
 }
@@ -82,19 +85,18 @@ function Header({ strategy, hostname }: { strategy: Strategy & { month: string; 
     month: 'long', year: 'numeric',
   });
   return (
-    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+    <header className="gv-header">
       <div>
-        <div className="mono" style={{ fontSize: 11, letterSpacing: '0.1em', color: 'var(--clay)' }}>STRATEGY</div>
-        <h2 className="display" style={{ fontSize: 'clamp(24px, 6vw, 32px)', marginTop: 6 }}>{monthLabel}</h2>
-        <div className="mono" style={{ fontSize: 12, color: 'var(--clay)', marginTop: 4 }}>{hostname}</div>
+        <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em' }}>Strategy · {monthLabel}</div>
+        <div style={{ fontSize: 12, color: '#6b6f67', marginTop: 1 }}>{hostname} · the monthly plan your agent works from</div>
       </div>
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+      <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, alignItems: 'center' }}>
         <SourceChip source={strategy.source} />
-        <Link href="/onboarding/intent" className="btn btn-ghost" style={{ padding: '8px 14px', fontSize: 13 }}>
+        <Link href="/onboarding/intent" className="gv-ghost" style={{ padding: '9px 15px', fontSize: 13, fontWeight: 600, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.02)', color: '#cdd2c9', borderRadius: 10 }}>
           Edit intent
         </Link>
       </div>
-    </div>
+    </header>
   );
 }
 
@@ -117,7 +119,7 @@ function SourceChip({ source }: { source: string }) {
 // ───────────────────────────── NOTES ───────────────────────────────
 function NotesCard({ notes }: { notes: string }) {
   return (
-    <div style={{ marginTop: 26, background: 'white', border: '1px solid var(--line)', borderRadius: 14, padding: '18px 22px' }}>
+    <div style={{ marginTop: 26, background: '#101310', border: '1px solid var(--line)', borderRadius: 14, padding: '18px 22px' }}>
       <div className="mono" style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--clay)' }}>
         Notes vs. last month
       </div>
@@ -150,7 +152,7 @@ function GoalsRow({ goals, kpis, report }: { goals: Goal[]; kpis: Strategy['kpis
             : pace >= 0.85 ? { label: 'on pace', color: 'var(--ink)' }
             : { label: 'behind', color: '#b04a3b' };
           return (
-            <div key={g.id} style={{ background: 'white', border: '1px solid var(--line)', borderRadius: 14, padding: 20 }}>
+            <div key={g.id} style={{ background: '#101310', border: '1px solid var(--line)', borderRadius: 14, padding: 20 }}>
               <div style={{ fontFamily: 'Clash Display', fontSize: 18, color: 'var(--ink)' }}>{g.title}</div>
               <div style={{ fontSize: 13, color: 'var(--clay)', marginTop: 4 }}>{g.why}</div>
               <div style={{ marginTop: 16, fontSize: 13, color: 'var(--clay)' }}>
@@ -231,7 +233,7 @@ function PillarCard({
   const verdict = pillarVerdict(perf?.views ?? 0, planned.length, published);
 
   return (
-    <div style={{ background: 'white', border: '1px solid var(--line)', borderRadius: 14, padding: '20px 22px' }}>
+    <div style={{ background: '#101310', border: '1px solid var(--line)', borderRadius: 14, padding: '20px 22px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <div style={{ fontFamily: 'Clash Display', fontSize: 20, color: 'var(--ink)' }}>{pillar.title}</div>
         <div className="mono" style={{ fontSize: 12, color: 'var(--clay)' }}>
@@ -308,7 +310,7 @@ function PublishingPlanTable({
           Open calendar →
         </Link>
       </div>
-      <div style={{ background: 'white', border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden' }}>
+      <div style={{ background: '#101310', border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
           <thead>
             <tr style={{ background: 'var(--paper)' }}>
@@ -390,7 +392,7 @@ function StatusTag({ status }: { status: string }) {
 // ─────────────────────────── EMPTY STATES ──────────────────────────
 function Empty() {
   return (
-    <div style={{ marginTop: 60, textAlign: 'center', color: 'var(--clay)' }}>
+    <div className="gv-body" style={{ marginTop: 60, textAlign: 'center', color: '#9aa096' }}>
       <p>Connect a domain first.</p>
     </div>
   );
@@ -398,7 +400,7 @@ function Empty() {
 
 function NoStrategy({ hasInterview }: { hasInterview: boolean }) {
   return (
-    <div style={{ background: 'white', border: '1px dashed var(--line)', borderRadius: 14, padding: '40px 30px', textAlign: 'center' }}>
+    <div className="gv-body"><div style={{ background: '#101310', border: '1px dashed rgba(255,255,255,0.12)', borderRadius: 14, padding: '40px 30px', textAlign: 'center' }}>
       <h3 className="display" style={{ fontSize: 22 }}>No strategy yet.</h3>
       <p style={{ color: 'var(--clay)', marginTop: 8 }}>
         {hasInterview
@@ -408,6 +410,6 @@ function NoStrategy({ hasInterview }: { hasInterview: boolean }) {
       <Link href="/onboarding/intent" className="btn btn-primary" style={{ display: 'inline-block', marginTop: 16, padding: '10px 18px' }}>
         {hasInterview ? 'Edit intent' : 'Answer 5 questions →'}
       </Link>
-    </div>
+    </div></div>
   );
 }

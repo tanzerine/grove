@@ -15,7 +15,13 @@ export default async function Page() {
 
   return (
     <>
-      <h2 className="h2">Embed grove on your site</h2>
+      <header className="gv-header">
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em' }}>Embed</div>
+          <div style={{ fontSize: 12, color: '#6b6f67', marginTop: 1 }}>one script, the whole blog on your own site</div>
+        </div>
+      </header>
+      <div className="gv-body">
       <p className="lede">
         One script, zero backend. Drop a tag on <span className="mono">{domain?.hostname}</span> and grove renders
         the whole thing — it auto-detects your domain, no slug or API key.
@@ -61,6 +67,7 @@ export default async function Page() {
         <span className="mono">{groveBase}/b/{domain?.blog_slug}</span> (sitemap, RSS, JSON-LD), so search engines
         find your content even with the in-page embed.
       </p>
+      </div>
     </>
   );
 }
@@ -76,7 +83,7 @@ function SnippetCard({
         <p style={{ fontSize: 14, color: 'var(--clay)', margin: '8px 0 0', lineHeight: 1.55 }}>{desc}</p>
       </div>
       {preview && (
-        <div style={{ padding: '22px 22px 6px', background: 'white', borderBottom: '1px solid var(--line)' }}>
+        <div style={{ padding: '22px 22px 6px', background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
           <div className="mono" style={{ fontSize: 10, color: 'var(--clay)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>
             Preview
           </div>
@@ -145,7 +152,7 @@ function BlogPreview() {
       {/* header: title + search pill */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <div style={{ width: 110, height: 10, borderRadius: 3, background: 'var(--ink)', opacity: 0.7 }} />
-        <div style={{ width: 120, height: 20, borderRadius: 999, background: 'white', border: '1px solid var(--line)' }} />
+        <div style={{ width: 120, height: 20, borderRadius: 999, background: '#101310', border: '1px solid rgba(255,255,255,0.07)' }} />
       </div>
       {/* genre chips */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>

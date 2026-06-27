@@ -22,7 +22,7 @@ export default function ReviewsTable({ rows }: { rows: EvaluationRow[] }) {
 
   if (rows.length === 0) {
     return (
-      <div style={{ marginTop: 26, background: 'white', border: '1px dashed var(--line)', borderRadius: 14, padding: '40px 30px', textAlign: 'center', color: 'var(--clay)' }}>
+      <div style={{ marginTop: 26, background: '#101310', border: '1px dashed rgba(255,255,255,0.12)', borderRadius: 14, padding: '40px 30px', textAlign: 'center', color: '#9aa096' }}>
         No manager reviews yet. They appear as soon as new posts run through the pipeline.
       </div>
     );
@@ -30,10 +30,10 @@ export default function ReviewsTable({ rows }: { rows: EvaluationRow[] }) {
 
   return (
     <>
-      <div style={{ marginTop: 26, background: 'white', border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden' }}>
+      <div className="gv-card" style={{ marginTop: 26, background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
           <thead>
-            <tr style={{ background: 'var(--paper)' }}>
+            <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
               <Th>Post</Th>
               <Th>Action</Th>
               <Th>Overall</Th>
@@ -50,8 +50,9 @@ export default function ReviewsTable({ rows }: { rows: EvaluationRow[] }) {
               return (
                 <tr
                   key={r.id}
+                  className="gv-row"
                   onClick={() => setOpen(r)}
-                  style={{ borderTop: '1px solid var(--line)', cursor: 'pointer' }}
+                  style={{ borderTop: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer' }}
                 >
                   <Td>{r.posts?.title ?? '(untitled)'}</Td>
                   <Td><ActionTag action={r.action} /></Td>
@@ -84,16 +85,17 @@ function Drawer({ row, onClose }: { row: EvaluationRow; onClose: () => void }) {
   return (
     <div
       style={{
-        position: 'fixed', inset: 0, background: 'rgba(26,46,31,0.30)', zIndex: 50,
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 50, backdropFilter: 'blur(2px)',
       }}
       onClick={onClose}
     >
       <aside
+        className="gv-scroll"
         onClick={(e) => e.stopPropagation()}
         style={{
           position: 'absolute', top: 0, right: 0, height: '100%', width: 'min(560px, 92vw)',
-          background: 'white', boxShadow: '-4px 0 24px rgba(0,0,0,0.08)', overflow: 'auto',
-          padding: '28px 30px',
+          background: '#0c0e0c', borderLeft: '1px solid rgba(255,255,255,0.08)', boxShadow: '-4px 0 24px rgba(0,0,0,0.5)', overflow: 'auto',
+          padding: '28px 30px', color: '#eef1ea',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
@@ -223,8 +225,8 @@ const Td = ({ children }: { children: React.ReactNode }) => (
 );
 
 const closeBtn: React.CSSProperties = {
-  width: 32, height: 32, borderRadius: 8, border: '1px solid var(--line)',
-  background: 'white', fontSize: 20, color: 'var(--clay)', cursor: 'pointer',
+  width: 32, height: 32, borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)',
+  background: 'rgba(255,255,255,0.03)', fontSize: 20, color: '#9aa096', cursor: 'pointer',
 };
 
 function relativeTime(iso: string): string {
