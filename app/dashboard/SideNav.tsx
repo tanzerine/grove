@@ -10,9 +10,10 @@ type Section = { head: string; items: Item[] };
 
 const SECTIONS: Section[] = [
   { head: 'Create', items: [
+    { href: '/dashboard', label: 'Home', icon: 'home', match: (p) => p === '/dashboard' },
     { href: '/dashboard/strategy', label: 'Strategy', icon: 'strategy', match: (p) => p.startsWith('/dashboard/strategy') },
     { href: '/dashboard/write', label: 'Write', icon: 'write', match: (p) => p.startsWith('/dashboard/write') },
-    { href: '/dashboard', label: 'Pipeline', icon: 'pipeline', badgeKey: 'pipeline', match: (p) => p === '/dashboard' || p.startsWith('/dashboard/posts') },
+    { href: '/dashboard/pipeline', label: 'Pipeline', icon: 'pipeline', badgeKey: 'pipeline', match: (p) => p.startsWith('/dashboard/pipeline') || p.startsWith('/dashboard/posts') },
   ]},
   { head: 'Publish', items: [
     { href: '/dashboard/calendar', label: 'Calendar', icon: 'calendar', match: (p) => p.startsWith('/dashboard/calendar') },
