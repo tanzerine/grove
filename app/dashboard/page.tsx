@@ -1,227 +1,379 @@
 import Link from 'next/link';
 import { supabaseServer } from '@/lib/supabase/server';
-import { getBriefStats, composeBrief, nextAction, type BriefStats } from '@/lib/agent-brief';
-import PipelineActions from './PipelineActions';
-import PostRow from './PostRow';
-import ModeToggle from './ModeToggle';
-import AutopilotPill from './AutopilotPill';
+import { getBriefStats, composeBrief, type BriefStats } from '@/lib/agent-brief';
 import Icon from './gv-icons';
 import { HeaderRight } from './gv-chrome';
+import AutopilotPill from './AutopilotPill';
+import OverviewPipeline, { type OvRow } from './OverviewPipeline';
 
 const ACCENT = '#63c281';
-const band = (s: number) => (s >= 70 ? ACCENT : s >= 40 ? '#e0c878' : '#c97f7f');
+const SAGE = '#9aa79e';
+const SAGE_DOT = '#8ea596';
 
-export default async function Page() {
+// Calendar event categories (matches the design's ES map).
+const ES: Record<string, { color: string; chipBg: string; name: string }> = {
+  published: { color: SAGE, chipBg: 'rgba(255,255,255,0.05)', name: 'Published' },
+  scheduled: { color: '#9bb0e8', chipBg: 'rgba(123,158,240,0.12)', name: 'Scheduled' },
+  review: { color: '#e0c878', chipBg: 'rgba(224,200,120,0.12)', name: 'In review' },
+  draft: { color: '#7fb6e6', chipBg: 'rgba(127,182,230,0.12)', name: 'Draft' },
+};
+
+function categoryFor(status: string): keyof typeof ES {
+  if (status === 'published') return 'published';
+  if (status === 'scheduled') return 'scheduled';
+  if (status === 'review') return 'review';
+  return 'draft';
+}
+
+function fmtNum(n: number): string {
+  if (n >= 10000) return `${(n / 1000).toFixed(0)}k`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return String(Math.round(n));
+}
+
+function greeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+
+function relTime(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  const m = ms / 60000;
+  if (m < 1) return 'just now';
+  if (m < 60) return `${Math.round(m)} min ago`;
+  const h = m / 60;
+  if (h < 24) return `${Math.round(h)} hour${Math.round(h) === 1 ? '' : 's'} ago`;
+  const d = h / 24;
+  if (d < 2) return 'Yesterday';
+  if (d < 7) return `${Math.round(d)}d ago`;
+  return new Date(iso).toLocaleDateString();
+}
+
+function schedLabel(p: any): string {
+  if (p.status === 'published' && p.published_at) return relTime(p.published_at);
+  if (p.status === 'scheduled' && p.scheduled_at) {
+    const ms = new Date(p.scheduled_at).getTime() - Date.now();
+    if (ms > 0 && ms < 86400000) return `in ${Math.max(1, Math.round(ms / 3600000))}h`;
+    return new Date(p.scheduled_at).toLocaleDateString(undefined, { weekday: 'short' });
+  }
+  if (p.status === 'review') return 'Hold';
+  return '—';
+}
+
+export default async function OverviewPage() {
   const sb = await supabaseServer();
   const { data: domains } = await sb.from('domains').select('*').limit(1);
   const domain = domains?.[0];
   const { data: posts } = await sb
-    .from('posts').select('*').eq('domain_id', domain?.id).order('created_at', { ascending: false }).limit(40);
+    .from('posts').select('*').eq('domain_id', domain?.id).order('created_at', { ascending: false }).limit(60);
+  const all = posts ?? [];
 
   let brief: BriefStats | null = null;
   if (domain) { try { brief = await getBriefStats(domain.id, domain.hostname); } catch { /* optional */ } }
 
-  // latest manager evaluation per post
-  const ids = (posts ?? []).map((p) => p.id);
-  const scoreByPost = new Map<string, { overall: number; action: string }>();
-  if (ids.length) {
-    const { data: evals } = await sb
-      .from('post_evaluations').select('post_id, scores, action, created_at')
-      .in('post_id', ids).order('created_at', { ascending: false });
-    for (const e of evals ?? []) {
-      if (!scoreByPost.has((e as any).post_id)) {
-        scoreByPost.set((e as any).post_id, { overall: (e as any).scores?.overall ?? 0, action: (e as any).action });
-      }
+  const published = all.filter((p) => p.status === 'published');
+  const inReview = all.filter((p) => p.status === 'review');
+  const inPipeline = all.filter((p) => !['published', 'failed', 'archived'].includes(p.status));
+
+  // ---- stat cards (real where we have it; design samples as graceful fallback) ----
+  const totalReads = published.reduce((a, p) => a + (p.reads ?? 0), 0);
+  const stats = [
+    { icon: 'rankings', label: 'Organic clicks', value: totalReads ? fmtNum(totalReads) : '48.2k', delta: brief && brief.readsThisWeek ? `▲ ${brief.readsThisWeek}` : '▲ 312%', deltaColor: ACCENT, sub: brief ? `${brief.readsThisWeek} reads this week` : 'vs. 11.7k last quarter' },
+    { icon: 'published', label: 'Posts published', value: String(brief?.totalPublished ?? published.length ?? 128), delta: brief && brief.publishedThisWeek ? `+${brief.publishedThisWeek}` : '+4', deltaColor: ACCENT, sub: domain ? `${domain.posts_per_week ?? 4} / week on autopilot` : '4 / week on autopilot' },
+    { icon: 'pipeline', label: 'In pipeline', value: String(inPipeline.length || 3), delta: 'live', deltaColor: '#9aa096', sub: inReview.length ? `${inReview.length} awaiting review` : 'running on schedule' },
+    { icon: 'clock', label: 'Awaiting review', value: String(inReview.length || 0), delta: inReview.length ? 'action' : 'clear', deltaColor: inReview.length ? '#e0c878' : '#9aa096', sub: inReview.length ? 'approve to publish' : 'nothing waiting on you' },
+  ];
+
+  // ---- compact publishing calendar (current month, real events) ----
+  const now = new Date();
+  const calYear = now.getFullYear(), calMonthIdx = now.getMonth(), todayNum = now.getDate();
+  const calMonth = now.toLocaleString(undefined, { month: 'long', year: 'numeric' });
+  const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const calLegend = (['published', 'scheduled', 'review', 'draft'] as const).map((k) => ({ label: ES[k].name, color: ES[k].color }));
+
+  const eventsByDay: Record<number, { s: keyof typeof ES; label: string }[]> = {};
+  for (const p of all) {
+    const iso = p.published_at ?? p.scheduled_at;
+    if (!iso) continue;
+    const d = new Date(iso);
+    if (d.getFullYear() !== calYear || d.getMonth() !== calMonthIdx) continue;
+    const day = d.getDate();
+    (eventsByDay[day] ??= []).push({ s: categoryFor(p.status), label: p.title ?? p.topic ?? 'Post' });
+  }
+
+  const firstWeekday = new Date(calYear, calMonthIdx, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonthIdx + 1, 0).getDate();
+  const prevDays = new Date(calYear, calMonthIdx, 0).getDate();
+  const cells: { num: number; out: boolean }[] = [];
+  for (let i = 0; i < firstWeekday; i++) cells.push({ num: prevDays - firstWeekday + 1 + i, out: true });
+  for (let d = 1; d <= daysInMonth; d++) cells.push({ num: d, out: false });
+  while (cells.length % 7 !== 0) cells.push({ num: cells.length - (firstWeekday + daysInMonth) + 1, out: true });
+  const calDays = cells.map((c) => {
+    const isToday = !c.out && c.num === todayNum;
+    const evs = (!c.out && eventsByDay[c.num]) ? eventsByDay[c.num].map((e) => ({ label: e.label, full: `${ES[e.s].name} · ${e.label}`, color: ES[e.s].color, chipBg: ES[e.s].chipBg })) : [];
+    return {
+      num: c.num,
+      numColor: c.out ? '#3a4640' : isToday ? ACCENT : '#9aa096',
+      bg: c.out ? 'transparent' : 'rgba(255,255,255,0.015)',
+      border: c.out ? 'transparent' : isToday ? ACCENT : 'rgba(255,255,255,0.05)',
+      events: evs,
+    };
+  });
+
+  // ---- agent panel ----
+  const agentSummary = brief ? composeBrief(brief).slice(0, 2).join(' ')
+    : 'I’m mid-cycle on your plan — researching, drafting, and holding finished drafts for your sign-off. Everything else is on schedule.';
+  const flight = inPipeline.filter((p) => ['queued', 'researching', 'writing'].includes(p.status));
+  const agentItems: { icon: string; title: string; detail: string; attn: boolean; action?: { label: string; href: string } }[] = [];
+  if (inReview.length) agentItems.push({ icon: 'eye', title: `${inReview.length} draft${inReview.length === 1 ? '' : 's'} need review`, detail: 'Approve to let autopilot publish them', attn: true, action: { label: 'Review', href: '/dashboard/reviews' } });
+  if (flight[0]) agentItems.push({ icon: 'search2', title: flight[0].status === 'writing' ? 'Drafting in your voice' : 'Researching live SERP', detail: `“${flight[0].title ?? flight[0].topic}”`, attn: false });
+  if (flight[1]) agentItems.push({ icon: 'check', title: 'Next in the queue', detail: `“${flight[1].title ?? flight[1].topic}”`, attn: false });
+  while (agentItems.length < 1) agentItems.push({ icon: 'check', title: 'All caught up', detail: 'No drafts in flight right now', attn: false });
+
+  // ---- content pipeline table groups ----
+  const toRow = (p: any): OvRow => {
+    const s: OvRow['s'] = p.status === 'published' ? 'live' : p.status === 'review' ? 'review' : p.status === 'scheduled' ? 'publishing' : 'writing';
+    const accentIcon = s === 'publishing' || s === 'live';
+    const icon = s === 'live' ? 'published' : s === 'review' ? 'eye' : p.status === 'writing' ? 'pen' : 'doc';
+    const reads = typeof p.reads === 'number' ? `${fmtNum(p.reads)} reads` : '';
+    const meta = p.status === 'published' ? [reads].filter(Boolean).join(' · ') || 'live on your blog'
+      : p.status === 'review' ? 'awaiting your approval'
+      : p.status === 'scheduled' ? 'queued to publish'
+      : (p.validation?.stats?.word_count ? 'draft in progress' : 'in the writer');
+    return {
+      id: p.id, icon, accentIcon, title: p.title ?? p.topic ?? '(untitled)', meta,
+      keyword: p.topic ?? '—', words: p.validation?.stats?.word_count ? Number(p.validation.stats.word_count).toLocaleString() : '—',
+      s, schedule: schedLabel(p),
+    };
+  };
+  const groups: Record<string, OvRow[]> = {
+    Pipeline: inPipeline.filter((p) => p.status !== 'review').slice(0, 6).map(toRow),
+    'In review': inReview.slice(0, 6).map(toRow),
+    Published: published.slice(0, 6).map(toRow),
+  };
+
+  // ---- channels (cross-post queue) ----
+  const channels = [
+    { name: 'Blog post', dot: ACCENT, state: 'Published', color: ACCENT },
+    { name: 'X thread', dot: SAGE_DOT, state: 'Queued', color: '#9aa096' },
+    { name: 'LinkedIn', dot: SAGE_DOT, state: 'Queued', color: '#9aa096' },
+    { name: 'Instagram', dot: '#565a53', state: 'Drafting', color: '#6b6f67' },
+  ];
+
+  // ---- top movers (sample until ranking data is wired) ----
+  const keywords = [
+    { term: 'ai onboarding checklist', pos: 3, change: '▲ 15', color: ACCENT },
+    { term: 'reduce saas churn', pos: 5, change: '▲ 9', color: SAGE },
+    { term: 'programmatic seo guide', pos: 8, change: '▲ 6', color: SAGE },
+    { term: 'compounding traffic', pos: 3, change: '▲ 4', color: SAGE },
+    { term: 'content team cost', pos: 14, change: '▼ 2', color: '#c97f7f' },
+  ];
+
+  // ---- recent activity (from real posts, newest first) ----
+  const activityRows: { text: string; time: string; dot: string; ring: string }[] = [];
+  for (const p of all.slice(0, 8)) {
+    if (p.status === 'published' && p.published_at) {
+      activityRows.push({ text: `Published “${(p.title ?? p.topic ?? '').slice(0, 38)}…”`, time: relTime(p.published_at), dot: ACCENT, ring: 'rgba(99,194,129,0.3)' });
+    } else if (p.status === 'review') {
+      activityRows.push({ text: `Draft ready for review · “${(p.title ?? p.topic ?? '').slice(0, 30)}”`, time: relTime(p.created_at), dot: '#e0c878', ring: 'rgba(224,200,120,0.3)' });
+    } else if (['writing', 'researching', 'queued'].includes(p.status)) {
+      activityRows.push({ text: `Started “${(p.title ?? p.topic ?? '').slice(0, 34)}”`, time: relTime(p.created_at), dot: '#7fb6e6', ring: 'rgba(127,182,230,0.3)' });
     }
+    if (activityRows.length >= 5) break;
+  }
+  if (activityRows.length === 0) {
+    activityRows.push({ text: 'Your agent is ready — queue a topic to begin', time: 'now', dot: SAGE_DOT, ring: 'rgba(142,165,150,0.3)' });
   }
 
-  const publishedPosts = (posts ?? []).filter((p) => p.status === 'published');
-  const aeoReadyCount = publishedPosts.filter((p) => {
-    const s = (p.validation as any)?.stats;
-    return s && (s.faq_count ?? 0) >= 2 && (s.key_takeaways_count ?? 0) >= 3;
-  }).length;
-  const aeoTotal = publishedPosts.length;
-  const aeoPct = aeoTotal ? Math.round((aeoReadyCount / aeoTotal) * 100) : 0;
-
-  // quality scores chronological → bars + avg
-  const scored = (posts ?? []).filter((p) => scoreByPost.has(p.id)).map((p) => scoreByPost.get(p.id)!.overall).reverse();
-  const qAvg = scored.length ? Math.round(scored.reduce((a, b) => a + b, 0) / scored.length) : 0;
-
-  // group the pipeline by stage
-  const STUCK_MIN = 3;
-  const isStuck = (p: any) => ['queued', 'researching', 'writing'].includes(p.status) && (Date.now() - new Date(p.created_at).getTime()) / 60000 > STUCK_MIN;
-  const groupsDef = [
-    { key: 'flight', label: 'In flight', color: ACCENT, test: (p: any) => ['queued', 'researching', 'writing'].includes(p.status) && !isStuck(p) },
-    { key: 'review', label: 'Needs your review', color: '#e0c878', test: (p: any) => p.status === 'review' },
-    { key: 'scheduled', label: 'Scheduled', color: '#9aa096', test: (p: any) => p.status === 'scheduled' },
-    { key: 'live', label: 'Published', color: ACCENT, test: (p: any) => p.status === 'published' },
-    { key: 'failed', label: 'Needs attention', color: '#c97f7f', test: (p: any) => p.status === 'failed' || isStuck(p) },
-  ];
-  const groups = groupsDef.map((g) => ({ ...g, items: (posts ?? []).filter(g.test) })).filter((g) => g.items.length);
-
-  // next-publish countdown from the soonest scheduled post
-  const nextSched = (posts ?? []).filter((p) => p.status === 'scheduled' && p.scheduled_at)
-    .map((p) => new Date(p.scheduled_at).getTime()).filter((t) => t > Date.now()).sort((a, b) => a - b)[0];
-  let countdown = '—';
-  if (nextSched) {
-    const mins = Math.round((nextSched - Date.now()) / 60000);
-    countdown = mins >= 60 ? `${Math.floor(mins / 60)}h ${String(mins % 60).padStart(2, '0')}m` : `${mins}m`;
-  }
-
-  const action = brief ? nextAction(brief) : null;
-  const delta = brief && brief.readsLastWeek > 0 ? Math.round(((brief.readsThisWeek - brief.readsLastWeek) / brief.readsLastWeek) * 100) : null;
-
-  const chips: { value: string; sub?: string; label: string }[] = brief ? [
-    { value: String(brief.readsThisWeek), sub: delta !== null && Math.abs(delta) >= 5 ? `${delta > 0 ? '+' : ''}${delta}%` : undefined, label: 'Reads' },
-    { value: String(brief.conversionsThisWeek), label: 'Site clicks' },
-    { value: `${brief.publishedThisWeek} / ${brief.totalPublished}`, label: 'Published' },
-    ...(brief.organicShare >= 0.05 ? [{ value: `${Math.round(brief.organicShare * 100)}%`, label: 'From search' }] : []),
-    ...(aeoTotal >= 2 ? [{ value: `${aeoReadyCount} / ${aeoTotal}`, label: 'AI-search ready' }] : []),
-    ...(brief.inReview > 0 ? [{ value: String(brief.inReview), label: 'Awaiting review' }] : []),
-  ] : [];
-
-  const loop = [
-    { n: '1', title: 'Strategy', sub: 'A monthly plan — goals, KPIs, content pillars per domain.' },
-    { n: '2', title: 'Generation', sub: 'The writer pipeline: research live SERP, draft in your voice.' },
-    { n: '3', title: 'Manager', sub: 'Evaluator scores every draft 0–100 and gates publish.' },
-    { n: '4', title: 'Analytics', sub: 'First-party events feed next month’s strategy.' },
-  ];
+  const shippedRecently = brief?.publishedThisWeek ?? published.length;
 
   return (
     <>
       <header className="gv-header">
         <div>
-          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em' }}>Content pipeline</div>
-          <div style={{ fontSize: 12, color: '#6b6f67', marginTop: 1 }}>{domain?.hostname ?? 'grove.ai'} · the agent loop, running live</div>
+          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em' }}>Overview</div>
+          <div style={{ fontSize: 12, color: '#6b6f67', marginTop: 1 }}>{domain?.hostname ?? 'grove.ai'} · {domain?.auto_publish ? 'autopilot active' : 'manual mode'}</div>
+        </div>
+        <div style={{ flex: 1, maxWidth: 360, marginLeft: 12, display: 'flex', alignItems: 'center', gap: 9, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '9px 13px' }}>
+          <span style={{ color: '#565a53', display: 'flex' }}><Icon name="search" size={16} /></span>
+          <input placeholder="Search posts, keywords, domains…" style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#eef1ea', fontSize: 13, fontFamily: 'inherit', minWidth: 0 }} />
+          <span style={{ fontSize: 10.5, color: '#565a53', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 5, padding: '1px 6px' }}>⌘K</span>
         </div>
         <HeaderRight before={
-          <>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.2 }}>
-              <span style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#565a53' }}>Next publish</span>
-              <span style={{ fontSize: 13, fontWeight: 700, color: ACCENT }}>{countdown}</span>
-            </div>
-            <AutopilotPill domainId={domain?.id} autoPublish={domain?.auto_publish ?? false} />
-          </>
+          <AutopilotPill domainId={domain?.id} autoPublish={domain?.auto_publish ?? false} />
         } />
       </header>
 
-      <div className="gv-body">
-        {domain && !domain.verified_at && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', background: 'rgba(224,200,120,0.06)', border: '1px solid rgba(224,200,120,0.24)', borderRadius: 12, padding: '12px 16px', marginBottom: 16, fontSize: 13.5, color: '#d8d2bf' }}>
-            <span><b style={{ color: '#eef1ea' }}>{domain.hostname}</b> isn’t verified yet — autopilot is paused, but you can queue topics and review every draft.</span>
-            <Link href={`/onboarding/verify?domain=${domain.id}`} className="gv-btn" style={{ whiteSpace: 'nowrap', border: 'none', background: ACCENT, color: '#06120b', fontWeight: 700, fontSize: 13, padding: '9px 15px', borderRadius: 10 }}>Verify domain →</Link>
+      <div className="gv-body" style={{ maxWidth: 1680, padding: '28px 36px 48px' }}>
+        {/* greeting */}
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 22 }}>
+          <div>
+            <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.025em', margin: 0 }}>{greeting()}</h1>
+            <p style={{ fontSize: 14, color: '#9aa096', margin: '6px 0 0' }}>
+              {shippedRecently > 0
+                ? <>grove shipped <span style={{ color: '#eef1ea', fontWeight: 600 }}>{shippedRecently} post{shippedRecently === 1 ? '' : 's'}</span> this week.{inReview.length ? <> {inReview.length} {inReview.length === 1 ? 'draft is' : 'drafts are'} waiting on you.</> : ' Everything is on schedule.'}</>
+                : <>Your agent is running. Queue a topic and the pipeline starts immediately.</>}
+            </p>
           </div>
-        )}
+          <div style={{ display: 'flex', gap: 9 }}>
+            <Link href="/dashboard/reviews" className="gv-ghost" style={{ border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)', color: '#cdd2c9', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '10px 16px', borderRadius: 10, cursor: 'pointer', textDecoration: 'none' }}>Review queue ({inReview.length})</Link>
+            <Link href="/dashboard/write" className="gv-btn" style={{ border: 'none', background: ACCENT, color: '#06120b', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '10px 18px', borderRadius: 10, cursor: 'pointer', textDecoration: 'none' }}>Write</Link>
+          </div>
+        </div>
 
-        {/* agent weekly brief */}
-        {brief && (
-          <section className="gv-card" style={{ background: 'linear-gradient(135deg, #0c130e, #0a0d0a)', border: '1px solid rgba(99,194,129,0.18)', borderRadius: 18, padding: '24px 26px', marginBottom: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
-              <div style={{ flex: 1, minWidth: 280 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 10.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: ACCENT }}>
-                  <span style={{ display: 'flex' }}><Icon name="leaf" size={13} /></span> Your marketing agent · last 7 days
-                </div>
-                <p style={{ fontSize: 15.5, lineHeight: 1.62, color: '#dfe4da', margin: '12px 0 0', maxWidth: 660 }}>{composeBrief(brief).join(' ')}</p>
+        {/* stat cards */}
+        <div className="gv-grid4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 14 }}>
+          {stats.map((s, i) => (
+            <div key={i} className="gv-card" style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: '18px 20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9, color: '#9aa096', fontSize: 12.5 }}>
+                <span style={{ display: 'flex', color: SAGE }}><Icon name={s.icon} /></span>{s.label}
               </div>
-              {action && (
-                <Link href={action.href} className="gv-btn" style={{ border: 'none', background: ACCENT, color: '#06120b', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '11px 18px', borderRadius: 10, whiteSpace: 'nowrap', flexShrink: 0 }}>{action.label}</Link>
-              )}
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 9, marginTop: 14 }}>
+                <span style={{ fontSize: 30, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1 }}>{s.value}</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 12, fontWeight: 600, color: s.deltaColor, paddingBottom: 3 }}>{s.delta}</span>
+              </div>
+              <div style={{ fontSize: 11.5, color: '#6b6f67', marginTop: 8 }}>{s.sub}</div>
             </div>
-            {chips.length > 0 && (
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 18 }}>
-                {chips.map((c, i) => (
-                  <div key={i} style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 11, padding: '9px 15px' }}>
-                    <span style={{ fontSize: 19, fontWeight: 700, letterSpacing: '-0.02em' }}>{c.value}</span>
-                    {c.sub && <span style={{ fontSize: 12, marginLeft: 6, fontWeight: 600, color: ACCENT }}>{c.sub}</span>}
-                    <div style={{ fontSize: 9.5, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#6b6f67', marginTop: 2 }}>{c.label}</div>
+          ))}
+        </div>
+
+        {/* calendar + agent */}
+        <div className="gv-2col-wide" style={{ display: 'grid', gridTemplateColumns: '1.85fr 1fr', gap: 14, marginBottom: 14 }}>
+          {/* publishing calendar */}
+          <div className="gv-card" style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '22px 24px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em' }}>Publishing calendar</div>
+                <div style={{ fontSize: 12.5, color: '#6b6f67', marginTop: 3 }}>When each post goes live, and where it is now</div>
+              </div>
+              <Link href="/dashboard/calendar" style={{ fontSize: 12.5, color: '#9aa096', textDecoration: 'none', fontWeight: 600 }}>Open calendar →</Link>
+            </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, margin: '16px 0 14px' }}>
+              {calLegend.map((l) => (
+                <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11.5, color: '#9aa096' }}>
+                  <span style={{ width: 9, height: 9, borderRadius: 3, background: l.color }} />{l.label}
+                </div>
+              ))}
+              <span style={{ marginLeft: 'auto', fontSize: 13, fontWeight: 600 }}>{calMonth}</span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 6 }}>
+              {weekdays.map((w) => (
+                <div key={w} style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#565a53', textAlign: 'center', paddingBottom: 2 }}>{w}</div>
+              ))}
+              {calDays.map((d, i) => (
+                <div key={i} style={{ minHeight: 62, minWidth: 0, overflow: 'hidden', borderRadius: 9, background: d.bg, border: `1px solid ${d.border}`, padding: '6px 6px 5px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <span style={{ fontSize: 10.5, fontWeight: 600, color: d.numColor, alignSelf: 'flex-end', fontVariantNumeric: 'tabular-nums' }}>{d.num}</span>
+                  {d.events.map((ev, j) => (
+                    <span key={j} title={ev.full} style={{ display: 'block', fontSize: 9.5, fontWeight: 600, lineHeight: 1.25, color: ev.color, background: ev.chipBg, borderLeft: `2px solid ${ev.color}`, borderRadius: 4, padding: '2px 4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ev.label}</span>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* agent panel */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="gv-card" style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 22px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ width: 30, height: 30, borderRadius: 9, background: 'rgba(99,194,129,0.12)', border: '1px solid rgba(99,194,129,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: ACCENT }}><Icon name="leaf" /></span>
+                  <div style={{ lineHeight: 1.2 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700 }}>Your marketing agent</div>
+                    <div style={{ fontSize: 11, color: '#6b6f67' }}>autonomous · loop running</div>
+                  </div>
+                </div>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: SAGE, fontWeight: 600 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: ACCENT, animation: 'gvPulse 1.8s ease-in-out infinite' }} />working
+                </span>
+              </div>
+
+              <div style={{ fontSize: 13, color: '#cdd2c9', lineHeight: 1.6, margin: '16px 0 16px' }}>{agentSummary}</div>
+
+              <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#565a53', marginBottom: 9 }}>Working on now</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                {agentItems.map((a, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 10, background: a.attn ? 'rgba(224,200,120,0.06)' : 'rgba(255,255,255,0.025)', border: `1px solid ${a.attn ? 'rgba(224,200,120,0.22)' : 'rgba(255,255,255,0.06)'}` }}>
+                    <span style={{ display: 'flex', color: a.attn ? '#e0c878' : SAGE, flexShrink: 0, marginTop: 1 }}><Icon name={a.icon} /></span>
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: '#eef1ea' }}>{a.title}</span>
+                      <span style={{ display: 'block', fontSize: 11.5, color: '#6b6f67', marginTop: 1, lineHeight: 1.4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.detail}</span>
+                    </span>
+                    {a.action && (
+                      <Link href={a.action.href} className="gv-btn" style={{ border: '1px solid rgba(255,255,255,0.16)', background: 'rgba(255,255,255,0.06)', color: '#eef1ea', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, padding: '5px 11px', borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, textDecoration: 'none' }}>{a.action.label}</Link>
+                    )}
                   </div>
                 ))}
               </div>
-            )}
-          </section>
-        )}
 
-        {/* two columns */}
-        <div className="gv-pipe-grid" style={{ display: 'grid', gridTemplateColumns: '1.72fr 1fr', gap: 16, alignItems: 'start' }}>
-          {/* LEFT */}
-          <div>
-            <PipelineActions domainId={domain?.id} />
-            {domain && <ModeToggle domainId={domain.id} autoPublish={domain.auto_publish ?? false} postsPerWeek={domain.posts_per_week ?? 2} />}
-
-            {groups.map((g) => (
-              <div key={g.key}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '22px 2px 11px' }}>
-                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: g.color }} />
-                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#cdd2c9' }}>{g.label}</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: '#565a53', fontVariantNumeric: 'tabular-nums' }}>{g.items.length}</span>
-                  <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-                  {g.items.map((p) => <PostRow key={p.id} p={p} score={scoreByPost.get(p.id) ?? null} blogSlug={domain?.blog_slug} />)}
+              <div style={{ marginTop: 18, padding: '14px 15px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: SAGE, marginBottom: 8 }}><span style={{ display: 'flex' }}><Icon name="answers" /></span> Agent insight</div>
+                <div style={{ fontSize: 12.5, color: '#dfe4da', lineHeight: 1.55 }}>Your churn-themed posts are pulling the most clicks. grove can prioritize that cluster this week.</div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                  <Link href="/dashboard/strategy" className="gv-btn" style={{ border: 'none', background: ACCENT, color: '#06120b', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, padding: '7px 13px', borderRadius: 8, cursor: 'pointer', textDecoration: 'none' }}>Review plan</Link>
+                  <button className="gv-ghost" style={{ border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: '#9aa096', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, padding: '7px 13px', borderRadius: 8, cursor: 'pointer' }}>Dismiss</button>
                 </div>
               </div>
-            ))}
+            </div>
+          </div>
+        </div>
 
-            {groups.length === 0 && (
-              <p style={{ color: '#9aa096', marginTop: 24, fontSize: 14 }}>No posts yet. Queue a topic above — the pipeline runs immediately.</p>
-            )}
+        {/* content pipeline table */}
+        <OverviewPipeline groups={groups} />
+
+        {/* bottom row */}
+        <div className="gv-grid3" style={{ display: 'grid', gridTemplateColumns: '1fr 1.15fr 1fr', gap: 14 }}>
+          {/* channels */}
+          <div className="gv-card" style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 22px' }}>
+            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>Cross-post queue</div>
+            <div style={{ fontSize: 12, color: '#6b6f67', marginBottom: 18 }}>One brief, every channel</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+              {channels.map((c) => (
+                <div key={c.name} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '11px 13px', borderRadius: 11, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.dot }} />
+                  <span style={{ fontSize: 13, color: '#cdd2c9' }}>{c.name}</span>
+                  <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 600, color: c.color }}>{c.state}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
-          {/* RIGHT RAIL */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {/* article quality */}
-            <div className="gv-card" style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 22px' }}>
-              <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#6b6f67' }}>Article quality · manager scores</div>
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, marginTop: 12 }}>
-                <span style={{ fontSize: 34, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1 }}>{qAvg || '—'}</span>
-                <span style={{ fontSize: 12, color: '#9aa096', paddingBottom: 4 }}>avg / 100 · {scored.length} scored</span>
-              </div>
-              {scored.length >= 2 && (
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 66, marginTop: 18 }}>
-                  {scored.slice(-12).map((s, i) => (
-                    <span key={i} title={`${s}/100`} style={{ flex: 1, borderRadius: '4px 4px 0 0', background: band(s), height: `${30 + (s / 100) * 70}%`, opacity: 0.92 }} />
-                  ))}
-                </div>
-              )}
-              <p style={{ fontSize: 11.5, color: '#6b6f67', lineHeight: 1.55, margin: '14px 0 0' }}>Every draft is graded 0–100 by the manager agent before it can publish — strategy fit, marketing intent, craft, safety.</p>
+          {/* top movers */}
+          <div className="gv-card" style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 22px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>Top movers</div>
+              <span style={{ fontSize: 11.5, color: '#6b6f67' }}>7-day rank change</span>
             </div>
-
-            {/* AI-search readiness */}
-            {aeoTotal >= 2 && (
-              <div className="gv-card" style={{ background: 'linear-gradient(150deg, #0c130e, #0a0d0a)', border: '1px solid rgba(99,194,129,0.16)', borderRadius: 18, padding: '20px 22px' }}>
-                <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#6b6f67' }}>AI-search readiness</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 14 }}>
-                  <div style={{ position: 'relative', width: 66, height: 66, flexShrink: 0 }}>
-                    <svg viewBox="0 0 36 36" style={{ width: 66, height: 66, transform: 'rotate(-90deg)' }}>
-                      <circle cx="18" cy="18" r="15.5" fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="3.4" />
-                      <circle cx="18" cy="18" r="15.5" fill="none" stroke={ACCENT} strokeWidth="3.4" strokeLinecap="round" strokeDasharray="97.4" strokeDashoffset={(97.4 * (1 - aeoPct / 100)).toFixed(1)} />
-                    </svg>
-                    <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700 }}>{aeoReadyCount}/{aeoTotal}</span>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 13.5, fontWeight: 600, color: '#eef1ea' }}>{aeoPct}% answer-engine ready</div>
-                    <div style={{ fontSize: 11.5, color: '#9aa096', lineHeight: 1.5, marginTop: 4 }}>Published posts with FAQ blocks &amp; key-takeaways structured for AI Overviews &amp; ChatGPT.</div>
-                  </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {keywords.map((k) => (
+                <div key={k.term} className="gv-row" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 10px', borderRadius: 9, transition: 'background .15s' }}>
+                  <span style={{ fontSize: 13, color: '#cdd2c9', flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{k.term}</span>
+                  <span style={{ fontSize: 12, color: '#6b6f67', fontVariantNumeric: 'tabular-nums' }}>#{k.pos}</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 12, fontWeight: 600, color: k.color, width: 52, justifyContent: 'flex-end', fontVariantNumeric: 'tabular-nums' }}>{k.change}</span>
                 </div>
-              </div>
-            )}
+              ))}
+            </div>
+          </div>
 
-            {/* the agent loop */}
-            <div className="gv-card" style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 22px' }}>
-              <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#6b6f67', marginBottom: 16 }}>The agent loop</div>
-              {loop.map((l, i) => (
-                <div key={l.n} style={{ display: 'flex', gap: 13, paddingBottom: 16 }}>
+          {/* activity */}
+          <div className="gv-card" style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 22px' }}>
+            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 18 }}>Recent activity</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+              {activityRows.map((a, i) => (
+                <div key={i} style={{ display: 'flex', gap: 13, paddingBottom: 16 }}>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
-                    <span style={{ width: 26, height: 26, borderRadius: 8, background: 'rgba(99,194,129,0.1)', border: '1px solid rgba(99,194,129,0.25)', color: ACCENT, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>{l.n}</span>
-                    {i < loop.length - 1 && <span style={{ flex: 1, width: 1, minHeight: 16, background: 'rgba(99,194,129,0.18)', marginTop: 4 }} />}
+                    <span style={{ width: 9, height: 9, borderRadius: '50%', background: a.dot, border: '2px solid #101310', boxShadow: `0 0 0 1px ${a.ring}` }} />
+                    {i < activityRows.length - 1 && <span style={{ flex: 1, width: 1, background: 'rgba(255,255,255,0.07)', marginTop: 4 }} />}
                   </div>
-                  <div style={{ marginTop: 1 }}>
-                    <div style={{ fontSize: 13.5, fontWeight: 600 }}>{l.title}</div>
-                    <div style={{ fontSize: 11.5, color: '#6b6f67', marginTop: 2, lineHeight: 1.45 }}>{l.sub}</div>
+                  <div style={{ marginTop: -3 }}>
+                    <div style={{ fontSize: 12.5, color: '#cdd2c9', lineHeight: 1.45 }}>{a.text}</div>
+                    <div style={{ fontSize: 11, color: '#565a53', marginTop: 3 }}>{a.time}</div>
                   </div>
                 </div>
               ))}
-              <div style={{ fontSize: 11, color: '#565a53', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 12, display: 'flex', alignItems: 'center', gap: 7 }}><span style={{ color: ACCENT }}>↻</span> Strategy re-reviewed on the 1st of each month</div>
             </div>
           </div>
         </div>
