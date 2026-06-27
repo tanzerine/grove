@@ -6,7 +6,7 @@ import Faq from './Faq';
 
 export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
   return (
-    <>
+    <div className="gv-dark">
       <GroveMark />
 
       {/* NAV */}
@@ -274,7 +274,7 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
           </div>
         </div>
       </footer>
-    </>
+    </div>
   );
 }
 
