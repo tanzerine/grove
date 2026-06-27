@@ -914,3 +914,6 @@ html { scroll-behavior: smooth; }
 .gv-app input, .gv-app textarea, .gv-app select { color: #eef1ea; }
 .gv-app .verified-chip { background: rgba(99,194,129,0.1); color: #cdd2c9; border: 1px solid rgba(99,194,129,0.25); }
 .gv-app .verified-chip .v { color: #63c281; }
+
+/* indeterminate progress bar for in-flight pipeline rows */
+@keyframes gvIndet { 0% { left: -42%; } 100% { left: 100%; } }

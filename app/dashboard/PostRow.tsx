@@ -124,6 +124,27 @@ export default function PostRow({ p, score, blogSlug }: { p: any; score?: { over
           )}
         </div>
       </div>
+
+      {inFlight && (
+        <div style={{ marginTop: 13 }}>
+          <div style={{ position: 'relative', height: 3, borderRadius: 99, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+            <span style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: '40%', borderRadius: 99, background: ACCENT, opacity: 0.55, animation: 'gvIndet 1.6s ease-in-out infinite' }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 10 }}>
+            <span style={{ display: 'inline-flex', gap: 3, alignItems: 'center', flexShrink: 0 }}>
+              <span className="gv-think" />
+              <span className="gv-think" style={{ animationDelay: '.15s' }} />
+              <span className="gv-think" style={{ animationDelay: '.3s' }} />
+            </span>
+            <span style={{ fontSize: 12.5, color: '#cdd2c9', fontWeight: 500, flex: '1 1 auto', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {currentStep ?? (p.status === 'writing' ? 'Drafting the article…' : p.status === 'researching' ? 'Researching live SERP…' : 'Working…')}
+            </span>
+            <span style={{ marginLeft: 'auto', fontSize: 10, color: '#565a53', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+              {p.status === 'researching' || p.status === 'queued' ? 'research' : 'draft'}
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
