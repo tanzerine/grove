@@ -1000,3 +1000,5 @@ html { scroll-behavior: smooth; }
 .gv-auth-switch a { color: var(--gv-accent); font-weight: 600; }
 .gv-auth-switch a:hover { text-decoration: underline; }
 
+/* indeterminate progress bar for in-flight pipeline rows */
+@keyframes gvIndet { 0% { left: -42%; } 100% { left: 100%; } }
