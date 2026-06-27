@@ -1,307 +1,497 @@
-import GroveMark from './GroveMark';
-import PlantForm from './PlantForm';
-import SampleTabs from './SampleTabs';
-import PriceToggle from './PriceToggle';
-import Faq from './Faq';
+'use client';
+
+import { useState, useRef, useEffect, type CSSProperties } from 'react';
+import { useRouter } from 'next/navigation';
+
+/* Faithful port of the "Grove Landing" design comp:
+   centered refraction-beam hero, floating product mock, stat band, bento
+   features, showcase tiles, testimonials, pricing, FAQ, dark CTA + footer.
+   Self-contained dark skin (Plus Jakarta Sans loaded in app/layout.tsx). */
+
+const ACCENT = '#63c281';
+const GLOW = 0.6;
+
+const CSS = `
+.gv-land { --accent: ${ACCENT}; --glow: ${GLOW}; }
+.gv-land ::selection { background: rgba(99,194,129,0.3); color: #fff; }
+@keyframes gvDrift1 { 0% { transform: translate3d(-6%,0,0) scale(1.1); } 50% { transform: translate3d(8%,-3%,0) scale(1.25); } 100% { transform: translate3d(-6%,0,0) scale(1.1); } }
+@keyframes gvDrift2 { 0% { transform: translate3d(5%,2%,0) scale(1.2); } 50% { transform: translate3d(-7%,-2%,0) scale(1.05); } 100% { transform: translate3d(5%,2%,0) scale(1.2); } }
+@keyframes gvFloaty { 0% { transform: translateY(0); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0); } }
+@keyframes gvBeam { 0%, 100% { opacity: 0.28; transform: scaleY(1); } 50% { opacity: 0.85; transform: scaleY(1.05); } }
+@keyframes gvShimmer { 0% { transform: translateX(0); } 100% { transform: translateX(26px); } }
+@keyframes gvBlobdrift { 0% { transform: translate3d(-4%, 2%, 0) scale(1.1); } 50% { transform: translate3d(6%, -3%, 0) scale(1.28); } 100% { transform: translate3d(-4%, 2%, 0) scale(1.1); } }
+.gv-land .gv-link:hover { color: #eef1ea !important; }
+.gv-land .gv-tile:hover .gv-tilecap { opacity: 1 !important; transform: translateY(0) !important; }
+.gv-land .gv-card:hover { border-color: rgba(99,194,129,0.35) !important; transform: translateY(-3px); }
+.gv-land .gv-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(99,194,129,0.25); }
+.gv-land .gv-ghost:hover { background: rgba(255,255,255,0.06) !important; }
+.gv-land .gv-scroll::-webkit-scrollbar { height: 6px; }
+.gv-land .gv-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 99px; }
+.gv-land input::placeholder { color: #565a53; }
+`;
 
 export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
+  const router = useRouter();
+  const [domain, setDomain] = useState('');
+  const [billing, setBilling] = useState<'monthly' | 'annual'>('monthly');
+  const [faqOpen, setFaqOpen] = useState<number>(0);
+  const refractRef = useRef<HTMLDivElement>(null);
+  const beamsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = refractRef.current;
+    if (!el) return;
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) return;
+    const onMove = (e: MouseEvent) => {
+      const x = e.clientX / window.innerWidth - 0.5;
+      const y = e.clientY / window.innerHeight - 0.5;
+      el.style.filter = `hue-rotate(${(x * 18).toFixed(1)}deg) saturate(${(1 + x * 0.12).toFixed(3)})`;
+      const beams = beamsRef.current;
+      if (beams) {
+        beams.style.transform = `scaleX(${(1 + x * 0.2).toFixed(3)})`;
+        beams.style.filter = `brightness(${(1.05 - y * 0.45).toFixed(3)})`;
+      }
+    };
+    window.addEventListener('mousemove', onMove, { passive: true });
+    return () => window.removeEventListener('mousemove', onMove);
+  }, []);
+
+  const clean = (s: string) => s.replace(/^https?:\/\//, '').replace(/\/$/, '').trim().toLowerCase();
+  const onSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const host = clean(domain);
+    if (!host.includes('.')) return;
+    router.push(`/signup?domain=${encodeURIComponent(host)}`);
+  };
+
+  const isMonthly = billing === 'monthly';
+
+  const pipeline = [
+    { title: '10 onboarding mistakes killing activation', meta: 'researched · 1,840 words · scheduled', status: 'publishing' },
+    { title: 'How we cut SaaS churn 18% in a quarter', meta: 'drafted · in your voice', status: 'in review' },
+    { title: 'A buyer’s guide to programmatic SEO', meta: 'ranking for 14 keywords', status: 'live' },
+  ];
+  const steps = [
+    { n: '01', title: 'Enter your domain', sub: 'One field. No plugins.' },
+    { n: '02', title: 'Verify ownership', sub: 'DNS or meta tag · 2 min' },
+    { n: '03', title: 'Posts go live', sub: 'Researched & published' },
+  ];
+  const platforms = ['WordPress', 'Webflow', 'Ghost', 'Framer', 'Shopify', 'Next.js'];
+  const stats = [
+    { big: '+312%', label: 'avg organic growth' },
+    { big: '2,400+', label: 'posts published' },
+    { big: '4 / wk', label: 'shipped on autopilot' },
+    { big: '4.9★', label: 'avg content rating' },
+  ];
+  const features = [
+    { n: '01', title: 'Live SERP analysis', body: 'grove reads what’s actually ranking for your keywords, then reverse-engineers the brief — gap, intent, structure and word count.' },
+    { n: '02', title: 'Answer-engine ready', body: 'Structured for AI Overviews and ChatGPT citations, so you show up where the next click now starts.' },
+    { n: '03', title: 'Writes in your voice', body: 'Trained on your site and past posts. Reads like your best writer — not a content mill.' },
+    { n: '04', title: 'Ranking in plain English', body: 'See exactly why each post moves — no Search Console spreadsheet required.' },
+    { n: '05', title: 'Cross-posts everywhere', body: 'One brief becomes a blog post, an X thread, a LinkedIn post and an Instagram caption.' },
+    { n: '06', title: 'Publishes itself', body: 'Straight to your domain — URL, sitemap, internal links, metadata, schema. No copy-paste, no plugins.' },
+  ];
+  const wave = ['40%','70%','55%','85%','45%','95%','60%','75%','50%','88%','42%','66%','80%','52%','92%','58%','72%','48%','84%','62%','46%','78%'];
+  const channels = ['Blog post', 'X thread', 'LinkedIn', 'Instagram'];
+  const testimonials = [
+    { initials: 'MR', name: 'Maya Rivera', role: 'Head of Growth, fintech', quote: '“We went from one post a quarter to four a week without hiring. Three of them are on page one now.”' },
+    { initials: 'DK', name: 'Devin Kuo', role: 'Founder, dev tool', quote: '“It writes like someone who actually used the product. I edit a sentence, maybe. That’s the whole job now.”' },
+    { initials: 'LO', name: 'Lena Ortiz', role: 'Marketing lead, B2B SaaS', quote: '“The SERP briefs alone replaced a freelancer. The auto-publishing replaced our CMS busywork entirely.”' },
+    { initials: 'TW', name: 'Tomas Weir', role: 'Indie SaaS', quote: '“Cheaper than one freelance post, and it never forgets to ship. My traffic just compounds while I build.”' },
+  ];
+  const tierBase = [
+    { name: 'Starter', m: 29, a: 23, blurb: 'For founders testing the engine.', popular: false, cta: 'Start free trial', plan: 'starter',
+      feats: ['4 posts / month', '1 domain', 'Auto-publish + SEO', 'Answer-engine ready', 'Review queue'] },
+    { name: 'Growth', m: 79, a: 63, blurb: 'For teams compounding content.', popular: true, cta: 'Start free trial', plan: 'growth',
+      feats: ['16 posts / month', '3 domains', 'Cross-posting (X, LinkedIn, IG)', 'Voice training', 'Plain-English analytics', 'Auto + review modes'] },
+    { name: 'Agency', m: 199, a: 159, blurb: 'For agencies running client blogs.', popular: false, cta: 'Talk to sales', plan: 'agency',
+      feats: ['Unlimited posts', '10 domains', 'Everything in Growth', 'White-label exports', 'Shared team workspace'] },
+  ];
+  const faqs = [
+    { q: 'Do I need WordPress or any hosting?', a: 'No. grove publishes to most major platforms — Webflow, Ghost, Framer, Shopify, Next.js — or hosts the blog for you on a subdomain at no extra cost.' },
+    { q: 'Will the posts actually sound like me?', a: 'Yes. grove trains on your existing content and tone, and you can steer the voice anytime. The first few drafts calibrate fast and only get closer.' },
+    { q: 'Isn’t AI content bad for SEO now?', a: 'Thin, generic AI content is. grove writes from live SERP research with real structure, sources and intent — built to earn rankings and AI citations, not to flood pages.' },
+    { q: 'Can I review posts before they go live?', a: 'Always. Run in review mode and approve every post, or flip to full auto once you trust it. It’s per-domain, and your call to change anytime.' },
+    { q: 'What’s the catch with the subscription?', a: 'None. Cancel anytime and keep everything published. No long contracts, no per-seat surprises, no lock-in on your own content.' },
+    { q: 'How fast is the first post?', a: 'Minutes. Enter your domain, verify ownership, and grove ships the first researched draft to your queue in the same session.' },
+  ];
+  const footcols = [
+    { head: 'Product', links: ['Features', 'Showcase', 'Pricing', 'Changelog'] },
+    { head: 'Company', links: ['About', 'Blog', 'Careers', 'Contact'] },
+    { head: 'Legal', links: ['Privacy', 'Terms', 'Status'] },
+  ];
+
+  const beam = (left: string, w: string, color: string, blur: string, dur: string, delay = '0s'): CSSProperties => ({
+    position: 'absolute', top: '-8%', bottom: '-8%', left, width: w,
+    background: `linear-gradient(180deg, transparent, ${color}, transparent)`,
+    filter: `blur(${blur})`, animation: `gvBeam ${dur} ease-in-out infinite`, animationDelay: delay,
+  });
+
+  const domainForm = (idSuffix: string) => (
+    <form
+      onSubmit={onSubmit}
+      style={{ display: 'flex', gap: 8, maxWidth: 460, margin: idSuffix === '2' ? '0 auto' : '0 auto 16px', background: 'rgba(20,22,19,0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 999, padding: '7px 7px 7px 18px', boxShadow: '0 14px 44px rgba(0,0,0,0.5)' }}
+    >
+      <span style={{ display: 'flex', alignItems: 'center', color: '#6b6f67', fontSize: 15 }}>https://</span>
+      <input
+        value={domain}
+        onChange={(e) => setDomain(e.target.value)}
+        placeholder="yourdomain.com"
+        aria-label="Your domain"
+        style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#eef1ea', fontSize: 15, fontFamily: 'inherit', minWidth: 0 }}
+      />
+      <button className="gv-btn" type="submit" style={{ background: 'var(--accent,#63c281)', color: '#06120b', fontWeight: 700, fontSize: 15, padding: '11px 22px', borderRadius: 999, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'transform .2s, box-shadow .2s' }}>Plant →</button>
+    </form>
+  );
+
   return (
-    <div className="gv-dark">
-      <GroveMark />
+    <div
+      className="gv-land"
+      style={{ '--accent': ACCENT, '--glow': String(GLOW), background: '#0a0b0a', color: '#eef1ea', fontFamily: "'Plus Jakarta Sans', sans-serif", minHeight: '100vh', overflowX: 'hidden', position: 'relative', WebkitFontSmoothing: 'antialiased' } as CSSProperties}
+    >
+      <style dangerouslySetInnerHTML={{ __html: CSS }} />
 
       {/* NAV */}
-      <header className="nav" id="nav">
-        <div className="wrap nav-in">
-          <a href="#top" className="brand">
-            <span className="mark"><svg viewBox="0 0 32 32"><use href="#grove-mark" /></svg></span>
-            grove<span className="dot">.</span>
+      <div style={{ position: 'fixed', top: 16, left: 0, right: 0, zIndex: 50, display: 'flex', justifyContent: 'center', padding: '0 20px', pointerEvents: 'none' }}>
+        <div style={{ pointerEvents: 'auto', display: 'flex', alignItems: 'center', gap: 28, background: 'rgba(16,18,16,0.72)', backdropFilter: 'blur(18px)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 999, padding: '9px 9px 9px 22px', boxShadow: '0 12px 40px rgba(0,0,0,0.45)' }}>
+          <a href="#hero" style={{ display: 'flex', alignItems: 'center', gap: 9, textDecoration: 'none', color: '#eef1ea' }}>
+            <span style={{ width: 16, height: 16, borderRadius: '50%', background: 'radial-gradient(circle at 35% 30%, #9ff0bb, var(--accent,#63c281))', boxShadow: '0 0 12px rgba(99,194,129,0.7)' }} />
+            <span style={{ fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em' }}>grove</span>
           </a>
-          <nav className="nav-links">
-            <a href="#how">How it works</a>
-            <a href="#features">Features</a>
-            <a href="#writes">Samples</a>
-            <a href="#pricing">Pricing</a>
-            <a href="#faq">FAQ</a>
-          </nav>
-          <div className="nav-cta">
-            {loggedIn ? (
-              <a href="/dashboard" className="btn btn-primary btn-sm">Dashboard <span className="arrow">→</span></a>
-            ) : (
-              <>
-                <a href="/login" className="signin">Sign in</a>
-                <a href="#pricing" className="btn btn-primary btn-sm">Start free <span className="arrow">→</span></a>
-              </>
-            )}
+          <div style={{ display: 'flex', gap: 24, fontSize: 14, fontWeight: 500 }} className="gv-navlinks">
+            <a className="gv-link" href="#features" style={{ color: '#9aa096', textDecoration: 'none', transition: 'color .2s' }}>Features</a>
+            <a className="gv-link" href="#showcase" style={{ color: '#9aa096', textDecoration: 'none', transition: 'color .2s' }}>Showcase</a>
+            <a className="gv-link" href="#pricing" style={{ color: '#9aa096', textDecoration: 'none', transition: 'color .2s' }}>Pricing</a>
+            <a className="gv-link" href="#faq" style={{ color: '#9aa096', textDecoration: 'none', transition: 'color .2s' }}>FAQ</a>
+          </div>
+          <a className="gv-btn" href={loggedIn ? '/dashboard' : '/signup'} style={{ background: 'var(--accent,#63c281)', color: '#06120b', fontWeight: 700, fontSize: 14, padding: '10px 18px', borderRadius: 999, textDecoration: 'none', transition: 'transform .2s, box-shadow .2s' }}>{loggedIn ? 'Dashboard' : 'Get started'}</a>
+        </div>
+      </div>
+
+      {/* HERO */}
+      <section id="hero" style={{ position: 'relative', padding: '184px 24px 72px', textAlign: 'center', overflow: 'hidden' }}>
+        <div ref={refractRef} style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden', opacity: 'var(--glow,0.6)', transition: 'filter .6s ease-out', willChange: 'filter' }}>
+          <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(130% 82% at 50% 2%, rgba(99,194,129,0.24), rgba(10,11,10,0) 56%)' }} />
+          <div style={{ position: 'absolute', top: '-24%', left: '26%', width: '46%', height: '90%', background: 'radial-gradient(ellipse at center, rgba(99,194,129,0.45), rgba(99,194,129,0) 60%)', filter: 'blur(90px)', animation: 'gvBlobdrift 18s ease-in-out infinite' }} />
+          <div style={{ position: 'absolute', top: '-18%', left: '6%', width: '40%', height: '80%', background: 'radial-gradient(ellipse at center, rgba(150,230,185,0.3), rgba(150,230,185,0) 60%)', filter: 'blur(96px)', animation: 'gvBlobdrift 24s ease-in-out infinite reverse' }} />
+          <div style={{ position: 'absolute', top: '-14%', right: '8%', width: '38%', height: '78%', background: 'radial-gradient(ellipse at center, rgba(70,180,140,0.32), rgba(70,180,140,0) 60%)', filter: 'blur(86px)', animation: 'gvBlobdrift 21s ease-in-out infinite' }} />
+          <div ref={beamsRef} style={{ position: 'absolute', inset: 0, transformOrigin: '50% 45%', transition: 'transform .55s ease-out, filter .55s ease-out', willChange: 'transform, filter' }}>
+            <div style={beam('9%', '52px', 'rgba(160,235,190,0.22)', '16px', '8s', '-1s')} />
+            <div style={beam('21%', '70px', 'rgba(190,245,210,0.3)', '18px', '7s', '-3s')} />
+            <div style={beam('35%', '90px', 'rgba(210,250,225,0.4)', '20px', '6.5s', '-2s')} />
+            <div style={beam('49%', '110px', 'rgba(225,255,235,0.5)', '22px', '7.5s')} />
+            <div style={beam('63%', '84px', 'rgba(200,248,220,0.36)', '20px', '6.8s', '-1.5s')} />
+            <div style={beam('77%', '66px', 'rgba(170,238,198,0.28)', '18px', '8.2s', '-4s')} />
+            <div style={beam('89%', '50px', 'rgba(150,232,185,0.2)', '16px', '7.2s', '-2.5s')} />
+          </div>
+          <div style={{ position: 'absolute', inset: -30, background: 'repeating-linear-gradient(90deg, transparent 0, rgba(190,245,212,0.05) 1px, transparent 2px, transparent 24px)', mixBlendMode: 'screen', animation: 'gvShimmer 9s linear infinite' }} />
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, #0a0b0a 0%, rgba(10,11,10,0) 24%, rgba(10,11,10,0) 76%, #0a0b0a 100%)' }} />
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(10,11,10,0) 0%, rgba(10,11,10,0) 26%, rgba(10,11,10,0.78) 48%, #0a0b0a 62%)' }} />
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(10,11,10,0.72) 0%, rgba(10,11,10,0.28) 7%, rgba(10,11,10,0) 17%)' }} />
+        </div>
+
+        <div style={{ position: 'relative', maxWidth: 880, margin: '0 auto' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9, background: 'rgba(255,255,255,0.045)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 999, padding: '7px 15px', fontSize: 11.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#b6bcb1', marginBottom: 30 }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent,#63c281)', boxShadow: '0 0 8px var(--accent,#63c281)' }} />
+            AI marketing agent · now live
+          </div>
+          <h1 style={{ fontSize: 'clamp(40px, 6.4vw, 76px)', lineHeight: 1.04, fontWeight: 700, letterSpacing: '-0.03em', margin: '0 0 24px', color: 'rgba(241,248,243,0.95)', textShadow: '0 2px 50px rgba(99,194,129,0.28)' }}>
+            Plant your domain.<br />The blog <span style={{ color: 'var(--accent,#63c281)', fontStyle: 'italic', fontWeight: 600 }}>grows itself.</span>
+          </h1>
+          <p style={{ fontSize: 18, lineHeight: 1.6, color: '#9aa096', maxWidth: 600, margin: '0 auto 34px' }}>
+            grove reads the live SERP, writes content engineered to rank on Google and get quoted by ChatGPT &amp; AI Overviews, then publishes it to your site — automatically.
+          </p>
+          {domainForm('1')}
+          <div style={{ fontSize: 11.5, letterSpacing: '0.04em', color: '#6b6f67' }}>Free to start · First post live in minutes · No card required</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 26, fontSize: 13.5, color: '#9aa096' }}>
+            <span style={{ color: 'var(--accent,#63c281)', letterSpacing: 2 }}>★★★★★</span>
+            Loved by teams compounding organic traffic
           </div>
         </div>
-      </header>
 
-      <main id="top">
-        {/* HERO */}
-        <section className="lz-hero">
-          <div className="lz-aurora"><i className="lz-a1" /><i className="lz-a2" /><i className="lz-a3" /></div>
-          <div className="wrap">
-            <div className="lz-in">
-              <span className="eyebrow pill"><span className="pdot" />SEO + answer-engine content, on autopilot</span>
-              <h1 className="display">
-                Plant your domain.<br />
-                The blog <span className="ital">grows itself.</span>
-              </h1>
-              <p className="lz-sub">
-                grove reads the live SERP, writes content engineered to rank on Google and get quoted by
-                ChatGPT &amp; AI Overviews, and publishes it to your site — automatically.
-              </p>
-              <div className="lz-ctarow"><PlantForm id="plantForm" /></div>
-              <div className="proof">
-                <div className="avatars"><span>JL</span><span>MR</span><span>AK</span><span>SP</span><span>TW</span></div>
-                <div className="proof-txt">
-                  <div className="stars">★★★★★</div>
-                  <span><b>2,400+ teams</b> compounding organic + AI-search traffic</span>
-                </div>
-              </div>
+        {/* PRODUCT MOCK */}
+        <div style={{ position: 'relative', maxWidth: 920, margin: '56px auto 0', animation: 'gvFloaty 7s ease-in-out infinite' }}>
+          <div style={{ position: 'absolute', inset: '12px 60px auto', height: 60, background: 'var(--accent,#63c281)', filter: 'blur(60px)', opacity: 0.3, borderRadius: '50%' }} />
+          <div style={{ position: 'relative', background: 'linear-gradient(180deg, #14171400, #101310)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 18, overflow: 'hidden', boxShadow: '0 40px 100px rgba(0,0,0,0.6)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.015)' }}>
+              <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#2a2d29' }} />
+              <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#2a2d29' }} />
+              <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#2a2d29' }} />
+              <span style={{ marginLeft: 14, fontSize: 12, color: '#6b6f67' }}>grove · content pipeline</span>
+              <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--accent,#63c281)' }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent,#63c281)' }} /> autopilot on</span>
             </div>
-
-            <div className="lz-shot">
-              <div className="lz-chip a">
-                <span className="ic" style={{ background: 'rgba(108,201,138,0.18)', color: 'var(--moss)' }}>✓</span>
-                <span><span className="k" style={{ display: 'block' }}>AI-search ready</span><span className="v">9 / 12 posts</span></span>
+            <div style={{ display: 'grid', gridTemplateColumns: '188px 1fr', minHeight: 280, textAlign: 'left' }}>
+              <div style={{ borderRight: '1px solid rgba(255,255,255,0.06)', padding: '18px 16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 11px', borderRadius: 9, background: 'rgba(99,194,129,0.1)', border: '1px solid rgba(99,194,129,0.2)', fontSize: 13, fontWeight: 600 }}>Pipeline <span style={{ color: 'var(--accent,#63c281)' }}>3</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 11px', borderRadius: 9, fontSize: 13, color: '#9aa096' }}>Published <span>128</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 11px', borderRadius: 9, fontSize: 13, color: '#9aa096' }}>In review <span>2</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 11px', borderRadius: 9, fontSize: 13, color: '#9aa096' }}>Live now <span>9 / 12</span></div>
+                <div style={{ marginTop: 'auto', paddingTop: 14, fontSize: 10.5, color: '#565a53', lineHeight: 1.5 }}>NEXT PUBLISH<br /><span style={{ color: 'var(--accent,#63c281)' }}>in 06h 12m</span></div>
               </div>
-              <div className="lz-chip b">
-                <span className="ic" style={{ background: 'rgba(221,155,42,0.18)', color: '#9b6b13' }}>↗</span>
-                <span><span className="k" style={{ display: 'block' }}>Organic traffic</span><span className="v">+312%</span></span>
-              </div>
-              <div className="lz-frame">
-                <div className="lz-bar"><span className="lz-dots"><i /><i /><i /></span><span className="lz-addr">app.grove.so/pipeline</span></div>
-                <div className="lz-app">
-                  <div className="lz-side">
-                    <div className="lz-sb on"><span className="i" />Pipeline</div>
-                    <div className="lz-sb"><span className="i" />Published</div>
-                    <div className="lz-sb"><span className="i" />Brand voice</div>
-                    <div className="lz-sb"><span className="i" />Analytics</div>
+              <div style={{ padding: 18 }}>
+                <div style={{ fontSize: 11, letterSpacing: '0.1em', color: '#6b6f67', marginBottom: 14 }}>CONTENT PIPELINE</div>
+                {pipeline.map((row, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '13px 14px', borderRadius: 12, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', marginBottom: 9 }}>
+                    <span style={{ width: 26, height: 26, borderRadius: 7, background: 'rgba(99,194,129,0.12)', border: '1px solid rgba(99,194,129,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent,#63c281)', fontSize: 13, flexShrink: 0 }}>✓</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.title}</div>
+                      <div style={{ fontSize: 11.5, color: '#6b6f67', marginTop: 2 }}>{row.meta}</div>
+                    </div>
+                    <span style={{ fontSize: 10.5, padding: '4px 9px', borderRadius: 999, background: 'rgba(255,255,255,0.04)', color: '#b6bcb1', whiteSpace: 'nowrap' }}>{row.status}</span>
                   </div>
-                  <div className="lz-main">
-                    <div className="lz-mtop"><h4>Content pipeline</h4><span className="m">4 posts / week · autopilot on</span></div>
-                    <div className="lz-pr"><span className="th" /><div className="b"><div className="t">10 onboarding mistakes killing activation</div><div className="mm">Published · 1,204 reads · ranks #3 “saas onboarding”</div></div><span className="lz-tg l">LIVE</span></div>
-                    <div className="lz-pr"><span className="th" /><div className="b"><div className="t">How we cut churn 31% with lifecycle email</div><div className="mm">Drafting section 3 of 6 · checking sources</div></div><span className="lz-tg w">WRITING</span></div>
-                    <div className="lz-pr"><span className="th" /><div className="b"><div className="t">A founder’s guide to programmatic SEO</div><div className="mm">Researching · reading the live SERP</div></div><span className="lz-tg q">QUEUED</span></div>
-                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 3 STEPS */}
+        <div style={{ position: 'relative', maxWidth: 920, margin: '22px auto 0', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+          {steps.map((s, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, background: 'rgba(255,255,255,0.015)', textAlign: 'left' }}>
+              <span style={{ fontSize: 12, color: 'var(--accent,#63c281)', border: '1px solid rgba(99,194,129,0.3)', borderRadius: 7, padding: '4px 8px' }}>{s.n}</span>
+              <div>
+                <div style={{ fontSize: 13.5, fontWeight: 600 }}>{s.title}</div>
+                <div style={{ fontSize: 11.5, color: '#6b6f67' }}>{s.sub}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* LOGO ROW */}
+      <section style={{ padding: '40px 24px 56px', textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+        <div style={{ fontSize: 11, letterSpacing: '0.16em', color: '#565a53', textTransform: 'uppercase', marginBottom: 26 }}>Publishes natively to</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '40px 56px', opacity: 0.62 }}>
+          {platforms.map((p) => (
+            <span key={p} style={{ fontSize: 21, fontWeight: 700, letterSpacing: '-0.02em', color: '#cdd2c9' }}>{p}</span>
+          ))}
+        </div>
+      </section>
+
+      {/* STATS */}
+      <section style={{ padding: '0 24px 80px' }}>
+        <div style={{ maxWidth: 1120, margin: '0 auto', background: 'linear-gradient(135deg, #0b130e, #080d0a)', border: '1px solid rgba(99,194,129,0.14)', borderRadius: 20, padding: '38px 28px', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20 }}>
+          {stats.map((st) => (
+            <div key={st.label} style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 'clamp(30px, 4vw, 44px)', fontWeight: 700, letterSpacing: '-0.03em', color: '#eef1ea' }}>{st.big}</div>
+              <div style={{ fontSize: 13, color: '#9aa096', marginTop: 6 }}>{st.label}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* FEATURES */}
+      <section id="features" style={{ padding: '30px 24px 90px', maxWidth: 1120, margin: '0 auto' }}>
+        <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 50px' }}>
+          <div style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--accent,#63c281)', textTransform: 'uppercase', marginBottom: 16 }}>Under the hood</div>
+          <h2 style={{ fontSize: 'clamp(30px, 4.6vw, 50px)', fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.08, margin: '0 0 16px' }}>A whole content team,<br /><span style={{ fontStyle: 'italic', color: 'var(--accent,#63c281)', fontWeight: 600 }}>working invisibly.</span></h2>
+          <p style={{ fontSize: 16.5, color: '#9aa096', lineHeight: 1.6, margin: 0 }}>Every job a real SEO and content team would own — research, voice, optimization, distribution, measurement — running on its own.</p>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 14 }}>
+          {features.map((f) => (
+            <div key={f.n} className="gv-card" style={{ background: '#111311', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: 26, transition: 'border-color .25s, transform .25s' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                <span style={{ fontSize: 13, color: 'var(--accent,#63c281)', width: 34, height: 34, borderRadius: 9, background: 'rgba(99,194,129,0.1)', border: '1px solid rgba(99,194,129,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{f.n}</span>
+                <h3 style={{ fontSize: 17, fontWeight: 600, margin: 0, letterSpacing: '-0.01em' }}>{f.title}</h3>
+              </div>
+              <p style={{ fontSize: 14.5, color: '#9aa096', lineHeight: 1.6, margin: 0 }}>{f.body}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* SHOWCASE */}
+      <section id="showcase" style={{ padding: '40px 24px 90px', maxWidth: 1120, margin: '0 auto' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 20, marginBottom: 36 }}>
+          <div>
+            <div style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--accent,#63c281)', textTransform: 'uppercase', marginBottom: 14 }}>Inside the product</div>
+            <h2 style={{ fontSize: 'clamp(30px, 4.6vw, 50px)', fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.08, margin: 0 }}>See it <span style={{ fontStyle: 'italic', color: 'var(--accent,#63c281)', fontWeight: 600 }}>actually work.</span></h2>
+          </div>
+          <p style={{ fontSize: 15.5, color: '#9aa096', maxWidth: 360, lineHeight: 1.6, margin: 0 }}>From SERP gap to published post — every surface of the engine, monochrome and out of your way.</p>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 14 }}>
+          <div className="gv-tile" style={{ gridColumn: 'span 4', position: 'relative', borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', background: 'linear-gradient(160deg, #14171400, #0e110e)', minHeight: 300, padding: 26 }}>
+            <div style={{ fontSize: 11, color: '#6b6f67', letterSpacing: '0.1em' }}>SERP GAP ANALYSIS · "ai onboarding checklist"</div>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, height: 170, marginTop: 28 }}>
+              {['38%','56%','47%','92%','64%','50%','72%'].map((h, i) => (
+                <div key={i} style={{ flex: 1, background: i === 3 ? 'linear-gradient(180deg, var(--accent,#63c281), rgba(99,194,129,0.3))' : 'linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.04))', borderRadius: '8px 8px 0 0', height: h, boxShadow: i === 3 ? '0 0 24px rgba(99,194,129,0.4)' : 'none' }} />
+              ))}
+            </div>
+            <div className="gv-tilecap" style={{ position: 'absolute', left: 26, bottom: 22, opacity: 0, transform: 'translateY(8px)', transition: '.3s', fontSize: 13.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 8 }}><span style={{ color: 'var(--accent,#63c281)' }}>●</span> Your opening — the gap nobody filled</div>
+          </div>
+
+          <div className="gv-tile" style={{ gridColumn: 'span 2', position: 'relative', borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', background: '#0e110e', minHeight: 300, padding: 24 }}>
+            <div style={{ fontSize: 11, color: '#6b6f67', letterSpacing: '0.1em' }}>VOICE TRAINED</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, height: 56, marginTop: 30 }}>
+              {wave.map((h, i) => (
+                <span key={i} style={{ flex: 1, borderRadius: 99, background: 'var(--accent,#63c281)', height: h, opacity: 0.85 }} />
+              ))}
+            </div>
+            <p style={{ fontSize: 13.5, color: '#9aa096', lineHeight: 1.55, margin: '26px 0 0' }}>Trained on 128 of your posts. Reads like your best writer — never a content mill.</p>
+            <div className="gv-tilecap" style={{ position: 'absolute', left: 24, bottom: 22, opacity: 0, transform: 'translateY(8px)', transition: '.3s', fontSize: 13, fontWeight: 600, color: 'var(--accent,#63c281)' }}>Tone match · 97%</div>
+          </div>
+
+          <div className="gv-tile" style={{ gridColumn: 'span 2', position: 'relative', borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', background: '#0e110e', minHeight: 230, padding: 24 }}>
+            <div style={{ fontSize: 11, color: '#6b6f67', letterSpacing: '0.1em' }}>CROSS-POST COMPOSER</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginTop: 22 }}>
+              {channels.map((c) => (
+                <div key={c} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 9, background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.05)', fontSize: 13 }}>
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent,#63c281)' }} />{c}<span style={{ marginLeft: 'auto', fontSize: 10.5, color: '#6b6f67' }}>queued</span>
                 </div>
-              </div>
+              ))}
             </div>
           </div>
-        </section>
 
-        <section className="lz-band">
-          <div className="lz-band-in">
-            <div className="lz-stat"><div className="n">+312%</div><div className="l">organic traffic · 90 days</div></div>
-            <div className="lz-stat"><div className="n">2,400+</div><div className="l">teams growing on grove</div></div>
-            <div className="lz-stat"><div className="n">4 / wk</div><div className="l">published on autopilot</div></div>
-            <div className="lz-stat"><div className="n">4.9★</div><div className="l">average rating</div></div>
+          <div className="gv-tile" style={{ gridColumn: 'span 2', position: 'relative', borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', background: 'linear-gradient(160deg, #16191600, #0e110e)', minHeight: 230, padding: 24 }}>
+            <div style={{ fontSize: 11, color: '#6b6f67', letterSpacing: '0.1em' }}>RANK MOVEMENT</div>
+            <svg viewBox="0 0 240 110" preserveAspectRatio="none" style={{ width: '100%', height: 120, marginTop: 18 }}>
+              <polyline points="0,95 40,86 80,72 120,60 160,38 200,24 240,10" fill="none" stroke="var(--accent,#63c281)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+              <circle cx="240" cy="10" r="4" fill="var(--accent,#63c281)" />
+            </svg>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#9aa096', marginTop: 14 }}><span>Position 18 → 3</span><span style={{ color: 'var(--accent,#63c281)', fontWeight: 600 }}>+312%</span></div>
           </div>
-        </section>
 
-        <section className="section">
-          <div className="wrap problem">
-            <p className="q">You know content is how SaaS compounds. But it&apos;s 11pm, the blog hasn&apos;t been touched in four months, and &quot;write a post this week&quot; has been on your list since spring.</p>
-            <p className="stop">So it never gets done.</p>
-            <p className="turn">grove flips it. Set your domain once and <span className="ital">posts just start appearing</span> — researched, written, and published — while you build the actual product.</p>
-          </div>
-        </section>
-
-        <section className="section section--alt" id="how">
-          <div className="wrap">
-            <div className="sec-head center">
-              <span className="eyebrow moss">Setup, end to end</span>
-              <h2 className="h2">Three steps. Then you <span className="ital">never touch it</span> again.</h2>
-              <p className="lede" style={{ marginLeft: 'auto', marginRight: 'auto' }}>No hosting to configure, no plugins to install, no credentials to manage.</p>
+          <div className="gv-tile" style={{ gridColumn: 'span 2', position: 'relative', borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', background: '#0e110e', minHeight: 230, padding: 24 }}>
+            <div style={{ fontSize: 11, color: '#6b6f67', letterSpacing: '0.1em' }}>AUTO-PUBLISH</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 22, fontSize: 11.5, color: '#9aa096' }}>
+              <div style={{ color: 'var(--accent,#63c281)' }}>✓ slug + canonical URL</div>
+              <div style={{ color: 'var(--accent,#63c281)' }}>✓ sitemap + schema</div>
+              <div style={{ color: 'var(--accent,#63c281)' }}>✓ internal links woven</div>
+              <div style={{ color: 'var(--accent,#63c281)' }}>✓ metadata + OG image</div>
+              <div style={{ color: '#6b6f67' }}>→ pushed to /blog · live</div>
             </div>
-            <div className="steps">
-              <Step n="STEP 01" h="Enter your domain" p="Tell grove where you live on the web. One field, one time.">
-                <div className="mini-input">https://<span style={{ color: 'var(--ink)' }}>yourdomain.com</span><span className="cur" /></div>
-              </Step>
-              <Step n="STEP 02" h="Verify ownership" p="Paste one DNS record or drop a file at your site root. ~2 minutes.">
-                <div className="mini-rec"><span className="k">TXT</span>grove-verify=<span className="v">a8f3c…verified ✓</span></div>
-              </Step>
-              <Step n="STEP 03" h="Posts go live" p="grove provisions everything and starts publishing on your schedule.">
-                <div className="mini-rec" style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                  <span className="mini-live"><span className="pulse" /></span>
-                  <span>blog.yourdomain.com · <span className="v">live</span></span>
+          </div>
+        </div>
+      </section>
+
+      {/* TESTIMONIALS */}
+      <section id="testimonials" style={{ padding: '40px 0 90px' }}>
+        <div style={{ maxWidth: 1120, margin: '0 auto 36px', padding: '0 24px', textAlign: 'center' }}>
+          <div style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--accent,#63c281)', textTransform: 'uppercase', marginBottom: 14 }}>Reviews</div>
+          <h2 style={{ fontSize: 'clamp(30px, 4.6vw, 50px)', fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.08, margin: 0 }}>Founders who stopped<br /><span style={{ fontStyle: 'italic', color: 'var(--accent,#63c281)', fontWeight: 600 }}>writing the blog.</span></h2>
+        </div>
+        <div className="gv-scroll" style={{ display: 'flex', gap: 16, overflowX: 'auto', padding: '8px 24px 20px', scrollSnapType: 'x mandatory', justifyContent: 'safe center' }}>
+          {testimonials.map((t) => (
+            <div key={t.name} style={{ scrollSnapAlign: 'start', flex: '0 0 360px', background: '#111311', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: 26, display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 13, marginBottom: 18 }}>
+                <span style={{ width: 46, height: 46, borderRadius: '50%', background: 'linear-gradient(135deg, rgba(99,194,129,0.25), rgba(99,194,129,0.08))', border: '1px solid rgba(99,194,129,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: 'var(--accent,#63c281)', fontSize: 15 }}>{t.initials}</span>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 15 }}>{t.name}</div>
+                  <div style={{ fontSize: 12.5, color: '#6b6f67' }}>{t.role}</div>
                 </div>
-              </Step>
+                <span style={{ marginLeft: 'auto', color: 'var(--accent,#63c281)', fontSize: 12, letterSpacing: 1 }}>★★★★★</span>
+              </div>
+              <p style={{ fontSize: 15, lineHeight: 1.6, color: '#cdd2c9', margin: 0 }}>{t.quote}</p>
             </div>
-          </div>
-        </section>
+          ))}
+        </div>
+      </section>
 
-        <section className="section" id="features">
-          <div className="wrap">
-            <div className="sec-head center">
-              <span className="eyebrow">Under the canopy</span>
-              <h2 className="h2">A whole content team, <span className="ital">working invisibly.</span></h2>
-              <p className="lede" style={{ marginLeft: 'auto', marginRight: 'auto' }}>Every job a senior SEO and a content team would own — SERP research, voice, writing, optimization, distribution, measurement — running on its own.</p>
+      {/* PRICING */}
+      <section id="pricing" style={{ padding: '40px 24px 90px', maxWidth: 1120, margin: '0 auto' }}>
+        <div style={{ textAlign: 'center', maxWidth: 600, margin: '0 auto 36px' }}>
+          <div style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--accent,#63c281)', textTransform: 'uppercase', marginBottom: 14 }}>Plans</div>
+          <h2 style={{ fontSize: 'clamp(30px, 4.6vw, 50px)', fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.08, margin: '0 0 24px' }}>Cheaper than <span style={{ fontStyle: 'italic', color: 'var(--accent,#63c281)', fontWeight: 600 }}>one freelance post.</span></h2>
+          <div style={{ display: 'inline-flex', padding: 5, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 999, gap: 4 }}>
+            <button onClick={() => setBilling('monthly')} style={{ border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, padding: '8px 20px', borderRadius: 999, transition: '.2s', background: isMonthly ? 'var(--accent,#63c281)' : 'transparent', color: isMonthly ? '#06120b' : '#9aa096' }}>Monthly</button>
+            <button onClick={() => setBilling('annual')} style={{ border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, padding: '8px 20px', borderRadius: 999, transition: '.2s', background: !isMonthly ? 'var(--accent,#63c281)' : 'transparent', color: !isMonthly ? '#06120b' : '#9aa096' }}>Annual <span style={{ fontSize: 11, opacity: 0.8 }}>−20%</span></button>
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, alignItems: 'start' }}>
+          {tierBase.map((t) => (
+            <div key={t.name} style={{ position: 'relative', background: t.popular ? 'linear-gradient(180deg, #0c130e, #090e0b)' : '#0f110f', border: `1px solid ${t.popular ? 'rgba(99,194,129,0.32)' : 'rgba(255,255,255,0.08)'}`, borderRadius: 18, padding: '30px 26px' }}>
+              {t.popular && <span style={{ position: 'absolute', top: 20, right: 22, fontSize: 10.5, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#06120b', background: 'var(--accent,#63c281)', padding: '4px 10px', borderRadius: 999, fontWeight: 600 }}>Most popular</span>}
+              <div style={{ fontSize: 15, fontWeight: 600, color: '#cdd2c9' }}>{t.name}</div>
+              <div style={{ fontSize: 13, color: '#6b6f67', margin: '4px 0 20px', minHeight: 36 }}>{t.blurb}</div>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, marginBottom: 4 }}>
+                <span style={{ fontSize: 48, fontWeight: 700, letterSpacing: '-0.03em' }}>${isMonthly ? t.m : t.a}</span>
+                <span style={{ fontSize: 14, color: '#6b6f67', marginBottom: 10 }}>/mo</span>
+              </div>
+              <div style={{ fontSize: 11, color: '#565a53', marginBottom: 22, minHeight: 14 }}>{isMonthly ? 'billed monthly' : 'billed annually'}</div>
+              <a className="gv-btn" href={`/signup?plan=${t.plan}`} style={{ display: 'block', textAlign: 'center', textDecoration: 'none', border: `1px solid ${t.popular ? 'var(--accent,#63c281)' : 'rgba(255,255,255,0.18)'}`, background: t.popular ? 'var(--accent,#63c281)' : 'transparent', color: t.popular ? '#06120b' : '#eef1ea', fontFamily: 'inherit', fontWeight: 700, fontSize: 14.5, padding: 13, borderRadius: 11, cursor: 'pointer', marginBottom: 24, transition: 'transform .2s, box-shadow .2s' }}>{t.cta}</a>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+                {t.feats.map((ft, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 10, fontSize: 13.5, color: '#b6bcb1', lineHeight: 1.4 }}><span style={{ color: 'var(--accent,#63c281)', flexShrink: 0 }}>✓</span>{ft}</div>
+                ))}
+              </div>
             </div>
-            <div className="lz-bento">
-              <div className="lz-bcard lz-w">
-                <div className="lz-bfic"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg></div>
-                <h3>Live SERP analysis</h3>
-                <p>For every keyword, grove reads the pages actually ranking, distills the subtopics they all cover, and briefs the writer to out-write them — then flags any gap before you publish.</p>
-                <div className="lz-mini">
-                  <div className="mh">WHAT&apos;S RANKING FOR “POUR OVER COFFEE”</div>
-                  <div className="lz-cov"><span className="ok">✓ grind size</span><span className="ok">✓ burr grinder</span><span className="gap">+ water temp</span><span className="gap">+ bloom phase</span><span className="ok">✓ ratio</span></div>
+          ))}
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section id="faq" style={{ padding: '40px 24px 90px', maxWidth: 1120, margin: '0 auto' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 40, alignItems: 'start' }} className="gv-faqgrid">
+          <div>
+            <div style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--accent,#63c281)', textTransform: 'uppercase', marginBottom: 14 }}>FAQ</div>
+            <h2 style={{ fontSize: 'clamp(30px, 4.4vw, 46px)', fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.08, margin: '0 0 16px' }}>The honest <span style={{ fontStyle: 'italic', color: 'var(--accent,#63c281)', fontWeight: 600 }}>FAQ.</span></h2>
+            <p style={{ fontSize: 15, color: '#9aa096', lineHeight: 1.6, margin: '0 0 22px' }}>The questions skeptical founders actually ask before handing over their blog.</p>
+            <a className="gv-btn" href={loggedIn ? '/dashboard' : '/signup'} style={{ display: 'inline-block', background: 'var(--accent,#63c281)', color: '#06120b', fontWeight: 700, fontSize: 14, padding: '12px 22px', borderRadius: 999, textDecoration: 'none', transition: 'transform .2s, box-shadow .2s' }}>Book a walkthrough →</a>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {faqs.map((f, i) => {
+              const open = faqOpen === i;
+              return (
+                <div key={i} style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: 13, background: '#111311', overflow: 'hidden' }}>
+                  <button onClick={() => setFaqOpen(open ? -1 : i)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left', background: 'transparent', border: 'none', cursor: 'pointer', padding: '18px 20px', color: '#eef1ea', fontFamily: 'inherit', fontSize: 15, fontWeight: 600 }}>
+                    <span style={{ flex: 1 }}>{f.q}</span>
+                    <span style={{ color: 'var(--accent,#63c281)', fontSize: 20, lineHeight: 1, flexShrink: 0 }}>{open ? '–' : '+'}</span>
+                  </button>
+                  {open && <div style={{ padding: '0 20px 20px', fontSize: 14, color: '#9aa096', lineHeight: 1.62 }}>{f.a}</div>}
                 </div>
-              </div>
-              <div className="lz-bcard lz-2">
-                <div className="lz-bfic"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 3v18" /><path d="M5 8l7-5 7 5" /><path d="M5 16l7 5 7-5" /></svg></div>
-                <h3>Answer-engine ready</h3>
-                <p>Answer-first, a real FAQ, full schema — built the way ChatGPT, Perplexity &amp; AI Overviews quote.</p>
-              </div>
-              <div className="lz-bcard lz-2">
-                <div className="lz-bfic"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3V11a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z" /></svg></div>
-                <h3>Writes in your voice</h3>
-                <p>grove reads your site to learn your tone, then writes E-E-A-T content that sounds like you — not AI mush.</p>
-              </div>
-              <div className="lz-bcard lz-2">
-                <div className="lz-bfic"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 19V5" /><path d="M4 19h16" /><path d="M8 16l4-6 4 3 4-7" /></svg></div>
-                <h3>Ranking, in plain English</h3>
-                <p>See what each post earns and an AI-search readiness score — no Search Console spreadsheet required.</p>
-              </div>
-              <div className="lz-bcard lz-2">
-                <div className="lz-bfic"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="6" cy="12" r="2" /><circle cx="18" cy="6" r="2" /><circle cx="18" cy="18" r="2" /><path d="M8 11l8-4M8 13l8 4" /></svg></div>
-                <h3>Cross-posts everywhere</h3>
-                <p>Each post becomes an X thread, a LinkedIn post, and an Instagram caption — native to each, not copy-paste.</p>
-              </div>
-              <div className="lz-bcard lz-6">
-                <div className="lz-bfic"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="9" /><path d="M3 12h18" /><path d="M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18" /></svg></div>
-                <h3>Publishes itself on your domain</h3>
-                <p>Straight to a managed blog on your domain — SSL, sitemaps, structured data, llms.txt, RSS — so search engines and AI crawlers find it automatically. You approve each post, or let it run.</p>
-              </div>
-            </div>
+              );
+            })}
           </div>
-        </section>
+        </div>
+      </section>
 
-        <section className="section section--alt" id="writes">
-          <div className="wrap writes">
-            <div className="writes-copy">
-              <span className="eyebrow moss">One post, every channel</span>
-              <h2 className="h2">Write once.<br />grove <span className="ital">replants it</span> everywhere.</h2>
-              <p className="lede">From a single brief, grove produces a full SEO blog post and reshapes it for every platform you care about — each one native, none of it copy-paste.</p>
-              <SampleTabs />
+      {/* FINAL CTA */}
+      <section style={{ position: 'relative', padding: '110px 24px 120px', textAlign: 'center', overflow: 'hidden', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+        <div style={{ position: 'absolute', inset: 'auto -20% -30% -20%', height: 460, pointerEvents: 'none', opacity: 'var(--glow,0.5)' }}>
+          <div style={{ position: 'absolute', bottom: 0, left: '16%', width: '60%', height: 340, background: 'radial-gradient(ellipse at center, rgba(99,194,129,0.45), rgba(99,194,129,0) 62%)', filter: 'blur(70px)', animation: 'gvDrift2 18s ease-in-out infinite' }} />
+          <div style={{ position: 'absolute', bottom: '4%', right: '8%', width: '46%', height: 280, background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.14), rgba(255,255,255,0) 60%)', filter: 'blur(70px)', animation: 'gvDrift1 24s ease-in-out infinite' }} />
+        </div>
+        <div style={{ position: 'relative', maxWidth: 720, margin: '0 auto' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 11.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--accent,#63c281)', marginBottom: 24 }}><span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent,#63c281)', boxShadow: '0 0 8px var(--accent,#63c281)' }} /> Available for new domains</div>
+          <h2 style={{ fontSize: 'clamp(38px, 6vw, 68px)', fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.04, margin: '0 0 22px' }}>Your blog is one<br /><span style={{ fontStyle: 'italic', color: 'var(--accent,#63c281)', fontWeight: 600 }}>field away.</span></h2>
+          <p style={{ fontSize: 17, color: '#9aa096', margin: '0 0 32px' }}>Plant your domain tonight. Wake up to a researched, ranked, published post.</p>
+          {domainForm('2')}
+        </div>
+      </section>
+
+      {/* FOOTER */}
+      <footer style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: '56px 24px 36px', maxWidth: 1120, margin: '0 auto' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr 1fr', gap: 32, marginBottom: 44 }} className="gv-footgrid">
+          <div>
+            <a href="#hero" style={{ display: 'flex', alignItems: 'center', gap: 9, textDecoration: 'none', color: '#eef1ea', marginBottom: 14 }}>
+              <span style={{ width: 16, height: 16, borderRadius: '50%', background: 'radial-gradient(circle at 35% 30%, #9ff0bb, var(--accent,#63c281))', boxShadow: '0 0 12px rgba(99,194,129,0.6)' }} />
+              <span style={{ fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em' }}>grove</span>
+            </a>
+            <p style={{ fontSize: 13.5, color: '#6b6f67', lineHeight: 1.6, maxWidth: 260, margin: '0 0 16px' }}>The marketing agent that plants your domain once and grows the blog forever.</p>
+            <div style={{ display: 'flex', gap: 14, fontSize: 12 }}>
+              <a className="gv-link" href="#" style={{ color: '#9aa096', textDecoration: 'none' }}>X</a>
+              <a className="gv-link" href="#" style={{ color: '#9aa096', textDecoration: 'none' }}>LinkedIn</a>
+              <a className="gv-link" href="#" style={{ color: '#9aa096', textDecoration: 'none' }}>GitHub</a>
             </div>
           </div>
-        </section>
-
-        <section className="section section--ink">
-          <div className="wrap deep">
-            <div className="deep-copy">
-              <span className="eyebrow">You&apos;re still in control</span>
-              <h2 className="h2">Autopilot, <span className="ital">not autopilot you can&apos;t see.</span></h2>
-              <p className="lede">grove can publish fully hands-off — or hold every post for your one-tap approval. Your call, per post or for good.</p>
-              <ul className="deep-list">
-                <li><span className="ck">✓</span><span><b>Review queue</b> — approve, tweak a line, or send back with a note before anything goes live.</span></li>
-                <li><span className="ck">✓</span><span><b>Full auto mode</b> — trust it once and let posts publish on schedule without you.</span></li>
-                <li><span className="ck">✓</span><span><b>Topic memory</b> — grove tracks everything it&apos;s published so it never repeats itself.</span></li>
-              </ul>
-            </div>
-            <div className="deep-art">
-              <div className="queue">
-                <h5>Awaiting your review · 2</h5>
-                <Qrow t="How we cut churn 31% with lifecycle email" m="1,840 words · 5 sources · scheduled Tue 9am" />
-                <Qrow t="A founder's guide to programmatic SEO" m="2,210 words · 11 sources · scheduled Fri 9am" />
+          {footcols.map((col) => (
+            <div key={col.head}>
+              <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#565a53', marginBottom: 16 }}>{col.head}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+                {col.links.map((l) => (
+                  <a key={l} className="gv-link" href="#" style={{ fontSize: 13.5, color: '#9aa096', textDecoration: 'none', transition: 'color .2s' }}>{l}</a>
+                ))}
               </div>
             </div>
-          </div>
-        </section>
-
-        <section className="section section--alt" id="pricing">
-          <div className="wrap">
-            <div className="sec-head center">
-              <span className="eyebrow moss">Plans</span>
-              <h2 className="h2">Cheaper than <span className="ital">one freelance post.</span></h2>
-              <p className="lede" style={{ marginLeft: 'auto', marginRight: 'auto' }}>A single ghost-written SEO article runs $150–400. grove writes a month of them for less.</p>
-              <PriceToggle />
-            </div>
-          </div>
-        </section>
-
-        <section className="section section--alt" id="faq">
-          <div className="wrap">
-            <div className="sec-head center">
-              <span className="eyebrow moss">Questions</span>
-              <h2 className="h2">The honest <span className="ital">FAQ.</span></h2>
-            </div>
-            <Faq />
-          </div>
-        </section>
-
-        <section className="lz-ctab">
-          <div className="wrap">
-            <span className="eyebrow" style={{ justifyContent: 'center' }}>Start growing</span>
-            <h2 className="h2" style={{ marginTop: 16 }}>
-              Your blog is one <span className="ital">field away.</span>
-            </h2>
-            <PlantForm id="plantForm2" />
-            <p className="cta-foot">14-day free trial · cancel anytime · first post live in minutes</p>
-          </div>
-        </section>
-      </main>
-
-      <footer className="footer">
-        <div className="wrap">
-          <div className="foot-grid">
-            <div className="foot-brand">
-              <a href="#top" className="brand">
-                <span className="mark"><svg viewBox="0 0 32 32"><use href="#grove-mark" /></svg></span>
-                grove<span className="dot">.</span>
-              </a>
-              <p>Content that keeps growing. Plant your domain once — we research, write, and publish the rest.</p>
-              <a href="/signup" className="btn btn-primary btn-sm">Start free <span className="arrow">→</span></a>
-            </div>
-            <div className="foot-col">
-              <h5>Product</h5>
-              <a href="#how">How it works</a><a href="#features">Features</a><a href="#writes">Samples</a><a href="#pricing">Pricing</a>
-            </div>
-            <div className="foot-col">
-              <h5>Company</h5>
-              <a href="#">About</a><a href="#">Blog</a><a href="#">Careers</a><a href="#">Contact</a>
-            </div>
-            <div className="foot-col">
-              <h5>Legal</h5>
-              <a href="#">Privacy</a><a href="#">Terms</a><a href="#">Security</a><a href="#">Status</a>
-            </div>
-          </div>
-          <div className="foot-bot">
-            <span>© 2026 grove. Grown, not generated.</span>
-            <span className="mono">made for builders who&apos;d rather build</span>
-          </div>
+          ))}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, paddingTop: 24, borderTop: '1px solid rgba(255,255,255,0.06)', fontSize: 11.5, color: '#565a53' }}>
+          <span>© 2026 grove — plant once, grows forever.</span>
+          <span>hello@grove.so</span>
         </div>
       </footer>
-    </div>
-  );
-}
-
-function Step({ n, h, p, children }: { n: string; h: string; p: string; children: React.ReactNode }) {
-  return (
-    <div className="step">
-      <div className="snum">{n}</div>
-      <h3>{h}</h3>
-      <p>{p}</p>
-      <div className="mini">{children}</div>
-    </div>
-  );
-}
-
-
-function Qrow({ t, m }: { t: string; m: string }) {
-  return (
-    <div className="qrow">
-      <div className="qthumb" />
-      <div className="qb">
-        <div className="qt">{t}</div>
-        <div className="qm">{m}</div>
-      </div>
-      <div className="qact">
-        <button className="qbtn">Edit</button>
-        <button className="qbtn go">Approve</button>
-      </div>
     </div>
   );
 }
