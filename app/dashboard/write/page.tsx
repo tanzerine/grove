@@ -8,19 +8,23 @@ export default async function WritePage() {
 
   return (
     <>
-      <h1 style={{ fontFamily: 'Clash Display', fontSize: 32, margin: 0 }}>Writing desk</h1>
-      <p className="lede" style={{ marginTop: 8, maxWidth: 600 }}>
-        Write a post in your own words, or think out loud and let grove turn an idea into a draft.
-        Nothing here publishes on its own — you stay in the driver&apos;s seat.
-      </p>
-
-      {domain ? (
-        <WriteDesk domainId={domain.id} hostname={domain.hostname} />
-      ) : (
-        <p className="lede" style={{ marginTop: 24 }}>
-          Add a domain first to start writing.
+      <header className="gv-header">
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em' }}>Writing desk</div>
+          <div style={{ fontSize: 12, color: '#6b6f67', marginTop: 1 }}>write it yourself, or think out loud and let grove draft it</div>
+        </div>
+      </header>
+      <div className="gv-body">
+        <p className="lede" style={{ maxWidth: 600 }}>
+          Write a post in your own words, or think out loud and let grove turn an idea into a draft.
+          Nothing here publishes on its own — you stay in the driver&apos;s seat.
         </p>
-      )}
+        {domain ? (
+          <WriteDesk domainId={domain.id} hostname={domain.hostname} />
+        ) : (
+          <p className="lede" style={{ marginTop: 24 }}>Add a domain first to start writing.</p>
+        )}
+      </div>
     </>
   );
 }

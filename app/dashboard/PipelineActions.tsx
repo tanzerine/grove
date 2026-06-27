@@ -1,17 +1,16 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import Icon from './gv-icons';
 
-const SparkleIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 13 13" fill="none" style={{ flexShrink: 0 }}>
-    <path d="M6.5 1l1.2 3.3L11 6.5l-3.3 1.2L6.5 11 5.3 7.7 2 6.5l3.3-1.2L6.5 1z" fill="currentColor" />
-  </svg>
-);
+const ACCENT = '#63c281';
 
 export default function PipelineActions({ domainId }: { domainId?: string }) {
   const r = useRouter();
   const [topic, setTopic] = useState('');
   const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [suggErr, setSuggErr] = useState(false);
@@ -23,122 +22,66 @@ export default function PipelineActions({ domainId }: { domainId?: string }) {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ domain_id: domainId, topic }),
     });
-    setBusy(false);
-    setTopic('');
-    setSuggestions([]);
+    setBusy(false); setTopic(''); setSuggestions([]); setOpen(false);
     r.refresh();
   }
 
   async function suggest() {
     if (!domainId) return;
-    setSuggesting(true);
-    setSuggErr(false);
+    setOpen(true); setSuggesting(true); setSuggErr(false);
     try {
       const res = await fetch(`/api/topics/suggest?domain_id=${domainId}`);
       const json = await res.json().catch(() => ({}));
       const s: string[] = json.suggestions ?? [];
-      if (s.length > 0) {
-        setSuggestions(s);
-      } else {
-        setSuggErr(true);
-      }
-    } catch {
-      setSuggErr(true);
-    }
+      if (s.length > 0) setSuggestions(s); else setSuggErr(true);
+    } catch { setSuggErr(true); }
     setSuggesting(false);
   }
 
-  function pick(t: string) {
-    setTopic(t);
-    setSuggestions([]);
-  }
+  const ghost: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 6, border: '1px solid rgba(99,194,129,0.25)', background: 'rgba(99,194,129,0.06)', color: ACCENT, fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '0 15px', borderRadius: 10, cursor: 'pointer', whiteSpace: 'nowrap' };
 
   return (
-    <div style={{ marginTop: 24 }}>
-      {/* Input row */}
+    <div style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 13, padding: '16px 18px', marginBottom: 12 }}>
       <div style={{ display: 'flex', gap: 8 }}>
         <input
           value={topic}
           onChange={(e) => setTopic(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && enqueue()}
-          placeholder="Add a topic… e.g. 'how to reduce churn with onboarding nudges'"
-          style={{
-            flex: 1, padding: '12px 16px',
-            border: '1px solid var(--line)', borderRadius: 10,
-            background: 'white', fontFamily: 'inherit', fontSize: 14,
-          }}
+          placeholder="Add a topic… e.g. 'reduce churn with onboarding nudges'"
+          style={{ flex: 1, minWidth: 0, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 10, padding: '11px 14px', color: '#eef1ea', fontSize: 13.5, fontFamily: 'inherit', outline: 'none' }}
         />
-        <button
-          className="btn btn-ghost btn-sm"
-          onClick={suggest}
-          disabled={suggesting || !domainId}
-          title="AI topic recommendations"
-          style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}
-        >
-          <SparkleIcon />
-          {suggesting ? 'Thinking…' : 'Suggest'}
+        <button onClick={suggest} disabled={suggesting || !domainId} className="gv-ghost" style={ghost}>
+          <Icon name="sparkle" size={13} />{suggesting ? 'Thinking…' : 'Suggest'}
         </button>
-        <button
-          className="btn btn-primary btn-sm"
-          onClick={enqueue}
-          disabled={busy || !topic.trim()}
-        >
+        <button onClick={enqueue} disabled={busy || !topic.trim()} className="gv-btn"
+          style={{ border: 'none', background: ACCENT, color: '#06120b', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '0 18px', borderRadius: 10, cursor: 'pointer', whiteSpace: 'nowrap', opacity: busy || !topic.trim() ? 0.6 : 1 }}>
           {busy ? '…' : 'Queue topic'}
         </button>
       </div>
 
-      {/* Error state */}
-      {suggErr && (
-        <p style={{ fontSize: 12, color: '#c33', marginTop: 8 }}>
-          Could not generate suggestions — make sure the site profile is built first.
-        </p>
-      )}
-
-      {/* Suggestion chips */}
-      {suggestions.length > 0 && (
-        <div style={{ marginTop: 12 }}>
-          <p style={{ fontSize: 11, color: 'var(--clay)', marginBottom: 8, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-            Click a topic to use it
-          </p>
+      {open && (
+        <div style={{ marginTop: 14 }}>
+          <div style={{ fontSize: 10, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#6b6f67', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ color: ACCENT, display: 'flex' }}><Icon name="sparkle" size={13} /></span> Grove suggests · from your strategy &amp; live SERP
+          </div>
+          {suggErr && (
+            <p style={{ fontSize: 12, color: '#d39a9a', margin: '0 0 8px' }}>Couldn’t generate suggestions — build the site profile first.</p>
+          )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {suggestions.map((s, i) => (
-              <button
-                key={i}
-                onClick={() => pick(s)}
-                style={{
-                  textAlign: 'left', padding: '10px 14px',
-                  background: 'white', border: '1px solid var(--line)',
-                  borderRadius: 8, fontSize: 13.5, color: 'var(--ink)',
-                  cursor: 'pointer', fontFamily: 'inherit',
-                  transition: 'background .12s, border-color .12s',
-                  lineHeight: 1.4,
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLElement).style.background = 'var(--paper)';
-                  (e.currentTarget as HTMLElement).style.borderColor = 'var(--moss)';
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.background = 'white';
-                  (e.currentTarget as HTMLElement).style.borderColor = 'var(--line)';
-                }}
-              >
+              <button key={i} className="gv-sugg" onClick={() => { setTopic(s); setOpen(false); }}
+                style={{ textAlign: 'left', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 9, fontSize: 13, color: '#cdd2c9', cursor: 'pointer', fontFamily: 'inherit', lineHeight: 1.4 }}>
                 {s}
               </button>
             ))}
           </div>
-          <button
-            onClick={suggest}
-            disabled={suggesting}
-            style={{
-              marginTop: 8, fontSize: 12, color: 'var(--moss)',
-              background: 'none', border: 'none', cursor: 'pointer',
-              fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4,
-            }}
-          >
-            <SparkleIcon /> Refresh suggestions
-          </button>
         </div>
       )}
+
+      <div style={{ fontSize: 12, color: '#6b6f67', marginTop: 12 }}>
+        Prefer to write it yourself?{' '}
+        <Link href="/dashboard/write" style={{ color: ACCENT, fontWeight: 600 }}>Open the writing desk →</Link>
+      </div>
     </div>
   );
 }

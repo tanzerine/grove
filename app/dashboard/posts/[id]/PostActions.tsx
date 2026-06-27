@@ -79,44 +79,48 @@ export default function PostActions({
     r.replace('/dashboard');
   }
 
+  const ACCENT = '#63c281';
+  const primary: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, border: 'none', background: ACCENT, color: '#06120b', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '10px 18px', borderRadius: 10, cursor: 'pointer' };
+  const ghost: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.02)', color: '#cdd2c9', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '10px 16px', borderRadius: 10, cursor: 'pointer' };
+
   return (
-    <div style={{ display: 'flex', gap: 10, marginTop: 18, flexWrap: 'wrap' }}>
+    <div style={{ display: 'flex', gap: 9, marginTop: 18, flexWrap: 'wrap', alignItems: 'center' }}>
       {status === 'review' && (
-        <button className="btn btn-primary btn-sm" onClick={approve} disabled={!!busy}>
+        <button className="gv-btn" style={primary} onClick={approve} disabled={!!busy}>
           {busy === 'approve' ? 'Publishing…' : 'Approve & publish'}
         </button>
       )}
       {(status === 'review' || status === 'published') && (
-        <button className="btn btn-ghost btn-sm" onClick={genSocial} disabled={!!busy}>
+        <button className="gv-ghost" style={ghost} onClick={genSocial} disabled={!!busy}>
           {busy === 'social' ? 'Adapting…' : hasSocial ? 'Regenerate social posts' : 'Generate social posts'}
         </button>
       )}
       {(status === 'failed' || status === 'review' || status === 'scheduled' || status === 'published') && (
-        <button className="btn btn-ghost btn-sm" onClick={retry} disabled={!!busy}>
+        <button className="gv-ghost" style={ghost} onClick={retry} disabled={!!busy}>
           {busy === 'retry' ? 'Regenerating…' : 'Regenerate'}
         </button>
       )}
       {!hasCover && (status === 'review' || status === 'published' || status === 'scheduled') && (
-        <button className="btn btn-ghost btn-sm" onClick={genCover} disabled={!!busy}>
+        <button className="gv-ghost" style={ghost} onClick={genCover} disabled={!!busy}>
           {busy === 'cover' ? 'Generating cover…' : 'Generate cover image'}
         </button>
       )}
       {hasCover && !hasInlineImages && (status === 'review' || status === 'published' || status === 'scheduled') && (
-        <button className="btn btn-ghost btn-sm" onClick={genInlineImages} disabled={!!busy}>
+        <button className="gv-ghost" style={ghost} onClick={genInlineImages} disabled={!!busy}>
           {busy === 'inline' ? 'Generating images…' : 'Add inline images'}
         </button>
       )}
       {published && (
-        <button className="btn btn-ghost btn-sm" onClick={shareNow} disabled={!!busy}>
+        <button className="gv-ghost" style={ghost} onClick={shareNow} disabled={!!busy}>
           {busy === 'share' ? 'Sharing…' : 'Share to socials'}
         </button>
       )}
       {published && publicUrl && (
-        <a className="btn btn-ghost btn-sm" href={publicUrl} target="_blank" rel="noreferrer">
+        <a className="gv-ghost" style={{ ...ghost, textDecoration: 'none' }} href={publicUrl} target="_blank" rel="noreferrer">
           View live →
         </a>
       )}
-      <button className="btn btn-ghost btn-sm" onClick={del} disabled={!!busy} style={{ marginLeft: 'auto', color: '#c33' }}>
+      <button className="gv-ghost" style={{ ...ghost, marginLeft: 'auto', color: '#d39a9a' }} onClick={del} disabled={!!busy}>
         {busy === 'delete' ? '…' : 'Delete'}
       </button>
     </div>

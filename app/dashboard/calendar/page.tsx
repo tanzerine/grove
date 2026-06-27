@@ -44,11 +44,21 @@ export default async function CalendarPage() {
     }));
 
   return (
-    <CalendarClient
-      domainId={domain?.id}
-      posts={posts ?? []}
-      unscheduledReview={reviewPosts ?? []}
-      plannedSlots={plannedSlots}
-    />
+    <>
+      <header className="gv-header">
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em' }}>Calendar</div>
+          <div style={{ fontSize: 12, color: '#6b6f67', marginTop: 1 }}>when each post goes live, and where it is now</div>
+        </div>
+      </header>
+      <div className="gv-body">
+        <CalendarClient
+          domainId={domain?.id}
+          posts={posts ?? []}
+          unscheduledReview={reviewPosts ?? []}
+          plannedSlots={plannedSlots}
+        />
+      </div>
+    </>
   );
 }

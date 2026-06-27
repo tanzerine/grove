@@ -309,14 +309,14 @@ function intentColor(intent: SearchIntent): string {
 }
 
 const card: React.CSSProperties = {
-  background: 'white', border: '1px solid var(--line)', borderRadius: 14, padding: '22px 24px',
+  background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '22px 24px',
 };
 const cardKicker: React.CSSProperties = {
   fontSize: 11, letterSpacing: '0.1em', color: 'var(--clay)',
 };
 const field: React.CSSProperties = {
   padding: '12px 16px', border: '1px solid var(--line)', borderRadius: 10,
-  background: 'white', fontFamily: 'inherit', fontSize: 14, color: 'var(--ink)', outline: 'none',
+  background: 'rgba(255,255,255,0.03)', fontFamily: 'inherit', fontSize: 14, color: 'var(--ink)', outline: 'none',
 };
 const chip: React.CSSProperties = {
   background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 999,
