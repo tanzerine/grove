@@ -1,10 +1,10 @@
 import { supabaseServer } from '@/lib/supabase/server';
+import { getActiveDomain } from '@/lib/active-domain';
 import CopySnippet from './CopySnippet';
 
 export default async function Page() {
   const sb = await supabaseServer();
-  const { data: domains } = await sb.from('domains').select('hostname,blog_slug').limit(1);
-  const domain = domains?.[0];
+  const domain = await getActiveDomain(sb);
   const groveBase = process.env.NEXT_PUBLIC_APP_URL ?? 'https://grove-red.vercel.app';
 
   const blogSnippet = `<div id="grove-blog"></div>

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { supabaseServer } from '@/lib/supabase/server';
+import { getActiveDomain } from '@/lib/active-domain';
 import { getBriefStats, composeBrief, type BriefStats } from '@/lib/agent-brief';
 import Icon from './gv-icons';
 import { HeaderRight } from './gv-chrome';
@@ -64,8 +65,7 @@ function schedLabel(p: any): string {
 
 export default async function OverviewPage() {
   const sb = await supabaseServer();
-  const { data: domains } = await sb.from('domains').select('*').limit(1);
-  const domain = domains?.[0];
+  const domain = await getActiveDomain(sb);
   const { data: posts } = await sb
     .from('posts').select('*').eq('domain_id', domain?.id).order('created_at', { ascending: false }).limit(60);
   const all = posts ?? [];

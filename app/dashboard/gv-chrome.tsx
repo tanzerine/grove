@@ -1,10 +1,12 @@
 import React from 'react';
 import Icon from './gv-icons';
+import AccountAvatarMenu from './AccountAvatarMenu';
 
 const ACCENT = '#63c281';
 
-/** The bell + avatar cluster on the right of every page's sticky topbar. */
-export function HeaderRight({ initials = 'MR', before }: { initials?: string; before?: React.ReactNode }) {
+/** The bell + account-menu cluster on the right of every page's sticky topbar.
+ *  The avatar opens the account menu (billing, admin, site, home, log out). */
+export function HeaderRight({ before }: { initials?: string; before?: React.ReactNode }) {
   return (
     <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14 }}>
       {before}
@@ -13,7 +15,7 @@ export function HeaderRight({ initials = 'MR', before }: { initials?: string; be
         <Icon name="bell" />
         <span style={{ position: 'absolute', top: 9, right: 9, width: 6, height: 6, borderRadius: '50%', background: ACCENT }} />
       </button>
-      <span style={{ width: 38, height: 38, borderRadius: '50%', background: 'linear-gradient(135deg, rgba(99,194,129,0.3), rgba(99,194,129,0.1))', border: '1px solid rgba(99,194,129,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, color: ACCENT }}>{initials}</span>
+      <AccountAvatarMenu />
     </div>
   );
 }

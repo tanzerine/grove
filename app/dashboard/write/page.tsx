@@ -1,10 +1,10 @@
 import { supabaseServer } from '@/lib/supabase/server';
+import { getActiveDomain } from '@/lib/active-domain';
 import WriteDesk from './WriteDesk';
 
 export default async function WritePage() {
   const sb = await supabaseServer();
-  const { data: domains } = await sb.from('domains').select('id, hostname').limit(1);
-  const domain = domains?.[0];
+  const domain = await getActiveDomain(sb);
 
   return (
     <>

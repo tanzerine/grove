@@ -1,4 +1,5 @@
 import { supabaseServer } from '@/lib/supabase/server';
+import { getActiveDomain } from '@/lib/active-domain';
 import { isConfigured as gscConfigured } from '@/lib/search-console/client';
 import { latestSnapshot } from '@/lib/search-console/sync';
 import { summarize as gscSummarize, type MetricRow } from '@/lib/search-console/insights';
@@ -11,14 +12,10 @@ export default async function AnalyticsPage() {
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return null;
 
-  // select('*') (not an explicit column list) so this stays safe to deploy
-  // before the gsc_* columns land — missing columns just read as undefined.
-  const { data: domain } = await sb
-    .from('domains').select('*')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  // Active site (cookie-selected) via getActiveDomain — select('*') under the
+  // hood, so this stays safe before the gsc_* columns land (missing columns
+  // just read as undefined). A null domain is handled inline below.
+  const domain = await getActiveDomain(sb);
 
   const hostname = domain?.hostname ?? 'your site';
 

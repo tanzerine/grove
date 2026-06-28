@@ -1,10 +1,10 @@
 import { supabaseServer } from '@/lib/supabase/server';
+import { getActiveDomain } from '@/lib/active-domain';
 import CrawlButton from './CrawlButton';
 
 export default async function Page() {
   const sb = await supabaseServer();
-  const { data: domains } = await sb.from('domains').select('*').limit(1);
-  const domain = domains?.[0];
+  const domain = await getActiveDomain(sb);
   const profile = (domain?.site_profile ?? {}) as any;
   const b = profile.business ?? {};
   const v = profile.voice ?? {};
