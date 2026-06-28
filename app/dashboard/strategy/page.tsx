@@ -1,6 +1,9 @@
 import Link from 'next/link';
 import { supabaseServer } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { getActiveDomain } from '@/lib/active-domain';
+import { latestSnapshot } from '@/lib/search-console/sync';
+import { nearWinners } from '@/lib/search-console/insights';
 import { summarizeMonth, type MonthlyReport } from '@/lib/strategy/review';
 import type { Strategy, Goal, Pillar, PostSlot, KPI } from '@/lib/strategy/build';
 import Icon from '../gv-icons';
@@ -19,9 +22,7 @@ export default async function StrategyPage() {
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return null;
 
-  const { data: domain } = await sb
-    .from('domains').select('id,hostname,interview')
-    .eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+  const domain = await getActiveDomain(sb);
   if (!domain) return <Empty />;
 
   const { data: strategy } = await sb
@@ -144,12 +145,19 @@ export default async function StrategyPage() {
     return { label: `Week ${w}`, state, labelColor, items };
   });
 
-  // ---------- opportunities (live SERP gaps — sample until wired) ----------
-  const opportunities = [
-    { tag: 'High intent', tagColor: '#06120b', tagBg: ACCENT, volume: '2.4k/mo', title: 'saas onboarding email templates', why: 'You rank #14. Top result is thin — a real teardown wins page one.' },
-    { tag: 'AEO gap', tagColor: '#06120b', tagBg: '#c8a6e8', volume: '1.1k/mo', title: 'time to value benchmark', why: 'AI Overview cites no one. First structured answer takes the citation.' },
-    { tag: 'Competitor', tagColor: '#06120b', tagBg: '#7fb6e6', volume: '900/mo', title: 'activation rate by industry', why: 'A rival owns this with 2023 data. Fresh 2026 numbers beat it.' },
-  ];
+  // ---------- opportunities (real "page 2" queries from Search Console) ----------
+  let opportunities: { tag: string; tagColor: string; tagBg: string; volume: string; title: string; why: string }[] = [];
+  try {
+    const snap = await latestSnapshot(domain.id);
+    if (snap.date) {
+      opportunities = nearWinners(snap.queries, { limit: 3 }).map((w) => ({
+        tag: 'Near win', tagColor: '#06120b', tagBg: ACCENT,
+        volume: `${w.impressions.toLocaleString()} impr`,
+        title: w.key,
+        why: `You rank #${w.position} with ${w.impressions.toLocaleString()} impressions — a stronger page can reach page one.`,
+      }));
+    }
+  } catch { /* GSC optional — opportunities stay empty until connected */ }
 
   const queueable = plan.filter((sl) => catFor(sl) === 'gap').length || plan.length;
   const heroText = s.notes
@@ -282,20 +290,29 @@ export default async function StrategyPage() {
               <div style={{ fontSize: 15, fontWeight: 700 }}>Openings grove spotted</div>
               <span style={{ fontSize: 11, color: ACCENT, fontWeight: 600 }}>live SERP</span>
             </div>
-            <div style={{ fontSize: 12.5, color: '#6b6f67', marginBottom: 16 }}>Gaps competitors left — ranked by upside</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {opportunities.map((o, i) => (
-                <div key={i} style={{ padding: '13px 15px', borderRadius: 12, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                    <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: o.tagColor, background: o.tagBg, borderRadius: 5, padding: '2px 7px' }}>{o.tag}</span>
-                    <span style={{ marginLeft: 'auto', fontSize: 11.5, color: '#9aa096', fontVariantNumeric: 'tabular-nums' }}>{o.volume}</span>
-                  </div>
-                  <div style={{ fontSize: 13.5, fontWeight: 600, color: '#eef1ea', lineHeight: 1.4 }}>{o.title}</div>
-                  <div style={{ fontSize: 12, color: '#6b6f67', marginTop: 4, lineHeight: 1.45 }}>{o.why}</div>
+            <div style={{ fontSize: 12.5, color: '#6b6f67', marginBottom: 16 }}>Queries you rank on page 2 for — ranked by upside</div>
+            {opportunities.length === 0 ? (
+              <div style={{ fontSize: 12.5, color: '#6b6f67', lineHeight: 1.6 }}>
+                Once Search Console is connected, the near-win queries grove can push to page one show up here.{' '}
+                <Link href="/dashboard/analytics" style={{ color: '#9aa096', textDecoration: 'underline' }}>Connect Search Console →</Link>
+              </div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {opportunities.map((o, i) => (
+                    <div key={i} style={{ padding: '13px 15px', borderRadius: 12, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                        <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: o.tagColor, background: o.tagBg, borderRadius: 5, padding: '2px 7px' }}>{o.tag}</span>
+                        <span style={{ marginLeft: 'auto', fontSize: 11.5, color: '#9aa096', fontVariantNumeric: 'tabular-nums' }}>{o.volume}</span>
+                      </div>
+                      <div style={{ fontSize: 13.5, fontWeight: 600, color: '#eef1ea', lineHeight: 1.4 }}>{o.title}</div>
+                      <div style={{ fontSize: 12, color: '#6b6f67', marginTop: 4, lineHeight: 1.45 }}>{o.why}</div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <Link href="/dashboard/pipeline" className="gv-btn" style={{ display: 'block', textAlign: 'center', width: '100%', marginTop: 14, border: 'none', background: ACCENT, color: '#06120b', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: 11, borderRadius: 10, cursor: 'pointer', textDecoration: 'none' }}>Add all to the plan</Link>
+                <Link href="/dashboard/write" className="gv-btn" style={{ display: 'block', textAlign: 'center', width: '100%', marginTop: 14, border: 'none', background: ACCENT, color: '#06120b', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: 11, borderRadius: 10, cursor: 'pointer', textDecoration: 'none' }}>Draft one of these</Link>
+              </>
+            )}
           </div>
         </div>
       </div>
