@@ -10,11 +10,13 @@ export default function DashShell({
   verified,
   account,
   badges,
+  plan = 'Free',
   children,
 }: {
   verified?: { hostname: string } | null;
   account?: { name: string; sub: string } | null;
   badges?: Record<string, number>;
+  plan?: string;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -45,7 +47,7 @@ export default function DashShell({
         <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '22px 22px 18px' }}>
           <span style={{ width: 17, height: 17, borderRadius: '50%', background: 'radial-gradient(circle at 35% 30%, #9ff0bb, #63c281)', boxShadow: '0 0 12px rgba(99,194,129,0.7)' }} />
           <span style={{ fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em' }}>grove</span>
-          <span style={{ marginLeft: 'auto', fontSize: 9.5, letterSpacing: '0.1em', textTransform: 'uppercase', color: ACCENT, border: '1px solid rgba(99,194,129,0.3)', borderRadius: 6, padding: '3px 7px' }}>Growth</span>
+          <Link href="/dashboard/billing" title="Manage billing" style={{ marginLeft: 'auto', fontSize: 9.5, letterSpacing: '0.1em', textTransform: 'uppercase', color: ACCENT, border: '1px solid rgba(99,194,129,0.3)', borderRadius: 6, padding: '3px 7px' }}>{plan}</Link>
         </div>
 
         <SideNav badges={badges} />

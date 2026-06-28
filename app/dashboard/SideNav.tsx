@@ -24,6 +24,9 @@ const SECTIONS: Section[] = [
     { href: '/dashboard/connections', label: 'Social', icon: 'social', match: (p) => p.startsWith('/dashboard/connections') },
     { href: '/dashboard/embed', label: 'Embed', icon: 'embed', match: (p) => p.startsWith('/dashboard/embed') },
   ]},
+  { head: 'Account', items: [
+    { href: '/dashboard/billing', label: 'Billing', icon: 'billing', match: (p) => p.startsWith('/dashboard/billing') },
+  ]},
 ];
 
 export default function SideNav({ badges = {} }: { badges?: Record<string, number> }) {

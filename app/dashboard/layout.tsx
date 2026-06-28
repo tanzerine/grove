@@ -34,6 +34,15 @@ export default async function DashLayout({ children }: { children: React.ReactNo
       ? { name: domains[0].hostname, sub: 'setup in progress' }
       : null;
 
+  // Real plan label for the sidebar chip (best-effort; never blocks render).
+  let plan = 'Free';
+  try {
+    const { data: sub } = await sb
+      .from('subscriptions').select('plan, stripe_status').eq('user_id', user.id).maybeSingle();
+    const active = sub?.stripe_status && ['active', 'trialing', 'past_due'].includes(sub.stripe_status);
+    if (active && sub?.plan) plan = sub.plan.charAt(0).toUpperCase() + sub.plan.slice(1);
+  } catch { /* chip is cosmetic */ }
+
   return (
     <>
       <GroveMark />
@@ -41,6 +50,7 @@ export default async function DashLayout({ children }: { children: React.ReactNo
         verified={verified ? { hostname: verified.hostname } : null}
         account={acct}
         badges={badges}
+        plan={plan}
       >
         {children}
       </DashShell>
