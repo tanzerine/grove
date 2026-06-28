@@ -1,5 +1,6 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { getActiveDomain } from '@/lib/active-domain';
 import { summarizeMonth, type MonthlyReport } from '@/lib/strategy/review';
 import { isConfigured as gscConfigured } from '@/lib/search-console/client';
 import { latestSnapshot } from '@/lib/search-console/sync';
@@ -19,15 +20,10 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return null;
 
-  // select('*') (not an explicit column list) so this stays safe to deploy
-  // before migration 0013 lands — missing gsc_* columns just read as undefined
-  // rather than erroring the whole row out.
-  const { data: domain } = await sb
-    .from('domains').select('*')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  // Active site (cookie-selected) via getActiveDomain — select('*') under the
+  // hood, so this stays safe before migration 0013 lands (missing gsc_* columns
+  // just read as undefined rather than erroring the whole row out).
+  const domain = await getActiveDomain(sb);
   if (!domain) return <Empty />;
 
   const { from, to, label } = bounds(range);

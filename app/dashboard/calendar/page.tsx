@@ -1,11 +1,11 @@
 import { supabaseServer } from '@/lib/supabase/server';
+import { getActiveDomain } from '@/lib/active-domain';
 import CalendarClient, { type PlannedSlot } from './CalendarClient';
 import type { PostSlot } from '@/lib/strategy/build';
 
 export default async function CalendarPage() {
   const sb = await supabaseServer();
-  const { data: domains } = await sb.from('domains').select('*').limit(1);
-  const domain = domains?.[0];
+  const domain = await getActiveDomain(sb);
 
   // Posts that have a date (scheduled/published/in-flight) OR are awaiting review.
   const { data: posts } = await sb

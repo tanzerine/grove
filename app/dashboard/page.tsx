@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { supabaseServer } from '@/lib/supabase/server';
+import { getActiveDomain } from '@/lib/active-domain';
 import { getBriefStats, composeBrief, nextAction, type BriefStats } from '@/lib/agent-brief';
 import PipelineActions from './PipelineActions';
 import PostRow from './PostRow';
@@ -13,8 +14,7 @@ const band = (s: number) => (s >= 70 ? ACCENT : s >= 40 ? '#e0c878' : '#c97f7f')
 
 export default async function Page() {
   const sb = await supabaseServer();
-  const { data: domains } = await sb.from('domains').select('*').limit(1);
-  const domain = domains?.[0];
+  const domain = await getActiveDomain(sb);
   const { data: posts } = await sb
     .from('posts').select('*').eq('domain_id', domain?.id).order('created_at', { ascending: false }).limit(40);
 

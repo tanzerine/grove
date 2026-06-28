@@ -1,9 +1,9 @@
 import { supabaseServer } from '@/lib/supabase/server';
+import { getActiveDomain } from '@/lib/active-domain';
 
 export default async function Page() {
   const sb = await supabaseServer();
-  const { data: domains } = await sb.from('domains').select('id,blog_slug').limit(1);
-  const domain = domains?.[0];
+  const domain = await getActiveDomain(sb);
   const { data: posts } = await sb.from('posts').select('*').eq('domain_id', domain?.id).eq('status', 'published').order('published_at', { ascending: false });
 
   return (

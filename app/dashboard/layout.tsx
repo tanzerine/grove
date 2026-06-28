@@ -1,8 +1,11 @@
 import GroveMark from '@/components/GroveMark';
 import { supabaseServer } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { isAdminEmail } from '@/lib/admin';
+import { ACTIVE_DOMAIN_COOKIE } from '@/lib/active-domain';
 import DashShell from './DashShell';
+import type { Chrome } from './chrome-context';
 
 export default async function DashLayout({ children }: { children: React.ReactNode }) {
   const sb = await supabaseServer();
@@ -10,8 +13,13 @@ export default async function DashLayout({ children }: { children: React.ReactNo
   if (!user) redirect('/login');
 
   const { data: domains } = await sb.from('domains').select('id,hostname,verified_at').order('created_at');
+  if ((domains?.length ?? 0) === 0) redirect('/onboarding/domain');
+
+  // Resolve the active site (cookie pick → first verified → first).
+  const jar = await cookies();
+  const wanted = jar.get(ACTIVE_DOMAIN_COOKIE)?.value;
   const verified = domains?.find((d) => d.verified_at);
-  if (!verified && (domains?.length ?? 0) === 0) redirect('/onboarding/domain');
+  const active = (wanted && domains?.find((d) => d.id === wanted)) || verified || domains?.[0] || null;
 
   // Nav badges — small, best-effort counts (never block render on failure).
   const badges: Record<string, number> = {};
@@ -29,31 +37,28 @@ export default async function DashLayout({ children }: { children: React.ReactNo
     }
   } catch { /* badges are optional */ }
 
-  const acct = verified
-    ? { name: verified.hostname, sub: 'verified · autopilot on' }
-    : domains?.[0]
-      ? { name: domains[0].hostname, sub: 'setup in progress' }
-      : null;
-
   // Real plan label for the sidebar chip (best-effort; never blocks render).
   let plan = 'Free';
   try {
     const { data: sub } = await sb
       .from('subscriptions').select('plan, stripe_status').eq('user_id', user.id).maybeSingle();
-    const active = sub?.stripe_status && ['active', 'trialing', 'past_due'].includes(sub.stripe_status);
-    if (active && sub?.plan) plan = sub.plan.charAt(0).toUpperCase() + sub.plan.slice(1);
+    const isActive = sub?.stripe_status && ['active', 'trialing', 'past_due'].includes(sub.stripe_status);
+    if (isActive && sub?.plan) plan = sub.plan.charAt(0).toUpperCase() + sub.plan.slice(1);
   } catch { /* chip is cosmetic */ }
+
+  const chrome: Chrome = {
+    email: user.email ?? null,
+    isAdmin: isAdminEmail(user.email),
+    plan,
+    activeHostname: active?.hostname ?? null,
+    domains: (domains ?? []).map((d) => ({ id: d.id, hostname: d.hostname, verified_at: d.verified_at })),
+    activeId: active?.id ?? null,
+  };
 
   return (
     <>
       <GroveMark />
-      <DashShell
-        verified={verified ? { hostname: verified.hostname } : null}
-        account={acct}
-        badges={badges}
-        plan={plan}
-        isAdmin={isAdminEmail(user.email)}
-      >
+      <DashShell chrome={chrome} badges={badges}>
         {children}
       </DashShell>
     </>
