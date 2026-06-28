@@ -1,6 +1,7 @@
 import GroveMark from '@/components/GroveMark';
 import { supabaseServer } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
+import { isAdminEmail } from '@/lib/admin';
 import DashShell from './DashShell';
 
 export default async function DashLayout({ children }: { children: React.ReactNode }) {
@@ -51,6 +52,7 @@ export default async function DashLayout({ children }: { children: React.ReactNo
         account={acct}
         badges={badges}
         plan={plan}
+        isAdmin={isAdminEmail(user.email)}
       >
         {children}
       </DashShell>

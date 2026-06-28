@@ -29,11 +29,16 @@ const SECTIONS: Section[] = [
   ]},
 ];
 
-export default function SideNav({ badges = {} }: { badges?: Record<string, number> }) {
+export default function SideNav({ badges = {}, isAdmin = false }: { badges?: Record<string, number>; isAdmin?: boolean }) {
   const pathname = usePathname() ?? '';
+  const sections = isAdmin
+    ? [...SECTIONS, { head: 'Admin', items: [
+        { href: '/dashboard/admin/refunds', label: 'Refunds', icon: 'billing', match: (p: string) => p.startsWith('/dashboard/admin/refunds') },
+      ] }]
+    : SECTIONS;
   return (
     <nav style={{ padding: '8px 18px', display: 'flex', flexDirection: 'column', gap: 22, flex: 1 }}>
-      {SECTIONS.map((sec) => (
+      {sections.map((sec) => (
         <div key={sec.head} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           <div style={{ fontSize: 10, letterSpacing: '0.13em', textTransform: 'uppercase', color: '#565a53', padding: '4px 12px 6px' }}>{sec.head}</div>
           {sec.items.map((it) => {
