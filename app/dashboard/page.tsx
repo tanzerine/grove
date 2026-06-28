@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { supabaseServer } from '@/lib/supabase/server';
 import { getActiveDomain } from '@/lib/active-domain';
 import { getBriefStats, composeBrief, type BriefStats } from '@/lib/agent-brief';
+import { latestSnapshot } from '@/lib/search-console/sync';
+import { summarize as gscSummarize } from '@/lib/search-console/insights';
 import Icon from './gv-icons';
 import { HeaderRight } from './gv-chrome';
 import AutopilotPill from './AutopilotPill';
@@ -77,13 +79,43 @@ export default async function OverviewPage() {
   const inReview = all.filter((p) => p.status === 'review');
   const inPipeline = all.filter((p) => !['published', 'failed', 'archived'].includes(p.status));
 
-  // ---- stat cards (real where we have it; design samples as graceful fallback) ----
+  // ---- Search Console visibility (real ranking + click data once connected) ----
+  let gscVis: ReturnType<typeof gscSummarize> | null = null;
+  if (domain) {
+    try {
+      const snap = await latestSnapshot(domain.id);
+      if (snap.date) gscVis = gscSummarize(snap.pages, snap.queries);
+    } catch { /* GSC optional */ }
+  }
+
+  // ---- stat cards (all real; zeros/empty for a brand-new account) ----
   const totalReads = published.reduce((a, p) => a + (p.reads ?? 0), 0);
+  const organicClicks = gscVis?.clicks ?? totalReads;
+  const readsDelta = brief && brief.readsLastWeek > 0
+    ? Math.round(((brief.readsThisWeek - brief.readsLastWeek) / brief.readsLastWeek) * 100) : null;
+  const publishedCount = brief?.totalPublished ?? published.length;
   const stats = [
-    { icon: 'rankings', label: 'Organic clicks', value: totalReads ? fmtNum(totalReads) : '48.2k', delta: brief && brief.readsThisWeek ? `▲ ${brief.readsThisWeek}` : '▲ 312%', deltaColor: ACCENT, sub: brief ? `${brief.readsThisWeek} reads this week` : 'vs. 11.7k last quarter' },
-    { icon: 'published', label: 'Posts published', value: String(brief?.totalPublished ?? published.length ?? 128), delta: brief && brief.publishedThisWeek ? `+${brief.publishedThisWeek}` : '+4', deltaColor: ACCENT, sub: domain ? `${domain.posts_per_week ?? 4} / week on autopilot` : '4 / week on autopilot' },
-    { icon: 'pipeline', label: 'In pipeline', value: String(inPipeline.length || 3), delta: 'live', deltaColor: '#9aa096', sub: inReview.length ? `${inReview.length} awaiting review` : 'running on schedule' },
-    { icon: 'clock', label: 'Awaiting review', value: String(inReview.length || 0), delta: inReview.length ? 'action' : 'clear', deltaColor: inReview.length ? '#e0c878' : '#9aa096', sub: inReview.length ? 'approve to publish' : 'nothing waiting on you' },
+    {
+      icon: 'rankings', label: gscVis ? 'Search clicks' : 'Total reads', value: fmtNum(organicClicks),
+      delta: readsDelta !== null && Math.abs(readsDelta) >= 1 ? `${readsDelta >= 0 ? '▲' : '▼'} ${Math.abs(readsDelta)}%` : '',
+      deltaColor: (readsDelta ?? 0) >= 0 ? ACCENT : '#c97f7f',
+      sub: brief && brief.readsThisWeek ? `${brief.readsThisWeek} reads this week` : organicClicks ? 'all time' : 'no reads yet',
+    },
+    {
+      icon: 'published', label: 'Posts published', value: String(publishedCount),
+      delta: brief?.publishedThisWeek ? `+${brief.publishedThisWeek}` : '', deltaColor: ACCENT,
+      sub: domain ? `${domain.posts_per_week ?? 4} / week on autopilot` : '—',
+    },
+    {
+      icon: 'pipeline', label: 'In pipeline', value: String(inPipeline.length),
+      delta: inPipeline.length ? 'live' : '', deltaColor: '#9aa096',
+      sub: inReview.length ? `${inReview.length} awaiting review` : inPipeline.length ? 'running on schedule' : 'queue a topic to begin',
+    },
+    {
+      icon: 'clock', label: 'Awaiting review', value: String(inReview.length),
+      delta: inReview.length ? 'action' : 'clear', deltaColor: inReview.length ? '#e0c878' : '#9aa096',
+      sub: inReview.length ? 'approve to publish' : 'nothing waiting on you',
+    },
   ];
 
   // ---- compact publishing calendar (current month, real events) ----
@@ -124,7 +156,15 @@ export default async function OverviewPage() {
 
   // ---- agent panel ----
   const agentSummary = brief ? composeBrief(brief).slice(0, 2).join(' ')
-    : 'I’m mid-cycle on your plan — researching, drafting, and holding finished drafts for your sign-off. Everything else is on schedule.';
+    : all.length
+    ? 'I’m working through your plan — researching, drafting, and holding finished drafts for your sign-off.'
+    : 'Ready to go. Queue your first topic (or flip on autopilot) and I’ll start researching and drafting right away.';
+  // Real insight from the data we have (top performer / review backlog) — or null.
+  const agentInsight = brief?.topPost
+    ? `“${brief.topPost.title}” is your top performer with ${brief.topPost.views} reads — grove can build a content cluster around it.`
+    : inReview.length
+    ? `${inReview.length} draft${inReview.length === 1 ? '' : 's'} ${inReview.length === 1 ? 'is' : 'are'} ready — approving keeps your publishing cadence on track.`
+    : null;
   const flight = inPipeline.filter((p) => ['queued', 'researching', 'writing'].includes(p.status));
   const agentItems: { icon: string; title: string; detail: string; attn: boolean; action?: { label: string; href: string } }[] = [];
   if (inReview.length) agentItems.push({ icon: 'eye', title: `${inReview.length} draft${inReview.length === 1 ? '' : 's'} need review`, detail: 'Approve to let autopilot publish them', attn: true, action: { label: 'Review', href: '/dashboard/reviews' } });
@@ -154,22 +194,26 @@ export default async function OverviewPage() {
     Published: published.slice(0, 6).map(toRow),
   };
 
-  // ---- channels (cross-post queue) ----
-  const channels = [
-    { name: 'Blog post', dot: ACCENT, state: 'Published', color: ACCENT },
-    { name: 'X thread', dot: SAGE_DOT, state: 'Queued', color: '#9aa096' },
-    { name: 'LinkedIn', dot: SAGE_DOT, state: 'Queued', color: '#9aa096' },
-    { name: 'Instagram', dot: '#565a53', state: 'Drafting', color: '#6b6f67' },
-  ];
+  // ---- channels (real cross-post state of the latest published post) ----
+  const latestPub = published[0];
+  const pubSocial = (latestPub?.social_published ?? {}) as Record<string, unknown>;
+  const chState = (key: string) =>
+    pubSocial[key] ? { state: 'Posted', color: ACCENT, dot: ACCENT }
+      : domain?.auto_social ? { state: 'Queued', color: '#9aa096', dot: SAGE_DOT }
+        : { state: 'Off', color: '#6b6f67', dot: '#565a53' };
+  const channels = latestPub
+    ? [
+        { name: 'Blog post', dot: ACCENT, color: ACCENT, state: 'Published' },
+        { name: 'X thread', ...chState('x') },
+        { name: 'LinkedIn', ...chState('linkedin') },
+        { name: 'Instagram', ...chState('instagram') },
+      ]
+    : [];
 
-  // ---- top movers (sample until ranking data is wired) ----
-  const keywords = [
-    { term: 'ai onboarding checklist', pos: 3, change: '▲ 15', color: ACCENT },
-    { term: 'reduce saas churn', pos: 5, change: '▲ 9', color: SAGE },
-    { term: 'programmatic seo guide', pos: 8, change: '▲ 6', color: SAGE },
-    { term: 'compounding traffic', pos: 3, change: '▲ 4', color: SAGE },
-    { term: 'content team cost', pos: 14, change: '▼ 2', color: '#c97f7f' },
-  ];
+  // ---- top queries (real Search Console data; empty until GSC is connected) ----
+  const topQueries = (gscVis?.topQueries ?? [])
+    .slice(0, 5)
+    .map((q) => ({ term: q.query, pos: Math.round(q.position), clicks: q.clicks }));
 
   // ---- recent activity (from real posts, newest first) ----
   const activityRows: { text: string; time: string; dot: string; ring: string }[] = [];
@@ -309,14 +353,15 @@ export default async function OverviewPage() {
                 ))}
               </div>
 
-              <div style={{ marginTop: 18, padding: '14px 15px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: SAGE, marginBottom: 8 }}><span style={{ display: 'flex' }}><Icon name="answers" /></span> Agent insight</div>
-                <div style={{ fontSize: 12.5, color: '#dfe4da', lineHeight: 1.55 }}>Your churn-themed posts are pulling the most clicks. grove can prioritize that cluster this week.</div>
-                <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                  <Link href="/dashboard/strategy" className="gv-btn" style={{ border: 'none', background: ACCENT, color: '#06120b', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, padding: '7px 13px', borderRadius: 8, cursor: 'pointer', textDecoration: 'none' }}>Review plan</Link>
-                  <button className="gv-ghost" style={{ border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: '#9aa096', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, padding: '7px 13px', borderRadius: 8, cursor: 'pointer' }}>Dismiss</button>
+              {agentInsight && (
+                <div style={{ marginTop: 18, padding: '14px 15px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: SAGE, marginBottom: 8 }}><span style={{ display: 'flex' }}><Icon name="answers" /></span> Agent insight</div>
+                  <div style={{ fontSize: 12.5, color: '#dfe4da', lineHeight: 1.55 }}>{agentInsight}</div>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                    <Link href="/dashboard/strategy" className="gv-btn" style={{ border: 'none', background: ACCENT, color: '#06120b', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, padding: '7px 13px', borderRadius: 8, cursor: 'pointer', textDecoration: 'none' }}>Review plan</Link>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
@@ -330,32 +375,46 @@ export default async function OverviewPage() {
           <div className="gv-card" style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 22px' }}>
             <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>Cross-post queue</div>
             <div style={{ fontSize: 12, color: '#6b6f67', marginBottom: 18 }}>One brief, every channel</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-              {channels.map((c) => (
-                <div key={c.name} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '11px 13px', borderRadius: 11, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.dot }} />
-                  <span style={{ fontSize: 13, color: '#cdd2c9' }}>{c.name}</span>
-                  <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 600, color: c.color }}>{c.state}</span>
-                </div>
-              ))}
-            </div>
+            {channels.length === 0 ? (
+              <div style={{ fontSize: 12.5, color: '#6b6f67', lineHeight: 1.6 }}>
+                Once your first post publishes, its X / LinkedIn / Instagram variants show up here.{' '}
+                <Link href="/dashboard/connections" style={{ color: '#9aa096', textDecoration: 'underline' }}>Connect channels →</Link>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                {channels.map((c) => (
+                  <div key={c.name} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '11px 13px', borderRadius: 11, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.dot }} />
+                    <span style={{ fontSize: 13, color: '#cdd2c9' }}>{c.name}</span>
+                    <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 600, color: c.color }}>{c.state}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* top movers */}
           <div className="gv-card" style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 22px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <div style={{ fontSize: 14, fontWeight: 700 }}>Top movers</div>
-              <span style={{ fontSize: 11.5, color: '#6b6f67' }}>7-day rank change</span>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>Top queries</div>
+              <span style={{ fontSize: 11.5, color: '#6b6f67' }}>position · clicks</span>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              {keywords.map((k) => (
-                <div key={k.term} className="gv-row" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 10px', borderRadius: 9, transition: 'background .15s' }}>
-                  <span style={{ fontSize: 13, color: '#cdd2c9', flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{k.term}</span>
-                  <span style={{ fontSize: 12, color: '#6b6f67', fontVariantNumeric: 'tabular-nums' }}>#{k.pos}</span>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 12, fontWeight: 600, color: k.color, width: 52, justifyContent: 'flex-end', fontVariantNumeric: 'tabular-nums' }}>{k.change}</span>
-                </div>
-              ))}
-            </div>
+            {topQueries.length === 0 ? (
+              <div style={{ fontSize: 12.5, color: '#6b6f67', lineHeight: 1.6 }}>
+                The search queries you rank for appear here once Search Console is connected.{' '}
+                <Link href="/dashboard/analytics" style={{ color: '#9aa096', textDecoration: 'underline' }}>Connect Search Console →</Link>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {topQueries.map((k) => (
+                  <div key={k.term} className="gv-row" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 10px', borderRadius: 9, transition: 'background .15s' }}>
+                    <span style={{ fontSize: 13, color: '#cdd2c9', flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{k.term}</span>
+                    <span style={{ fontSize: 12, color: '#6b6f67', fontVariantNumeric: 'tabular-nums' }}>#{k.pos}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: ACCENT, width: 52, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{k.clicks}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* activity */}
