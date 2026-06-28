@@ -2,6 +2,7 @@
 export const dynamic = 'force-dynamic';
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import GroveMark from '@/components/GroveMark';
 
 function OnboardInner() {
   const router = useRouter();
@@ -29,16 +30,21 @@ function OnboardInner() {
   }
 
   return (
-    <main className="wrap" style={{ maxWidth: 520, padding: '80px 28px' }}>
-      <span className="eyebrow">Step 1 of 2</span>
-      <h1 className="display" style={{ fontSize: 44, marginTop: 10 }}>Enter your domain</h1>
-      <p className="lede">One field. We&apos;ll handle the rest.</p>
-      <form onSubmit={go} className="domain-field" style={{ marginTop: 24 }}>
-        <span className="pre">https://</span>
-        <input value={host} onChange={(e) => setHost(e.target.value)} placeholder="yourdomain.com" />
-        <button className="btn btn-primary btn-sm" disabled={busy}>{busy ? '…' : 'Continue →'}</button>
-      </form>
-      {err && <p style={{ color: '#c33', fontSize: 13, marginTop: 12 }}>{err}</p>}
+    <main className="gv-onb">
+      <GroveMark />
+      <div className="gv-auth-glow" aria-hidden><span className="b1" /><span className="b2" /></div>
+      <div className="gv-onb-in" style={{ maxWidth: 520 }}>
+        <span className="gv-onb-eyebrow">Step 1 of 2</span>
+        <h1 className="gv-onb-title" style={{ fontSize: 44 }}>Enter your domain</h1>
+        <p className="gv-onb-lede">One field. We&apos;ll handle the rest.</p>
+        <form onSubmit={go} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 24, background: '#101310', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '6px 6px 6px 14px' }}>
+          <span style={{ color: '#6b6f67', fontFamily: 'DM Mono, monospace', fontSize: 14 }}>https://</span>
+          <input value={host} onChange={(e) => setHost(e.target.value)} placeholder="yourdomain.com"
+            style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', color: '#eef1ea', fontSize: 16, padding: '10px 4px', fontFamily: 'inherit' }} />
+          <button className="gv-onb-btn" style={{ padding: '10px 16px', fontSize: 14, whiteSpace: 'nowrap' }} disabled={busy}>{busy ? '…' : 'Continue →'}</button>
+        </form>
+        {err && <p style={{ color: '#ff8585', fontSize: 13, marginTop: 12 }}>{err}</p>}
+      </div>
     </main>
   );
 }

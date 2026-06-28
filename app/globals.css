@@ -1002,3 +1002,34 @@ html { scroll-behavior: smooth; }
 
 /* indeterminate progress bar for in-flight pipeline rows */
 @keyframes gvIndet { 0% { left: -42%; } 100% { left: 100%; } }
+
+/* =====================================================================
+   DARK ONBOARDING FLOW  (/onboarding/*) — matches the .gv-auth dark screen
+   ===================================================================== */
+.gv-onb {
+  min-height: 100vh; background: #0a0b0a; color: #eef1ea;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif; -webkit-font-smoothing: antialiased;
+  position: relative; padding: 56px 20px 80px; overflow-x: hidden;
+}
+.gv-onb ::selection { background: rgba(99,194,129,0.3); color: #fff; }
+.gv-onb input::placeholder, .gv-onb textarea::placeholder { color: #565a53; }
+.gv-onb a { color: #63c281; }
+/* pin the ambient glow to the viewport + clip it, so tall onboarding forms
+   scroll without the blobs adding overflow */
+.gv-onb .gv-auth-glow { position: fixed; overflow: hidden; }
+.gv-onb-in { position: relative; z-index: 1; margin: 0 auto; }
+.gv-onb-eyebrow { font-family: 'DM Mono', ui-monospace, monospace; font-size: 11px; letter-spacing: 0.13em; text-transform: uppercase; color: #63c281; }
+.gv-onb-title { font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif; font-weight: 600; letter-spacing: -0.02em; color: #eef1ea; line-height: 1.06; margin: 10px 0 0; }
+.gv-onb-lede { color: #9aa096; font-size: 16px; line-height: 1.6; margin: 10px 0 0; }
+.gv-onb-card { background: #101310; border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; }
+.gv-onb-mini { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px 16px; color: #cdd2c9; }
+.gv-onb-input { width: 100%; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); color: #eef1ea; border-radius: 10px; padding: 12px 14px; font-size: 15px; font-family: inherit; outline: none; transition: border-color .18s, background .18s; }
+.gv-onb-input:focus { border-color: rgba(99,194,129,0.55); background: rgba(99,194,129,0.04); }
+.gv-onb-btn { background: #63c281; color: #06120b; border: none; border-radius: 10px; padding: 12px 20px; font-size: 15px; font-weight: 600; font-family: inherit; cursor: pointer; transition: transform .15s, box-shadow .15s, opacity .15s; }
+.gv-onb-btn:hover { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(99,194,129,0.28); }
+.gv-onb-btn:disabled { opacity: 0.55; cursor: default; transform: none; box-shadow: none; }
+.gv-onb-ghost { background: transparent; color: #cdd2c9; border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 12px 18px; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer; transition: .2s; }
+.gv-onb-ghost:hover { background: rgba(255,255,255,0.06); color: #eef1ea; }
+.gv-onb-tab { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); color: #9aa096; border-radius: 10px; padding: 10px 14px; font-size: 13.5px; font-weight: 600; cursor: pointer; font-family: inherit; transition: .18s; }
+.gv-onb-tab:hover { border-color: rgba(99,194,129,0.4); color: #eef1ea; }
+.gv-onb-tab.on { background: rgba(99,194,129,0.1); border-color: rgba(99,194,129,0.5); color: #eef1ea; }
