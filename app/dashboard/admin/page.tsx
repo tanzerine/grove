@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { isAdminEmail } from '@/lib/admin';
 import { getAdminStats } from '@/lib/admin-stats';
+import { detectAnomalies } from '@/lib/anomaly';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +18,7 @@ export default async function AdminOverviewPage() {
   if (!user) redirect('/login');
   if (!isAdminEmail(user.email)) redirect('/dashboard');
 
-  const s = await getAdminStats();
+  const [s, flags] = await Promise.all([getAdminStats(), detectAnomalies()]);
   const maxRef = Math.max(1, ...s.referrals.map((r) => r.count));
 
   const cards = [
@@ -35,6 +36,33 @@ export default async function AdminOverviewPage() {
       </header>
       <div className="gv-body">
         <div style={{ maxWidth: 1040, margin: '0 auto' }}>
+          {/* live anomaly flags */}
+          <div style={{ marginBottom: 18 }}>
+            {flags.length === 0 ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: ACCENT, background: 'rgba(99,194,129,0.08)', border: `1px solid rgba(99,194,129,0.2)`, borderRadius: 10, padding: '10px 14px' }}>
+                <span>✓</span> No anomalies in the last hour.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {flags.map((f) => {
+                  const crit = f.severity === 'critical';
+                  const fg = crit ? '#ff9b9b' : '#e3b65a';
+                  const bg = crit ? 'rgba(255,99,99,0.1)' : 'rgba(217,156,43,0.1)';
+                  const bd = crit ? 'rgba(255,99,99,0.3)' : 'rgba(217,156,43,0.3)';
+                  return (
+                    <div key={f.key} style={{ background: bg, border: `1px solid ${bd}`, borderRadius: 10, padding: '11px 14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: bd, color: fg, textTransform: 'uppercase' }}>{f.severity}</span>
+                        <span style={{ fontSize: 13.5, fontWeight: 600, color: '#eef1ea' }}>{f.title}</span>
+                      </div>
+                      <div style={{ fontSize: 13, color: '#cdd2c9', marginTop: 5 }}>{f.detail}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {/* metric cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14 }} className="gv-grid5">
             {cards.map((c) => {
