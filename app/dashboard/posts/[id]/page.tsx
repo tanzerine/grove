@@ -65,7 +65,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
   return (
     <>
       <header className="gv-header">
-        <Link href="/dashboard" className="gv-back" style={{ display: 'flex', alignItems: 'center', gap: 7, textDecoration: 'none', color: '#9aa096', fontSize: 13, fontWeight: 600 }}>
+        <Link href="/dashboard/pipeline" className="gv-back" style={{ display: 'flex', alignItems: 'center', gap: 7, textDecoration: 'none', color: '#9aa096', fontSize: 13, fontWeight: 600 }}>
           <span style={{ display: 'flex' }}><Icon name="back" size={16} /></span> Pipeline
         </Link>
         <span style={{ color: '#3a4640' }}>/</span>
