@@ -14,11 +14,11 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { buildStrategy } from '@/lib/strategy/build';
 import { parseInterview } from '@/lib/strategy/interview';
-import type { SiteProfile } from '@/lib/pipeline/site-profile';
+import { profileSite, type SiteProfile } from '@/lib/pipeline/site-profile';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 const body = z.object({
   answers: z.record(z.union([z.string(), z.array(z.string())])).default({}),
@@ -54,7 +54,26 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   let strategyBuilt = false;
   try {
     const admin = supabaseAdmin();
-    const profile = (domain as any).site_profile as SiteProfile | null;
+    let profile = (domain as any).site_profile as SiteProfile | null;
+
+    // The profile is crawled fire-and-forget after verification, so on a fresh
+    // signup it's usually NOT ready yet by the time the owner finishes the
+    // interview. Build it synchronously here so the very first strategy is
+    // always generated — the owner should land on /dashboard/strategy with a
+    // real plan, not an empty page. (Ongoing rebuilds happen only on the 1st,
+    // via the monthly-strategy cron.)
+    if (!profile?.business?.name) {
+      try {
+        const built = await profileSite((domain as any).hostname);
+        if (built?.business?.name) {
+          profile = built;
+          await admin.from('domains').update({ site_profile: built }).eq('id', id);
+        }
+      } catch (e) {
+        console.error('[interview] profileSite failed:', e);
+      }
+    }
+
     if (profile?.business?.name) {
       const now = new Date();
       const thisMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
