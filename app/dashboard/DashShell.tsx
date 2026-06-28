@@ -11,12 +11,14 @@ export default function DashShell({
   account,
   badges,
   plan = 'Free',
+  isAdmin = false,
   children,
 }: {
   verified?: { hostname: string } | null;
   account?: { name: string; sub: string } | null;
   badges?: Record<string, number>;
   plan?: string;
+  isAdmin?: boolean;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -50,7 +52,7 @@ export default function DashShell({
           <Link href="/dashboard/billing" title="Manage billing" style={{ marginLeft: 'auto', fontSize: 9.5, letterSpacing: '0.1em', textTransform: 'uppercase', color: ACCENT, border: '1px solid rgba(99,194,129,0.3)', borderRadius: 6, padding: '3px 7px' }}>{plan}</Link>
         </div>
 
-        <SideNav badges={badges} />
+        <SideNav badges={badges} isAdmin={isAdmin} />
 
         <div style={{ padding: 14, borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: 'auto' }}>
           <button className="gv-ghost" style={{ display: 'flex', alignItems: 'center', gap: 11, width: '100%', border: '1px solid rgba(255,255,255,0.09)', background: 'rgba(255,255,255,0.02)', borderRadius: 12, padding: '11px 13px', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>

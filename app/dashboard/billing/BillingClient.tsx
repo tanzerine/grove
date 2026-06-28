@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import type { Plan, PlanId } from '@/lib/plans';
 
@@ -128,7 +129,10 @@ export default function BillingClient({
 
       <p style={{ fontSize: 12.5, color: '#6b6f67', marginTop: 22, lineHeight: 1.6 }}>
         Secure checkout by Stripe. Cancel anytime from <strong style={{ color: '#9aa096' }}>Manage billing</strong>.
-        Full refunds available on request — just reach out.
+        Full refunds available on request —{' '}
+        <Link href="/dashboard/billing/cancel" style={{ color: '#9aa096', textDecoration: 'underline' }}>
+          cancel &amp; request a refund
+        </Link>.
       </p>
     </div>
   );
