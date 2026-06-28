@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import SideNav from './SideNav';
+import AccountMenu from './AccountMenu';
 
 const ACCENT = '#63c281';
 
@@ -54,16 +55,7 @@ export default function DashShell({
 
         <SideNav badges={badges} isAdmin={isAdmin} />
 
-        <div style={{ padding: 14, borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: 'auto' }}>
-          <button className="gv-ghost" style={{ display: 'flex', alignItems: 'center', gap: 11, width: '100%', border: '1px solid rgba(255,255,255,0.09)', background: 'rgba(255,255,255,0.02)', borderRadius: 12, padding: '11px 13px', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
-            <span style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(99,194,129,0.12)', border: '1px solid rgba(99,194,129,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: ACCENT, fontWeight: 700, fontSize: 13, flexShrink: 0 }}>g</span>
-            <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#eef1ea', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{acctName}</span>
-              <span style={{ display: 'block', fontSize: 11, color: '#6b6f67' }}>{acctSub}</span>
-            </span>
-            <span style={{ color: '#6b6f67', fontSize: 13 }}>⌄</span>
-          </button>
-        </div>
+        <AccountMenu name={acctName} sub={acctSub} hostname={verified?.hostname ?? null} isAdmin={isAdmin} />
       </aside>
 
       {/* main scroll region — owns the ambient glow; each page renders its own header + body */}
