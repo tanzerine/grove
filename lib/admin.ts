@@ -5,14 +5,17 @@
  * box. Used server-side ONLY — never trust a client-supplied email; always
  * pass the email from a verified Supabase session.
  */
-const DEFAULT_ADMINS = ['tylee1171@snu.ac.kr'];
+// The founder is ALWAYS an admin and can never be locked out, even if
+// GROVE_ADMIN_EMAILS is set (or mis-set). By default the allow-list is exactly
+// this one address — the admin area is owner-only unless you opt to add more.
+const OWNER = 'tylee1171@snu.ac.kr';
 
 export function adminEmails(): string[] {
   const raw = process.env.GROVE_ADMIN_EMAILS;
-  const list = raw
+  const extra = raw
     ? raw.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)
-    : DEFAULT_ADMINS;
-  return list;
+    : [];
+  return Array.from(new Set([OWNER, ...extra]));
 }
 
 export function isAdminEmail(email: string | null | undefined): boolean {
