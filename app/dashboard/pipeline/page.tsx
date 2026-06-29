@@ -4,7 +4,6 @@ import { getBriefStats, composeBrief, nextAction, type BriefStats } from '@/lib/
 import PipelineActions from '../PipelineActions';
 import PostRow from '../PostRow';
 import ModeToggle from '../ModeToggle';
-import AutopilotPill from '../AutopilotPill';
 import Icon from '../gv-icons';
 import { DashHeader } from '../gv-chrome';
 
@@ -98,7 +97,6 @@ export default async function Page() {
             <span style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#565a53' }}>Next publish</span>
             <span style={{ fontSize: 13, fontWeight: 700, color: ACCENT }}>{countdown}</span>
           </div>
-          <AutopilotPill domainId={domain?.id} autoPublish={domain?.auto_publish ?? false} />
         </div>
         {domain && !domain.verified_at && (
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', background: 'rgba(224,200,120,0.06)', border: '1px solid rgba(224,200,120,0.24)', borderRadius: 12, padding: '12px 16px', marginBottom: 16, fontSize: 13.5, color: '#d8d2bf' }}>
