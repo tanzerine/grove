@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { isAdminEmail } from '@/lib/admin';
 import { getAdminStats } from '@/lib/admin-stats';
 import { detectAnomalies } from '@/lib/anomaly';
-import { HeaderRight } from '../gv-chrome';
+import { DashHeader } from '../gv-chrome';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,13 +32,7 @@ export default async function AdminOverviewPage() {
 
   return (
     <>
-      <header className="gv-header">
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em' }}>Overview</div>
-          <div style={{ fontSize: 12, color: '#6b6f67', marginTop: 1 }}>Customers, revenue &amp; health at a glance</div>
-        </div>
-        <HeaderRight />
-      </header>
+      <DashHeader title="Overview" subtitle="Customers, revenue & health at a glance" />
       <div className="gv-body">
         <div style={{ maxWidth: 1040, margin: '0 auto' }}>
           {/* live anomaly flags */}

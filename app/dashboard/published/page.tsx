@@ -1,5 +1,6 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import { getActiveDomain } from '@/lib/active-domain';
+import { DashHeader } from '../gv-chrome';
 
 export default async function Page() {
   const sb = await supabaseServer();
@@ -8,12 +9,7 @@ export default async function Page() {
 
   return (
     <>
-      <header className="gv-header">
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em' }}>Published</div>
-          <div style={{ fontSize: 12, color: '#6b6f67', marginTop: 1 }}>everything that’s live on your blog</div>
-        </div>
-      </header>
+      <DashHeader title="Published" subtitle="everything that’s live on your blog" />
       <div className="gv-body">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {(posts ?? []).map((p) => (

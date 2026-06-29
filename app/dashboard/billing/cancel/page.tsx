@@ -2,7 +2,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { REFUND_REASONS } from '@/lib/refunds';
 import CancelFunnel from './CancelFunnel';
-import { HeaderRight } from '../../gv-chrome';
+import { DashHeader } from '../../gv-chrome';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,13 +22,7 @@ export default async function CancelPage() {
 
   return (
     <>
-      <header className="gv-header">
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em' }}>Cancel &amp; request a refund</div>
-          <div style={{ fontSize: 12, color: '#6b6f67', marginTop: 1 }}>We&apos;re sorry to see you go</div>
-        </div>
-        <HeaderRight />
-      </header>
+      <DashHeader title="Cancel & request a refund" subtitle="We're sorry to see you go" />
       <div className="gv-body">
         <CancelFunnel reasons={REFUND_REASONS} plan={plan} />
       </div>

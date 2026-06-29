@@ -1,6 +1,7 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import { getActiveDomain } from '@/lib/active-domain';
 import CrawlButton from './CrawlButton';
+import { DashHeader } from '../gv-chrome';
 
 export default async function Page() {
   const sb = await supabaseServer();
@@ -13,14 +14,13 @@ export default async function Page() {
 
   return (
     <>
-      <header className="gv-header">
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em' }}>Brand voice</div>
-          <div style={{ fontSize: 12, color: '#6b6f67', marginTop: 1 }}>the context grove writes from</div>
-        </div>
-        <div style={{ marginLeft: 'auto' }}>{domain?.id && <CrawlButton domainId={domain.id} hostname={domain.hostname} />}</div>
-      </header>
+      <DashHeader title="Brand voice" subtitle="the context grove writes from" />
       <div className="gv-body">
+      {domain?.id && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+          <CrawlButton domainId={domain.id} hostname={domain.hostname} />
+        </div>
+      )}
       <p className="lede">
         Context grove uses for every article. The more accurate, the more on-brand the writing.
       </p>

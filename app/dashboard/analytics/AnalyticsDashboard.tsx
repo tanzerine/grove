@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Icon from '../gv-icons';
-import { HeaderRight } from '../gv-chrome';
+import { DashHeader } from '../gv-chrome';
 import GoogleConnect from './GoogleConnect';
 
 const ACCENT = '#63c281';
@@ -132,12 +132,13 @@ export default function AnalyticsDashboard({
   return (
     <>
       {/* ============ TOP BAR ============ */}
-      <header className="gv-header">
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em' }}>Analytics</div>
-          <div style={{ fontSize: 12, color: '#6b6f67', marginTop: 1 }}>{hostname} · how the blog is compounding</div>
-        </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+      <DashHeader title="Analytics" subtitle={`${hostname} · how the blog is compounding`} />
+
+      {/* ============ BODY ============ */}
+      <div style={{ position: 'relative', padding: '28px 36px 48px', maxWidth: 1680, margin: '0 auto' }}>
+
+        {/* report controls — relocated out of the nav bar */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 14, marginBottom: 18, flexWrap: 'wrap' }}>
           <div style={{ display: 'inline-flex', padding: 4, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 999, gap: 3 }}>
             {periodDef.map((p) => {
               const on = period === p.key;
@@ -150,13 +151,7 @@ export default function AnalyticsDashboard({
           <button className="gv-ghost" style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)', color: '#cdd2c9', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '8px 14px', borderRadius: 10, cursor: 'pointer' }}>
             <Icon name="download" /> Export
           </button>
-          <span style={{ width: 1, height: 26, background: 'rgba(255,255,255,0.08)' }} />
-          <HeaderRight />
         </div>
-      </header>
-
-      {/* ============ BODY ============ */}
-      <div style={{ position: 'relative', padding: '28px 36px 48px', maxWidth: 1680, margin: '0 auto' }}>
 
         {/* summary line */}
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 22 }}>
