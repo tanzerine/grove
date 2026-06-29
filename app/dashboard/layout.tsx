@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { isAdminEmail } from '@/lib/admin';
 import { ACTIVE_DOMAIN_COOKIE } from '@/lib/active-domain';
+import { getOnboarding, EMPTY_ONBOARDING } from '@/lib/onboarding/checklist';
 import DashShell from './DashShell';
 import type { Chrome } from './chrome-context';
 
@@ -46,6 +47,10 @@ export default async function DashLayout({ children }: { children: React.ReactNo
     if (isActive && sub?.plan) plan = sub.plan.charAt(0).toUpperCase() + sub.plan.slice(1);
   } catch { /* chip is cosmetic */ }
 
+  // Onboarding "what to do next" progress for the header bell (best-effort).
+  let onboarding = EMPTY_ONBOARDING;
+  try { onboarding = await getOnboarding(sb, active); } catch { /* guide is optional */ }
+
   const chrome: Chrome = {
     email: user.email ?? null,
     isAdmin: isAdminEmail(user.email),
@@ -53,6 +58,7 @@ export default async function DashLayout({ children }: { children: React.ReactNo
     activeHostname: active?.hostname ?? null,
     domains: (domains ?? []).map((d) => ({ id: d.id, hostname: d.hostname, verified_at: d.verified_at })),
     activeId: active?.id ?? null,
+    onboarding,
   };
 
   return (

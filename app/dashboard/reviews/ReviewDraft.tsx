@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Icon from '../gv-icons';
-import { HeaderRight } from '../gv-chrome';
+import { DashHeader } from '../gv-chrome';
 
 const ACCENT = '#63c281';
 
@@ -95,19 +95,23 @@ export default function ReviewDraft({ drafts, sample }: { drafts: ReviewDraftDat
   return (
     <>
       {/* ============ TOP BAR ============ */}
-      <header className="gv-header">
-        <a href="/dashboard/reviews" className="gv-iconbtn" style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)', color: '#9aa096', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '7px 12px', borderRadius: 9, cursor: 'pointer', textDecoration: 'none' }}>
-          <Icon name="back" size={15} /> Reviews
-        </a>
-        <div style={{ lineHeight: 1.2 }}>
-          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em' }}>Review draft</div>
-          <div style={{ fontSize: 12, color: '#6b6f67' }}>the manager scored it — your call to publish</div>
-        </div>
-        <HeaderRight before={queueNav} />
-      </header>
+      <DashHeader left={
+        <>
+          <a href="/dashboard/reviews" className="gv-iconbtn" style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)', color: '#9aa096', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '7px 12px', borderRadius: 9, cursor: 'pointer', textDecoration: 'none' }}>
+            <Icon name="back" size={15} /> Reviews
+          </a>
+          <div style={{ lineHeight: 1.2 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em' }}>Review draft</div>
+            <div style={{ fontSize: 12, color: '#6b6f67' }}>the manager scored it — your call to publish</div>
+          </div>
+        </>
+      } />
 
       {/* ============ BODY ============ */}
       <div style={{ position: 'relative', padding: '26px 36px 56px', maxWidth: 1500, margin: '0 auto' }}>
+
+        {/* queue nav — relocated out of the nav bar */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>{queueNav}</div>
 
         {sample && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(224,200,120,0.06)', border: '1px solid rgba(224,200,120,0.22)', borderRadius: 12, padding: '11px 16px', marginBottom: 16, fontSize: 12.5, color: '#d8d2bf' }}>

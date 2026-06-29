@@ -1,6 +1,7 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import { getActiveDomain } from '@/lib/active-domain';
 import CopySnippet from './CopySnippet';
+import { DashHeader } from '../gv-chrome';
 
 export default async function Page() {
   const sb = await supabaseServer();
@@ -15,12 +16,7 @@ export default async function Page() {
 
   return (
     <>
-      <header className="gv-header">
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em' }}>Embed</div>
-          <div style={{ fontSize: 12, color: '#6b6f67', marginTop: 1 }}>one script, the whole blog on your own site</div>
-        </div>
-      </header>
+      <DashHeader title="Embed" subtitle="one script, the whole blog on your own site" />
       <div className="gv-body">
       <p className="lede">
         One script, zero backend. Drop a tag on <span className="mono">{domain?.hostname}</span> and grove renders

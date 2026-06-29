@@ -1,6 +1,7 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import { getActiveDomain } from '@/lib/active-domain';
 import WriteDesk from './WriteDesk';
+import { DashHeader } from '../gv-chrome';
 
 export default async function WritePage() {
   const sb = await supabaseServer();
@@ -8,12 +9,7 @@ export default async function WritePage() {
 
   return (
     <>
-      <header className="gv-header">
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em' }}>Writing desk</div>
-          <div style={{ fontSize: 12, color: '#6b6f67', marginTop: 1 }}>write it yourself, or think out loud and let grove draft it</div>
-        </div>
-      </header>
+      <DashHeader title="Writing desk" subtitle="write it yourself, or think out loud and let grove draft it" />
       <div className="gv-body">
         <p className="lede" style={{ maxWidth: 600 }}>
           Write a post in your own words, or think out loud and let grove turn an idea into a draft.

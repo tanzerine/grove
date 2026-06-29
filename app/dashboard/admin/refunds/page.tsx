@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import { redirect } from 'next/navigation';
 import { isAdminEmail } from '@/lib/admin';
 import RefundsAdmin, { type RefundRow } from './RefundsAdmin';
-import { HeaderRight } from '../../gv-chrome';
+import { DashHeader } from '../../gv-chrome';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,13 +28,7 @@ export default async function RefundsAdminPage() {
 
   return (
     <>
-      <header className="gv-header">
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em' }}>Refund requests</div>
-          <div style={{ fontSize: 12, color: '#6b6f67', marginTop: 1 }}>Review exit surveys &amp; issue refunds</div>
-        </div>
-        <HeaderRight />
-      </header>
+      <DashHeader title="Refund requests" subtitle="Review exit surveys & issue refunds" />
       <div className="gv-body">
         <RefundsAdmin initialRows={rows} />
       </div>

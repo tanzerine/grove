@@ -6,7 +6,7 @@ import PostRow from '../PostRow';
 import ModeToggle from '../ModeToggle';
 import AutopilotPill from '../AutopilotPill';
 import Icon from '../gv-icons';
-import { HeaderRight } from '../gv-chrome';
+import { DashHeader } from '../gv-chrome';
 
 const ACCENT = '#63c281';
 const band = (s: number) => (s >= 70 ? ACCENT : s >= 40 ? '#e0c878' : '#c97f7f');
@@ -89,23 +89,17 @@ export default async function Page() {
 
   return (
     <>
-      <header className="gv-header">
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em' }}>Content pipeline</div>
-          <div style={{ fontSize: 12, color: '#6b6f67', marginTop: 1 }}>{domain?.hostname ?? 'grove.ai'} · the agent loop, running live</div>
-        </div>
-        <HeaderRight before={
-          <>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.2 }}>
-              <span style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#565a53' }}>Next publish</span>
-              <span style={{ fontSize: 13, fontWeight: 700, color: ACCENT }}>{countdown}</span>
-            </div>
-            <AutopilotPill domainId={domain?.id} autoPublish={domain?.auto_publish ?? false} />
-          </>
-        } />
-      </header>
+      <DashHeader title="Content pipeline" subtitle={`${domain?.hostname ?? 'grove.ai'} · the agent loop, running live`} />
 
       <div className="gv-body">
+        {/* live status — relocated out of the nav bar */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 14, marginBottom: 16, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.2 }}>
+            <span style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#565a53' }}>Next publish</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: ACCENT }}>{countdown}</span>
+          </div>
+          <AutopilotPill domainId={domain?.id} autoPublish={domain?.auto_publish ?? false} />
+        </div>
         {domain && !domain.verified_at && (
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', background: 'rgba(224,200,120,0.06)', border: '1px solid rgba(224,200,120,0.24)', borderRadius: 12, padding: '12px 16px', marginBottom: 16, fontSize: 13.5, color: '#d8d2bf' }}>
             <span><b style={{ color: '#eef1ea' }}>{domain.hostname}</b> isn’t verified yet — autopilot is paused, but you can queue topics and review every draft.</span>

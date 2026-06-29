@@ -2,7 +2,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { PLANS, PLAN_IDS, isPlanId } from '@/lib/plans';
 import BillingClient from './BillingClient';
-import { HeaderRight } from '../gv-chrome';
+import { DashHeader } from '../gv-chrome';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,13 +37,7 @@ export default async function BillingPage() {
 
   return (
     <>
-      <header className="gv-header">
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em' }}>Billing</div>
-          <div style={{ fontSize: 12, color: '#6b6f67', marginTop: 1 }}>Your plan &amp; payments</div>
-        </div>
-        <HeaderRight />
-      </header>
+      <DashHeader title="Billing" subtitle="Your plan & payments" />
       <div className="gv-body">
         <BillingClient
           plans={PLAN_IDS.map((id) => PLANS[id])}

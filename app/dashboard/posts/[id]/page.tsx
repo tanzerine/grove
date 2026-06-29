@@ -11,7 +11,7 @@ import { scoreAeo } from '@/lib/aeo-score';
 import { coverageGap } from '@/lib/pipeline/serp';
 import { summarizeReadiness, type Readiness } from '@/lib/readiness';
 import Icon from '../../gv-icons';
-import { HeaderRight } from '../../gv-chrome';
+import { DashHeader } from '../../gv-chrome';
 
 const ACCENT = '#63c281';
 
@@ -64,21 +64,15 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
 
   return (
     <>
-      <header className="gv-header">
-        <Link href="/dashboard/pipeline" className="gv-back" style={{ display: 'flex', alignItems: 'center', gap: 7, textDecoration: 'none', color: '#9aa096', fontSize: 13, fontWeight: 600 }}>
-          <span style={{ display: 'flex' }}><Icon name="back" size={16} /></span> Pipeline
-        </Link>
-        <span style={{ color: '#3a4640' }}>/</span>
-        <span style={{ fontSize: 13, color: '#6b6f67', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 320 }}>Reviewing draft</span>
-        <HeaderRight before={
-          p.scheduled_at ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.2 }}>
-              <span style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#565a53' }}>Planned for</span>
-              <span style={{ fontSize: 13, fontWeight: 700, color: ACCENT }}><LocalTime iso={p.scheduled_at} /></span>
-            </div>
-          ) : undefined
-        } />
-      </header>
+      <DashHeader left={
+        <>
+          <Link href="/dashboard/pipeline" className="gv-back" style={{ display: 'flex', alignItems: 'center', gap: 7, textDecoration: 'none', color: '#9aa096', fontSize: 13, fontWeight: 600 }}>
+            <span style={{ display: 'flex' }}><Icon name="back" size={16} /></span> Pipeline
+          </Link>
+          <span style={{ color: '#3a4640' }}>/</span>
+          <span style={{ fontSize: 13, color: '#6b6f67', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 320 }}>Reviewing draft</span>
+        </>
+      } />
 
       <div className="gv-body" style={{ maxWidth: 1440 }}>
         {/* article header */}
@@ -94,6 +88,12 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
           <span style={{ fontSize: 11.5, color: '#565a53' }}>
             {words ? `·  ${words.toLocaleString()} words  ` : ''}{cites ? `·  ${cites} citations  ` : ''}{readMin ? `·  ${readMin} min read` : ''}
           </span>
+          {p.scheduled_at && (
+            <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.2 }}>
+              <span style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#565a53' }}>Planned for</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: ACCENT }}><LocalTime iso={p.scheduled_at} /></span>
+            </div>
+          )}
         </div>
         <h1 style={{ fontFamily: "'Newsreader', Georgia, serif", fontWeight: 500, fontSize: 38, lineHeight: 1.12, letterSpacing: '-0.01em', margin: '8px 0 0', maxWidth: 880 }}>
           {p.title ?? p.topic ?? '(no title)'}

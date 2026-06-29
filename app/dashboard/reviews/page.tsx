@@ -4,6 +4,7 @@ import { coverageGap } from '@/lib/pipeline/serp';
 import { summarizeReadiness } from '@/lib/readiness';
 import ReviewDraft, { type ReviewDraftData } from './ReviewDraft';
 import { SAMPLE_DRAFTS } from './sampleDrafts';
+import { DashHeader } from '../gv-chrome';
 
 export const dynamic = 'force-dynamic';
 
@@ -143,7 +144,7 @@ function domainName(p: any): string { return p?.domains?.hostname?.split('.')[0]
 function Empty() {
   return (
     <>
-      <header className="gv-header"><div style={{ fontSize: 16, fontWeight: 700 }}>Reviews</div></header>
+      <DashHeader title="Reviews" />
       <div className="gv-body"><p style={{ color: '#9aa096' }}>Connect a domain first.</p></div>
     </>
   );

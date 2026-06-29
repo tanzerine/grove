@@ -5,7 +5,7 @@ import { getBriefStats, composeBrief, type BriefStats } from '@/lib/agent-brief'
 import { latestSnapshot } from '@/lib/search-console/sync';
 import { summarize as gscSummarize } from '@/lib/search-console/insights';
 import Icon from './gv-icons';
-import { HeaderRight } from './gv-chrome';
+import { DashHeader } from './gv-chrome';
 import AutopilotPill from './AutopilotPill';
 import OverviewPipeline, { type OvRow } from './OverviewPipeline';
 
@@ -235,22 +235,20 @@ export default async function OverviewPage() {
 
   return (
     <>
-      <header className="gv-header">
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em' }}>Overview</div>
-          <div style={{ fontSize: 12, color: '#6b6f67', marginTop: 1 }}>{domain?.hostname ?? 'grove.ai'} · {domain?.auto_publish ? 'autopilot active' : 'manual mode'}</div>
-        </div>
-        <div style={{ flex: 1, maxWidth: 360, marginLeft: 12, display: 'flex', alignItems: 'center', gap: 9, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '9px 13px' }}>
-          <span style={{ color: '#565a53', display: 'flex' }}><Icon name="search" size={16} /></span>
-          <input placeholder="Search posts, keywords, domains…" style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#eef1ea', fontSize: 13, fontFamily: 'inherit', minWidth: 0 }} />
-          <span style={{ fontSize: 10.5, color: '#565a53', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 5, padding: '1px 6px' }}>⌘K</span>
-        </div>
-        <HeaderRight before={
-          <AutopilotPill domainId={domain?.id} autoPublish={domain?.auto_publish ?? false} />
-        } />
-      </header>
+      <DashHeader title="Overview" subtitle={`${domain?.hostname ?? 'grove.ai'} · ${domain?.auto_publish ? 'autopilot active' : 'manual mode'}`} />
 
       <div className="gv-body" style={{ maxWidth: 1680, padding: '28px 36px 48px' }}>
+        {/* search + autopilot — relocated out of the nav bar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 240, maxWidth: 420, display: 'flex', alignItems: 'center', gap: 9, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '9px 13px' }}>
+            <span style={{ color: '#565a53', display: 'flex' }}><Icon name="search" size={16} /></span>
+            <input placeholder="Search posts, keywords, domains…" style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#eef1ea', fontSize: 13, fontFamily: 'inherit', minWidth: 0 }} />
+            <span style={{ fontSize: 10.5, color: '#565a53', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 5, padding: '1px 6px' }}>⌘K</span>
+          </div>
+          <div style={{ marginLeft: 'auto' }}>
+            <AutopilotPill domainId={domain?.id} autoPublish={domain?.auto_publish ?? false} />
+          </div>
+        </div>
         {/* greeting */}
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 22 }}>
           <div>

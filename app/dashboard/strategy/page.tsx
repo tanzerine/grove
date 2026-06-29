@@ -7,7 +7,7 @@ import { nearWinners } from '@/lib/search-console/insights';
 import { summarizeMonth, type MonthlyReport } from '@/lib/strategy/review';
 import type { Strategy, Goal, Pillar, PostSlot, KPI } from '@/lib/strategy/build';
 import Icon from '../gv-icons';
-import { HeaderRight } from '../gv-chrome';
+import { DashHeader } from '../gv-chrome';
 import StrategyClusterMap, { type Cluster, type Spoke } from './StrategyClusterMap';
 
 export const dynamic = 'force-dynamic';
@@ -166,12 +166,11 @@ export default async function StrategyPage() {
 
   return (
     <>
-      <header className="gv-header">
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em' }}>Strategy</div>
-          <div style={{ fontSize: 12, color: '#6b6f67', marginTop: 1 }}>{domain.hostname} · the monthly plan your agent works from</div>
-        </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14 }}>
+      <DashHeader title="Strategy" subtitle={`${domain.hostname} · the monthly plan your agent works from`} />
+
+      <div className="gv-body">
+        {/* plan controls — relocated out of the nav bar */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 14, marginBottom: 16, flexWrap: 'wrap' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 2, padding: 4, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10 }}>
             <button className="gv-ghost" style={{ width: 30, height: 30, borderRadius: 7, border: 'none', background: 'transparent', color: '#9aa096', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14 }}>‹</button>
             <span style={{ fontSize: 12.5, fontWeight: 600, color: '#cdd2c9', padding: '0 10px' }}>{planMonth}</span>
@@ -180,12 +179,7 @@ export default async function StrategyPage() {
           <Link href="/onboarding/intent" className="gv-btn" style={{ display: 'flex', alignItems: 'center', gap: 8, border: 'none', background: ACCENT, color: '#06120b', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, padding: '9px 16px', borderRadius: 10, cursor: 'pointer', textDecoration: 'none' }}>
             <Icon name="check" size={15} /> Approve plan
           </Link>
-          <span style={{ width: 1, height: 26, background: 'rgba(255,255,255,0.08)' }} />
-          <HeaderRight />
         </div>
-      </header>
-
-      <div className="gv-body">
         {/* PLAN HERO */}
         <section className="gv-card" style={{ background: 'linear-gradient(135deg, #0c130e, #0a0d0a)', border: '1px solid rgba(99,194,129,0.18)', borderRadius: 20, padding: '26px 28px', marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
@@ -361,7 +355,7 @@ function fmtNumber(n: number): string {
 function Empty() {
   return (
     <>
-      <header className="gv-header"><div style={{ fontSize: 16, fontWeight: 700 }}>Strategy</div></header>
+      <DashHeader title="Strategy" />
       <div className="gv-body" style={{ textAlign: 'center', color: '#9aa096', marginTop: 40 }}><p>Connect a domain first.</p></div>
     </>
   );
@@ -370,12 +364,7 @@ function Empty() {
 function NoStrategy({ hasInterview }: { hasInterview: boolean }) {
   return (
     <>
-      <header className="gv-header">
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em' }}>Strategy</div>
-          <div style={{ fontSize: 12, color: '#6b6f67', marginTop: 1 }}>the monthly plan your agent works from</div>
-        </div>
-      </header>
+      <DashHeader title="Strategy" subtitle="the monthly plan your agent works from" />
       <div className="gv-body">
         <div style={{ background: '#101310', border: '1px dashed rgba(255,255,255,0.12)', borderRadius: 14, padding: '40px 30px', textAlign: 'center' }}>
           <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>No strategy yet.</h3>
