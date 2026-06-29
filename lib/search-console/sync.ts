@@ -40,18 +40,23 @@ export async function syncDomain(domainId: string): Promise<SyncResult> {
     return { ok: false, pages: 0, queries: 0, reason: 'auth' };
   }
 
-  // GSC data lags ~2 days; trail 28 days ending 2 days ago.
+  // GSC data lags ~2 days; trail 28 days ending 2 days ago for the snapshot.
   const end = new Date(Date.now() - 2 * 86400_000);
   const start = new Date(end.getTime() - 27 * 86400_000);
   const startDate = ymd(start);
   const endDate = ymd(end);
+  // The daily series powers the dashboard's trend chart — pull a wider 90-day
+  // window so the 7d / 30d / 90d selector can slice it client-side.
+  const dailyStartDate = ymd(new Date(end.getTime() - 89 * 86400_000));
 
   let pageRows: GscRow[] = [];
   let queryRows: GscRow[] = [];
+  let dailyRows: GscRow[] = [];
   try {
-    [pageRows, queryRows] = await Promise.all([
+    [pageRows, queryRows, dailyRows] = await Promise.all([
       querySearchAnalytics(accessToken, conn.siteUrl, { startDate, endDate, dimensions: ['page'], rowLimit: 200 }),
       querySearchAnalytics(accessToken, conn.siteUrl, { startDate, endDate, dimensions: ['query'], rowLimit: 200 }),
+      querySearchAnalytics(accessToken, conn.siteUrl, { startDate: dailyStartDate, endDate, dimensions: ['date'], rowLimit: 100 }),
     ]);
   } catch (e: any) {
     console.error('[gsc sync] query failed', domainId, e?.message ?? e);
@@ -80,9 +85,35 @@ export async function syncDomain(domainId: string): Promise<SyncResult> {
     // upsert so a same-day re-sync overwrites rather than duplicates
     await sb.from('gsc_metrics').upsert(rows, { onConflict: 'domain_id,dimension,key,date' });
   }
+
+  // Per-day series for the trend chart. keys[0] is the calendar day (YYYY-MM-DD).
+  const dailyUpsert = dailyRows
+    .filter((r) => r.keys[0])
+    .map((r) => ({
+      domain_id: domainId, date: r.keys[0],
+      clicks: r.clicks, impressions: r.impressions, ctr: r.ctr, position: r.position,
+    }));
+  if (dailyUpsert.length) {
+    await sb.from('gsc_daily').upsert(dailyUpsert, { onConflict: 'domain_id,date' });
+  }
+
   await sb.from('domains').update({ gsc_synced_at: new Date().toISOString() }).eq('id', domainId);
 
   return { ok: true, pages: pageRows.length, queries: queryRows.length };
+}
+
+export type DailyPoint = { date: string; clicks: number; impressions: number; ctr: number; position: number };
+
+/** Per-day GSC totals for the trend chart, oldest→newest, last `days` days. */
+export async function dailySeries(domainId: string, days = 90): Promise<DailyPoint[]> {
+  const sb = supabaseAdmin();
+  const since = ymd(new Date(Date.now() - days * 86400_000));
+  const { data } = await sb
+    .from('gsc_daily')
+    .select('date, clicks, impressions, ctr, position')
+    .eq('domain_id', domainId).gte('date', since)
+    .order('date', { ascending: true });
+  return (data ?? []) as DailyPoint[];
 }
 
 /** Read the most recent snapshot back out for the dashboard / strategist. */

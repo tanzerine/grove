@@ -3,17 +3,11 @@ import { useState } from 'react';
 import Icon from '../gv-icons';
 import { DashHeader } from '../gv-chrome';
 import GoogleConnect from './GoogleConnect';
+import type { AnalyticsData } from '@/lib/analytics/dashboard';
 
 const ACCENT = '#63c281';
 
-/** Live Search Console totals folded into the designed view when connected. */
-export type LiveData = {
-  clicks: number;
-  impressions: number;
-  ctr: number;          // 0..1
-  avgPosition: number;  // impression-weighted
-  queryCount: number;
-} | null;
+const fmtPct = (n: number): string => `${Math.round(n * 1000) / 10}%`;
 
 /* ── catmull-rom → bezier sparkline/area builder (ported from the comp) ───── */
 function buildPaths(vals: number[], w: number, h: number, pad: number) {
@@ -40,18 +34,34 @@ const fmtCompact = (n: number): string => {
 type PeriodKey = '7d' | '30d' | '90d' | '12mo';
 
 export default function AnalyticsDashboard({
-  hostname, configured, connected, verified, live, syncedAgo,
+  hostname, configured, connected, verified, data, syncedAgo,
 }: {
   hostname: string;
   configured: boolean;
   connected: boolean;
   verified: boolean;
-  live: LiveData;
+  data: AnalyticsData;
   syncedAgo: string;
 }) {
   const [period, setPeriod] = useState<PeriodKey>('30d');
   const [sort, setSort] = useState<'Clicks' | 'Impressions' | 'CTR'>('Clicks');
+  const live = data.live;
   const liveOn = !!live;
+  // Any real signal at all (GSC totals OR first-party events) flips the header
+  // from "sample view" to "synced".
+  const anyLive = liveOn || !!data.traffic || !!data.funnel || !!data.topContent;
+
+  // ── real trend series, sliced to the selected period ────────────────────────
+  // gsc_daily gives up to 90 days oldest→newest; 12mo just shows what we have.
+  const periodDays: Record<PeriodKey, number> = { '7d': 7, '30d': 30, '90d': 90, '12mo': 365 };
+  const sliced = (data.series ?? []).slice(-periodDays[period]);
+  const liveSeries = sliced.length >= 2
+    ? {
+        clicks: sliced.map((p) => p.clicks),
+        impr: sliced.map((p) => p.impressions),
+        labels: sliced.map((p, i, a) => (i === 0 || i === a.length - 1 || i === Math.floor(a.length / 2) ? p.date.slice(5) : '')),
+      }
+    : null;
 
   // ── period ────────────────────────────────────────────────────────────────
   const periodDef = [
@@ -70,8 +80,24 @@ export default function AnalyticsDashboard({
     '12mo': { clicks: [4, 6, 9, 12, 16, 20, 27, 34, 42, 51, 60, 72], impr: [15, 20, 26, 33, 40, 48, 57, 66, 74, 82, 90, 98], labels: ['Jul', '', 'Sep', '', 'Nov', '', 'Jan', '', 'Mar', '', 'May', ''], c: '486k', cd: '▲ 1,180%', im: '12.4M', ctr: '3.9%' },
   };
   const cur = series[period];
-  const cP = buildPaths(cur.clicks, 640, 220, 14);
-  const iP = buildPaths(cur.impr.map((v, i) => Math.max(v, cur.clicks[i] + 6)), 640, 220, 14);
+  const chartClicks = liveSeries ? liveSeries.clicks : cur.clicks;
+  const chartImpr = liveSeries ? liveSeries.impr : cur.impr.map((v, i) => Math.max(v, cur.clicks[i] + 6));
+  const chartLabels = liveSeries ? liveSeries.labels : cur.labels;
+  const cP = buildPaths(chartClicks, 640, 220, 14);
+  const iP = buildPaths(chartImpr, 640, 220, 14);
+
+  // Real period-over-period clicks delta from the daily series (prior equal
+  // window). null when there isn't enough history yet → no chip shown.
+  const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
+  let liveDelta: string | null = null;
+  if (data.series && data.series.length) {
+    const d = periodDays[period];
+    const curWin = data.series.slice(-d), prevWin = data.series.slice(-2 * d, -d);
+    const cs = sum(curWin.map((p) => p.clicks)), ps = sum(prevWin.map((p) => p.clicks));
+    if (ps > 0) { const pct = Math.round(((cs - ps) / ps) * 100); liveDelta = `${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct)}%`; }
+  }
+  const clicksDelta = liveSeries ? (liveDelta ?? '') : cur.cd;
+
   const kpiClicks = liveOn ? fmtCompact(live!.clicks) : cur.c;
   const kpiImpr = liveOn ? fmtCompact(live!.impressions) : cur.im;
   const kpiCtr = liveOn ? `${(live!.ctr * 100).toFixed(1)}%` : cur.ctr;
@@ -83,21 +109,26 @@ export default function AnalyticsDashboard({
     { icon: 'eye', label: 'Impressions', value: liveOn ? fmtCompact(live!.impressions) : '1.2M', delta: '▲ 38%', up: true, spark: [40, 44, 42, 49, 53, 52, 58, 63, 62, 69, 74, 80], fill: false },
     { icon: 'cursor', label: 'Avg. CTR', value: liveOn ? `${(live!.ctr * 100).toFixed(1)}%` : '4.0%', delta: '▲ 0.6pt', up: true, spark: [28, 30, 29, 33, 31, 35, 34, 38, 37, 40, 39, 42], fill: false },
     { icon: 'target', label: 'Avg. position', value: liveOn ? (live!.avgPosition ? live!.avgPosition.toFixed(1) : '—') : '4.2', delta: '▲ from 18', up: true, spark: [62, 58, 55, 49, 44, 40, 33, 28, 22, 17, 12, 9], fill: false },
-    { icon: 'spark', label: 'AI citations', value: '401', delta: '▲ 41%', up: true, spark: [8, 10, 12, 16, 15, 22, 28, 30, 36, 42, 48, 57], fill: true },
+    { icon: 'spark', label: data.answers ? 'AI referrals' : 'AI citations', value: data.answers ? fmtCompact(data.answers.total) : '401', delta: data.answers ? '' : '▲ 41%', up: true, spark: [8, 10, 12, 16, 15, 22, 28, 30, 36, 42, 48, 57], fill: true },
   ];
 
   // ── traffic sources (conic donut) ──────────────────────────────────────────
-  const sourceDef = [
-    { name: 'Google Search', pct: 58, color: ACCENT },
-    { name: 'Answer engines', pct: 24, color: '#7fb6e6' },
-    { name: 'Direct', pct: 11, color: '#9aa096' },
-    { name: 'Social + referral', pct: 7, color: '#565a53' },
-  ];
+  const SOURCE_COLORS = [ACCENT, '#7fb6e6', '#9aa096', '#565a53'];
+  const sourceDef = data.traffic
+    ? data.traffic.sources.map((s, i) => ({ name: s.name, pct: s.pct, color: SOURCE_COLORS[i] ?? '#565a53' }))
+    : [
+        { name: 'Google Search', pct: 58, color: ACCENT },
+        { name: 'Answer engines', pct: 24, color: '#7fb6e6' },
+        { name: 'Direct', pct: 11, color: '#9aa096' },
+        { name: 'Social + referral', pct: 7, color: '#565a53' },
+      ];
+  const answerSharePct = data.traffic ? (data.traffic.sources.find((s) => s.key === 'answer')?.pct ?? 0) : 24;
   let acc = 0;
   const donutGradient = 'conic-gradient(' + sourceDef.map((s) => { const start = acc; acc += s.pct; return `${s.color} ${start}% ${acc}%`; }).join(', ') + ')';
 
   // ── top posts ───────────────────────────────────────────────────────────────
-  const postDef = [
+  type PostRow = { title: string; keyword: string; clicks: string; impr: string; ctr: string; pos: string; posChange: string; up: boolean; spark: number[] | null };
+  const samplePosts: PostRow[] = [
     { title: 'The SaaS founder’s guide to compounding traffic', keyword: 'compounding organic traffic', clicks: '9,120', impr: '184k', ctr: '4.9%', pos: '3', posChange: '▲12', up: true, spark: [10, 14, 18, 22, 30, 38, 46, 52] },
     { title: 'How to write for answer engines', keyword: 'write for answer engines', clicks: '6,740', impr: '142k', ctr: '4.7%', pos: '2', posChange: '▲8', up: true, spark: [6, 9, 12, 18, 24, 30, 40, 48] },
     { title: '10 onboarding mistakes killing activation', keyword: 'ai onboarding checklist', clicks: '5,310', impr: '121k', ctr: '4.4%', pos: '3', posChange: '▲15', up: true, spark: [4, 6, 10, 14, 22, 30, 38, 44] },
@@ -105,29 +136,60 @@ export default function AnalyticsDashboard({
     { title: 'How we cut SaaS churn 18% in a quarter', keyword: 'reduce saas churn', clicks: '3,640', impr: '96k', ctr: '3.8%', pos: '6', posChange: '▲4', up: true, spark: [12, 14, 13, 16, 18, 20, 24, 28] },
     { title: 'The honest cost of an in-house content team', keyword: 'content team cost', clicks: '2,210', impr: '88k', ctr: '2.5%', pos: '14', posChange: '▼2', up: false, spark: [20, 18, 19, 16, 15, 14, 13, 12] },
   ];
+  const sortKey = sort === 'Impressions' ? 'impressions' : sort === 'CTR' ? 'ctr' : 'clicks';
+  const postDef: PostRow[] = data.topContent
+    ? [...data.topContent]
+        .sort((a, b) => (b as any)[sortKey] - (a as any)[sortKey])
+        .map((c) => ({
+          title: c.title,
+          keyword: c.path,
+          clicks: c.clicks.toLocaleString(),
+          impr: fmtCompact(c.impressions),
+          ctr: fmtPct(c.ctr),
+          pos: c.position ? `${c.position.toFixed(1)}` : '—',
+          posChange: '',
+          up: true,
+          spark: null,
+        }))
+    : samplePosts;
 
   // ── rank distribution ───────────────────────────────────────────────────────
-  const rankDef = [
-    { label: 'Positions 1–3', count: 42, color: ACCENT },
-    { label: 'Positions 4–10', count: 76, color: 'rgba(99,194,129,0.55)' },
-    { label: 'Positions 11–20', count: 58, color: '#7f8a86' },
-    { label: 'Positions 21+', count: 38, color: '#3a4640' },
-  ];
+  const RANK_COLORS = [ACCENT, 'rgba(99,194,129,0.55)', '#7f8a86', '#3a4640'];
+  const rankDef = data.ranking
+    ? data.ranking.bands.map((b, i) => ({ label: b.label, count: b.count, color: RANK_COLORS[i] ?? '#3a4640' }))
+    : [
+        { label: 'Positions 1–3', count: 42, color: ACCENT },
+        { label: 'Positions 4–10', count: 76, color: 'rgba(99,194,129,0.55)' },
+        { label: 'Positions 11–20', count: 58, color: '#7f8a86' },
+        { label: 'Positions 21+', count: 38, color: '#3a4640' },
+      ];
   const rankTotal = rankDef.reduce((a, b) => a + b.count, 0);
   const rankBands = rankDef.map((b) => ({ ...b, pct: Math.round((b.count / rankTotal) * 100) + '%' }));
 
-  const engines = [
-    { name: 'ChatGPT', count: '186', pct: '88%' },
-    { name: 'Google AI Overviews', count: '142', pct: '67%' },
-    { name: 'Perplexity', count: '73', pct: '34%' },
-  ];
+  const engines = data.answers
+    ? data.answers.byEngine.map((e) => ({ name: e.name, count: String(e.count), pct: `${e.pct}%` }))
+    : [
+        { name: 'ChatGPT', count: '186', pct: '88%' },
+        { name: 'Google AI Overviews', count: '142', pct: '67%' },
+        { name: 'Perplexity', count: '73', pct: '34%' },
+      ];
 
-  const funnelDef = [
-    { label: 'Clicks to blog', value: '48.2k', rate: '100%', pct: '100%', bar: ACCENT },
-    { label: 'Read past 50%', value: '21.7k', rate: '45%', pct: '45%', bar: 'rgba(99,194,129,0.7)' },
-    { label: 'Email captured', value: '3,180', rate: '6.6%', pct: '28%', bar: 'rgba(99,194,129,0.5)' },
-    { label: 'Started trial', value: '742', rate: '1.5%', pct: '14%', bar: 'rgba(99,194,129,0.35)' },
-  ];
+  const funnelDef = data.funnel
+    ? (() => {
+        const f = data.funnel!;
+        const rate = (n: number) => (f.clicks > 0 ? `${Math.round((n / f.clicks) * 100)}%` : '0%');
+        return [
+          { label: 'Clicks to blog', value: fmtCompact(f.clicks), rate: '100%', pct: '100%', bar: ACCENT },
+          { label: 'Read past 50%', value: fmtCompact(f.read50), rate: rate(f.read50), pct: rate(f.read50), bar: 'rgba(99,194,129,0.7)' },
+          { label: 'Converted (CTA)', value: fmtCompact(f.converted), rate: rate(f.converted), pct: rate(f.converted), bar: 'rgba(99,194,129,0.5)' },
+        ];
+      })()
+    : [
+        { label: 'Clicks to blog', value: '48.2k', rate: '100%', pct: '100%', bar: ACCENT },
+        { label: 'Read past 50%', value: '21.7k', rate: '45%', pct: '45%', bar: 'rgba(99,194,129,0.7)' },
+        { label: 'Email captured', value: '3,180', rate: '6.6%', pct: '28%', bar: 'rgba(99,194,129,0.5)' },
+        { label: 'Started trial', value: '742', rate: '1.5%', pct: '14%', bar: 'rgba(99,194,129,0.35)' },
+      ];
 
   return (
     <>
@@ -157,11 +219,14 @@ export default function AnalyticsDashboard({
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 22 }}>
           <div>
             <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.025em', margin: 0 }}>Performance report</h1>
-            <p style={{ fontSize: 14, color: '#9aa096', margin: '6px 0 0' }}>Over the {curP.range}, grove content earned <span style={{ color: '#eef1ea', fontWeight: 600 }}>{headlineClicks} clicks</span> and was quoted <span style={{ color: '#eef1ea', fontWeight: 600 }}>{curP.cites} times</span> by answer engines.</p>
+            <p style={{ fontSize: 14, color: '#9aa096', margin: '6px 0 0' }}>Over the {curP.range}, your content earned <span style={{ color: '#eef1ea', fontWeight: 600 }}>{headlineClicks} clicks</span>
+              {data.answers
+                ? <> and <span style={{ color: '#eef1ea', fontWeight: 600 }}>{data.answers.total.toLocaleString()} answer-engine referrals</span>.</>
+                : <> and was quoted <span style={{ color: '#eef1ea', fontWeight: 600 }}>{curP.cites} times</span> by answer engines.</>}</p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#6b6f67' }}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: ACCENT, animation: 'gvPulse 2.4s ease-in-out infinite' }} />
-            {liveOn
+            {anyLive
               ? <>Synced from Search Console &amp; first-party events · {syncedAgo}</>
               : <>Sample view — connect Google to see your numbers</>}
           </div>
@@ -208,7 +273,7 @@ export default function AnalyticsDashboard({
             <div style={{ display: 'flex', gap: 28, margin: '18px 0 6px' }}>
               <div>
                 <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em' }}>{kpiClicks}</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: '#9aa096', marginTop: 3 }}>Clicks <span style={{ color: ACCENT, fontWeight: 600 }}>{cur.cd}</span></div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: '#9aa096', marginTop: 3 }}>Clicks <span style={{ color: ACCENT, fontWeight: 600 }}>{clicksDelta}</span></div>
               </div>
               <div>
                 <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', color: '#cdd2c9' }}>{kpiImpr}</div>
@@ -236,7 +301,7 @@ export default function AnalyticsDashboard({
               <circle cx={cP.last.x.toFixed(1)} cy={cP.last.y.toFixed(1)} r={4.5} fill={ACCENT} stroke="#0a0b0a" strokeWidth={2.5} />
             </svg>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#565a53', marginTop: 10 }}>
-              {cur.labels.map((lab, i) => <span key={i}>{lab}</span>)}
+              {chartLabels.map((lab, i) => <span key={i}>{lab}</span>)}
             </div>
           </div>
 
@@ -247,8 +312,8 @@ export default function AnalyticsDashboard({
             <div style={{ display: 'flex', alignItems: 'center', gap: 22 }}>
               <div style={{ position: 'relative', width: 132, height: 132, flexShrink: 0, borderRadius: '50%', background: donutGradient }}>
                 <div style={{ position: 'absolute', inset: 19, borderRadius: '50%', background: '#101310', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1 }}>{liveOn ? fmtCompact(live!.clicks) : cur.c}</span>
-                  <span style={{ fontSize: 10, color: '#6b6f67', marginTop: 3 }}>total clicks</span>
+                  <span style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1 }}>{data.traffic ? fmtCompact(data.traffic.total) : (liveOn ? fmtCompact(live!.clicks) : cur.c)}</span>
+                  <span style={{ fontSize: 10, color: '#6b6f67', marginTop: 3 }}>{data.traffic ? 'total visits' : 'total clicks'}</span>
                 </div>
               </div>
               <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -262,7 +327,7 @@ export default function AnalyticsDashboard({
               </div>
             </div>
             <div style={{ paddingTop: 18, fontSize: 11.5, color: '#6b6f67', lineHeight: 1.55, borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: 20 }}>
-              <span style={{ color: ACCENT, fontWeight: 600 }}>Answer engines</span> now drive 24% of all clicks — up from 4% a quarter ago.
+              <span style={{ color: ACCENT, fontWeight: 600 }}>Answer engines</span> {data.traffic ? <>drive {answerSharePct}% of clicks to your blog.</> : <>now drive 24% of all clicks — up from 4% a quarter ago.</>}
             </div>
           </div>
         </div>
@@ -281,13 +346,13 @@ export default function AnalyticsDashboard({
                 })}
               </div>
             </div>
-            <a href="#" style={{ fontSize: 12.5, color: '#9aa096', textDecoration: 'none' }}>View all 128 →</a>
+            <a href="#" style={{ fontSize: 12.5, color: '#9aa096', textDecoration: 'none' }}>{data.topContent ? 'Top pages' : 'View all 128 →'}</a>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px 120px 80px 90px 110px', padding: '11px 22px', fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#565a53', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
             <span>Post</span><span style={{ textAlign: 'right' }}>Clicks</span><span style={{ textAlign: 'right' }}>Impressions</span><span style={{ textAlign: 'right' }}>CTR</span><span style={{ textAlign: 'right' }}>Avg. pos</span><span style={{ textAlign: 'right' }}>30-day trend</span>
           </div>
           {postDef.map((p) => {
-            const sp = buildPaths(p.spark, 96, 28, 3);
+            const sp = p.spark ? buildPaths(p.spark, 96, 28, 3) : null;
             return (
               <div key={p.title} className="gv-row" style={{ display: 'grid', gridTemplateColumns: '1fr 110px 120px 80px 90px 110px', alignItems: 'center', padding: '14px 22px', borderBottom: '1px solid rgba(255,255,255,0.04)', cursor: 'pointer' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, paddingRight: 18 }}>
@@ -302,9 +367,11 @@ export default function AnalyticsDashboard({
                 <span style={{ fontSize: 12.5, color: '#cdd2c9', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{p.ctr}</span>
                 <span style={{ textAlign: 'right' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12.5, color: '#cdd2c9', fontVariantNumeric: 'tabular-nums' }}>#{p.pos}<span style={{ fontSize: 11, fontWeight: 600, color: p.up ? ACCENT : '#c97f7f' }}>{p.posChange}</span></span></span>
                 <span style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <svg viewBox="0 0 96 28" preserveAspectRatio="none" style={{ width: 92, height: 26, overflow: 'visible' }}>
-                    <path d={sp.line} fill="none" stroke={p.up ? ACCENT : '#c97f7f'} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
+                  {sp
+                    ? <svg viewBox="0 0 96 28" preserveAspectRatio="none" style={{ width: 92, height: 26, overflow: 'visible' }}>
+                        <path d={sp.line} fill="none" stroke={p.up ? ACCENT : '#c97f7f'} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    : <span style={{ fontSize: 11, color: '#565a53' }}>—</span>}
                 </span>
               </div>
             );
@@ -339,10 +406,10 @@ export default function AnalyticsDashboard({
           {/* answer engine citations */}
           <div className="gv-card" style={{ background: 'linear-gradient(150deg, #0c130e, #0a0d0a)', border: '1px solid rgba(99,194,129,0.16)', borderRadius: 18, padding: '20px 22px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 14, fontWeight: 700 }}>Answer-engine citations</div>
-              <span style={{ fontSize: 11, color: ACCENT, fontWeight: 600 }}>▲ 41%</span>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>{data.answers ? 'Answer-engine referrals' : 'Answer-engine citations'}</div>
+              {!data.answers && <span style={{ fontSize: 11, color: ACCENT, fontWeight: 600 }}>▲ 41%</span>}
             </div>
-            <div style={{ fontSize: 12, color: '#6b6f67', margin: '3px 0 18px' }}>Times grove content was quoted</div>
+            <div style={{ fontSize: 12, color: '#6b6f67', margin: '3px 0 18px' }}>{data.answers ? 'Visits that came from an answer engine' : 'Times grove content was quoted'}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
               {engines.map((e) => (
                 <div key={e.name}>
@@ -351,7 +418,7 @@ export default function AnalyticsDashboard({
                 </div>
               ))}
             </div>
-            <div style={{ fontSize: 11.5, color: '#6b6f67', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 14, marginTop: 18 }}>75% of published posts are structured for AI Overviews.</div>
+            <div style={{ fontSize: 11.5, color: '#6b6f67', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 14, marginTop: 18 }}>{data.answers ? 'Click-throughs only — Google AI Overviews report as regular Search.' : '75% of published posts are structured for AI Overviews.'}</div>
           </div>
 
           {/* conversion funnel */}

@@ -1,11 +1,15 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import { getActiveDomain } from '@/lib/active-domain';
 import { isConfigured as gscConfigured } from '@/lib/search-console/client';
-import { latestSnapshot } from '@/lib/search-console/sync';
-import { summarize as gscSummarize, type MetricRow } from '@/lib/search-console/insights';
-import AnalyticsDashboard, { type LiveData } from './AnalyticsDashboard';
+import { loadAnalytics, type AnalyticsData } from '@/lib/analytics/dashboard';
+import AnalyticsDashboard from './AnalyticsDashboard';
 
 export const dynamic = 'force-dynamic';
+
+const NO_DATA: AnalyticsData = {
+  live: null, series: null, topContent: null, ranking: null,
+  traffic: null, answers: null, funnel: null,
+};
 
 export default async function AnalyticsPage() {
   const sb = await supabaseServer();
@@ -24,22 +28,10 @@ export default async function AnalyticsPage() {
   const connected = !!(domain as any)?.gsc_connected_at;
   const verified = !!(domain as any)?.gsc_site_url;
 
-  let live: LiveData = null;
-  let syncedAgo = '';
-  if (domain && verified) {
-    try {
-      const snap = await latestSnapshot(domain.id);
-      if (snap.pages.length || snap.queries.length) {
-        const toRow = (r: any): MetricRow => ({ key: r.key, clicks: r.clicks, impressions: r.impressions, position: r.position, post_id: r.post_id ?? null });
-        const v = gscSummarize(snap.pages.map(toRow), snap.queries.map(toRow));
-        if (v.impressions > 0) {
-          live = { clicks: v.clicks, impressions: v.impressions, ctr: v.ctr, avgPosition: v.avgPosition, queryCount: v.queryCount };
-        }
-      }
-      const syncedAt = (domain as any).gsc_synced_at;
-      if (syncedAt) syncedAgo = relativeTime(new Date(syncedAt));
-    } catch { /* optional — fall back to the sample view */ }
-  }
+  const data = domain ? await loadAnalytics(sb, domain.id, verified) : NO_DATA;
+
+  const syncedAt = (domain as any)?.gsc_synced_at;
+  const syncedAgo = syncedAt ? relativeTime(new Date(syncedAt)) : 'just now';
 
   return (
     <AnalyticsDashboard
@@ -47,8 +39,8 @@ export default async function AnalyticsPage() {
       configured={gscConfigured()}
       connected={connected}
       verified={verified}
-      live={live}
-      syncedAgo={syncedAgo || 'just now'}
+      data={data}
+      syncedAgo={syncedAgo}
     />
   );
 }
