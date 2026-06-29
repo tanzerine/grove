@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 import { isAdminEmail } from '@/lib/admin';
 import { ACTIVE_DOMAIN_COOKIE } from '@/lib/active-domain';
 import { getOnboarding, EMPTY_ONBOARDING } from '@/lib/onboarding/checklist';
+import { getActivity, EMPTY_ACTIVITY } from '@/lib/notifications/feed';
 import DashShell from './DashShell';
 import type { Chrome } from './chrome-context';
 
@@ -13,7 +14,7 @@ export default async function DashLayout({ children }: { children: React.ReactNo
   const { data: { user } } = await sb.auth.getUser();
   if (!user) redirect('/login');
 
-  const { data: domains } = await sb.from('domains').select('id,hostname,verified_at').order('created_at');
+  const { data: domains } = await sb.from('domains').select('id,hostname,verified_at,auto_publish').order('created_at');
   if ((domains?.length ?? 0) === 0) redirect('/onboarding/domain');
 
   // Resolve the active site (cookie pick → first verified → first).
@@ -47,18 +48,22 @@ export default async function DashLayout({ children }: { children: React.ReactNo
     if (isActive && sub?.plan) plan = sub.plan.charAt(0).toUpperCase() + sub.plan.slice(1);
   } catch { /* chip is cosmetic */ }
 
-  // Onboarding "what to do next" progress for the header bell (best-effort).
+  // Header bell payloads (best-effort) — onboarding guide + live activity feed.
   let onboarding = EMPTY_ONBOARDING;
+  let activity = EMPTY_ACTIVITY;
   try { onboarding = await getOnboarding(sb, active); } catch { /* guide is optional */ }
+  try { activity = await getActivity(sb, active); } catch { /* feed is optional */ }
 
   const chrome: Chrome = {
     email: user.email ?? null,
     isAdmin: isAdminEmail(user.email),
     plan,
     activeHostname: active?.hostname ?? null,
-    domains: (domains ?? []).map((d) => ({ id: d.id, hostname: d.hostname, verified_at: d.verified_at })),
     activeId: active?.id ?? null,
+    activeAutoPublish: !!(active as any)?.auto_publish,
+    domains: (domains ?? []).map((d) => ({ id: d.id, hostname: d.hostname, verified_at: d.verified_at })),
     onboarding,
+    activity,
   };
 
   return (

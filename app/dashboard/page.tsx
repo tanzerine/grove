@@ -6,7 +6,6 @@ import { latestSnapshot } from '@/lib/search-console/sync';
 import { summarize as gscSummarize } from '@/lib/search-console/insights';
 import Icon from './gv-icons';
 import { DashHeader } from './gv-chrome';
-import AutopilotPill from './AutopilotPill';
 import OverviewPipeline, { type OvRow } from './OverviewPipeline';
 
 const ACCENT = '#63c281';
@@ -238,15 +237,12 @@ export default async function OverviewPage() {
       <DashHeader title="Overview" subtitle={`${domain?.hostname ?? 'grove.ai'} · ${domain?.auto_publish ? 'autopilot active' : 'manual mode'}`} />
 
       <div className="gv-body" style={{ maxWidth: 1680, padding: '28px 36px 48px' }}>
-        {/* search + autopilot — relocated out of the nav bar */}
+        {/* search — relocated out of the nav bar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 240, maxWidth: 420, display: 'flex', alignItems: 'center', gap: 9, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '9px 13px' }}>
             <span style={{ color: '#565a53', display: 'flex' }}><Icon name="search" size={16} /></span>
             <input placeholder="Search posts, keywords, domains…" style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#eef1ea', fontSize: 13, fontFamily: 'inherit', minWidth: 0 }} />
             <span style={{ fontSize: 10.5, color: '#565a53', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 5, padding: '1px 6px' }}>⌘K</span>
-          </div>
-          <div style={{ marginLeft: 'auto' }}>
-            <AutopilotPill domainId={domain?.id} autoPublish={domain?.auto_publish ?? false} />
           </div>
         </div>
         {/* greeting */}
