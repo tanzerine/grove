@@ -72,6 +72,61 @@ export function nearWinners(
     }));
 }
 
+export type RankBand = { label: string; min: number; max: number; count: number };
+
+/** Distribution of query positions across the four dashboard bands. Counts
+ *  distinct ranking queries (those with impressions) by average position. */
+export function rankingDistribution(queries: MetricRow[]): { bands: RankBand[]; total: number } {
+  const defs: { label: string; min: number; max: number }[] = [
+    { label: 'Positions 1–3', min: 1, max: 3 },
+    { label: 'Positions 4–10', min: 3.0001, max: 10 },
+    { label: 'Positions 11–20', min: 10.0001, max: 20 },
+    { label: 'Positions 21+', min: 20.0001, max: Infinity },
+  ];
+  const ranking = queries.filter((q) => q.impressions > 0 && q.position > 0);
+  const bands = defs.map((d) => ({
+    label: d.label, min: d.min, max: d.max,
+    count: ranking.filter((q) => q.position >= d.min && q.position <= d.max).length,
+  }));
+  return { bands, total: ranking.length };
+}
+
+export type ContentRow = {
+  postId: string | null;
+  title: string;
+  path: string;          // url path, shown as the secondary line when no keyword
+  clicks: number;
+  impressions: number;
+  ctr: number;           // 0..1
+  position: number;
+};
+
+/** Top pages by clicks, resolved to post titles where we can. */
+export function topContent(
+  pages: MetricRow[],
+  titleById: Map<string, string>,
+  limit = 6,
+): ContentRow[] {
+  return [...pages]
+    .filter((p) => p.impressions > 0)
+    .sort((a, b) => b.clicks - a.clicks || b.impressions - a.impressions)
+    .slice(0, limit)
+    .map((p) => {
+      let path = p.key;
+      try { path = new URL(p.key).pathname; } catch { /* keep raw key */ }
+      const title = (p.post_id && titleById.get(p.post_id)) || path;
+      return {
+        postId: p.post_id ?? null,
+        title,
+        path,
+        clicks: p.clicks,
+        impressions: p.impressions,
+        ctr: p.impressions > 0 ? Math.round((p.clicks / p.impressions) * 1000) / 1000 : 0,
+        position: Math.round(p.position * 10) / 10,
+      };
+    });
+}
+
 export function summarize(pages: MetricRow[], queries: MetricRow[]): Visibility {
   const impressions = pages.reduce((a, p) => a + p.impressions, 0);
   const clicks = pages.reduce((a, p) => a + p.clicks, 0);

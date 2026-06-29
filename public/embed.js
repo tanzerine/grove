@@ -36,6 +36,53 @@
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
     });
   }
+
+  /* ── first-party analytics: same view/dwell/scroll/conversion beacon the
+     grove-hosted reader sends, so embed-rendered articles also feed the
+     dashboard. No cookies, no fingerprinting; session id is per-tab. Returns a
+     teardown fn so SPA hash navigation doesn't leak listeners/timers. ── */
+  var _trackTeardown = null;
+  function track(postId, domainId, root) {
+    if (_trackTeardown) { _trackTeardown(); _trackTeardown = null; }
+    if (!postId || !domainId) return;
+    var ep = ORIGIN + '/api/track';
+    var sid;
+    try { sid = sessionStorage.getItem('gv_sid'); } catch (e) {}
+    if (!sid) { sid = Math.random().toString(36).slice(2) + Date.now().toString(36); try { sessionStorage.setItem('gv_sid', sid); } catch (e) {} }
+    var utm = {};
+    try { var q = new URLSearchParams(location.search); ['source', 'medium', 'campaign'].forEach(function (k) { var v = q.get('utm_' + k); if (v) utm['utm_' + k] = v; }); } catch (e) {}
+    function post(extra) {
+      var b = {}; for (var k in utm) b[k] = utm[k];
+      b.post_id = postId; b.domain_id = domainId; b.session_id = sid; b.referrer = document.referrer || undefined;
+      for (var k2 in extra) b[k2] = extra[k2];
+      var body = JSON.stringify(b);
+      try { if (navigator.sendBeacon) { navigator.sendBeacon(ep, new Blob([body], { type: 'application/json' })); return; } } catch (e) {}
+      try { fetch(ep, { method: 'POST', headers: { 'content-type': 'application/json' }, body: body, keepalive: true }).catch(function () {}); } catch (e) {}
+    }
+    post({ type: 'view' });
+    var start = Date.now(), sent = {};
+    var di = setInterval(function () { post({ type: 'dwell', dwell_ms: Date.now() - start }); }, 15000);
+    function onScroll() {
+      var h = document.documentElement;
+      var max = (h.scrollTop + h.clientHeight) / (h.scrollHeight || 1) * 100;
+      [25, 50, 75, 100].forEach(function (d) { if (max >= d && !sent[d]) { sent[d] = 1; post({ type: 'scroll', scroll_depth: d }); } });
+    }
+    function onClick(e) {
+      var t = e.target.closest ? e.target.closest('a') : null;
+      if (t && t.hasAttribute('data-conv')) post({ type: 'conversion', outbound_url: t.href });
+    }
+    function onExit() { post({ type: 'exit', dwell_ms: Date.now() - start }); }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    root.addEventListener('click', onClick);
+    window.addEventListener('pagehide', onExit);
+    _trackTeardown = function () {
+      clearInterval(di);
+      window.removeEventListener('scroll', onScroll);
+      root.removeEventListener('click', onClick);
+      window.removeEventListener('pagehide', onExit);
+    };
+    return _trackTeardown;
+  }
   function fmtDate(d) {
     if (!d) return '';
     try { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
@@ -165,6 +212,7 @@
             '<div class="gv-art-meta">' + (a.author ? 'By ' + esc(a.author) + ' · ' : '') + fmtDate(a.published_at) + '</div>' +
             cover + (a.html || '');
           root.querySelector('.gv-back').addEventListener('click', function () { location.hash = ''; });
+          track(a.post_id, a.domain_id, root);
           window.scrollTo({ top: root.getBoundingClientRect().top + window.scrollY - 20, behavior: 'smooth' });
         }).catch(function () { location.hash = ''; });
       }
@@ -179,6 +227,7 @@
       }
 
       function renderList() {
+        if (_trackTeardown) { _trackTeardown(); _trackTeardown = null; } // stop the article tracker
         var isDefault = state.genre === 'All' && !state.q.trim();
         var feat = isDefault ? posts[0] : null;
         var pool = filtered();

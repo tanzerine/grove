@@ -31,7 +31,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ hostname: stri
 
   const { data: post } = await sb
     .from('posts')
-    .select('slug,title,body_md,meta_title,meta_description,published_at,reads,cover_image_url,cover_image_credit,format:research->brief->>format')
+    .select('id,slug,title,body_md,meta_title,meta_description,published_at,reads,cover_image_url,cover_image_credit,format:research->brief->>format')
     .eq('domain_id', domain.id)
     .eq('slug', slug)
     .eq('status', 'published')
@@ -81,6 +81,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ hostname: stri
   return NextResponse.json({
     domain: domain.hostname,
     article: {
+      post_id: post.id,                  // for first-party analytics beacons
+      domain_id: domain.id,              // (pairs with post_id when posting to /api/track)
       slug: post.slug,
       title: post.title,
       meta_title: post.meta_title,
@@ -135,7 +137,7 @@ function ctaHtml(cta: Cta, name: string): string {
     `<div style="font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#8fcaa3">Powered by ${esc(name)}</div>` +
     `<div style="font-size:27px;font-weight:700;line-height:1.2;margin:10px 0 8px;color:#fff">${esc(cta.headline)}</div>` +
     (cta.subline ? `<p style="color:rgba(255,255,255,.82);font-size:15.5px;line-height:1.6;margin:0 auto 22px;max-width:48ch">${esc(cta.subline)}</p>` : '') +
-    `<a href="${esc(cta.url)}" style="display:inline-block;background:#5bb87e;color:#0f1f15;text-decoration:none;padding:14px 30px;border-radius:999px;font-weight:700;font-size:15px;box-shadow:0 6px 18px rgba(91,184,126,.35)">Visit ${esc(name)} &rarr;</a></div>`;
+    `<a href="${esc(cta.url)}" data-conv style="display:inline-block;background:#5bb87e;color:#0f1f15;text-decoration:none;padding:14px 30px;border-radius:999px;font-weight:700;font-size:15px;box-shadow:0 6px 18px rgba(91,184,126,.35)">Visit ${esc(name)} &rarr;</a></div>`;
 }
 
 /**
@@ -181,7 +183,7 @@ function buildHtmlField(rawBody: string, toc: Toc[], cta: Cta, name: string): st
   const ctaBox =
     `<div class="grv-cta"><div class="k">Powered by ${esc(name)}</div><h3>${esc(cta.headline)}</h3>` +
     (cta.subline ? `<p>${esc(cta.subline)}</p>` : '') +
-    `<a href="${esc(cta.url)}">Visit ${esc(name)} &rarr;</a></div>`;
+    `<a href="${esc(cta.url)}" data-conv>Visit ${esc(name)} &rarr;</a></div>`;
   return `<div class="grv-root">${style}<div class="grv-wrap"><div class="grv-body">${article}</div>${tocAside}</div>${ctaBox}</div>`;
 }
 
