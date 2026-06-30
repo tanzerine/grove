@@ -16,6 +16,8 @@ export type OnbStep = {
   desc: string;
   href: string;
   done: boolean;
+  /** Bonus step that doesn't gate "you're all set" (e.g. social auto-post). */
+  optional?: boolean;
 };
 
 export type Onboarding = {
@@ -142,17 +144,21 @@ export async function getOnboarding(sb: SupabaseClient, domain: ActiveDomain): P
       desc: 'Auto-post every article to X, LinkedIn or Instagram.',
       href: '/dashboard/connections',
       done: socialCount > 0,
+      optional: true,
     },
   ];
 
-  const doneCount = steps.filter((s) => s.done).length;
-  const next = steps.find((s) => !s.done) ?? null;
+  // "All set" (and the header bell's alert dot) is gated on the *required* steps
+  // only — optional bonuses like social auto-post never keep the dot nagging once
+  // the core setup is finished.
+  const required = steps.filter((s) => !s.optional);
+  const next = required.find((s) => !s.done) ?? null;
 
   return {
     steps,
-    doneCount,
+    doneCount: steps.filter((s) => s.done).length,
     total: steps.length,
-    complete: doneCount === steps.length,
+    complete: required.every((s) => s.done),
     nextN: next?.n ?? null,
     nextHref: next?.href ?? null,
   };
