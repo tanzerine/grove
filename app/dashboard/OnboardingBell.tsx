@@ -92,6 +92,9 @@ export default function OnboardingBell() {
                       {isNext && (
                         <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: ACCENT, background: 'rgba(99,194,129,0.12)', border: '1px solid rgba(99,194,129,0.3)', borderRadius: 5, padding: '1px 5px' }}>Do this next</span>
                       )}
+                      {s.optional && !s.done && (
+                        <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#8b9189', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 5, padding: '1px 5px' }}>Optional</span>
+                      )}
                     </span>
                     <span style={{ display: 'block', fontSize: 11.5, color: '#6b6f67', marginTop: 2, lineHeight: 1.4, textDecoration: s.done ? 'line-through' : 'none' }}>{s.desc}</span>
                   </span>
