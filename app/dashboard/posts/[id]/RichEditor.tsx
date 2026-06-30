@@ -161,9 +161,9 @@ export default function RichEditor({ postId, initialBody, initialTitle, initialM
         )}
         {editing && (
           <>
-            <span style={{ fontSize: 12, color: 'var(--moss)', fontWeight: 600 }}>Editing</span>
-            {(dirty || metaDirty) && <span style={{ fontSize: 11, color: '#E0A040' }}>● unsaved</span>}
-            {saved && <span style={{ fontSize: 11, color: 'var(--moss)' }}>✓ saved</span>}
+            <span style={{ fontSize: 12, color: '#63c281', fontWeight: 600 }}>Editing</span>
+            {(dirty || metaDirty) && <span style={{ fontSize: 11, color: '#e0c878' }}>● unsaved</span>}
+            {saved && <span style={{ fontSize: 11, color: '#63c281' }}>✓ saved</span>}
             <button onClick={done} disabled={saving} className="btn btn-primary btn-sm" style={{ marginLeft: 'auto' }}>
               {saving ? 'Saving…' : (dirty || metaDirty) ? 'Save & done' : 'Done'}
             </button>
@@ -172,7 +172,7 @@ export default function RichEditor({ postId, initialBody, initialTitle, initialM
             </button>
           </>
         )}
-        {!editing && <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--clay)' }}>{wordCount.toLocaleString()} words</span>}
+        {!editing && <span style={{ marginLeft: 'auto', fontSize: 12, color: '#9aa096' }}>{wordCount.toLocaleString()} words</span>}
       </div>
 
       {/* selection formatting menu (also the future home of "Revise with AI") */}
@@ -197,7 +197,7 @@ export default function RichEditor({ postId, initialBody, initialTitle, initialM
         <div style={overlay} onClick={() => { if (!revise.loading) setRevise(null); }}>
           <div style={card} onClick={(e) => e.stopPropagation()}>
             <div style={{ fontFamily: 'Clash Display', fontSize: 16 }}>Revise with AI</div>
-            <div style={{ fontSize: 12, color: 'var(--clay)', borderLeft: '3px solid var(--line)', paddingLeft: 10, maxHeight: 84, overflow: 'auto' }}>
+            <div style={{ fontSize: 12, color: '#9aa096', borderLeft: '3px solid rgba(255,255,255,0.12)', paddingLeft: 10, maxHeight: 84, overflow: 'auto' }}>
               {revise.text.length > 240 ? revise.text.slice(0, 240) + '…' : revise.text}
             </div>
             <textarea
@@ -208,7 +208,7 @@ export default function RichEditor({ postId, initialBody, initialTitle, initialM
               rows={3}
               style={inp}
             />
-            {revise.error && <div style={{ color: '#c33', fontSize: 12 }}>{revise.error}</div>}
+            {revise.error && <div style={{ color: '#c97f7f', fontSize: 12 }}>{revise.error}</div>}
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={runRevise} disabled={!revise.instruction.trim() || revise.loading} className="btn btn-primary btn-sm">
                 {revise.loading ? 'Rewriting…' : 'Rewrite selection'}
@@ -224,8 +224,9 @@ export default function RichEditor({ postId, initialBody, initialTitle, initialM
         onClick={enterEdit}
         className="article-surface"
         style={{
-          background: 'white', border: `1px solid ${editing ? 'var(--moss)' : 'var(--line)'}`,
-          borderRadius: 14, transition: 'border-color .15s',
+          background: editing ? 'rgba(255,255,255,0.02)' : 'transparent',
+          border: `1px solid ${editing ? '#63c281' : 'rgba(255,255,255,0.08)'}`,
+          borderRadius: 14, transition: 'border-color .15s, background .15s',
           cursor: canEdit && !editing ? 'text' : 'default',
         }}
       >
@@ -234,17 +235,17 @@ export default function RichEditor({ postId, initialBody, initialTitle, initialM
 
       {/* compact SEO panel (kept from the old editor) */}
       {canEdit && (
-        <div style={{ marginTop: 12, border: '1px solid var(--line)', borderRadius: 12, background: 'white', overflow: 'hidden' }}>
+        <div style={{ marginTop: 12, border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, background: '#101310', overflow: 'hidden' }}>
           <button onClick={() => setSeoOpen(o => !o)} style={{ ...hintBtn, width: '100%', padding: '12px 18px', justifyContent: 'flex-start', gap: 8, display: 'flex' }}>
-            <span>{seoOpen ? '▾' : '▸'}</span> Title &amp; SEO {metaDirty && <span style={{ color: '#E0A040', fontSize: 11 }}>● unsaved</span>}
+            <span>{seoOpen ? '▾' : '▸'}</span> Title &amp; SEO {metaDirty && <span style={{ color: '#e0c878', fontSize: 11 }}>● unsaved</span>}
           </button>
           {seoOpen && (
-            <div style={{ padding: 18, borderTop: '1px solid var(--line)', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ padding: 18, borderTop: '1px solid rgba(255,255,255,0.07)', display: 'flex', flexDirection: 'column', gap: 14 }}>
               <label style={lbl}>Post title</label>
               <input value={title} onChange={e => setTitle(e.target.value)} maxLength={160} placeholder="Give this post a title" style={inp} />
-              <label style={lbl}>Meta title <span style={{ color: metaTitle.length > 60 ? '#c33' : 'var(--clay)' }}>({metaTitle.length}/60)</span></label>
+              <label style={lbl}>Meta title <span style={{ color: metaTitle.length > 60 ? '#c97f7f' : '#9aa096' }}>({metaTitle.length}/60)</span></label>
               <input value={metaTitle} onChange={e => setMetaTitle(e.target.value)} maxLength={80} style={inp} />
-              <label style={lbl}>Meta description <span style={{ color: metaDesc.length > 155 ? '#c33' : 'var(--clay)' }}>({metaDesc.length}/155)</span></label>
+              <label style={lbl}>Meta description <span style={{ color: metaDesc.length > 155 ? '#c97f7f' : '#9aa096' }}>({metaDesc.length}/155)</span></label>
               <textarea value={metaDesc} onChange={e => setMetaDesc(e.target.value)} maxLength={160} rows={3} style={inp} />
               <button onClick={save} disabled={saving || !metaDirty} className="btn btn-primary btn-sm" style={{ alignSelf: 'flex-start' }}>
                 {saving ? 'Saving…' : 'Save meta'}
@@ -261,8 +262,8 @@ function FmtBtn({ children, on, onClick, italic }: { children: React.ReactNode; 
   return (
     <button onMouseDown={(e) => { e.preventDefault(); onClick(); }}
       style={{
-        // bar background is dark (var(--ink)); keep text light so it's readable
-        background: on ? 'var(--moss)' : 'transparent', color: '#fff',
+        // bar background is dark (#15181a); keep text light so it's readable
+        background: on ? '#63c281' : 'transparent', color: '#fff',
         border: 'none', borderRadius: 5, padding: '4px 8px', cursor: 'pointer',
         fontSize: 13, fontStyle: italic ? 'italic' : 'normal', fontFamily: 'inherit', minWidth: 26,
       }}>
@@ -272,26 +273,26 @@ function FmtBtn({ children, on, onClick, italic }: { children: React.ReactNode; 
 }
 
 const hintBtn: React.CSSProperties = {
-  background: 'none', border: 'none', color: 'var(--moss)', fontSize: 12,
+  background: 'none', border: 'none', color: '#63c281', fontSize: 12,
   cursor: 'pointer', fontFamily: 'inherit', padding: 0,
 };
 const bubbleBar: React.CSSProperties = {
-  display: 'flex', gap: 2, background: 'var(--ink)', borderRadius: 8, padding: 4,
-  boxShadow: '0 6px 20px rgba(0,0,0,0.18)',
+  display: 'flex', gap: 2, background: '#15181a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 4,
+  boxShadow: '0 6px 20px rgba(0,0,0,0.5)',
 };
 const lbl: React.CSSProperties = {
-  fontSize: 12, fontWeight: 600, color: 'var(--clay)', textTransform: 'uppercase', letterSpacing: '0.06em',
+  fontSize: 12, fontWeight: 600, color: '#9aa096', textTransform: 'uppercase', letterSpacing: '0.06em',
 };
 const inp: React.CSSProperties = {
-  width: '100%', padding: '10px 14px', border: '1px solid var(--line)', borderRadius: 8,
+  width: '100%', padding: '10px 14px', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 8,
   fontSize: 14, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', resize: 'vertical',
-  color: 'var(--ink)', background: '#fff',
+  color: '#eef1ea', background: 'rgba(255,255,255,0.04)',
 };
 const overlay: React.CSSProperties = {
-  position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.28)', zIndex: 50,
+  position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 50,
   display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '14vh 16px 16px',
 };
 const card: React.CSSProperties = {
-  width: 'min(560px, 100%)', background: 'white', color: 'var(--ink)', borderRadius: 14, padding: 20,
-  display: 'flex', flexDirection: 'column', gap: 12, boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
+  width: 'min(560px, 100%)', background: '#15181a', color: '#eef1ea', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: 20,
+  display: 'flex', flexDirection: 'column', gap: 12, boxShadow: '0 20px 60px rgba(0,0,0,0.55)',
 };
