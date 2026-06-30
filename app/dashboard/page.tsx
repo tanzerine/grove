@@ -173,13 +173,14 @@ export default async function OverviewPage() {
 
   // ---- content pipeline table groups ----
   const toRow = (p: any): OvRow => {
-    const s: OvRow['s'] = p.status === 'published' ? 'live' : p.status === 'review' ? 'review' : p.status === 'scheduled' ? 'publishing' : 'writing';
+    const s: OvRow['s'] = p.status === 'published' ? 'live' : p.status === 'review' ? 'review' : p.status === 'scheduled' ? 'publishing' : p.status === 'failed' ? 'failed' : 'writing';
     const accentIcon = s === 'publishing' || s === 'live';
-    const icon = s === 'live' ? 'published' : s === 'review' ? 'eye' : p.status === 'writing' ? 'pen' : 'doc';
+    const icon = s === 'live' ? 'published' : s === 'review' ? 'eye' : s === 'failed' ? 'doc' : p.status === 'writing' ? 'pen' : 'doc';
     const reads = typeof p.reads === 'number' ? `${fmtNum(p.reads)} reads` : '';
     const meta = p.status === 'published' ? [reads].filter(Boolean).join(' · ') || 'live on your blog'
       : p.status === 'review' ? 'awaiting your approval'
       : p.status === 'scheduled' ? 'queued to publish'
+      : p.status === 'failed' ? 'generation failed — retry'
       : (p.validation?.stats?.word_count ? 'draft in progress' : 'in the writer');
     return {
       id: p.id, icon, accentIcon, title: p.title ?? p.topic ?? '(untitled)', meta,
@@ -187,7 +188,10 @@ export default async function OverviewPage() {
       s, schedule: schedLabel(p),
     };
   };
+  // Recent = the 5 newest posts in any state (drafting, review, scheduled,
+  // published…) so the table always shows activity; the other tabs filter by stage.
   const groups: Record<string, OvRow[]> = {
+    Recent: all.filter((p) => p.status !== 'archived').slice(0, 5).map(toRow),
     Pipeline: inPipeline.filter((p) => p.status !== 'review').slice(0, 5).map(toRow),
     'In review': inReview.slice(0, 5).map(toRow),
     Published: published.slice(0, 5).map(toRow),

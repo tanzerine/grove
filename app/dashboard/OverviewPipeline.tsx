@@ -13,7 +13,7 @@ export type OvRow = {
   meta: string;
   keyword: string;
   words: string;
-  s: 'publishing' | 'review' | 'live' | 'writing';
+  s: 'publishing' | 'review' | 'live' | 'writing' | 'failed';
   schedule: string;
 };
 
@@ -22,15 +22,18 @@ const ST: Record<OvRow['s'], { status: string; color: string; bg: string; border
   review: { status: 'In review', color: '#e0c878', bg: 'rgba(224,200,120,0.08)', border: 'rgba(224,200,120,0.22)', dot: '#e0c878' },
   live: { status: 'Live', color: '#9aa096', bg: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.08)', dot: '#9aa096' },
   writing: { status: 'Drafting', color: '#7fb6e6', bg: 'rgba(127,182,230,0.08)', border: 'rgba(127,182,230,0.2)', dot: '#7fb6e6' },
+  failed: { status: 'Failed', color: '#c97f7f', bg: 'rgba(201,127,127,0.08)', border: 'rgba(201,127,127,0.22)', dot: '#c97f7f' },
 };
 
 export default function OverviewPipeline({ groups }: { groups: Record<string, OvRow[]> }) {
   const tabDef = [
+    { label: 'Recent', count: String(groups['Recent']?.length ?? 0) },
     { label: 'Pipeline', count: String(groups['Pipeline']?.length ?? 0) },
     { label: 'In review', count: String(groups['In review']?.length ?? 0) },
     { label: 'Published', count: String(groups['Published']?.length ?? 0) },
   ];
-  const [tab, setTab] = useState('Pipeline');
+  // Default to the first tab that actually has posts so the table never opens empty.
+  const [tab, setTab] = useState(() => tabDef.find((t) => t.count !== '0')?.label ?? 'Recent');
   const rows = groups[tab] ?? [];
   const cols = '1fr 200px 90px 130px 120px';
 
