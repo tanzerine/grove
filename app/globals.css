@@ -915,6 +915,23 @@ html { scroll-behavior: smooth; }
 .gv-app .verified-chip { background: rgba(99,194,129,0.1); color: #cdd2c9; border: 1px solid rgba(99,194,129,0.25); }
 .gv-app .verified-chip .v { color: #63c281; }
 
+/* Article writing surface — dark .prose for the editor + rendered draft.
+   Scoped to .gv-app so the public /b/[slug] article keeps the light theme. */
+.gv-app .prose { color: #cdd2c9; }
+.gv-app .prose h1, .gv-app .prose h2, .gv-app .prose h3 { color: #eef1ea; }
+.gv-app .prose h4 { color: #63c281; }
+.gv-app .prose strong { color: #eef1ea; background: linear-gradient(transparent 62%, rgba(99,194,129,0.22) 62%); }
+.gv-app .prose em, .gv-app .prose > p > em:only-child, .gv-app .prose img + em { color: #9aa096; }
+.gv-app .prose a { color: #8fd3a6; border-bottom-color: rgba(143,211,166,0.4); }
+.gv-app .prose a:hover { color: #63c281; border-bottom-color: #63c281; }
+.gv-app .prose blockquote { border-left-color: rgba(99,194,129,0.45); color: #cdd2c9; }
+.gv-app .prose code { background: rgba(255,255,255,0.06); color: #eef1ea; }
+.gv-app .prose pre { background: #0c0e0c; color: #cdd2c9; border: 1px solid rgba(255,255,255,0.07); }
+.gv-app .prose hr { border-color: rgba(255,255,255,0.1); }
+.gv-app .prose table th, .gv-app .prose table td { border-bottom-color: rgba(255,255,255,0.08); }
+.gv-app .prose table th { background: rgba(255,255,255,0.04); color: #63c281; }
+.gv-app .prose table tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+
 /* =====================================================================
    DARK AUTH SCREEN  (/login + /signup) — same palette as the .gv-app skin
    ===================================================================== */

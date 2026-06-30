@@ -131,7 +131,7 @@ export default function WriteDesk({ domainId, hostname }: { domainId: string; ho
       {/* ── Blank draft ─────────────────────────────────────── */}
       <section style={card}>
         <div className="mono" style={cardKicker}>START FROM A BLANK PAGE</div>
-        <p style={{ fontSize: 14, color: 'var(--clay)', margin: '6px 0 14px' }}>
+        <p style={{ fontSize: 14, color: '#9aa096', margin: '6px 0 14px' }}>
           Open the editor and write it yourself. You can name it now or later.
         </p>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -151,7 +151,7 @@ export default function WriteDesk({ domainId, hostname }: { domainId: string; ho
       {/* ── Idea studio ─────────────────────────────────────── */}
       <section style={card}>
         <div className="mono" style={cardKicker}>IDEA STUDIO</div>
-        <p style={{ fontSize: 14, color: 'var(--clay)', margin: '6px 0 14px' }}>
+        <p style={{ fontSize: 14, color: '#9aa096', margin: '6px 0 14px' }}>
           Not sure what to write about? Give grove a nudge — a theme, a product, a question on your
           mind — and it&apos;ll suggest angles for <b>{hostname}</b>. Pick one to write yourself, or hand it off.
         </p>
@@ -163,8 +163,8 @@ export default function WriteDesk({ domainId, hostname }: { domainId: string; ho
               key={p.label}
               onClick={() => setFocus(p.seed)}
               style={chip}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--moss)'; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--line)'; }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = '#63c281'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.08)'; }}
             >
               {p.label}
             </button>
@@ -190,7 +190,7 @@ export default function WriteDesk({ domainId, hostname }: { domainId: string; ho
           </button>
         </div>
 
-        {err && <p style={{ fontSize: 12.5, color: '#c33', marginTop: 10 }}>{err}</p>}
+        {err && <p style={{ fontSize: 12.5, color: '#c97f7f', marginTop: 10 }}>{err}</p>}
 
         {/* ideas */}
         {ideas.length > 0 && (
@@ -199,7 +199,7 @@ export default function WriteDesk({ domainId, hostname }: { domainId: string; ho
               const busy = busyIdea === idea;
               return (
                 <div key={i} style={ideaRow}>
-                  <span style={{ fontSize: 14, lineHeight: 1.4, color: 'var(--ink)', flex: 1 }}>{idea}</span>
+                  <span style={{ fontSize: 14, lineHeight: 1.4, color: '#eef1ea', flex: 1 }}>{idea}</span>
                   <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                     <button
                       className="btn btn-ghost btn-sm"
@@ -229,7 +229,7 @@ export default function WriteDesk({ domainId, hostname }: { domainId: string; ho
       {/* ── Programmatic SEO ────────────────────────────────── */}
       <section style={card}>
         <div className="mono" style={cardKicker}>PROGRAMMATIC SEO · GENERATE A SET</div>
-        <p style={{ fontSize: 14, color: 'var(--clay)', margin: '6px 0 14px' }}>
+        <p style={{ fontSize: 14, color: '#9aa096', margin: '6px 0 14px' }}>
           Cover a whole topic at once. Give a seed term — grove finds the real searches around it
           and drafts one focused page per query. Each lands in your pipeline for review, and they
           cross-link automatically once published.
@@ -261,20 +261,20 @@ export default function WriteDesk({ domainId, hostname }: { domainId: string; ho
           </button>
         </div>
 
-        {pseoErr && <p style={{ fontSize: 12.5, color: '#c33', marginTop: 10 }}>{pseoErr}</p>}
+        {pseoErr && <p style={{ fontSize: 12.5, color: '#c97f7f', marginTop: 10 }}>{pseoErr}</p>}
 
         {pages.length > 0 && (
           <div style={{ marginTop: 16 }}>
-            <p style={{ fontSize: 11, color: 'var(--clay)', margin: '0 0 8px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+            <p style={{ fontSize: 11, color: '#9aa096', margin: '0 0 8px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
               {pages.length} pages planned — review before generating
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {pages.map((p, i) => (
                 <div key={i} style={ideaRow}>
                   <span style={{ ...intentDot, background: intentColor(p.intent) }} title={p.intent} />
-                  <span style={{ fontSize: 14, lineHeight: 1.4, color: 'var(--ink)', flex: 1 }}>
+                  <span style={{ fontSize: 14, lineHeight: 1.4, color: '#eef1ea', flex: 1 }}>
                     {p.title}
-                    <span style={{ display: 'block', fontSize: 11.5, color: 'var(--clay)', marginTop: 2 }}>
+                    <span style={{ display: 'block', fontSize: 11.5, color: '#9aa096', marginTop: 2 }}>
                       targets “{p.keyword}” · {p.intent}
                     </span>
                   </span>
@@ -290,7 +290,7 @@ export default function WriteDesk({ domainId, hostname }: { domainId: string; ho
               <Sparkle />{generating ? `Drafting ${pages.length} pages…` : `Generate ${pages.length} pages →`}
             </button>
             {generating && (
-              <p style={{ fontSize: 12, color: 'var(--clay)', marginTop: 8 }}>
+              <p style={{ fontSize: 12, color: '#9aa096', marginTop: 8 }}>
                 This can take a minute or two — grove drafts each page one at a time.
               </p>
             )}
@@ -302,9 +302,9 @@ export default function WriteDesk({ domainId, hostname }: { domainId: string; ho
 }
 
 function intentColor(intent: SearchIntent): string {
-  return intent === 'transactional' ? 'var(--moss)'
+  return intent === 'transactional' ? '#63c281'
     : intent === 'commercial' ? '#7B9EF0'
-    : intent === 'navigational' ? 'var(--clay)'
+    : intent === 'navigational' ? '#9aa096'
     : '#E0A040'; // informational
 }
 
@@ -312,20 +312,20 @@ const card: React.CSSProperties = {
   background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '22px 24px',
 };
 const cardKicker: React.CSSProperties = {
-  fontSize: 11, letterSpacing: '0.1em', color: 'var(--clay)',
+  fontSize: 11, letterSpacing: '0.1em', color: '#6b6f67',
 };
 const field: React.CSSProperties = {
-  padding: '12px 16px', border: '1px solid var(--line)', borderRadius: 10,
-  background: 'rgba(255,255,255,0.03)', fontFamily: 'inherit', fontSize: 14, color: 'var(--ink)', outline: 'none',
+  padding: '12px 16px', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 10,
+  background: 'rgba(255,255,255,0.03)', fontFamily: 'inherit', fontSize: 14, color: '#eef1ea', outline: 'none',
 };
 const chip: React.CSSProperties = {
-  background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 999,
-  padding: '7px 13px', fontSize: 12.5, color: 'var(--ink)', cursor: 'pointer',
+  background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 999,
+  padding: '7px 13px', fontSize: 12.5, color: '#cdd2c9', cursor: 'pointer',
   fontFamily: 'inherit', transition: 'border-color .12s',
 };
 const ideaRow: React.CSSProperties = {
   display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
-  padding: '12px 14px', background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 10,
+  padding: '12px 14px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10,
 };
 const intentDot: React.CSSProperties = {
   width: 8, height: 8, borderRadius: '50%', flexShrink: 0, display: 'inline-block',
