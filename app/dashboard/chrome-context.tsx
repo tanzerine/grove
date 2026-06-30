@@ -1,6 +1,7 @@
 'use client';
 import { createContext, useContext } from 'react';
 import { type Onboarding, EMPTY_ONBOARDING } from '@/lib/onboarding/checklist';
+import { type Activity, EMPTY_ACTIVITY } from '@/lib/notifications/feed';
 
 export type ChromeDomain = { id: string; hostname: string; verified_at: string | null };
 
@@ -9,9 +10,12 @@ export type Chrome = {
   isAdmin: boolean;
   plan: string;
   activeHostname: string | null;
-  domains: ChromeDomain[];
   activeId: string | null;
+  /** Autopilot state of the active domain — drives the nav-bar autopilot toggle. */
+  activeAutoPublish: boolean;
+  domains: ChromeDomain[];
   onboarding: Onboarding;
+  activity: Activity;
 };
 
 const Ctx = createContext<Chrome | null>(null);
@@ -24,7 +28,7 @@ export function useChrome(): Chrome {
   const c = useContext(Ctx);
   if (!c) {
     // Safe fallback so a stray render never throws.
-    return { email: null, isAdmin: false, plan: 'Free', activeHostname: null, domains: [], activeId: null, onboarding: EMPTY_ONBOARDING };
+    return { email: null, isAdmin: false, plan: 'Free', activeHostname: null, activeId: null, activeAutoPublish: false, domains: [], onboarding: EMPTY_ONBOARDING, activity: EMPTY_ACTIVITY };
   }
   return c;
 }

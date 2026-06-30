@@ -1,13 +1,16 @@
 import React from 'react';
 import AccountAvatarMenu from './AccountAvatarMenu';
 import OnboardingBell from './OnboardingBell';
+import NavAutopilot from './NavAutopilot';
 
-/** The bell + account-menu cluster on the right of EVERY page's sticky topbar —
- *  the fixed, consistent half of the header. The bell opens the onboarding guide;
- *  the avatar opens the account menu (billing, admin, site, home, log out). */
+/** The fixed, consistent right half of EVERY page's sticky topbar: the autopilot
+ *  toggle, the notifications bell (onboarding guide + live activity), and the
+ *  account menu (billing, admin, site, home, log out). */
 export function HeaderRight() {
   return (
     <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14 }}>
+      <NavAutopilot />
+      <span style={{ width: 1, height: 26, background: 'rgba(255,255,255,0.08)' }} />
       <OnboardingBell />
       <AccountAvatarMenu />
     </div>
