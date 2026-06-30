@@ -10,6 +10,9 @@ import TableCell from '@tiptap/extension-table-cell';
 import { Markdown } from 'tiptap-markdown';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Icon from '../../gv-icons';
+
+const ACCENT = '#63c281';
 
 type Props = {
   postId: string;
@@ -21,6 +24,20 @@ type Props = {
   autoEdit?: boolean;             // open straight into edit mode (fresh manual drafts)
 };
 
+// A grove-assist request + its result, rendered in the right rail feed.
+type AssistCard = {
+  id: string;
+  label: string;                  // the instruction / chip
+  status: 'thinking' | 'pending' | 'applied' | 'dismissed' | 'error';
+  original?: string;
+  suggested?: string;
+  from?: number;
+  to?: number;
+  error?: string;
+};
+
+const CHIPS = ['Make it punchier', 'Add a supporting stat', 'Simplify', 'Match my voice', 'Tighten this'];
+
 function getMd(editor: any): string {
   return editor?.storage?.markdown?.getMarkdown?.() ?? '';
 }
@@ -31,12 +48,16 @@ export default function RichEditor({ postId, initialBody, initialTitle, initialM
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
   const [seoOpen, setSeoOpen] = useState(!!autoEdit);   // show the title field first on a fresh draft
   const [title, setTitle] = useState(initialTitle);
   const [metaTitle, setMetaTitle] = useState(initialMetaTitle);
   const [metaDesc, setMetaDesc] = useState(initialMetaDesc);
-  const [revise, setRevise] = useState<{ from: number; to: number; text: string; instruction: string; loading?: boolean; error?: string } | null>(null);
+  const [prompt, setPrompt] = useState('');
+  const [cards, setCards] = useState<AssistCard[]>([]);
   const baseline = useRef<string>(initialBody);
+  const promptRef = useRef<HTMLInputElement>(null);
+  const cid = useRef(1);
 
   const editor = useEditor({
     immediatelyRender: false,            // required for Next SSR (no hydration mismatch)
@@ -117,65 +138,101 @@ export default function RichEditor({ postId, initialBody, initialTitle, initialM
     else editor.chain().focus().setLink({ href: url }).run();
   }
 
-  // ── #4: revise the selected passage with AI ──────────────────────────
-  function startRevise() {
-    if (!editor) return;
-    const { from, to } = editor.state.selection;
-    if (from === to) return;
-    const text = editor.state.doc.textBetween(from, to, ' ');
-    if (text.trim().length < 2) return;
-    setRevise({ from, to, text, instruction: '' });
+  // ── grove assist: revise the selected passage, surfaced in the rail feed ──
+  function pushCard(c: AssistCard) { setCards((cs) => [c, ...cs]); }
+  function patchCard(id: string, patch: Partial<AssistCard>) {
+    setCards((cs) => cs.map((c) => (c.id === id ? { ...c, ...patch } : c)));
   }
 
-  async function runRevise() {
-    if (!editor || !revise || !revise.instruction.trim()) return;
-    setRevise({ ...revise, loading: true, error: undefined });
+  async function askGrove(instruction: string) {
+    if (!editor) return;
+    const id = 'a' + (cid.current++);
+    const { from, to } = editor.state.selection;
+    if (from === to) {
+      pushCard({ id, label: instruction, status: 'error', error: 'Select a passage in the draft, then ask grove to revise it.' });
+      return;
+    }
+    const text = editor.state.doc.textBetween(from, to, ' ');
+    if (text.trim().length < 2) {
+      pushCard({ id, label: instruction, status: 'error', error: 'Select a longer passage to revise.' });
+      return;
+    }
+    pushCard({ id, label: instruction, status: 'thinking', original: text, from, to });
     try {
       const res = await fetch(`/api/posts/${postId}/revise-section`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ selected: revise.text, instruction: revise.instruction, context: getMd(editor) }),
+        body: JSON.stringify({ selected: text, instruction, context: getMd(editor) }),
       });
       const j = await res.json().catch(() => ({}));
-      if (!res.ok || !j.revised) {
-        setRevise((rv) => (rv ? { ...rv, loading: false, error: j.error ?? 'revision failed' } : rv));
-        return;
-      }
-      // replace exactly the originally-selected range with the revision
-      editor.chain().focus().setTextSelection({ from: revise.from, to: revise.to }).insertContent(j.revised).run();
-      setDirty(getMd(editor) !== baseline.current);
-      setRevise(null);
+      if (!res.ok || !j.revised) { patchCard(id, { status: 'error', error: j.error ?? 'revision failed' }); return; }
+      patchCard(id, { status: 'pending', suggested: j.revised });
     } catch (e: any) {
-      setRevise((rv) => (rv ? { ...rv, loading: false, error: String(e?.message ?? e) } : rv));
+      patchCard(id, { status: 'error', error: String(e?.message ?? e) });
     }
   }
 
+  function applyCard(c: AssistCard) {
+    if (!editor || c.from == null || c.to == null || !c.suggested) return;
+    if (!editing) setEditing(true);
+    editor.setEditable(true);
+    // replace exactly the originally-selected range with the revision
+    editor.chain().focus().setTextSelection({ from: c.from, to: c.to }).insertContent(c.suggested).run();
+    setDirty(getMd(editor) !== baseline.current);
+    // Applying shifts document positions, so other open suggestions' stored
+    // ranges are no longer reliable — retire them rather than risk a bad insert.
+    setCards((cs) => cs.map((x) =>
+      x.id === c.id ? { ...x, status: 'applied' }
+        : (x.status === 'pending' || x.status === 'thinking') ? { ...x, status: 'dismissed' }
+        : x));
+  }
+  function dismissCard(id: string) { patchCard(id, { status: 'dismissed' }); }
+
+  function submitPrompt() {
+    const t = prompt.trim();
+    if (!t) return;
+    askGrove(t);
+    setPrompt('');
+  }
+
   const wordCount = getMd(editor).trim().split(/\s+/).filter(Boolean).length;
+  const pendingCount = cards.filter((c) => c.status === 'pending').length;
+  const showRail = canEdit && !focusMode;
 
   return (
-    <div style={{ marginTop: 16 }}>
-      {/* status / hint bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, minHeight: 24 }}>
+    <div>
+      {/* editor control bar */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14, minHeight: 26, flexWrap: 'wrap' }}>
         {canEdit && !editing && (
-          <button onClick={enterEdit} style={hintBtn}>✎ Click the article to edit</button>
+          <button onClick={enterEdit} className="gv-tool" style={hintBtn}>✎ Click the article to edit</button>
         )}
         {editing && (
           <>
-            <span style={{ fontSize: 12, color: '#63c281', fontWeight: 600 }}>Editing</span>
+            <span style={{ fontSize: 12, color: ACCENT, fontWeight: 600 }}>Editing</span>
             {(dirty || metaDirty) && <span style={{ fontSize: 11, color: '#e0c878' }}>● unsaved</span>}
-            {saved && <span style={{ fontSize: 11, color: '#63c281' }}>✓ saved</span>}
-            <button onClick={done} disabled={saving} className="btn btn-primary btn-sm" style={{ marginLeft: 'auto' }}>
-              {saving ? 'Saving…' : (dirty || metaDirty) ? 'Save & done' : 'Done'}
-            </button>
-            <button onClick={discard} disabled={saving} className="btn btn-ghost btn-sm">
-              Discard
-            </button>
+            {saved && <span style={{ fontSize: 11, color: ACCENT }}>✓ saved</span>}
           </>
         )}
-        {!editing && <span style={{ marginLeft: 'auto', fontSize: 12, color: '#9aa096' }}>{wordCount.toLocaleString()} words</span>}
+        <span style={{ marginLeft: 'auto', fontSize: 12, color: '#6b6f67', fontVariantNumeric: 'tabular-nums' }}>{wordCount.toLocaleString()} words</span>
+        {canEdit && (
+          <button onClick={() => setFocusMode((f) => !f)} className="gv-ghost" style={ghostBtn}>
+            {focusMode ? 'Exit focus' : 'Focus'}
+          </button>
+        )}
+        {editing ? (
+          <>
+            <button onClick={done} disabled={saving} className="gv-btn" style={primaryBtn}>
+              <span style={{ display: 'flex' }}><Icon name="check" size={14} /></span>
+              {saving ? 'Saving…' : (dirty || metaDirty) ? 'Save & done' : 'Done'}
+            </button>
+            <button onClick={discard} disabled={saving} className="gv-ghost" style={ghostBtn}>Discard</button>
+          </>
+        ) : canEdit ? (
+          <button onClick={enterEdit} className="gv-btn" style={primaryBtn}>Edit draft</button>
+        ) : null}
       </div>
 
-      {/* selection formatting menu (also the future home of "Revise with AI") */}
+      {/* selection formatting menu */}
       {editor && (
         <BubbleMenu editor={editor} tippyOptions={{ duration: 100 }}>
           <div style={bubbleBar}>
@@ -187,73 +244,158 @@ export default function RichEditor({ postId, initialBody, initialTitle, initialM
             <FmtBtn on={editor.isActive('bulletList')} onClick={() => editor.chain().focus().toggleBulletList().run()}>•</FmtBtn>
             <FmtBtn on={editor.isActive('link')} onClick={setLink}>link</FmtBtn>
             <span style={{ width: 1, background: 'rgba(255,255,255,0.22)', margin: '2px 3px' }} />
-            <FmtBtn onClick={startRevise}>✨ AI</FmtBtn>
+            <FmtBtn onClick={() => { promptRef.current?.focus(); }}>✨ AI</FmtBtn>
           </div>
         </BubbleMenu>
       )}
 
-      {/* #4: AI revise panel for the captured selection */}
-      {revise && (
-        <div style={overlay} onClick={() => { if (!revise.loading) setRevise(null); }}>
-          <div style={card} onClick={(e) => e.stopPropagation()}>
-            <div style={{ fontFamily: 'Clash Display', fontSize: 16 }}>Revise with AI</div>
-            <div style={{ fontSize: 12, color: '#9aa096', borderLeft: '3px solid rgba(255,255,255,0.12)', paddingLeft: 10, maxHeight: 84, overflow: 'auto' }}>
-              {revise.text.length > 240 ? revise.text.slice(0, 240) + '…' : revise.text}
+      {/* canvas + assist rail */}
+      <div style={{ display: 'grid', gridTemplateColumns: showRail ? 'minmax(0,1fr) 360px' : '1fr', gap: 22, alignItems: 'start' }}>
+
+        {/* ── editor column ── */}
+        <div style={{ minWidth: 0 }}>
+          <div style={{ maxWidth: 820, margin: '0 auto' }}>
+            {canEdit && (
+              <input
+                className="gv-title"
+                value={title}
+                onChange={(e) => { setTitle(e.target.value); if (!editing) setEditing(true); }}
+                placeholder="Untitled draft"
+                style={{ width: '100%', background: 'transparent', border: 'none', fontFamily: "'Newsreader', Georgia, serif", fontWeight: 500, fontSize: 38, lineHeight: 1.14, letterSpacing: '-0.01em', color: '#eef1ea', padding: 0, margin: '0 0 18px' }}
+              />
+            )}
+
+            {/* persistent formatting toolbar */}
+            {canEdit && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px', marginBottom: 18, border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, background: 'rgba(255,255,255,0.015)', position: 'sticky', top: 64, zIndex: 10, backdropFilter: 'blur(10px)' }}>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: '#9aa096', padding: '0 8px' }}>Paragraph</span>
+                <span style={tbDivider} />
+                <ToolBtn on={editor?.isActive('bold')} onClick={() => editor?.chain().focus().toggleBold().run()} serif>B</ToolBtn>
+                <ToolBtn on={editor?.isActive('italic')} onClick={() => editor?.chain().focus().toggleItalic().run()} serif italic>i</ToolBtn>
+                <ToolBtn on={editor?.isActive('blockquote')} onClick={() => editor?.chain().focus().toggleBlockquote().run()} serif>”</ToolBtn>
+                <ToolBtn on={editor?.isActive('bulletList')} onClick={() => editor?.chain().focus().toggleBulletList().run()}><Icon name="pipeline" size={15} /></ToolBtn>
+                <ToolBtn on={editor?.isActive('link')} onClick={setLink}><Icon name="link" size={15} /></ToolBtn>
+                <span style={{ flex: 1 }} />
+                <button onClick={() => promptRef.current?.focus()} className="gv-btn" style={{ display: 'flex', alignItems: 'center', gap: 7, height: 30, padding: '0 13px', borderRadius: 8, border: 'none', background: 'rgba(99,194,129,0.14)', color: ACCENT, fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>
+                  <Icon name="sparkle" size={13} /> Ask grove
+                </button>
+              </div>
+            )}
+
+            {/* writing canvas */}
+            <div
+              className="gv-editor-canvas"
+              onClick={enterEdit}
+              style={{
+                background: '#0d100c',
+                border: `1px solid ${editing ? 'rgba(99,194,129,0.4)' : 'rgba(255,255,255,0.06)'}`,
+                borderRadius: 18, padding: '48px 56px 54px', transition: 'border-color .15s',
+                cursor: canEdit && !editing ? 'text' : 'default',
+              }}
+            >
+              <EditorContent editor={editor} />
             </div>
-            <textarea
-              autoFocus
-              value={revise.instruction}
-              onChange={(e) => setRevise((rv) => (rv ? { ...rv, instruction: e.target.value } : rv))}
-              placeholder="How should this change? e.g. make it punchier, add a concrete example, soften the tone"
-              rows={3}
-              style={inp}
-            />
-            {revise.error && <div style={{ color: '#c97f7f', fontSize: 12 }}>{revise.error}</div>}
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={runRevise} disabled={!revise.instruction.trim() || revise.loading} className="btn btn-primary btn-sm">
-                {revise.loading ? 'Rewriting…' : 'Rewrite selection'}
-              </button>
-              <button onClick={() => setRevise(null)} disabled={revise.loading} className="btn btn-ghost btn-sm">Cancel</button>
-            </div>
+
+            {/* compact SEO panel */}
+            {canEdit && (
+              <div style={{ marginTop: 14, border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, background: '#101310', overflow: 'hidden' }}>
+                <button onClick={() => setSeoOpen((o) => !o)} className="gv-tool" style={{ ...hintBtn, width: '100%', padding: '12px 18px', justifyContent: 'flex-start', gap: 8, display: 'flex' }}>
+                  <span>{seoOpen ? '▾' : '▸'}</span> Title &amp; SEO {metaDirty && <span style={{ color: '#e0c878', fontSize: 11 }}>● unsaved</span>}
+                </button>
+                {seoOpen && (
+                  <div style={{ padding: 18, borderTop: '1px solid rgba(255,255,255,0.07)', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <label style={lbl}>Meta title <span style={{ color: metaTitle.length > 60 ? '#c97f7f' : '#9aa096' }}>({metaTitle.length}/60)</span></label>
+                    <input value={metaTitle} onChange={(e) => setMetaTitle(e.target.value)} maxLength={80} className="gv-prompt" style={inp} />
+                    <label style={lbl}>Meta description <span style={{ color: metaDesc.length > 155 ? '#c97f7f' : '#9aa096' }}>({metaDesc.length}/155)</span></label>
+                    <textarea value={metaDesc} onChange={(e) => setMetaDesc(e.target.value)} maxLength={160} rows={3} className="gv-prompt" style={inp} />
+                    <button onClick={save} disabled={saving || !metaDirty} className="gv-btn" style={{ ...primaryBtn, alignSelf: 'flex-start' }}>
+                      {saving ? 'Saving…' : 'Save meta'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
-      )}
 
-      {/* the single rendered block — reads like the article, editable on click */}
-      <div
-        onClick={enterEdit}
-        className="article-surface"
-        style={{
-          background: editing ? 'rgba(255,255,255,0.02)' : 'transparent',
-          border: `1px solid ${editing ? '#63c281' : 'rgba(255,255,255,0.08)'}`,
-          borderRadius: 14, transition: 'border-color .15s, background .15s',
-          cursor: canEdit && !editing ? 'text' : 'default',
-        }}
-      >
-        <EditorContent editor={editor} />
-      </div>
-
-      {/* compact SEO panel (kept from the old editor) */}
-      {canEdit && (
-        <div style={{ marginTop: 12, border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, background: '#101310', overflow: 'hidden' }}>
-          <button onClick={() => setSeoOpen(o => !o)} style={{ ...hintBtn, width: '100%', padding: '12px 18px', justifyContent: 'flex-start', gap: 8, display: 'flex' }}>
-            <span>{seoOpen ? '▾' : '▸'}</span> Title &amp; SEO {metaDirty && <span style={{ color: '#e0c878', fontSize: 11 }}>● unsaved</span>}
-          </button>
-          {seoOpen && (
-            <div style={{ padding: 18, borderTop: '1px solid rgba(255,255,255,0.07)', display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <label style={lbl}>Post title</label>
-              <input value={title} onChange={e => setTitle(e.target.value)} maxLength={160} placeholder="Give this post a title" style={inp} />
-              <label style={lbl}>Meta title <span style={{ color: metaTitle.length > 60 ? '#c97f7f' : '#9aa096' }}>({metaTitle.length}/60)</span></label>
-              <input value={metaTitle} onChange={e => setMetaTitle(e.target.value)} maxLength={80} style={inp} />
-              <label style={lbl}>Meta description <span style={{ color: metaDesc.length > 155 ? '#c97f7f' : '#9aa096' }}>({metaDesc.length}/155)</span></label>
-              <textarea value={metaDesc} onChange={e => setMetaDesc(e.target.value)} maxLength={160} rows={3} style={inp} />
-              <button onClick={save} disabled={saving || !metaDirty} className="btn btn-primary btn-sm" style={{ alignSelf: 'flex-start' }}>
-                {saving ? 'Saving…' : 'Save meta'}
-              </button>
+        {/* ── grove assist rail ── */}
+        {showRail && (
+          <aside style={{ position: 'sticky', top: 78, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ background: 'linear-gradient(155deg, #0c130e, #0a0d0a)', border: '1px solid rgba(99,194,129,0.2)', borderRadius: 18, padding: '18px 18px 16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 13 }}>
+                <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(99,194,129,0.14)', border: '1px solid rgba(99,194,129,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: ACCENT }}><Icon name="sparkle" size={15} /></span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: '#eef1ea' }}>grove assist</span>
+                <span style={{ marginLeft: 'auto', fontSize: 11, color: '#9aa096' }}>{pendingCount} suggestion{pendingCount === 1 ? '' : 's'}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '8px 8px 8px 14px' }}>
+                <input
+                  ref={promptRef}
+                  className="gv-prompt"
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitPrompt(); } }}
+                  placeholder="Select text, then ask grove to revise…"
+                  style={{ flex: 1, background: 'transparent', border: 'none', color: '#eef1ea', fontFamily: 'inherit', fontSize: 13, minWidth: 0, outline: 'none' }}
+                />
+                <button onClick={submitPrompt} className="gv-btn" style={{ width: 32, height: 32, flexShrink: 0, border: 'none', borderRadius: 9, background: ACCENT, color: '#06120b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="send" size={16} /></button>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 11 }}>
+                {CHIPS.map((label) => (
+                  <button key={label} onClick={() => askGrove(label)} className="gv-chip" style={{ fontSize: 11.5, fontWeight: 600, color: '#9aa096', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 999, padding: '5px 11px', cursor: 'pointer', fontFamily: 'inherit' }}>{label}</button>
+                ))}
+              </div>
             </div>
-          )}
-        </div>
-      )}
+
+            {/* feed */}
+            {cards.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {cards.map((c) => {
+                  const resolved = c.status === 'applied' || c.status === 'dismissed';
+                  return (
+                    <div key={c.id} style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '14px 15px', opacity: resolved ? 0.6 : 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 9 }}>
+                        <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: ACCENT, background: 'rgba(99,194,129,0.12)', borderRadius: 5, padding: '3px 7px' }}>Ask grove</span>
+                        <span style={{ fontSize: 12.5, fontWeight: 600, color: '#dfe4da', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.label}</span>
+                      </div>
+
+                      {c.status === 'thinking' && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0 2px' }}>
+                          <span style={{ display: 'inline-flex', gap: 4 }}><span className="gv-tdot" /><span className="gv-tdot" style={{ animationDelay: '.18s' }} /><span className="gv-tdot" style={{ animationDelay: '.36s' }} /></span>
+                          <span style={{ fontSize: 12, color: '#9aa096' }}>grove is writing…</span>
+                        </div>
+                      )}
+
+                      {c.status === 'error' && (
+                        <div style={{ fontSize: 12, color: '#c97f7f', lineHeight: 1.5 }}>{c.error}</div>
+                      )}
+
+                      {c.status === 'pending' && (
+                        <div>
+                          {c.original && (
+                            <div style={{ fontFamily: "'Newsreader', Georgia, serif", fontSize: 14, lineHeight: 1.5, color: '#7a8078', textDecoration: 'line-through', marginBottom: 5 }}>{c.original}</div>
+                          )}
+                          <div style={{ fontFamily: "'Newsreader', Georgia, serif", fontSize: 14.5, lineHeight: 1.55, color: '#d4dacd' }}>{c.suggested}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 12 }}>
+                            <button onClick={() => applyCard(c)} className="gv-btn" style={{ display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: ACCENT, color: '#06120b', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: '7px 13px', borderRadius: 8, cursor: 'pointer' }}><Icon name="check" size={13} /> Apply</button>
+                            <button onClick={() => dismissCard(c.id)} className="gv-ghost" style={{ border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: '#9aa096', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '7px 13px', borderRadius: 8, cursor: 'pointer' }}>Dismiss</button>
+                          </div>
+                        </div>
+                      )}
+
+                      {resolved && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: c.status === 'applied' ? ACCENT : '#6b6f67' }}>
+                          <span style={{ display: 'flex' }}><Icon name={c.status === 'applied' ? 'check' : 'x'} size={13} /></span>
+                          {c.status === 'applied' ? 'Applied to draft' : 'Dismissed'}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </aside>
+        )}
+      </div>
     </div>
   );
 }
@@ -263,7 +405,7 @@ function FmtBtn({ children, on, onClick, italic }: { children: React.ReactNode; 
     <button onMouseDown={(e) => { e.preventDefault(); onClick(); }}
       style={{
         // bar background is dark (#15181a); keep text light so it's readable
-        background: on ? '#63c281' : 'transparent', color: '#fff',
+        background: on ? ACCENT : 'transparent', color: on ? '#06120b' : '#fff',
         border: 'none', borderRadius: 5, padding: '4px 8px', cursor: 'pointer',
         fontSize: 13, fontStyle: italic ? 'italic' : 'normal', fontFamily: 'inherit', minWidth: 26,
       }}>
@@ -272,10 +414,34 @@ function FmtBtn({ children, on, onClick, italic }: { children: React.ReactNode; 
   );
 }
 
+function ToolBtn({ children, on, onClick, serif, italic }: { children: React.ReactNode; on?: boolean; onClick: () => void; serif?: boolean; italic?: boolean }) {
+  return (
+    <button onMouseDown={(e) => { e.preventDefault(); onClick(); }} className="gv-tool"
+      style={{
+        width: 32, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        borderRadius: 8, border: `1px solid ${on ? 'rgba(99,194,129,0.3)' : 'rgba(255,255,255,0.08)'}`,
+        background: on ? 'rgba(99,194,129,0.14)' : 'transparent', color: on ? ACCENT : '#cdd2c9',
+        fontFamily: serif ? "'Newsreader', Georgia, serif" : 'inherit', fontStyle: italic ? 'italic' : 'normal',
+        fontWeight: serif ? 700 : 500, fontSize: serif ? 15 : 13, lineHeight: 1, cursor: 'pointer',
+      }}>
+      {children}
+    </button>
+  );
+}
+
 const hintBtn: React.CSSProperties = {
-  background: 'none', border: 'none', color: '#63c281', fontSize: 12,
+  background: 'none', border: 'none', color: ACCENT, fontSize: 12,
   cursor: 'pointer', fontFamily: 'inherit', padding: 0,
 };
+const primaryBtn: React.CSSProperties = {
+  display: 'flex', alignItems: 'center', gap: 7, border: 'none', background: ACCENT, color: '#06120b',
+  fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, padding: '8px 14px', borderRadius: 9, cursor: 'pointer',
+};
+const ghostBtn: React.CSSProperties = {
+  border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)', color: '#cdd2c9',
+  fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '8px 13px', borderRadius: 9, cursor: 'pointer',
+};
+const tbDivider: React.CSSProperties = { width: 1, height: 18, background: 'rgba(255,255,255,0.08)', margin: '0 2px' };
 const bubbleBar: React.CSSProperties = {
   display: 'flex', gap: 2, background: '#15181a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 4,
   boxShadow: '0 6px 20px rgba(0,0,0,0.5)',
@@ -287,12 +453,4 @@ const inp: React.CSSProperties = {
   width: '100%', padding: '10px 14px', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 8,
   fontSize: 14, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', resize: 'vertical',
   color: '#eef1ea', background: 'rgba(255,255,255,0.04)',
-};
-const overlay: React.CSSProperties = {
-  position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 50,
-  display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '14vh 16px 16px',
-};
-const card: React.CSSProperties = {
-  width: 'min(560px, 100%)', background: '#15181a', color: '#eef1ea', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: 20,
-  display: 'flex', flexDirection: 'column', gap: 12, boxShadow: '0 20px 60px rgba(0,0,0,0.55)',
 };

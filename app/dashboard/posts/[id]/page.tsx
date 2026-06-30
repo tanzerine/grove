@@ -61,6 +61,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
     failed: { label: 'Failed', color: '#c97f7f', bg: 'rgba(201,127,127,0.08)', border: 'rgba(201,127,127,0.24)' },
   };
   const sm = statusMeta[p.status] ?? { label: p.status, color: '#9aa096', bg: 'rgba(255,255,255,0.03)', border: 'rgba(255,255,255,0.1)' };
+  const editable = ['review', 'scheduled', 'published'].includes(p.status);
 
   return (
     <>
@@ -95,9 +96,11 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
             </div>
           )}
         </div>
-        <h1 style={{ fontFamily: "'Newsreader', Georgia, serif", fontWeight: 500, fontSize: 38, lineHeight: 1.12, letterSpacing: '-0.01em', margin: '8px 0 0', maxWidth: 880 }}>
-          {p.title ?? p.topic ?? '(no title)'}
-        </h1>
+        {!editable && (
+          <h1 style={{ fontFamily: "'Newsreader', Georgia, serif", fontWeight: 500, fontSize: 38, lineHeight: 1.12, letterSpacing: '-0.01em', margin: '8px 0 0', maxWidth: 880 }}>
+            {p.title ?? p.topic ?? '(no title)'}
+          </h1>
+        )}
 
         <PostActions
           id={p.id}
@@ -116,11 +119,10 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
           </div>
         )}
 
-        {/* two columns */}
-        <div className="gv-2col-rail" style={{ display: 'grid', gridTemplateColumns: '1fr 372px', gap: 22, alignItems: 'start', marginTop: 22 }}>
-          {/* LEFT: reading surface */}
-          <div style={{ background: '#0e110d', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, overflow: 'hidden' }}>
-            {['review', 'scheduled', 'published'].includes(p.status) ? (
+        {editable ? (
+          /* ===== comp-style editor (canvas + grove assist rail) + review row below ===== */
+          <>
+            <div style={{ marginTop: 20 }}>
               <RichEditor
                 postId={p.id}
                 initialBody={p.body_md ?? ''}
@@ -130,36 +132,52 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
                 canEdit
                 autoEdit={!p.body_md}
               />
-            ) : p.body_md && bodyHtml ? (
-              <article className="prose article-surface" style={{ maxWidth: 'none', color: '#cdd2c9' }} dangerouslySetInnerHTML={{ __html: bodyHtml }} />
-            ) : (
-              <div style={{ padding: '40px 44px', color: '#6b6f67' }}>
-                <PipelineTimeline log={(p.generation_log ?? []) as any} status={p.status} />
-              </div>
-            )}
+            </div>
 
             {(social.x || social.linkedin || social.instagram) && (
-              <div style={{ padding: '8px 44px 40px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                <h3 style={{ fontFamily: "'Newsreader', Georgia, serif", fontWeight: 500, fontSize: 22, margin: '24px 0 4px' }}>Social variants</h3>
+              <div style={{ marginTop: 18, background: '#0e110d', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 28px 28px' }}>
+                <h3 style={{ fontFamily: "'Newsreader', Georgia, serif", fontWeight: 500, fontSize: 22, margin: '4px 0 4px' }}>Social variants</h3>
                 {social.x && <SocialBlock label="X thread" body={social.x} />}
                 {social.linkedin && <SocialBlock label="LinkedIn" body={social.linkedin} />}
                 {social.instagram && <SocialBlock label="Instagram" body={social.instagram} />}
               </div>
             )}
-          </div>
 
-          {/* RIGHT RAIL */}
-          <div className="gv-rail" style={{ display: 'flex', flexDirection: 'column', gap: 16, position: 'sticky', top: 78 }}>
-            {readiness && <ReadinessCard r={readiness} />}
-            {evals && evals.length > 0 && <ManagerCard evals={evals as any} />}
-            {validation?.stats && p.body_md && <AeoCard report={scoreAeo(validation.stats)} />}
-            {hasSerp && <SerpCard subtopics={serp.subtopics as string[]} body={p.body_md!} />}
-            <div style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 22px' }}>
-              <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#6b6f67', marginBottom: 14 }}>Pipeline timeline</div>
-              <PipelineTimeline log={(p.generation_log ?? []) as any} status={p.status} />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14, marginTop: 22, alignItems: 'start' }}>
+              {readiness && <ReadinessCard r={readiness} />}
+              {evals && evals.length > 0 && <ManagerCard evals={evals as any} />}
+              {validation?.stats && p.body_md && <AeoCard report={scoreAeo(validation.stats)} />}
+              {hasSerp && <SerpCard subtopics={serp.subtopics as string[]} body={p.body_md!} />}
+              <div style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 22px' }}>
+                <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#6b6f67', marginBottom: 14 }}>Pipeline timeline</div>
+                <PipelineTimeline log={(p.generation_log ?? []) as any} status={p.status} />
+              </div>
+            </div>
+          </>
+        ) : (
+          /* ===== not yet editable: reading surface + review rail ===== */
+          <div className="gv-2col-rail" style={{ display: 'grid', gridTemplateColumns: '1fr 372px', gap: 22, alignItems: 'start', marginTop: 22 }}>
+            <div style={{ background: '#0e110d', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, overflow: 'hidden' }}>
+              {p.body_md && bodyHtml ? (
+                <article className="prose article-surface" style={{ maxWidth: 'none', color: '#cdd2c9', padding: '40px 44px' }} dangerouslySetInnerHTML={{ __html: bodyHtml }} />
+              ) : (
+                <div style={{ padding: '40px 44px', color: '#6b6f67' }}>
+                  <PipelineTimeline log={(p.generation_log ?? []) as any} status={p.status} />
+                </div>
+              )}
+            </div>
+            <div className="gv-rail" style={{ display: 'flex', flexDirection: 'column', gap: 16, position: 'sticky', top: 78 }}>
+              {readiness && <ReadinessCard r={readiness} />}
+              {evals && evals.length > 0 && <ManagerCard evals={evals as any} />}
+              {validation?.stats && p.body_md && <AeoCard report={scoreAeo(validation.stats)} />}
+              {hasSerp && <SerpCard subtopics={serp.subtopics as string[]} body={p.body_md!} />}
+              <div style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 22px' }}>
+                <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#6b6f67', marginBottom: 14 }}>Pipeline timeline</div>
+                <PipelineTimeline log={(p.generation_log ?? []) as any} status={p.status} />
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </>
   );
