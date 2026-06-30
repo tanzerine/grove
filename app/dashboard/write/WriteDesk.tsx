@@ -7,8 +7,7 @@ import Icon from '../gv-icons';
 const ACCENT = '#63c281';
 
 // Thinking prompts — clicking one drops a starter angle into the focus box so
-// a blank page never stays blank. They nudge the author toward what they
-// actually know, instead of asking them to invent a "topic" cold.
+// a blank page never stays blank.
 const PROMPTS: { label: string; seed: string }[] = [
   { label: 'A problem customers keep hitting', seed: 'the problem my customers run into most often' },
   { label: 'A question I get asked a lot',      seed: 'the question prospects ask me again and again' },
@@ -18,20 +17,10 @@ const PROMPTS: { label: string; seed: string }[] = [
   { label: 'A strong opinion I hold',           seed: 'an opinion I hold that not everyone agrees with' },
 ];
 
-type Mode = 'blank' | 'idea' | 'seo';
-const TABS: { key: Mode; label: string }[] = [
-  { key: 'blank', label: 'Blank' },
-  { key: 'idea', label: 'Idea studio' },
-  { key: 'seo', label: 'SEO set' },
-];
+type Mode = 'idea' | 'seo';
 
-export default function WriteDesk({ domainId, hostname }: { domainId: string; hostname: string }) {
+export default function WriteDesk({ domainId, hostname, mode }: { domainId: string; hostname: string; mode: Mode }) {
   const r = useRouter();
-  const [mode, setMode] = useState<Mode>('blank');
-
-  // ── blank draft ─────────────────────────────────────────────
-  const [blankTitle, setBlankTitle] = useState('');
-  const [opening, setOpening] = useState(false);
 
   // ── idea studio ─────────────────────────────────────────────
   const [focus, setFocus] = useState('');
@@ -49,47 +38,6 @@ export default function WriteDesk({ domainId, hostname }: { domainId: string; ho
   const [planning, setPlanning] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [pseoErr, setPseoErr] = useState<string | null>(null);
-
-  async function previewSet() {
-    setPlanning(true); setPseoErr(null); setPages([]);
-    try {
-      const res = await fetch('/api/pseo/plan', {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ domain_id: domainId, seed: seed.trim(), count }),
-      });
-      const j = await res.json().catch(() => ({}));
-      if (res.status === 409) setPseoErr('Build your site profile first — grove needs to know the business before it can plan pages.');
-      else if (!res.ok || !j.pages?.length) setPseoErr('Could not plan a set for that seed. Try a broader term.');
-      else setPages(j.pages);
-    } catch { setPseoErr('Something went wrong. Try again.'); }
-    setPlanning(false);
-  }
-
-  async function generateSet() {
-    if (!pages.length) return;
-    setGenerating(true); setPseoErr(null);
-    try {
-      const res = await fetch('/api/pseo/generate', {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ domain_id: domainId, pages }),
-      });
-      const j = await res.json().catch(() => ({}));
-      if (res.ok && j.created > 0) { r.push('/dashboard'); return; }
-      setPseoErr('Generation failed — no pages were created.');
-    } catch { setPseoErr('Something went wrong generating the set.'); }
-    setGenerating(false);
-  }
-
-  async function openBlank() {
-    setOpening(true);
-    const res = await fetch('/api/posts/manual', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ domain_id: domainId, title: blankTitle.trim() || undefined }),
-    });
-    const j = await res.json().catch(() => ({}));
-    if (res.ok && j.id) { r.push(`/dashboard/posts/${j.id}`); return; }
-    setOpening(false);
-  }
 
   async function generate() {
     setThinking(true);
@@ -130,55 +78,49 @@ export default function WriteDesk({ domainId, hostname }: { domainId: string; ho
     r.push('/dashboard');
   }
 
+  async function previewSet() {
+    setPlanning(true); setPseoErr(null); setPages([]);
+    try {
+      const res = await fetch('/api/pseo/plan', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ domain_id: domainId, seed: seed.trim(), count }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (res.status === 409) setPseoErr('Build your site profile first — grove needs to know the business before it can plan pages.');
+      else if (!res.ok || !j.pages?.length) setPseoErr('Could not plan a set for that seed. Try a broader term.');
+      else setPages(j.pages);
+    } catch { setPseoErr('Something went wrong. Try again.'); }
+    setPlanning(false);
+  }
+
+  async function generateSet() {
+    if (!pages.length) return;
+    setGenerating(true); setPseoErr(null);
+    try {
+      const res = await fetch('/api/pseo/generate', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ domain_id: domainId, pages }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (res.ok && j.created > 0) { r.push('/dashboard'); return; }
+      setPseoErr('Generation failed — no pages were created.');
+    } catch { setPseoErr('Something went wrong generating the set.'); }
+    setGenerating(false);
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 26, maxWidth: 680 }}>
 
-      {/* ── Start a draft ─────────────────────────────────────── */}
-      <section style={card}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 14 }}>
-          <span style={iconBadge}><Icon name="write" size={15} /></span>
-          <span style={{ fontSize: 15, fontWeight: 700, color: '#eef1ea' }}>Start a draft</span>
-          <span style={{ marginLeft: 'auto', fontSize: 11, color: '#6b6f67' }}>3 ways in</span>
-        </div>
-
-        {/* segmented tabs */}
-        <div style={tabRow}>
-          {TABS.map((t) => {
-            const on = mode === t.key;
-            return (
-              <button key={t.key} onClick={() => setMode(t.key)} className="gv-tool"
-                style={{ flex: 1, border: `1px solid ${on ? 'rgba(99,194,129,0.3)' : 'transparent'}`, background: on ? 'rgba(99,194,129,0.14)' : 'transparent', color: on ? ACCENT : '#9aa096', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '7px 4px', borderRadius: 8, cursor: 'pointer' }}>
-                {t.label}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Blank */}
-        {mode === 'blank' && (
-          <div>
-            <div style={kicker}>Start from a blank page</div>
-            <div style={desc}>Open the editor and write it yourself. You can name it now or later.</div>
-            <input
-              value={blankTitle}
-              onChange={(e) => setBlankTitle(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && openBlank()}
-              placeholder="Working title (optional)"
-              className="gv-prompt"
-              style={{ ...field, marginBottom: 10 }}
-            />
-            <button onClick={openBlank} disabled={opening} className="gv-btn" style={primaryBtn}>
-              {opening ? 'Opening…' : <>Open blank editor <span style={{ display: 'flex' }}><Icon name="send" size={13} /></span></>}
-            </button>
-          </div>
-        )}
-
-        {/* Idea studio */}
-        {mode === 'idea' && (
-          <div>
-            <div style={kicker}>Idea studio</div>
+      {/* ── Idea studio ─────────────────────────────────────── */}
+      {mode === 'idea' && (
+        <>
+          <section style={card}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 13 }}>
+              <span style={iconBadge}><Icon name="sparkle" size={15} /></span>
+              <span style={{ fontSize: 15, fontWeight: 700, color: '#eef1ea' }}>Idea studio</span>
+            </div>
             <div style={desc}>
-              Give grove a nudge — a theme, a product, a question on your mind — and it&apos;ll suggest angles for <b style={{ color: '#cdd2c9' }}>{hostname}</b>.
+              Give grove a nudge — a theme, a product, a question on your mind — and it&apos;ll suggest angles for <b style={{ color: '#cdd2c9' }}>{hostname}</b>. Pick one to write yourself, or hand it off.
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
               {PROMPTS.map((p) => (
@@ -198,15 +140,48 @@ export default function WriteDesk({ domainId, hostname }: { domainId: string; ho
               {thinking ? 'Thinking…' : ideas.length ? 'More ideas' : 'Generate ideas'}
             </button>
             {err && <p style={errText}>{err}</p>}
-          </div>
-        )}
+          </section>
 
-        {/* SEO set */}
-        {mode === 'seo' && (
-          <div>
-            <div style={kicker}>Programmatic SEO · generate a set</div>
+          {ideas.length > 0 && (
+            <section style={card}>
+              <div style={kicker}>Pick one to write yourself, or hand it off</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {ideas.map((idea, i) => {
+                  const busy = busyIdea === idea;
+                  return (
+                    <div key={i} style={ideaRow}>
+                      <span style={{ fontSize: 14, lineHeight: 1.4, color: '#eef1ea', flex: 1, minWidth: 0 }}>{idea}</span>
+                      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                        <button onClick={() => writeMine(idea)} disabled={!!busyIdea} className="gv-ghost"
+                          title="Open a draft with this title and write it yourself"
+                          style={{ border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: '#cdd2c9', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '7px 12px', borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                          {busy && busyKind === 'mine' ? 'Opening…' : 'Write myself'}
+                        </button>
+                        <button onClick={() => groveWrites(idea)} disabled={!!busyIdea} className="gv-btn"
+                          title="Let grove research and draft this one"
+                          style={{ display: 'flex', alignItems: 'center', gap: 5, border: 'none', background: ACCENT, color: '#06120b', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: '7px 12px', borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                          <Icon name="sparkle" size={12} />{busy && busyKind === 'grove' ? 'Queuing…' : 'grove writes it'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+        </>
+      )}
+
+      {/* ── SEO set ──────────────────────────────────────────── */}
+      {mode === 'seo' && (
+        <>
+          <section style={card}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 13 }}>
+              <span style={iconBadge}><Icon name="rankings" size={15} /></span>
+              <span style={{ fontSize: 15, fontWeight: 700, color: '#eef1ea' }}>SEO set</span>
+            </div>
             <div style={desc}>
-              Give a seed term — grove finds the real searches around it and drafts one focused page per query. Each lands in your pipeline for review, cross-linked automatically once published.
+              Cover a whole topic at once. Give a seed term — grove finds the real searches around it and drafts one focused page per query. Each lands in your pipeline for review, cross-linked automatically once published.
             </div>
             <input
               value={seed}
@@ -227,61 +202,30 @@ export default function WriteDesk({ domainId, hostname }: { domainId: string; ho
               </button>
             </div>
             {pseoErr && <p style={errText}>{pseoErr}</p>}
-          </div>
-        )}
-      </section>
+          </section>
 
-      {/* ── Idea results ─────────────────────────────────────── */}
-      {mode === 'idea' && ideas.length > 0 && (
-        <section style={card}>
-          <div style={kicker}>Pick one to write yourself, or hand it off</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {ideas.map((idea, i) => {
-              const busy = busyIdea === idea;
-              return (
-                <div key={i} style={ideaRow}>
-                  <span style={{ fontSize: 14, lineHeight: 1.4, color: '#eef1ea', flex: 1, minWidth: 0 }}>{idea}</span>
-                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                    <button onClick={() => writeMine(idea)} disabled={!!busyIdea} className="gv-ghost"
-                      title="Open a draft with this title and write it yourself"
-                      style={{ border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: '#cdd2c9', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '7px 12px', borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                      {busy && busyKind === 'mine' ? 'Opening…' : 'Write myself'}
-                    </button>
-                    <button onClick={() => groveWrites(idea)} disabled={!!busyIdea} className="gv-btn"
-                      title="Let grove research and draft this one"
-                      style={{ display: 'flex', alignItems: 'center', gap: 5, border: 'none', background: ACCENT, color: '#06120b', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: '7px 12px', borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                      <Icon name="sparkle" size={12} />{busy && busyKind === 'grove' ? 'Queuing…' : 'grove writes it'}
-                    </button>
+          {pages.length > 0 && (
+            <section style={card}>
+              <div style={kicker}>{pages.length} pages planned — review before generating</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {pages.map((p, i) => (
+                  <div key={i} style={ideaRow}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: intentColor(p.intent) }} title={p.intent} />
+                    <span style={{ fontSize: 14, lineHeight: 1.4, color: '#eef1ea', flex: 1, minWidth: 0 }}>
+                      {p.title}
+                      <span style={{ display: 'block', fontSize: 11.5, color: '#9aa096', marginTop: 2 }}>targets “{p.keyword}” · {p.intent}</span>
+                    </span>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* ── SEO preview ──────────────────────────────────────── */}
-      {mode === 'seo' && pages.length > 0 && (
-        <section style={card}>
-          <div style={kicker}>{pages.length} pages planned — review before generating</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {pages.map((p, i) => (
-              <div key={i} style={ideaRow}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: intentColor(p.intent) }} title={p.intent} />
-                <span style={{ fontSize: 14, lineHeight: 1.4, color: '#eef1ea', flex: 1, minWidth: 0 }}>
-                  {p.title}
-                  <span style={{ display: 'block', fontSize: 11.5, color: '#9aa096', marginTop: 2 }}>targets “{p.keyword}” · {p.intent}</span>
-                </span>
+                ))}
               </div>
-            ))}
-          </div>
-          <button onClick={generateSet} disabled={generating} className="gv-btn"
-            style={{ ...primaryBtn, marginTop: 14 }}>
-            <span style={{ display: 'flex' }}><Icon name="sparkle" size={13} /></span>
-            {generating ? `Drafting ${pages.length} pages…` : `Generate ${pages.length} pages`}
-          </button>
-          {generating && <p style={{ ...desc, marginTop: 8, marginBottom: 0 }}>This can take a minute or two — grove drafts each page one at a time.</p>}
-        </section>
+              <button onClick={generateSet} disabled={generating} className="gv-btn" style={{ ...primaryBtn, marginTop: 14 }}>
+                <span style={{ display: 'flex' }}><Icon name="sparkle" size={13} /></span>
+                {generating ? `Drafting ${pages.length} pages…` : `Generate ${pages.length} pages`}
+              </button>
+              {generating && <p style={{ ...desc, marginTop: 8, marginBottom: 0 }}>This can take a minute or two — grove drafts each page one at a time.</p>}
+            </section>
+          )}
+        </>
       )}
     </div>
   );
@@ -300,10 +244,6 @@ const card: React.CSSProperties = {
 const iconBadge: React.CSSProperties = {
   width: 28, height: 28, borderRadius: 8, background: 'rgba(99,194,129,0.14)', border: '1px solid rgba(99,194,129,0.3)',
   display: 'flex', alignItems: 'center', justifyContent: 'center', color: ACCENT,
-};
-const tabRow: React.CSSProperties = {
-  display: 'flex', gap: 4, padding: 3, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)',
-  borderRadius: 10, marginBottom: 16,
 };
 const kicker: React.CSSProperties = {
   fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#565a53', marginBottom: 8,
