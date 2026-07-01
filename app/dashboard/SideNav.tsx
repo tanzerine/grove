@@ -12,9 +12,7 @@ const SECTIONS: Section[] = [
   { head: 'Create', items: [
     { href: '/dashboard', label: 'Home', icon: 'home', match: (p) => p === '/dashboard' },
     { href: '/dashboard/strategy', label: 'Strategy', icon: 'strategy', match: (p) => p.startsWith('/dashboard/strategy') },
-    { href: '/dashboard/write', label: 'Write', icon: 'write', match: (p) => p === '/dashboard/write' },
-    { href: '/dashboard/write/ideas', label: 'Idea studio', icon: 'sparkle', match: (p) => p.startsWith('/dashboard/write/ideas') },
-    { href: '/dashboard/write/seo', label: 'SEO set', icon: 'rankings', match: (p) => p.startsWith('/dashboard/write/seo') },
+    { href: '/dashboard/write', label: 'Write', icon: 'write', match: (p) => p.startsWith('/dashboard/write') },
     { href: '/dashboard/pipeline', label: 'Pipeline', icon: 'pipeline', badgeKey: 'pipeline', match: (p) => p.startsWith('/dashboard/pipeline') || p.startsWith('/dashboard/posts') },
   ]},
   { head: 'Publish', items: [

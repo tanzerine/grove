@@ -1,6 +1,6 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import { getActiveDomain } from '@/lib/active-domain';
-import NewDraft from './NewDraft';
+import WriteWorkspace from './WriteWorkspace';
 import { DashHeader } from '../gv-chrome';
 
 export default async function WritePage() {
@@ -9,10 +9,10 @@ export default async function WritePage() {
 
   return (
     <>
-      <DashHeader title="Write" subtitle="a fresh draft — write it yourself, or pick Idea studio / SEO set from the sidebar" />
+      <DashHeader title="Write" subtitle="a blank page by default — or pick Idea studio / SEO set on the left" />
       <div className="gv-body">
         {domain ? (
-          <NewDraft domainId={domain.id} />
+          <WriteWorkspace domainId={domain.id} hostname={domain.hostname} />
         ) : (
           <p className="lede" style={{ marginTop: 24 }}>Add a domain first to start writing.</p>
         )}

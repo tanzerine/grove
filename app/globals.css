@@ -954,6 +954,7 @@ html { scroll-behavior: smooth; }
 .gv-editor-canvas .prose ul li::marker, .gv-editor-canvas .prose ol li::marker { color: #63c281; }
 .gv-editor-canvas .ProseMirror:focus { outline: none; }
 .gv-editor-canvas .ProseMirror p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: #3f4a40; float: left; height: 0; pointer-events: none; }
+@media (max-width: 760px) { .gv-write-grid { grid-template-columns: 1fr !important; } }
 
 /* =====================================================================
    DARK AUTH SCREEN  (/login + /signup) — same palette as the .gv-app skin
