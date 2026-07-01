@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import PostActions from './PostActions';
 import PipelineTimeline from './PipelineTimeline';
 import RichEditor from './RichEditor';
+import ProcessDrawer from './ProcessDrawer';
 import LocalTime from '../../LocalTime';
 import Link from 'next/link';
 import { ScoreRing, RubricBars, bandColor, type RubricScores } from '../../QualityCharts';
@@ -51,8 +52,20 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
   const words = stats.word_count ?? null;
   const cites = stats.citation_count ?? 0;
   const readMin = words ? Math.max(1, Math.round(words / 230)) : null;
-  const serp = (p.research as any)?.serp;
+  const research = (p.research as any) ?? {};
+  const serp = research?.serp;
   const hasSerp = !!serp?.subtopics?.length && !!p.body_md;
+  const rawSources: any[] = research?.sources ?? research?.serp?.sources ?? [];
+  const sources = rawSources.slice(0, 6).map((s: any) => {
+    const url = s?.url ?? s?.link ?? '';
+    let host = '';
+    try { host = url ? new URL(url).hostname.replace(/^www\./, '') : (s?.host ?? ''); } catch { host = s?.host ?? ''; }
+    return { name: s?.title ?? s?.name ?? host ?? 'Source', host, icon: 'globe' };
+  });
+
+  const latestEval = evals && evals.length ? (evals[evals.length - 1] as any) : null;
+  const hasBlockingIssues = !!latestEval?.issues?.some((i: any) => i.severity !== 'note');
+  const unusual = (managerOverall !== null && managerOverall < 70) || hasBlockingIssues || !!(readiness && readiness.checks.some((c) => !c.ok));
 
   const statusMeta: Record<string, { label: string; color: string; bg: string; border: string }> = {
     review: { label: 'In review', color: '#e0c878', bg: 'rgba(224,200,120,0.08)', border: 'rgba(224,200,120,0.24)' },
@@ -102,15 +115,30 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
           </h1>
         )}
 
-        <PostActions
-          id={p.id}
-          status={p.status}
-          published={p.status === 'published'}
-          publicUrl={p.status === 'published' ? `/b/${domain?.blog_slug}/${p.slug}` : null}
-          hasSocial={!!(social.x || social.linkedin || social.instagram)}
-          hasCover={!!p.cover_image_url}
-          hasInlineImages={hasInlineImages}
-        />
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <PostActions
+            id={p.id}
+            status={p.status}
+            published={p.status === 'published'}
+            publicUrl={p.status === 'published' ? `/b/${domain?.blog_slug}/${p.slug}` : null}
+            hasSocial={!!(social.x || social.linkedin || social.instagram)}
+            hasCover={!!p.cover_image_url}
+            hasInlineImages={hasInlineImages}
+          />
+          {editable && (
+            <ProcessDrawer unusual={unusual}>
+              {readiness && <ReadinessCard r={readiness} />}
+              {evals && evals.length > 0 && <ManagerCard evals={evals as any} />}
+              {validation?.stats && p.body_md && <AeoCard report={scoreAeo(validation.stats)} />}
+              {hasSerp && <SerpCard subtopics={serp.subtopics as string[]} body={p.body_md!} />}
+              {sources.length > 0 && <SourcesCard sources={sources} />}
+              <div style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 22px' }}>
+                <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#6b6f67', marginBottom: 14 }}>Pipeline timeline</div>
+                <PipelineTimeline log={(p.generation_log ?? []) as any} status={p.status} />
+              </div>
+            </ProcessDrawer>
+          )}
+        </div>
 
         {p.status === 'failed' && (
           <div style={{ background: 'rgba(201,127,127,0.08)', border: '1px solid rgba(201,127,127,0.3)', color: '#d39a9a', padding: 18, borderRadius: 12, marginTop: 20 }}>
@@ -142,17 +170,6 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
                 {social.instagram && <SocialBlock label="Instagram" body={social.instagram} />}
               </div>
             )}
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14, marginTop: 22, alignItems: 'start' }}>
-              {readiness && <ReadinessCard r={readiness} />}
-              {evals && evals.length > 0 && <ManagerCard evals={evals as any} />}
-              {validation?.stats && p.body_md && <AeoCard report={scoreAeo(validation.stats)} />}
-              {hasSerp && <SerpCard subtopics={serp.subtopics as string[]} body={p.body_md!} />}
-              <div style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 22px' }}>
-                <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#6b6f67', marginBottom: 14 }}>Pipeline timeline</div>
-                <PipelineTimeline log={(p.generation_log ?? []) as any} status={p.status} />
-              </div>
-            </div>
           </>
         ) : (
           /* ===== not yet editable: reading surface + review rail ===== */
@@ -217,7 +234,10 @@ function ReadinessCard({ r }: { r: Readiness }) {
   );
 }
 
-type EvalRow = { attempt: number; action: string; scores: RubricScores | null; issues: Array<{ severity: string }> | null; created_at: string };
+type EvalIssue = { rule?: string; severity: string; note?: string };
+type EvalRow = { attempt: number; action: string; scores: RubricScores | null; issues: EvalIssue[] | null; created_at: string };
+const SEV_DOT: Record<string, string> = { block: '#c97f7f', rewrite: '#e0c878', note: '#63c281' };
+
 function ManagerCard({ evals }: { evals: EvalRow[] }) {
   const latest = evals[evals.length - 1];
   const overall = Number(latest.scores?.overall ?? 0);
@@ -227,6 +247,7 @@ function ManagerCard({ evals }: { evals: EvalRow[] }) {
     reject: { text: 'Rejected — routed to your review', color: '#c97f7f' },
   };
   const act = actionLabel[latest.action] ?? { text: latest.action, color: '#9aa096' };
+  const issues = latest.issues ?? [];
   return (
     <div className="gv-card" style={card()}>
       <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#6b6f67', marginBottom: 16 }}>Manager score · attempt {latest.attempt}/2</div>
@@ -237,6 +258,17 @@ function ManagerCard({ evals }: { evals: EvalRow[] }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: act.color, marginTop: 16, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 13 }}>
         <span style={{ width: 7, height: 7, borderRadius: '50%', background: act.color }} />{act.text}
       </div>
+      {issues.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 13, paddingTop: 13, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          {issues.slice(0, 6).map((i, idx) => (
+            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 12 }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: SEV_DOT[i.severity] ?? ACCENT, flexShrink: 0 }} />
+              <span style={{ color: '#9aa096', fontFamily: 'ui-monospace, SFMono-Regular, monospace', fontSize: 11 }}>{String(i.rule ?? 'NOTE').toUpperCase()}</span>
+              <span style={{ marginLeft: 'auto', color: '#565a53', fontSize: 11 }}>{(i.note ?? '').slice(0, 60)}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -278,6 +310,23 @@ function SerpCard({ subtopics, body }: { subtopics: string[]; body: string }) {
         })}
       </div>
       <p style={{ fontSize: 11, color: '#565a53', lineHeight: 1.5, margin: '14px 0 0' }}>Consensus subtopics from live top-ranking pages. <span style={{ color: '#c97f7f' }}>Amber</span> = a gap this draft doesn’t cover yet.</p>
+    </div>
+  );
+}
+
+function SourcesCard({ sources }: { sources: { name: string; host: string; icon: string }[] }) {
+  return (
+    <div className="gv-card" style={card()}>
+      <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#6b6f67', marginBottom: 14 }}>Sources cited</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {sources.map((src, si) => (
+          <div key={si} className="gv-qrow" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 9 }}>
+            <span style={{ color: '#6b6f67', display: 'flex', flexShrink: 0 }}><Icon name={src.icon} size={14} /></span>
+            <span style={{ fontSize: 12.5, color: '#cdd2c9', flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{src.name}</span>
+            <span style={{ fontSize: 11, color: '#565a53', flexShrink: 0 }}>{src.host}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

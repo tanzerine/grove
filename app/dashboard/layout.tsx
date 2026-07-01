@@ -32,10 +32,7 @@ export default async function DashLayout({ children }: { children: React.ReactNo
         .from('posts').select('status,domain_id').in('domain_id', domainIds);
       const inPipeline = (posts ?? []).filter((p) =>
         !['published', 'failed', 'archived'].includes((p as any).status)).length;
-      const inReview = (posts ?? []).filter((p) =>
-        ['review', 'needs_review', 'awaiting_review'].includes((p as any).status)).length;
       if (inPipeline) badges.pipeline = inPipeline;
-      if (inReview) badges.reviews = inReview;
     }
   } catch { /* badges are optional */ }
 

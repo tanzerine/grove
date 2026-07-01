@@ -86,9 +86,9 @@ describe('composeDigestEmail', () => {
       'https://app.grove.so',
     );
     expect(subject).toContain('2 drafts waiting');
-    expect(html).toContain('href="https://app.grove.so/dashboard/reviews"');
+    expect(html).toContain('href="https://app.grove.so/dashboard/pipeline"');
     expect(html).toContain('Review waiting drafts');
-    expect(text).toContain('/dashboard/reviews');
+    expect(text).toContain('/dashboard/pipeline');
   });
 
   it('uses an onboarding subject before anything is published', () => {
