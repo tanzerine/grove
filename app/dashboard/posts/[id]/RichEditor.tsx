@@ -259,6 +259,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
             <FmtBtn on={editor.isActive('heading', { level: 3 })} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>H3</FmtBtn>
             <FmtBtn on={editor.isActive('blockquote')} onClick={() => editor.chain().focus().toggleBlockquote().run()}>❝</FmtBtn>
             <FmtBtn on={editor.isActive('bulletList')} onClick={() => editor.chain().focus().toggleBulletList().run()}>•</FmtBtn>
+            <FmtBtn on={editor.isActive('orderedList')} onClick={() => editor.chain().focus().toggleOrderedList().run()}>1.</FmtBtn>
             <FmtBtn on={editor.isActive('link')} onClick={setLink}>link</FmtBtn>
             <span style={{ width: 1, background: 'rgba(255,255,255,0.22)', margin: '2px 3px' }} />
             <FmtBtn onClick={() => { promptRef.current?.focus(); }}>✨ AI</FmtBtn>
@@ -291,6 +292,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
                 <ToolBtn on={editor?.isActive('italic')} onClick={() => editor?.chain().focus().toggleItalic().run()} serif italic>i</ToolBtn>
                 <ToolBtn on={editor?.isActive('blockquote')} onClick={() => editor?.chain().focus().toggleBlockquote().run()} serif>”</ToolBtn>
                 <ToolBtn on={editor?.isActive('bulletList')} onClick={() => editor?.chain().focus().toggleBulletList().run()}><Icon name="pipeline" size={15} /></ToolBtn>
+                <ToolBtn on={editor?.isActive('orderedList')} onClick={() => editor?.chain().focus().toggleOrderedList().run()}>1.</ToolBtn>
                 <ToolBtn on={editor?.isActive('link')} onClick={setLink}><Icon name="link" size={15} /></ToolBtn>
                 <span style={{ flex: 1 }} />
                 <button onClick={() => promptRef.current?.focus()} className="gv-btn" style={{ display: 'flex', alignItems: 'center', gap: 7, height: 30, padding: '0 13px', borderRadius: 8, border: 'none', background: 'rgba(99,194,129,0.14)', color: ACCENT, fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>
