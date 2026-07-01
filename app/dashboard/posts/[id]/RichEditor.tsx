@@ -15,13 +15,15 @@ import Icon from '../../gv-icons';
 const ACCENT = '#63c281';
 
 type Props = {
-  postId: string;
+  postId: string | null;         // null = a brand-new blank draft, created on first save
+  domainId?: string;             // required when postId is null (to create the draft)
   initialBody: string;            // markdown
   initialTitle: string;
   initialMetaTitle: string;
   initialMetaDesc: string;
   canEdit: boolean;
   autoEdit?: boolean;             // open straight into edit mode (fresh manual drafts)
+  railExtra?: React.ReactNode;   // extra card pinned to the top of the assist rail
 };
 
 // A grove-assist request + its result, rendered in the right rail feed.
@@ -42,7 +44,7 @@ function getMd(editor: any): string {
   return editor?.storage?.markdown?.getMarkdown?.() ?? '';
 }
 
-export default function RichEditor({ postId, initialBody, initialTitle, initialMetaTitle, initialMetaDesc, canEdit, autoEdit }: Props) {
+export default function RichEditor({ postId, domainId, initialBody, initialTitle, initialMetaTitle, initialMetaDesc, canEdit, autoEdit, railExtra }: Props) {
   const r = useRouter();
   const [editing, setEditing] = useState(!!autoEdit);
   const [dirty, setDirty] = useState(false);
@@ -92,6 +94,17 @@ export default function RichEditor({ postId, initialBody, initialTitle, initialM
     if (!editor) return;
     setSaving(true);
     const md = getMd(editor);
+    // Brand-new blank draft: create it now, then continue in the editor route.
+    if (postId == null) {
+      const res = await fetch('/api/posts/manual', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ domain_id: domainId, title: title.trim() || undefined, body_md: md }),
+      });
+      const j = await res.json().catch(() => ({}));
+      setSaving(false);
+      if (res.ok && j.id) { baseline.current = md; setDirty(false); r.push(`/dashboard/posts/${j.id}`); }
+      return;
+    }
     const res = await fetch(`/api/posts/${postId}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
@@ -147,6 +160,10 @@ export default function RichEditor({ postId, initialBody, initialTitle, initialM
   async function askGrove(instruction: string) {
     if (!editor) return;
     const id = 'a' + (cid.current++);
+    if (postId == null) {
+      pushCard({ id, label: instruction, status: 'error', error: 'Save this draft first — then grove assist can revise a selection.' });
+      return;
+    }
     const { from, to } = editor.state.selection;
     if (from === to) {
       pushCard({ id, label: instruction, status: 'error', error: 'Select a passage in the draft, then ask grove to revise it.' });
@@ -223,7 +240,7 @@ export default function RichEditor({ postId, initialBody, initialTitle, initialM
           <>
             <button onClick={done} disabled={saving} className="gv-btn" style={primaryBtn}>
               <span style={{ display: 'flex' }}><Icon name="check" size={14} /></span>
-              {saving ? 'Saving…' : (dirty || metaDirty) ? 'Save & done' : 'Done'}
+              {saving ? 'Saving…' : postId == null ? 'Save draft' : (dirty || metaDirty) ? 'Save & done' : 'Done'}
             </button>
             <button onClick={discard} disabled={saving} className="gv-ghost" style={ghostBtn}>Discard</button>
           </>
@@ -321,6 +338,7 @@ export default function RichEditor({ postId, initialBody, initialTitle, initialM
         {/* ── grove assist rail ── */}
         {showRail && (
           <aside style={{ position: 'sticky', top: 78, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {railExtra}
             <div style={{ background: 'linear-gradient(155deg, #0c130e, #0a0d0a)', border: '1px solid rgba(99,194,129,0.2)', borderRadius: 18, padding: '18px 18px 16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 13 }}>
                 <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(99,194,129,0.14)', border: '1px solid rgba(99,194,129,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: ACCENT }}><Icon name="sparkle" size={15} /></span>

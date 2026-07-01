@@ -1,6 +1,7 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import { getActiveDomain } from '@/lib/active-domain';
-import WriteDesk from './WriteDesk';
+import RichEditor from '../posts/[id]/RichEditor';
+import StartDraft from './StartDraft';
 import { DashHeader } from '../gv-chrome';
 
 export default async function WritePage() {
@@ -9,14 +10,20 @@ export default async function WritePage() {
 
   return (
     <>
-      <DashHeader title="Writing desk" subtitle="write it yourself, or think out loud and let grove draft it" />
-      <div className="gv-body">
-        <p className="lede" style={{ maxWidth: 600 }}>
-          Write a post in your own words, or think out loud and let grove turn an idea into a draft.
-          Nothing here publishes on its own — you stay in the driver&apos;s seat.
-        </p>
+      <DashHeader title="Write" subtitle="a blank page — write it yourself, or start from Idea studio / SEO set on the right" />
+      <div className="gv-body" style={{ maxWidth: 1440 }}>
         {domain ? (
-          <WriteDesk domainId={domain.id} hostname={domain.hostname} />
+          <RichEditor
+            postId={null}
+            domainId={domain.id}
+            initialBody=""
+            initialTitle=""
+            initialMetaTitle=""
+            initialMetaDesc=""
+            canEdit
+            autoEdit
+            railExtra={<StartDraft domainId={domain.id} hostname={domain.hostname} />}
+          />
         ) : (
           <p className="lede" style={{ marginTop: 24 }}>Add a domain first to start writing.</p>
         )}
