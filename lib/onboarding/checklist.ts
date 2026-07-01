@@ -128,7 +128,7 @@ export async function getOnboarding(sb: SupabaseClient, domain: ActiveDomain): P
       id: 'review_post', n: 6,
       title: 'Review the scheduled post',
       desc: 'Approve or tweak the draft before it goes live.',
-      href: '/dashboard/reviews',
+      href: '/dashboard/pipeline',
       done: approvedCount > 0,
     },
     {

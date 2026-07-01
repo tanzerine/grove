@@ -166,7 +166,7 @@ export default async function OverviewPage() {
     : null;
   const flight = inPipeline.filter((p) => ['queued', 'researching', 'writing'].includes(p.status));
   const agentItems: { icon: string; title: string; detail: string; attn: boolean; action?: { label: string; href: string } }[] = [];
-  if (inReview.length) agentItems.push({ icon: 'eye', title: `${inReview.length} draft${inReview.length === 1 ? '' : 's'} need review`, detail: 'Approve to let autopilot publish them', attn: true, action: { label: 'Review', href: '/dashboard/reviews' } });
+  if (inReview.length) agentItems.push({ icon: 'eye', title: `${inReview.length} draft${inReview.length === 1 ? '' : 's'} need review`, detail: 'Approve to let autopilot publish them', attn: true, action: { label: 'Review', href: '/dashboard/pipeline' } });
   if (flight[0]) agentItems.push({ icon: 'search2', title: flight[0].status === 'writing' ? 'Drafting in your voice' : 'Researching live SERP', detail: `“${flight[0].title ?? flight[0].topic}”`, attn: false });
   if (flight[1]) agentItems.push({ icon: 'check', title: 'Next in the queue', detail: `“${flight[1].title ?? flight[1].topic}”`, attn: false });
   while (agentItems.length < 1) agentItems.push({ icon: 'check', title: 'All caught up', detail: 'No drafts in flight right now', attn: false });
@@ -260,7 +260,7 @@ export default async function OverviewPage() {
             </p>
           </div>
           <div style={{ display: 'flex', gap: 9 }}>
-            <Link href="/dashboard/reviews" className="gv-ghost" style={{ border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)', color: '#cdd2c9', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '10px 16px', borderRadius: 10, cursor: 'pointer', textDecoration: 'none' }}>Review queue ({inReview.length})</Link>
+            <Link href="/dashboard/pipeline" className="gv-ghost" style={{ border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)', color: '#cdd2c9', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '10px 16px', borderRadius: 10, cursor: 'pointer', textDecoration: 'none' }}>Review queue ({inReview.length})</Link>
             <Link href="/dashboard/write" className="gv-btn" style={{ border: 'none', background: ACCENT, color: '#06120b', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '10px 18px', borderRadius: 10, cursor: 'pointer', textDecoration: 'none' }}>Write</Link>
           </div>
         </div>

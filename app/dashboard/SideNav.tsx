@@ -17,7 +17,6 @@ const SECTIONS: Section[] = [
   ]},
   { head: 'Publish', items: [
     { href: '/dashboard/calendar', label: 'Calendar', icon: 'calendar', match: (p) => p.startsWith('/dashboard/calendar') },
-    { href: '/dashboard/reviews', label: 'Reviews', icon: 'reviews', badgeKey: 'reviews', match: (p) => p.startsWith('/dashboard/reviews') },
     { href: '/dashboard/analytics', label: 'Analytics', icon: 'analytics', match: (p) => p.startsWith('/dashboard/analytics') },
   ]},
   { head: 'Brand', items: [

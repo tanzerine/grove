@@ -120,7 +120,7 @@ export function composeBrief(s: BriefStats): string[] {
 /** The one thing the owner should do next, if anything. */
 export function nextAction(s: BriefStats): { label: string; href: string } | null {
   if (s.inReview > 0) {
-    return { label: `Review ${plural(s.inReview, 'waiting draft')} →`, href: '/dashboard/reviews' };
+    return { label: `Review ${plural(s.inReview, 'waiting draft')} →`, href: '/dashboard/pipeline' };
   }
   return null;
 }

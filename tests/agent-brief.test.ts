@@ -79,7 +79,7 @@ describe('composeBrief', () => {
 describe('nextAction', () => {
   it('points at reviews when drafts wait', () => {
     const a = nextAction({ ...base, inReview: 3 });
-    expect(a?.href).toBe('/dashboard/reviews');
+    expect(a?.href).toBe('/dashboard/pipeline');
     expect(a?.label).toContain('3 waiting drafts');
   });
   it('is null when nothing needs the owner', () => {
