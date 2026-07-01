@@ -1,6 +1,7 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import { getActiveDomain } from '@/lib/active-domain';
-import WriteWorkspace from './WriteWorkspace';
+import RichEditor from '../posts/[id]/RichEditor';
+import StartDraft from './StartDraft';
 import { DashHeader } from '../gv-chrome';
 
 export default async function WritePage() {
@@ -9,10 +10,20 @@ export default async function WritePage() {
 
   return (
     <>
-      <DashHeader title="Write" subtitle="a blank page by default — or pick Idea studio / SEO set on the left" />
-      <div className="gv-body">
+      <DashHeader title="Write" subtitle="a blank page — write it yourself, or start from Idea studio / SEO set on the right" />
+      <div className="gv-body" style={{ maxWidth: 1440 }}>
         {domain ? (
-          <WriteWorkspace domainId={domain.id} hostname={domain.hostname} />
+          <RichEditor
+            postId={null}
+            domainId={domain.id}
+            initialBody=""
+            initialTitle=""
+            initialMetaTitle=""
+            initialMetaDesc=""
+            canEdit
+            autoEdit
+            railExtra={<StartDraft domainId={domain.id} hostname={domain.hostname} />}
+          />
         ) : (
           <p className="lede" style={{ marginTop: 24 }}>Add a domain first to start writing.</p>
         )}
