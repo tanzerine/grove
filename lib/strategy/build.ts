@@ -12,7 +12,7 @@
  *   - manager evaluation (goals + kpis + pillars are the rubric scope)
  *   - end-of-month review (kpis are measured against post_events)
  */
-import { llmCall, extractJson } from '../llm';
+import { strategyLlmCall, extractJson } from '../llm';
 import type { SiteProfile } from '../pipeline/site-profile';
 import { interviewSummary, type InterviewAnswers } from './interview';
 import { assignPublishDates } from './schedule';
@@ -67,13 +67,24 @@ export type PostSlot = {
   publish_date?: string;   // ISO instant this slot is slated to publish (UTC; UI renders local)
 };
 
+/**
+ * The owner-facing narrative: one line for the month, one per week. This is
+ * what makes "where are we heading this month / this week / today" a firm,
+ * plain-language answer on the dashboard (today is derived from the calendar).
+ */
+export type Direction = {
+  month: string;       // "Turn our design-tokens authority into 20 trial signups."
+  weeks: string[];     // 4-5 one-liners, one per week of the month
+};
+
 export type Strategy = {
   month: string;                    // "2026-06"
-  source: 'inferred' | 'interview' | 'mixed';
+  source: 'inferred' | 'interview' | 'mixed' | 'revised';
   goals: Goal[];
   kpis: KPI[];
   pillars: Pillar[];
   publishing_plan: PostSlot[];
+  direction?: Direction;
   notes: string;                    // "vs. last month, we're..."
 };
 
@@ -84,6 +95,7 @@ export type BuildStrategyInput = {
   interview?: InterviewAnswers | null;
   prevStrategy?: Strategy | null;
   prevReport?: MonthlyReport | null;
+  progressMd?: string | null;       // rolling weekly log (agent_context.progress_md)
   alreadyCovered?: string[];        // topic_memory keywords — don't re-propose these
 };
 
@@ -135,8 +147,9 @@ function digestReport(r: MonthlyReport): string {
 }
 
 export async function buildStrategy(input: BuildStrategyInput): Promise<Strategy> {
-  const { month, postsPerWeek, profile, interview, prevStrategy, prevReport, alreadyCovered } = input;
+  const { month, postsPerWeek, profile, interview, prevStrategy, prevReport, progressMd, alreadyCovered } = input;
   const monthlyPostCount = Math.max(4, Math.round(postsPerWeek * 4.3));
+  const isFirstMonth = !prevStrategy && !prevReport?.totals?.views;
 
   // VALIDATED DEMAND — pull real search phrases (free, via Google Autocomplete)
   // for the business's own products/industry/value props. This grounds the
@@ -188,6 +201,25 @@ PRIORITIES (in order)
    set target_keyword to the query they already rank for. Moving an existing
    page from position 12 to 8 wins traffic faster than any brand-new post.
 
+TARGETS — REALISTIC BUT OPTIMISTIC
+${isFirstMonth
+  ? `This is the FIRST month (no traffic history). Set modest absolute KPI
+targets a brand-new blog can genuinely hit (tens of reads, single-digit
+conversions — organic search compounds over 2-3 months, it does not spike in
+week one). Frame the month as building the foundation the next months cash
+in. Never promise rankings or traffic volumes you have no evidence for.`
+  : `Anchor every KPI target to LAST MONTH'S ACTUALS in the report and the
+progress log below: target roughly 1.2-1.5x what was actually achieved, and
+call out the growth explicitly in the direction narrative. A target below
+last month's actual is sandbagging; more than ~2x without a clear causal
+lever (near-winner refresh, proven query, new distribution) is fantasy.`}
+
+DIRECTION — the owner-facing narrative. Also output a "direction" object:
+one sentence for the month (specific, confident, grounded in the plan — the
+owner should read it and know exactly where this month is heading) and one
+short line per week of the month describing what that week ships and why it
+comes in that order. Plain language, no marketing jargon, no hedging.
+
 DON'T
 - Don't invent metrics we can't measure.
 - Don't promise more than ${monthlyPostCount} articles.
@@ -216,6 +248,9 @@ ${prevStrategy ? JSON.stringify({ goals: prevStrategy.goals, kpis: prevStrategy.
 
 LAST MONTH'S REPORT (real numbers from analytics):
 ${prevReport ? digestReport(prevReport) : '(none — first month)'}
+
+PROGRESS LOG (weekly entries, newest last — the season so far):
+${progressMd?.trim() ? progressMd.trim().slice(-4000) : '(no weekly history yet)'}
 
 VALIDATED SEARCH DEMAND (real Google autocomplete phrases for this business — prioritize covering these and pull target_keyword from here):
 ${demandBlock}
@@ -254,21 +289,39 @@ Produce the new strategy as JSON:
       "notes": "optional"
     }
   ],
+  "direction": {
+    "month": "one confident sentence: where this month is heading and the number it moves",
+    "weeks": ["week 1 in one line", "week 2 ...", "week 3 ...", "week 4 ..."]
+  },
   "notes": "1-2 sentences on what this month does differently than last (or 'first month' if none)."
 }
 
 publishing_plan should contain exactly ${monthlyPostCount} slots, distributed across pillars in proportion to each pillar's importance.`;
 
-  const { text } = await llmCall({ system, user, json: true, maxTokens: 4500 });
+  const { text } = await strategyLlmCall({ system, user, maxTokens: 4500 });
   const parsed = extractJson<Strategy>(text);
 
-  // ── normalize + guardrails ─────────────────────────────────
+  return normalizeStrategy(parsed, { month, source, maxSlots: monthlyPostCount, postsPerWeek });
+}
+
+/**
+ * Normalize + guardrail an LLM-produced strategy so we never persist dangling
+ * references, invalid KPIs, or an undated calendar. Shared by the monthly
+ * build and the plan-revision chat.
+ */
+export function normalizeStrategy(
+  parsed: Strategy,
+  opts: { month: string; source: Strategy['source']; maxSlots: number; postsPerWeek: number },
+): Strategy {
+  const { month, source, maxSlots, postsPerWeek } = opts;
+
   parsed.month = month;
   parsed.source = source;
   parsed.goals = (parsed.goals ?? []).slice(0, 4);
   parsed.kpis = (parsed.kpis ?? []).filter(validKpi);
   parsed.pillars = (parsed.pillars ?? []).slice(0, 5).map(normalizePillar);
-  parsed.publishing_plan = (parsed.publishing_plan ?? []).slice(0, monthlyPostCount);
+  parsed.publishing_plan = (parsed.publishing_plan ?? []).slice(0, maxSlots);
+  parsed.direction = normalizeDirection(parsed);
 
   // Backfill links so we never ship dangling references.
   const goalIds = new Set(parsed.goals.map((g) => g.id));
@@ -291,7 +344,20 @@ publishing_plan should contain exactly ${monthlyPostCount} slots, distributed ac
   return parsed;
 }
 
-function validKpi(k: KPI): boolean {
+/** Direction is optional in the raw output — synthesize a fallback from the
+ *  goals so the dashboard's month/week/today answer is never blank. */
+function normalizeDirection(s: Strategy): Direction {
+  const d = s.direction;
+  const month = (typeof d?.month === 'string' && d.month.trim())
+    ? d.month.trim()
+    : (s.goals?.[0] ? `${s.goals[0].title} — ${s.goals[0].why}` : `Ship ${s.publishing_plan?.length ?? 0} posts this month`);
+  const weeks = Array.isArray(d?.weeks)
+    ? d!.weeks.filter((w) => typeof w === 'string' && w.trim()).map((w) => w.trim()).slice(0, 5)
+    : [];
+  return { month, weeks };
+}
+
+export function validKpi(k: KPI): boolean {
   const allowed: KPI['metric'][] = [
     'views', 'unique_sessions', 'median_dwell_sec',
     'scroll_completion_rate', 'outbound_to_product_rate',
@@ -300,7 +366,7 @@ function validKpi(k: KPI): boolean {
   return !!k && allowed.includes(k.metric) && typeof k.target === 'number' && k.target > 0;
 }
 
-function normalizePillar(p: Pillar): Pillar {
+export function normalizePillar(p: Pillar): Pillar {
   // Force intent_mix to sum to 1; fall back to a sane default.
   const mix = p.intent_mix ?? { editorial: 0.3, contextual: 0.5, conversion: 0.2 };
   const sum = (mix.editorial ?? 0) + (mix.contextual ?? 0) + (mix.conversion ?? 0);
