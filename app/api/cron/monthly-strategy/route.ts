@@ -15,6 +15,7 @@ import { isCronAuthorized } from '@/lib/cron-auth';
 import { buildStrategy, type Strategy } from '@/lib/strategy/build';
 import { summarizeMonth } from '@/lib/strategy/review';
 import { parseInterview } from '@/lib/strategy/interview';
+import { getAgentContext, savePlanContext } from '@/lib/strategy/context-store';
 import type { SiteProfile } from '@/lib/pipeline/site-profile';
 
 export const runtime = 'nodejs';
@@ -82,6 +83,10 @@ export async function GET(req: Request) {
         .limit(60);
       const alreadyCovered = (covered ?? []).map((r: any) => r.keyword).filter(Boolean);
 
+      // The rolling weekly log — how the season actually went, week by week.
+      // This is what makes the loop compound instead of restarting each month.
+      const ctx = await getAgentContext(domain.id);
+
       const strategy = await buildStrategy({
         month: thisMonthLabel,
         postsPerWeek: domain.posts_per_week ?? 4,
@@ -89,6 +94,7 @@ export async function GET(req: Request) {
         interview: parseInterview((domain as any).interview),
         prevStrategy: (prev as any) as Strategy | null,
         prevReport: report,
+        progressMd: ctx.progress_md,
         alreadyCovered,
       });
 
@@ -103,11 +109,15 @@ export async function GET(req: Request) {
         kpis: strategy.kpis,
         pillars: strategy.pillars,
         publishing_plan: strategy.publishing_plan,
+        direction: strategy.direction ?? null,
         interview: (domain as any).interview ?? null,
         prev_review: report,
         notes: strategy.notes,
         active: true,
       });
+
+      // Refresh the plan memo the chat + downstream prompts read.
+      await savePlanContext(domain.id, strategy, domain.hostname);
 
       results.push({ domain_id: domain.id, status: 'created' });
     } catch (err: any) {

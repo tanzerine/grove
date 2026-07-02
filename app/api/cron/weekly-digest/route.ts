@@ -1,9 +1,16 @@
 /**
  * GET /api/cron/weekly-digest — runs weekly (Monday morning).
  *
- * The retention loop on top of the dashboard's agent brief: for every verified
- * domain that hasn't opted out (domains.weekly_digest), compose the same
- * plain-English report and email it to the domain owner via Resend.
+ * Two jobs per verified domain:
+ *
+ *  1. PROGRESS TRACKING (every domain): compute the week's numbers and how
+ *     they compare to the plan, and append one compact entry to the domain's
+ *     rolling progress log (agent_context.progress_md). This is the weekly
+ *     heartbeat of the loop — the monthly strategist reads this log, so the
+ *     plan actually learns from the season instead of only month-end totals.
+ *
+ *  2. DIGEST EMAIL (opt-in via domains.weekly_digest): the same plain-English
+ *     brief, emailed to the owner via Resend.
  *
  * Owner email comes from the auth user that owns the domain
  * (domains.user_id → auth.users) via the service-role admin client.
@@ -18,6 +25,9 @@ import { isCronAuthorized } from '@/lib/cron-auth';
 import { getBriefStats } from '@/lib/agent-brief';
 import { composeDigestEmail } from '@/lib/email/digest';
 import { sendEmail } from '@/lib/email/resend';
+import { progressEntry } from '@/lib/strategy/context';
+import { appendWeeklyProgress } from '@/lib/strategy/context-store';
+import type { PostSlot } from '@/lib/strategy/build';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -29,19 +39,52 @@ export async function GET(req: Request) {
   const sb = supabaseAdmin();
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://grove.so';
 
-  // Verified domains that haven't opted out of the digest.
+  // All verified domains — progress tracking runs for everyone; the email
+  // below additionally respects the weekly_digest opt-out.
   const { data: domains } = await sb
     .from('domains')
     .select('id, hostname, user_id, weekly_digest')
-    .not('verified_at', 'is', null)
-    .eq('weekly_digest', true);
+    .not('verified_at', 'is', null);
 
   let sent = 0;
   let skipped = 0;
   let failed = 0;
+  let logged = 0;
   const emailByUser = new Map<string, string | null>();
+  const now = new Date();
+  const weekAgo = new Date(now.getTime() - 7 * 86400_000);
 
   for (const d of domains ?? []) {
+    let stats: Awaited<ReturnType<typeof getBriefStats>> | null = null;
+    try {
+      stats = await getBriefStats(d.id, d.hostname);
+
+      // How many slots did the plan want live in this window?
+      const { data: strat } = await sb
+        .from('strategies').select('publishing_plan')
+        .eq('domain_id', d.id).eq('active', true)
+        .order('month', { ascending: false }).limit(1).maybeSingle();
+      const planned = (((strat as any)?.publishing_plan ?? []) as PostSlot[])
+        .filter((s) => s.publish_date
+          && s.publish_date >= weekAgo.toISOString()
+          && s.publish_date < now.toISOString()).length;
+
+      await appendWeeklyProgress(d.id, progressEntry({
+        weekOf: weekAgo.toISOString().slice(0, 10),
+        published: stats.publishedThisWeek,
+        planned,
+        reads: stats.readsThisWeek,
+        readsPrev: stats.readsLastWeek,
+        conversions: stats.conversionsThisWeek,
+        organicShare: stats.organicShare,
+        topPost: stats.topPost,
+      }));
+      logged++;
+    } catch (e) {
+      console.error('[weekly-progress]', d.hostname, e);
+    }
+
+    if (!d.weekly_digest) { continue; }
     try {
       // Resolve owner email (cache per user — one owner may hold many domains).
       let email = emailByUser.get(d.user_id);
@@ -52,7 +95,7 @@ export async function GET(req: Request) {
       }
       if (!email) { skipped++; continue; }
 
-      const stats = await getBriefStats(d.id, d.hostname);
+      if (!stats) stats = await getBriefStats(d.id, d.hostname);
       const { subject, html, text } = composeDigestEmail(stats, baseUrl);
       const res = await sendEmail({ to: email, subject, html, text });
 
@@ -65,5 +108,5 @@ export async function GET(req: Request) {
     }
   }
 
-  return NextResponse.json({ domains: domains?.length ?? 0, sent, skipped, failed });
+  return NextResponse.json({ domains: domains?.length ?? 0, logged, sent, skipped, failed });
 }

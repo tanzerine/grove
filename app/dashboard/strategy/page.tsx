@@ -6,9 +6,11 @@ import { latestSnapshot } from '@/lib/search-console/sync';
 import { nearWinners } from '@/lib/search-console/insights';
 import { summarizeMonth, type MonthlyReport } from '@/lib/strategy/review';
 import type { Strategy, Goal, Pillar, PostSlot, KPI } from '@/lib/strategy/build';
+import { horizons } from '@/lib/strategy/context';
 import Icon from '../gv-icons';
 import { DashHeader } from '../gv-chrome';
 import StrategyClusterMap, { type Cluster, type Spoke } from './StrategyClusterMap';
+import PlanChat from './PlanChat';
 
 export const dynamic = 'force-dynamic';
 
@@ -164,6 +166,18 @@ export default async function StrategyPage() {
     ? s.notes
     : `${planMonth}'s plan: ${plan.length} posts across ${(s.pillars ?? []).length} pillars, drafted from last month's results.`;
 
+  // Where we're heading — month / week / today, derived from the plan itself.
+  const hz = horizons(s, now);
+  const horizonCards = [
+    { tag: 'This month', headline: hz.month.headline, detail: hz.month.detail },
+    {
+      tag: 'This week',
+      headline: hz.week.headline,
+      detail: hz.week.slots.map((sl) => `${sl.date} · ${sl.topic}`).slice(0, 3).join('\n') || 'Nothing new ships — existing posts keep earning.',
+    },
+    { tag: 'Today', headline: hz.today.headline, detail: hz.today.detail },
+  ];
+
   return (
     <>
       <DashHeader title="Strategy" subtitle={`${domain.hostname} · the monthly plan your agent works from`} />
@@ -195,6 +209,17 @@ export default async function StrategyPage() {
             </div>
           </div>
         </section>
+
+        {/* WHERE WE'RE HEADING — month / week / today */}
+        <div className="gv-grid4" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 14 }}>
+          {horizonCards.map((h, i) => (
+            <div key={i} className="gv-card" style={{ background: '#101310', border: `1px solid ${i === 2 ? 'rgba(99,194,129,0.22)' : 'rgba(255,255,255,0.07)'}`, borderRadius: 16, padding: '18px 20px' }}>
+              <div style={{ fontSize: 10.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: i === 2 ? ACCENT : '#9aa096', fontWeight: 700 }}>{h.tag}</div>
+              <div style={{ fontSize: 14.5, fontWeight: 600, color: '#eef1ea', lineHeight: 1.45, marginTop: 9 }}>{h.headline}</div>
+              <div style={{ fontSize: 12, color: '#6b6f67', lineHeight: 1.55, marginTop: 7, whiteSpace: 'pre-line' }}>{h.detail}</div>
+            </div>
+          ))}
+        </div>
 
         {/* GOAL CARDS */}
         {goals.length > 0 && (
@@ -309,6 +334,9 @@ export default async function StrategyPage() {
             )}
           </div>
         </div>
+
+        {/* PLAN CHAT — ask about the plan or change it in plain language */}
+        <PlanChat domainId={domain.id} />
       </div>
     </>
   );

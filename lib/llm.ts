@@ -17,6 +17,8 @@ export async function llmCall(opts: {
   maxTokens?: number;
   fast?: boolean;
   json?: boolean;
+  model?: `${string}/${string}`;
+  timeoutMs?: number;
 }): Promise<{ text: string }> {
   const input: Record<string, unknown> = {
     prompt: opts.user,
@@ -27,10 +29,10 @@ export async function llmCall(opts: {
 
   // Hard 120s ceiling per call. Without this, Vercel's parent function can
   // hang past 300s if Replicate stalls, leaving posts stuck in 'writing'.
-  const TIMEOUT_MS = 120_000;
+  const TIMEOUT_MS = opts.timeoutMs ?? 120_000;
 
   const prediction = await replicate.predictions.create({
-    model: MODEL,
+    model: opts.model ?? MODEL,
     input,
     stream: false,
   } as any);
@@ -56,6 +58,40 @@ export async function llmCall(opts: {
   const text = Array.isArray(out) ? out.join('') : String(out ?? '');
   if (!text.trim()) throw new Error('Replicate returned empty output');
   return { text };
+}
+
+/* ─────────────── strategy LLM call (most capable model, rare) ──────────── */
+// Planning is the highest-leverage LLM step in the loop — a bad plan wastes a
+// whole month of generation spend — so it runs on Claude Opus 4.7. Cost stays
+// reasonable for the business model because this tier is invoked at most a
+// handful of times per domain per month: one monthly build plus a capped
+// number of owner-requested plan revisions (see /api/strategy/chat). Everyday
+// chat questions never reach this model. At ~3k input / ~4.5k output tokens a
+// call is well under a dollar; ≤7 calls/domain/month keeps it a rounding error
+// next to article generation.
+
+const STRATEGY_MODEL = (
+  process.env.REPLICATE_STRATEGY_MODEL ?? 'anthropic/claude-opus-4.7'
+) as `${string}/${string}`;
+
+export async function strategyLlmCall(opts: {
+  system: string;
+  user: string;
+  maxTokens?: number;
+}): Promise<{ text: string }> {
+  try {
+    return await llmCall({
+      ...opts,
+      model: STRATEGY_MODEL,
+      maxTokens: opts.maxTokens ?? 4500,
+      timeoutMs: 240_000,          // Opus is slower; monthly cron budget is 300s
+    });
+  } catch (err) {
+    // The loop must never stall on a single provider hiccup: fall back to the
+    // workhorse model rather than leaving a domain without a plan.
+    console.error('[strategyLlmCall] falling back to main model:', err);
+    return llmCall(opts);
+  }
 }
 
 /* ─────────────────── fast LLM call (small model, low latency) ──────────── */
