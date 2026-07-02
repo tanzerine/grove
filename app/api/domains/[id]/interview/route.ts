@@ -14,6 +14,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { buildStrategy } from '@/lib/strategy/build';
 import { parseInterview } from '@/lib/strategy/interview';
+import { savePlanContext } from '@/lib/strategy/context-store';
 import { profileSite, type SiteProfile } from '@/lib/pipeline/site-profile';
 
 export const runtime = 'nodejs';
@@ -99,10 +100,12 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         kpis: strategy.kpis,
         pillars: strategy.pillars,
         publishing_plan: strategy.publishing_plan,
+        direction: strategy.direction ?? null,
         interview: answers,
         notes: strategy.notes,
         active: true,
       });
+      await savePlanContext(id, strategy, (domain as any).hostname);
       strategyBuilt = true;
     }
   } catch (err) {
