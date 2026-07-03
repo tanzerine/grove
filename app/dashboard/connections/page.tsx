@@ -18,7 +18,7 @@ export default async function ConnectionsPage() {
     return (
       <>
         <DashHeader title="Social" />
-        <div className="gv-body"><p style={{ color: '#9aa096' }}>Connect a domain first.</p></div>
+        <div className="gv-body"><p style={{ color: 'var(--gv-dim)' }}>Connect a domain first.</p></div>
       </>
     );
   }

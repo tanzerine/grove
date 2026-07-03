@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { useChrome } from './chrome-context';
 
-const ACCENT = '#63c281';
+const ACCENT = 'var(--gv-accent)';
 
 /**
  * The top-right avatar in every page header → the personal account menu:
@@ -45,13 +45,13 @@ export default function AccountAvatarMenu() {
       {open && (
         <div role="menu" style={{
           position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: 220,
-          background: '#15181a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12,
+          background: 'var(--gv-pop)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12,
           boxShadow: '0 16px 40px rgba(0,0,0,0.55)', padding: 6, zIndex: 70,
         }}>
           {email && (
             <div style={{ padding: '8px 10px 6px' }}>
-              <div style={{ fontSize: 11, color: '#565a53', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Signed in</div>
-              <div style={{ fontSize: 12.5, fontWeight: 600, color: '#eef1ea', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{email}</div>
+              <div style={{ fontSize: 11, color: 'var(--gv-fainter)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Signed in</div>
+              <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--gv-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{email}</div>
             </div>
           )}
           <Divider />
@@ -61,7 +61,7 @@ export default function AccountAvatarMenu() {
           <Item href="/" external>Grove home page ↗</Item>
           <Divider />
           <button role="menuitem" onClick={logout} disabled={busy}
-            style={{ ...itemStyle, color: '#ff9b9b', width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
+            style={{ ...itemStyle, color: 'var(--gv-red-text)', width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
             {busy ? 'Logging out…' : 'Log out'}
           </button>
         </div>
@@ -70,7 +70,7 @@ export default function AccountAvatarMenu() {
   );
 }
 
-const itemStyle: React.CSSProperties = { display: 'block', padding: '9px 10px', borderRadius: 8, fontSize: 13, color: '#cdd2c9', textDecoration: 'none' };
+const itemStyle: React.CSSProperties = { display: 'block', padding: '9px 10px', borderRadius: 8, fontSize: 13, color: 'var(--gv-soft)', textDecoration: 'none' };
 
 function Item({ href, children, external, onClick }: { href: string; children: React.ReactNode; external?: boolean; onClick?: () => void }) {
   if (external) return <a className="gv-nav" href={href} target="_blank" rel="noopener noreferrer" style={itemStyle}>{children}</a>;

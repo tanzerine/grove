@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { INTERVIEW, type InterviewAnswers } from '@/lib/strategy/interview';
 import GroveMark from '@/components/GroveMark';
 
-const DIM = '#9aa096';
+const DIM = 'var(--gv-dim)';
 
 export default function IntentPage() {
   const router = useRouter();
@@ -78,7 +78,7 @@ export default function IntentPage() {
         <div style={{ marginTop: 30, display: 'flex', flexDirection: 'column', gap: 16 }}>
           {INTERVIEW.map((q) => (
             <section key={q.id} className="gv-onb-card" style={{ padding: '22px 24px' }}>
-              <div style={{ fontSize: 16, fontWeight: 600, color: '#eef1ea' }}>{q.prompt}</div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--gv-ink)' }}>{q.prompt}</div>
               {q.help && <div style={{ fontSize: 13, color: DIM, marginTop: 4 }}>{q.help}</div>}
 
               {q.kind === 'single' && (
@@ -88,7 +88,7 @@ export default function IntentPage() {
                     return (
                       <label key={opt} style={radioRow(selected)}>
                         <input type="radio" name={q.id} checked={selected} onChange={() => setAns(q.id, opt)}
-                          style={{ marginRight: 10, accentColor: '#63c281' }} />
+                          style={{ marginRight: 10, accentColor: 'var(--gv-accent)' }} />
                         {opt}
                       </label>
                     );
@@ -104,7 +104,7 @@ export default function IntentPage() {
                     return (
                       <label key={opt} style={radioRow(selected)}>
                         <input type="checkbox" checked={selected} onChange={() => toggleMulti(q.id, opt, 2)}
-                          style={{ marginRight: 10, accentColor: '#63c281' }} />
+                          style={{ marginRight: 10, accentColor: 'var(--gv-accent)' }} />
                         {opt}
                       </label>
                     );
@@ -122,7 +122,7 @@ export default function IntentPage() {
           ))}
         </div>
 
-        {err && <div style={{ marginTop: 20, color: '#ff8585', fontSize: 14 }}>{err}</div>}
+        {err && <div style={{ marginTop: 20, color: 'var(--gv-red-text)', fontSize: 14 }}>{err}</div>}
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 30 }}>
           <button onClick={() => submit(true)} disabled={busy} className="gv-onb-ghost">Skip for now</button>
@@ -145,6 +145,6 @@ function radioRow(selected: boolean): React.CSSProperties {
     background: selected ? 'rgba(99,194,129,0.1)' : 'rgba(255,255,255,0.02)',
     cursor: 'pointer',
     fontSize: 15,
-    color: selected ? '#eef1ea' : '#cdd2c9',
+    color: selected ? 'var(--gv-ink)' : 'var(--gv-soft)',
   };
 }

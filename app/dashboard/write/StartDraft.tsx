@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import type { SearchIntent } from '@/lib/strategy/keywords';
 import Icon from '../gv-icons';
 
-const ACCENT = '#63c281';
+const ACCENT = 'var(--gv-accent)';
 
 const PROMPTS = [
   'A problem customers keep hitting',
@@ -108,11 +108,11 @@ export default function StartDraft({ domainId, hostname }: { domainId: string; h
   }
 
   return (
-    <div style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '16px 16px 17px' }}>
+    <div style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '16px 16px 17px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 13 }}>
         <span style={iconBadge}><Icon name="write" size={15} /></span>
-        <span style={{ fontSize: 14, fontWeight: 700, color: '#eef1ea' }}>Start a draft</span>
-        <span style={{ marginLeft: 'auto', fontSize: 11, color: '#6b6f67' }}>assisted</span>
+        <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--gv-ink)' }}>Start a draft</span>
+        <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--gv-faint)' }}>assisted</span>
       </div>
 
       <div style={tabRow}>
@@ -120,7 +120,7 @@ export default function StartDraft({ domainId, hostname }: { domainId: string; h
           const on = tab === k;
           return (
             <button key={k} onClick={() => setTab(k)} className="gv-tool"
-              style={{ flex: 1, border: `1px solid ${on ? 'rgba(99,194,129,0.3)' : 'transparent'}`, background: on ? 'rgba(99,194,129,0.14)' : 'transparent', color: on ? ACCENT : '#9aa096', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, padding: '6px 4px', borderRadius: 8, cursor: 'pointer' }}>
+              style={{ flex: 1, border: `1px solid ${on ? 'rgba(99,194,129,0.3)' : 'transparent'}`, background: on ? 'rgba(99,194,129,0.14)' : 'transparent', color: on ? ACCENT : 'var(--gv-dim)', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, padding: '6px 4px', borderRadius: 8, cursor: 'pointer' }}>
               {label}
             </button>
           );
@@ -129,7 +129,7 @@ export default function StartDraft({ domainId, hostname }: { domainId: string; h
 
       {tab === 'idea' && (
         <div>
-          <div style={desc}>Give grove a nudge and it&apos;ll suggest angles for <b style={{ color: '#cdd2c9' }}>{hostname}</b>.</div>
+          <div style={desc}>Give grove a nudge and it&apos;ll suggest angles for <b style={{ color: 'var(--gv-soft)' }}>{hostname}</b>.</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 11 }}>
             {PROMPTS.map((p) => (
               <button key={p} onClick={() => setFocus(p)} className="gv-chip" style={chip}>{p}</button>
@@ -147,14 +147,14 @@ export default function StartDraft({ domainId, hostname }: { domainId: string; h
                 const busy = busyIdea === idea;
                 return (
                   <div key={i} style={row}>
-                    <span style={{ fontSize: 12.5, lineHeight: 1.4, color: '#eef1ea' }}>{idea}</span>
+                    <span style={{ fontSize: 12.5, lineHeight: 1.4, color: 'var(--gv-ink)' }}>{idea}</span>
                     <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
                       <button onClick={() => writeMine(idea)} disabled={!!busyIdea} className="gv-ghost"
-                        style={{ border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: '#cdd2c9', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, padding: '6px 10px', borderRadius: 8, cursor: 'pointer' }}>
+                        style={{ border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, padding: '6px 10px', borderRadius: 8, cursor: 'pointer' }}>
                         {busy && busyKind === 'mine' ? 'Opening…' : 'Write myself'}
                       </button>
                       <button onClick={() => groveWrites(idea)} disabled={!!busyIdea} className="gv-btn"
-                        style={{ display: 'flex', alignItems: 'center', gap: 5, border: 'none', background: ACCENT, color: '#06120b', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, padding: '6px 10px', borderRadius: 8, cursor: 'pointer' }}>
+                        style={{ display: 'flex', alignItems: 'center', gap: 5, border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, padding: '6px 10px', borderRadius: 8, cursor: 'pointer' }}>
                         <Icon name="sparkle" size={11} />{busy && busyKind === 'grove' ? 'Queuing…' : 'grove writes it'}
                       </button>
                     </div>
@@ -173,11 +173,11 @@ export default function StartDraft({ domainId, hostname }: { domainId: string; h
             placeholder="Seed term — e.g. 'cold brew'" className="gv-prompt" style={field} />
           <div style={{ display: 'flex', gap: 8 }}>
             <select value={count} onChange={(e) => setCount(Number(e.target.value))} aria-label="Number of pages"
-              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '9px 10px', color: '#cdd2c9', fontFamily: 'inherit', fontSize: 12, cursor: 'pointer' }}>
-              {[4, 6, 8, 10, 12].map((n) => <option key={n} value={n} style={{ background: '#101310' }}>{n} pages</option>)}
+              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '9px 10px', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 12, cursor: 'pointer' }}>
+              {[4, 6, 8, 10, 12].map((n) => <option key={n} value={n} style={{ background: 'var(--gv-card)' }}>{n} pages</option>)}
             </select>
             <button onClick={previewSet} disabled={planning || seed.trim().length < 2} className="gv-ghost"
-              style={{ flex: 1, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.02)', color: '#cdd2c9', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: '9px', borderRadius: 10, cursor: 'pointer' }}>
+              style={{ flex: 1, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.02)', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: '9px', borderRadius: 10, cursor: 'pointer' }}>
               {planning ? 'Planning…' : 'Preview set'}
             </button>
           </div>
@@ -187,10 +187,10 @@ export default function StartDraft({ domainId, hostname }: { domainId: string; h
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {pages.map((p, i) => (
                   <div key={i} style={row}>
-                    <span style={{ fontSize: 12.5, lineHeight: 1.4, color: '#eef1ea' }}>
+                    <span style={{ fontSize: 12.5, lineHeight: 1.4, color: 'var(--gv-ink)' }}>
                       <span style={{ width: 7, height: 7, borderRadius: '50%', display: 'inline-block', marginRight: 7, background: intentColor(p.intent), verticalAlign: 'middle' }} />
                       {p.title}
-                      <span style={{ display: 'block', fontSize: 11, color: '#9aa096', marginTop: 2 }}>targets “{p.keyword}”</span>
+                      <span style={{ display: 'block', fontSize: 11, color: 'var(--gv-dim)', marginTop: 2 }}>targets “{p.keyword}”</span>
                     </span>
                   </div>
                 ))}
@@ -209,9 +209,9 @@ export default function StartDraft({ domainId, hostname }: { domainId: string; h
 
 function intentColor(intent: SearchIntent): string {
   return intent === 'transactional' ? ACCENT
-    : intent === 'commercial' ? '#7B9EF0'
-    : intent === 'navigational' ? '#9aa096'
-    : '#E0A040';
+    : intent === 'commercial' ? 'var(--gv-blue)'
+    : intent === 'navigational' ? 'var(--gv-dim)'
+    : 'var(--gv-amber)';
 }
 
 const iconBadge: React.CSSProperties = {
@@ -222,20 +222,20 @@ const tabRow: React.CSSProperties = {
   display: 'flex', gap: 4, padding: 3, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)',
   borderRadius: 10, marginBottom: 14,
 };
-const desc: React.CSSProperties = { fontSize: 12, lineHeight: 1.5, color: '#9aa096', margin: '0 0 11px' };
+const desc: React.CSSProperties = { fontSize: 12, lineHeight: 1.5, color: 'var(--gv-dim)', margin: '0 0 11px' };
 const field: React.CSSProperties = {
   width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10,
-  padding: '9px 12px', color: '#eef1ea', fontFamily: 'inherit', fontSize: 12.5, outline: 'none', boxSizing: 'border-box', marginBottom: 10,
+  padding: '9px 12px', color: 'var(--gv-ink)', fontFamily: 'inherit', fontSize: 12.5, outline: 'none', boxSizing: 'border-box', marginBottom: 10,
 };
 const primaryBtn: React.CSSProperties = {
   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, width: '100%', border: 'none',
-  background: ACCENT, color: '#06120b', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, padding: 10, borderRadius: 10, cursor: 'pointer',
+  background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, padding: 10, borderRadius: 10, cursor: 'pointer',
 };
 const chip: React.CSSProperties = {
-  fontSize: 11, fontWeight: 600, color: '#9aa096', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.09)',
+  fontSize: 11, fontWeight: 600, color: 'var(--gv-dim)', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.09)',
   borderRadius: 999, padding: '5px 10px', cursor: 'pointer', fontFamily: 'inherit',
 };
 const row: React.CSSProperties = {
   padding: '10px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10,
 };
-const errText: React.CSSProperties = { fontSize: 12, color: '#c97f7f', margin: '10px 0 0' };
+const errText: React.CSSProperties = { fontSize: 12, color: 'var(--gv-red)', margin: '10px 0 0' };

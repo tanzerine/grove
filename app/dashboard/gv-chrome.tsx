@@ -29,7 +29,7 @@ export function DashHeader({ title, subtitle, left }: { title?: string; subtitle
       {left ?? (
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em' }}>{title}</div>
-          {subtitle ? <div style={{ fontSize: 12, color: '#6b6f67', marginTop: 1 }}>{subtitle}</div> : null}
+          {subtitle ? <div style={{ fontSize: 12, color: 'var(--gv-faint)', marginTop: 1 }}>{subtitle}</div> : null}
         </div>
       )}
       <HeaderRight />
@@ -39,5 +39,5 @@ export function DashHeader({ title, subtitle, left }: { title?: string; subtitle
 
 /** A standard card surface used across pages. */
 export function card(extra: React.CSSProperties = {}): React.CSSProperties {
-  return { background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, ...extra };
+  return { background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, ...extra };
 }

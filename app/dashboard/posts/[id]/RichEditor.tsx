@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Icon from '../../gv-icons';
 
-const ACCENT = '#63c281';
+const ACCENT = 'var(--gv-accent)';
 
 type Props = {
   postId: string | null;         // null = a brand-new blank draft, created on first save
@@ -226,11 +226,11 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
         {editing && (
           <>
             <span style={{ fontSize: 12, color: ACCENT, fontWeight: 600 }}>Editing</span>
-            {(dirty || metaDirty) && <span style={{ fontSize: 11, color: '#e0c878' }}>● unsaved</span>}
+            {(dirty || metaDirty) && <span style={{ fontSize: 11, color: 'var(--gv-amber)' }}>● unsaved</span>}
             {saved && <span style={{ fontSize: 11, color: ACCENT }}>✓ saved</span>}
           </>
         )}
-        <span style={{ marginLeft: 'auto', fontSize: 12, color: '#6b6f67', fontVariantNumeric: 'tabular-nums' }}>{wordCount.toLocaleString()} words</span>
+        <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--gv-faint)', fontVariantNumeric: 'tabular-nums' }}>{wordCount.toLocaleString()} words</span>
         {canEdit && (
           <button onClick={() => setFocusMode((f) => !f)} className="gv-ghost" style={ghostBtn}>
             {focusMode ? 'Exit focus' : 'Focus'}
@@ -279,14 +279,14 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
                 value={title}
                 onChange={(e) => { setTitle(e.target.value); if (!editing) setEditing(true); }}
                 placeholder="Untitled draft"
-                style={{ width: '100%', background: 'transparent', border: 'none', fontFamily: "'Newsreader', Georgia, serif", fontWeight: 500, fontSize: 38, lineHeight: 1.14, letterSpacing: '-0.01em', color: '#eef1ea', padding: 0, margin: '0 0 18px' }}
+                style={{ width: '100%', background: 'transparent', border: 'none', fontFamily: "'Newsreader', Georgia, serif", fontWeight: 500, fontSize: 38, lineHeight: 1.14, letterSpacing: '-0.01em', color: 'var(--gv-ink)', padding: 0, margin: '0 0 18px' }}
               />
             )}
 
             {/* persistent formatting toolbar */}
             {canEdit && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px', marginBottom: 18, border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, background: 'rgba(255,255,255,0.015)', position: 'sticky', top: 64, zIndex: 10, backdropFilter: 'blur(10px)' }}>
-                <span style={{ fontSize: 12.5, fontWeight: 600, color: '#9aa096', padding: '0 8px' }}>Paragraph</span>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--gv-dim)', padding: '0 8px' }}>Paragraph</span>
                 <span style={tbDivider} />
                 <ToolBtn on={editor?.isActive('bold')} onClick={() => editor?.chain().focus().toggleBold().run()} serif>B</ToolBtn>
                 <ToolBtn on={editor?.isActive('italic')} onClick={() => editor?.chain().focus().toggleItalic().run()} serif italic>i</ToolBtn>
@@ -317,15 +317,15 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
 
             {/* compact SEO panel */}
             {canEdit && (
-              <div style={{ marginTop: 14, border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, background: '#101310', overflow: 'hidden' }}>
+              <div style={{ marginTop: 14, border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, background: 'var(--gv-card)', overflow: 'hidden' }}>
                 <button onClick={() => setSeoOpen((o) => !o)} className="gv-tool" style={{ ...hintBtn, width: '100%', padding: '12px 18px', justifyContent: 'flex-start', gap: 8, display: 'flex' }}>
-                  <span>{seoOpen ? '▾' : '▸'}</span> Title &amp; SEO {metaDirty && <span style={{ color: '#e0c878', fontSize: 11 }}>● unsaved</span>}
+                  <span>{seoOpen ? '▾' : '▸'}</span> Title &amp; SEO {metaDirty && <span style={{ color: 'var(--gv-amber)', fontSize: 11 }}>● unsaved</span>}
                 </button>
                 {seoOpen && (
                   <div style={{ padding: 18, borderTop: '1px solid rgba(255,255,255,0.07)', display: 'flex', flexDirection: 'column', gap: 14 }}>
-                    <label style={lbl}>Meta title <span style={{ color: metaTitle.length > 60 ? '#c97f7f' : '#9aa096' }}>({metaTitle.length}/60)</span></label>
+                    <label style={lbl}>Meta title <span style={{ color: metaTitle.length > 60 ? 'var(--gv-red)' : 'var(--gv-dim)' }}>({metaTitle.length}/60)</span></label>
                     <input value={metaTitle} onChange={(e) => setMetaTitle(e.target.value)} maxLength={80} className="gv-prompt" style={inp} />
-                    <label style={lbl}>Meta description <span style={{ color: metaDesc.length > 155 ? '#c97f7f' : '#9aa096' }}>({metaDesc.length}/155)</span></label>
+                    <label style={lbl}>Meta description <span style={{ color: metaDesc.length > 155 ? 'var(--gv-red)' : 'var(--gv-dim)' }}>({metaDesc.length}/155)</span></label>
                     <textarea value={metaDesc} onChange={(e) => setMetaDesc(e.target.value)} maxLength={160} rows={3} className="gv-prompt" style={inp} />
                     <button onClick={save} disabled={saving || !metaDirty} className="gv-btn" style={{ ...primaryBtn, alignSelf: 'flex-start' }}>
                       {saving ? 'Saving…' : 'Save meta'}
@@ -341,11 +341,11 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
         {showRail && (
           <aside style={{ position: 'sticky', top: 78, display: 'flex', flexDirection: 'column', gap: 14 }}>
             {railExtra}
-            <div style={{ background: 'linear-gradient(155deg, #0c130e, #0a0d0a)', border: '1px solid rgba(99,194,129,0.2)', borderRadius: 18, padding: '18px 18px 16px' }}>
+            <div style={{ background: 'var(--gv-card-grad)', border: '1px solid rgba(99,194,129,0.2)', borderRadius: 18, padding: '18px 18px 16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 13 }}>
                 <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(99,194,129,0.14)', border: '1px solid rgba(99,194,129,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: ACCENT }}><Icon name="sparkle" size={15} /></span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: '#eef1ea' }}>grove assist</span>
-                <span style={{ marginLeft: 'auto', fontSize: 11, color: '#9aa096' }}>{pendingCount} suggestion{pendingCount === 1 ? '' : 's'}</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--gv-ink)' }}>grove assist</span>
+                <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--gv-dim)' }}>{pendingCount} suggestion{pendingCount === 1 ? '' : 's'}</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '8px 8px 8px 14px' }}>
                 <input
@@ -355,13 +355,13 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
                   onChange={(e) => setPrompt(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitPrompt(); } }}
                   placeholder="Select text, then ask grove to revise…"
-                  style={{ flex: 1, background: 'transparent', border: 'none', color: '#eef1ea', fontFamily: 'inherit', fontSize: 13, minWidth: 0, outline: 'none' }}
+                  style={{ flex: 1, background: 'transparent', border: 'none', color: 'var(--gv-ink)', fontFamily: 'inherit', fontSize: 13, minWidth: 0, outline: 'none' }}
                 />
-                <button onClick={submitPrompt} className="gv-btn" style={{ width: 32, height: 32, flexShrink: 0, border: 'none', borderRadius: 9, background: ACCENT, color: '#06120b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="send" size={16} /></button>
+                <button onClick={submitPrompt} className="gv-btn" style={{ width: 32, height: 32, flexShrink: 0, border: 'none', borderRadius: 9, background: ACCENT, color: 'var(--gv-on-accent)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="send" size={16} /></button>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 11 }}>
                 {CHIPS.map((label) => (
-                  <button key={label} onClick={() => askGrove(label)} className="gv-chip" style={{ fontSize: 11.5, fontWeight: 600, color: '#9aa096', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 999, padding: '5px 11px', cursor: 'pointer', fontFamily: 'inherit' }}>{label}</button>
+                  <button key={label} onClick={() => askGrove(label)} className="gv-chip" style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--gv-dim)', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 999, padding: '5px 11px', cursor: 'pointer', fontFamily: 'inherit' }}>{label}</button>
                 ))}
               </div>
             </div>
@@ -372,38 +372,38 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
                 {cards.map((c) => {
                   const resolved = c.status === 'applied' || c.status === 'dismissed';
                   return (
-                    <div key={c.id} style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '14px 15px', opacity: resolved ? 0.6 : 1 }}>
+                    <div key={c.id} style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '14px 15px', opacity: resolved ? 0.6 : 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 9 }}>
                         <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: ACCENT, background: 'rgba(99,194,129,0.12)', borderRadius: 5, padding: '3px 7px' }}>Ask grove</span>
-                        <span style={{ fontSize: 12.5, fontWeight: 600, color: '#dfe4da', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.label}</span>
+                        <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--gv-soft)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.label}</span>
                       </div>
 
                       {c.status === 'thinking' && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0 2px' }}>
                           <span style={{ display: 'inline-flex', gap: 4 }}><span className="gv-tdot" /><span className="gv-tdot" style={{ animationDelay: '.18s' }} /><span className="gv-tdot" style={{ animationDelay: '.36s' }} /></span>
-                          <span style={{ fontSize: 12, color: '#9aa096' }}>grove is writing…</span>
+                          <span style={{ fontSize: 12, color: 'var(--gv-dim)' }}>grove is writing…</span>
                         </div>
                       )}
 
                       {c.status === 'error' && (
-                        <div style={{ fontSize: 12, color: '#c97f7f', lineHeight: 1.5 }}>{c.error}</div>
+                        <div style={{ fontSize: 12, color: 'var(--gv-red)', lineHeight: 1.5 }}>{c.error}</div>
                       )}
 
                       {c.status === 'pending' && (
                         <div>
                           {c.original && (
-                            <div style={{ fontFamily: "'Newsreader', Georgia, serif", fontSize: 14, lineHeight: 1.5, color: '#7a8078', textDecoration: 'line-through', marginBottom: 5 }}>{c.original}</div>
+                            <div style={{ fontFamily: "'Newsreader', Georgia, serif", fontSize: 14, lineHeight: 1.5, color: 'var(--gv-faint)', textDecoration: 'line-through', marginBottom: 5 }}>{c.original}</div>
                           )}
                           <div style={{ fontFamily: "'Newsreader', Georgia, serif", fontSize: 14.5, lineHeight: 1.55, color: '#d4dacd' }}>{c.suggested}</div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 12 }}>
-                            <button onClick={() => applyCard(c)} className="gv-btn" style={{ display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: ACCENT, color: '#06120b', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: '7px 13px', borderRadius: 8, cursor: 'pointer' }}><Icon name="check" size={13} /> Apply</button>
-                            <button onClick={() => dismissCard(c.id)} className="gv-ghost" style={{ border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: '#9aa096', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '7px 13px', borderRadius: 8, cursor: 'pointer' }}>Dismiss</button>
+                            <button onClick={() => applyCard(c)} className="gv-btn" style={{ display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: '7px 13px', borderRadius: 8, cursor: 'pointer' }}><Icon name="check" size={13} /> Apply</button>
+                            <button onClick={() => dismissCard(c.id)} className="gv-ghost" style={{ border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: 'var(--gv-dim)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '7px 13px', borderRadius: 8, cursor: 'pointer' }}>Dismiss</button>
                           </div>
                         </div>
                       )}
 
                       {resolved && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: c.status === 'applied' ? ACCENT : '#6b6f67' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: c.status === 'applied' ? ACCENT : 'var(--gv-faint)' }}>
                           <span style={{ display: 'flex' }}><Icon name={c.status === 'applied' ? 'check' : 'x'} size={13} /></span>
                           {c.status === 'applied' ? 'Applied to draft' : 'Dismissed'}
                         </div>
@@ -424,8 +424,8 @@ function FmtBtn({ children, on, onClick, italic }: { children: React.ReactNode; 
   return (
     <button onMouseDown={(e) => { e.preventDefault(); onClick(); }}
       style={{
-        // bar background is dark (#15181a); keep text light so it's readable
-        background: on ? ACCENT : 'transparent', color: on ? '#06120b' : '#fff',
+        // bar background is dark (var(--gv-pop)); keep text light so it's readable
+        background: on ? ACCENT : 'transparent', color: on ? 'var(--gv-on-accent)' : '#fff',
         border: 'none', borderRadius: 5, padding: '4px 8px', cursor: 'pointer',
         fontSize: 13, fontStyle: italic ? 'italic' : 'normal', fontFamily: 'inherit', minWidth: 26,
       }}>
@@ -440,7 +440,7 @@ function ToolBtn({ children, on, onClick, serif, italic }: { children: React.Rea
       style={{
         width: 32, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center',
         borderRadius: 8, border: `1px solid ${on ? 'rgba(99,194,129,0.3)' : 'rgba(255,255,255,0.08)'}`,
-        background: on ? 'rgba(99,194,129,0.14)' : 'transparent', color: on ? ACCENT : '#cdd2c9',
+        background: on ? 'rgba(99,194,129,0.14)' : 'transparent', color: on ? ACCENT : 'var(--gv-soft)',
         fontFamily: serif ? "'Newsreader', Georgia, serif" : 'inherit', fontStyle: italic ? 'italic' : 'normal',
         fontWeight: serif ? 700 : 500, fontSize: serif ? 15 : 13, lineHeight: 1, cursor: 'pointer',
       }}>
@@ -454,23 +454,23 @@ const hintBtn: React.CSSProperties = {
   cursor: 'pointer', fontFamily: 'inherit', padding: 0,
 };
 const primaryBtn: React.CSSProperties = {
-  display: 'flex', alignItems: 'center', gap: 7, border: 'none', background: ACCENT, color: '#06120b',
+  display: 'flex', alignItems: 'center', gap: 7, border: 'none', background: ACCENT, color: 'var(--gv-on-accent)',
   fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, padding: '8px 14px', borderRadius: 9, cursor: 'pointer',
 };
 const ghostBtn: React.CSSProperties = {
-  border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)', color: '#cdd2c9',
+  border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)', color: 'var(--gv-soft)',
   fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '8px 13px', borderRadius: 9, cursor: 'pointer',
 };
 const tbDivider: React.CSSProperties = { width: 1, height: 18, background: 'rgba(255,255,255,0.08)', margin: '0 2px' };
 const bubbleBar: React.CSSProperties = {
-  display: 'flex', gap: 2, background: '#15181a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 4,
+  display: 'flex', gap: 2, background: 'var(--gv-pop)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 4,
   boxShadow: '0 6px 20px rgba(0,0,0,0.5)',
 };
 const lbl: React.CSSProperties = {
-  fontSize: 12, fontWeight: 600, color: '#9aa096', textTransform: 'uppercase', letterSpacing: '0.06em',
+  fontSize: 12, fontWeight: 600, color: 'var(--gv-dim)', textTransform: 'uppercase', letterSpacing: '0.06em',
 };
 const inp: React.CSSProperties = {
   width: '100%', padding: '10px 14px', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 8,
   fontSize: 14, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', resize: 'vertical',
-  color: '#eef1ea', background: 'rgba(255,255,255,0.04)',
+  color: 'var(--gv-ink)', background: 'rgba(255,255,255,0.04)',
 };

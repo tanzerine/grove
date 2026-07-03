@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Icon from './gv-icons';
 
-const ACCENT = '#63c281';
+const ACCENT = 'var(--gv-accent)';
 
 type Item = { href: string; label: string; icon: string; badgeKey?: string; match: (p: string) => boolean };
 type Section = { head: string; items: Item[] };
@@ -41,7 +41,7 @@ export default function SideNav({ badges = {}, isAdmin = false }: { badges?: Rec
     <nav style={{ padding: '8px 18px', display: 'flex', flexDirection: 'column', gap: 22, flex: 1 }}>
       {sections.map((sec) => (
         <div key={sec.head} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <div style={{ fontSize: 10, letterSpacing: '0.13em', textTransform: 'uppercase', color: '#565a53', padding: '4px 12px 6px' }}>{sec.head}</div>
+          <div style={{ fontSize: 10, letterSpacing: '0.13em', textTransform: 'uppercase', color: 'var(--gv-fainter)', padding: '4px 12px 6px' }}>{sec.head}</div>
           {sec.items.map((it) => {
             const active = it.match(pathname);
             const badge = it.badgeKey ? badges[it.badgeKey] : 0;
@@ -51,15 +51,15 @@ export default function SideNav({ badges = {}, isAdmin = false }: { badges?: Rec
                   display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left',
                   border: `1px solid ${active ? 'rgba(99,194,129,0.22)' : 'transparent'}`,
                   background: active ? 'rgba(99,194,129,0.1)' : 'transparent',
-                  color: active ? '#eef1ea' : '#9aa096',
+                  color: active ? 'var(--gv-ink)' : 'var(--gv-dim)',
                   fontSize: 13.5, fontWeight: 500, padding: '9px 12px', borderRadius: 10, cursor: 'pointer',
                 }}>
-                <span className="gv-ico" style={{ color: active ? ACCENT : '#6b6f67', display: 'flex', flexShrink: 0 }}>
+                <span className="gv-ico" style={{ color: active ? ACCENT : 'var(--gv-faint)', display: 'flex', flexShrink: 0 }}>
                   <Icon name={it.icon} />
                 </span>
                 <span style={{ flex: 1 }}>{it.label}</span>
                 {badge ? (
-                  <span style={{ fontSize: 10.5, fontWeight: 700, color: '#06120b', background: ACCENT, borderRadius: 999, padding: '1px 7px' }}>{badge}</span>
+                  <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--gv-on-accent)', background: ACCENT, borderRadius: 999, padding: '1px 7px' }}>{badge}</span>
                 ) : null}
               </Link>
             );

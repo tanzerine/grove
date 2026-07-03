@@ -17,8 +17,8 @@ const STEP_LABELS: Record<string, string> = {
 const IN_FLIGHT = new Set(['queued', 'researching', 'writing']);
 
 function eventDot(event: string) {
-  if (event === 'done') return { color: '#63c281', icon: '✓' };
-  if (event === 'fail') return { color: '#c97f7f', icon: '✗' };
+  if (event === 'done') return { color: 'var(--gv-accent)', icon: '✓' };
+  if (event === 'fail') return { color: 'var(--gv-red)', icon: '✗' };
   return { color: '#d99c2b', icon: '●' };
 }
 
@@ -48,7 +48,7 @@ export default function PipelineTimeline({ log, status }: { log: LogEntry[]; sta
   const first = items[0]?.ts ?? Date.now();
 
   return (
-    <div style={{ background: '#101310', borderRadius: 12, border: '1px solid rgba(255,255,255,0.07)', overflow: 'hidden' }}>
+    <div style={{ background: 'var(--gv-card)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.07)', overflow: 'hidden' }}>
 
         {/* ── Header / toggle ── */}
         <button
@@ -60,13 +60,13 @@ export default function PipelineTimeline({ log, status }: { log: LogEntry[]; sta
             cursor: 'pointer', textAlign: 'left', gap: 8,
           }}
         >
-          <span className="mono" style={{ fontSize: 11, color: '#63c281', letterSpacing: '0.08em', textTransform: 'uppercase', flex: 1 }}>
+          <span className="mono" style={{ fontSize: 11, color: 'var(--gv-accent)', letterSpacing: '0.08em', textTransform: 'uppercase', flex: 1 }}>
             Pipeline timeline
             {isLive && (
               <span className="grove-live-dot" style={{ marginLeft: 8, color: '#d99c2b' }}>● live</span>
             )}
           </span>
-          <span className="mono" style={{ fontSize: 11, color: '#9aa096', marginRight: 6 }}>
+          <span className="mono" style={{ fontSize: 11, color: 'var(--gv-dim)', marginRight: 6 }}>
             {collapsed ? 'Show' : 'Hide'}
           </span>
           <span className={`grove-toggle-arrow ${collapsed ? '' : 'open'}`}>▶</span>
@@ -100,17 +100,17 @@ export default function PipelineTimeline({ log, status }: { log: LogEntry[]; sta
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div className={isActive ? 'grove-active-row' : undefined} style={{ fontSize: 13, fontWeight: 500 }}>
                             {label}
-                            <span style={{ color: '#9aa096', fontWeight: 400, marginLeft: 8 }}>
+                            <span style={{ color: 'var(--gv-dim)', fontWeight: 400, marginLeft: 8 }}>
                               {e.event}
                             </span>
                           </div>
                           {e.message && (
-                            <div className="mono" style={{ fontSize: 11, color: '#9aa096', marginTop: 2, wordBreak: 'break-word' }}>
+                            <div className="mono" style={{ fontSize: 11, color: 'var(--gv-dim)', marginTop: 2, wordBreak: 'break-word' }}>
                               {e.message}
                             </div>
                           )}
                         </div>
-                        <span className="mono" style={{ fontSize: 10, color: '#9aa096', flexShrink: 0, marginTop: 4 }}>
+                        <span className="mono" style={{ fontSize: 10, color: 'var(--gv-dim)', flexShrink: 0, marginTop: 4 }}>
                           +{(elapsed / 1000).toFixed(1)}s
                         </span>
                       </li>
@@ -121,7 +121,7 @@ export default function PipelineTimeline({ log, status }: { log: LogEntry[]; sta
 
               {/* Empty + not live */}
               {items.length === 0 && !isLive && (
-                <p style={{ color: '#9aa096', fontSize: 14, fontStyle: 'italic', margin: 0 }}>Waiting to start…</p>
+                <p style={{ color: 'var(--gv-dim)', fontSize: 14, fontStyle: 'italic', margin: 0 }}>Waiting to start…</p>
               )}
 
               {/* Thinking indicator — shown whenever in-flight */}
@@ -130,7 +130,7 @@ export default function PipelineTimeline({ log, status }: { log: LogEntry[]; sta
                   <span className="grove-think-dot" />
                   <span className="grove-think-dot" />
                   <span className="grove-think-dot" />
-                  <span className="mono" style={{ fontSize: 10, color: '#9aa096', marginLeft: 6 }}>working…</span>
+                  <span className="mono" style={{ fontSize: 10, color: 'var(--gv-dim)', marginLeft: 6 }}>working…</span>
                 </div>
               )}
 

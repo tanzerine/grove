@@ -6,7 +6,7 @@ import SideNav from './SideNav';
 import SiteSwitcher from './SiteSwitcher';
 import { ChromeProvider, type Chrome } from './chrome-context';
 
-const ACCENT = '#63c281';
+const ACCENT = 'var(--gv-accent)';
 
 export default function DashShell({
   chrome,
@@ -31,8 +31,8 @@ export default function DashShell({
           <button type="button" className="gv-burger" aria-label="Toggle navigation" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
             <span /><span /><span />
           </button>
-          <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 9, fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em', color: '#eef1ea' }}>
-            <span style={{ width: 17, height: 17, borderRadius: '50%', background: 'radial-gradient(circle at 35% 30%, #9ff0bb, #63c281)', boxShadow: '0 0 12px rgba(99,194,129,0.7)' }} />
+          <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 9, fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em', color: 'var(--gv-ink)' }}>
+            <span style={{ width: 17, height: 17, borderRadius: '50%', background: 'radial-gradient(circle at 35% 30%, var(--mint), var(--gv-accent))', boxShadow: '0 0 12px rgba(99,194,129,0.7)' }} />
             grove
           </Link>
         </div>
@@ -41,7 +41,7 @@ export default function DashShell({
         {/* sidebar */}
         <aside className="gv-side gv-scroll">
           <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '22px 22px 18px' }}>
-            <span style={{ width: 17, height: 17, borderRadius: '50%', background: 'radial-gradient(circle at 35% 30%, #9ff0bb, #63c281)', boxShadow: '0 0 12px rgba(99,194,129,0.7)' }} />
+            <span style={{ width: 17, height: 17, borderRadius: '50%', background: 'radial-gradient(circle at 35% 30%, var(--mint), var(--gv-accent))', boxShadow: '0 0 12px rgba(99,194,129,0.7)' }} />
             <span style={{ fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em' }}>grove</span>
             <Link href="/dashboard/billing" title="Manage billing" style={{ marginLeft: 'auto', fontSize: 9.5, letterSpacing: '0.1em', textTransform: 'uppercase', color: ACCENT, border: '1px solid rgba(99,194,129,0.3)', borderRadius: 6, padding: '3px 7px' }}>{chrome.plan}</Link>
           </div>
