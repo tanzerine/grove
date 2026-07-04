@@ -10,7 +10,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-const ACCENT = '#63c281';
+const ACCENT = 'var(--gv-accent)';
 
 type Msg = { id?: string; role: 'user' | 'agent'; content: string; revised?: boolean };
 type Budget = { messagesLeft: number; revisionsLeft: number };
@@ -59,16 +59,16 @@ export default function PlanChat({ domainId }: { domainId: string }) {
   };
 
   return (
-    <div className="gv-card" style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '22px 24px', marginTop: 14 }}>
+    <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '22px 24px', marginTop: 14 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>
           <div style={{ fontSize: 15, fontWeight: 700 }}>Talk to your strategist</div>
-          <div style={{ fontSize: 12.5, color: '#6b6f67', marginTop: 3 }}>
+          <div style={{ fontSize: 12.5, color: 'var(--gv-faint)', marginTop: 3 }}>
             Ask why the plan looks this way — or tell it what to change (&ldquo;add two more conversion posts&rdquo;, &ldquo;drop the pricing pillar&rdquo;) and it updates instantly.
           </div>
         </div>
         {budget && (
-          <span style={{ fontSize: 11.5, color: budget.revisionsLeft > 0 ? '#9aa096' : '#c97f7f', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 11.5, color: budget.revisionsLeft > 0 ? 'var(--gv-dim)' : 'var(--gv-red)', whiteSpace: 'nowrap' }}>
             {budget.revisionsLeft} plan change{budget.revisionsLeft === 1 ? '' : 's'} left this month
           </span>
         )}
@@ -82,7 +82,7 @@ export default function PlanChat({ domainId }: { domainId: string }) {
                 padding: '9px 13px', borderRadius: 12, fontSize: 13, lineHeight: 1.55, whiteSpace: 'pre-wrap',
                 background: m.role === 'user' ? 'rgba(99,194,129,0.12)' : 'rgba(255,255,255,0.03)',
                 border: `1px solid ${m.role === 'user' ? 'rgba(99,194,129,0.25)' : 'rgba(255,255,255,0.07)'}`,
-                color: '#dfe4da',
+                color: 'var(--gv-soft)',
               }}>
                 {m.content}
               </div>
@@ -91,7 +91,7 @@ export default function PlanChat({ domainId }: { domainId: string }) {
               )}
             </div>
           ))}
-          {sending && <div style={{ fontSize: 12, color: '#6b6f67', padding: '4px 2px' }}>thinking…</div>}
+          {sending && <div style={{ fontSize: 12, color: 'var(--gv-faint)', padding: '4px 2px' }}>thinking…</div>}
         </div>
       )}
 
@@ -104,7 +104,7 @@ export default function PlanChat({ domainId }: { domainId: string }) {
           disabled={sending}
           style={{
             flex: 1, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)',
-            borderRadius: 10, padding: '11px 14px', fontSize: 13, color: '#eef1ea', fontFamily: 'inherit', outline: 'none',
+            borderRadius: 10, padding: '11px 14px', fontSize: 13, color: 'var(--gv-ink)', fontFamily: 'inherit', outline: 'none',
           }}
         />
         <button
@@ -112,7 +112,7 @@ export default function PlanChat({ domainId }: { domainId: string }) {
           disabled={sending || !input.trim()}
           className="gv-btn"
           style={{
-            border: 'none', background: ACCENT, color: '#06120b', fontFamily: 'inherit', fontSize: 13,
+            border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 13,
             fontWeight: 700, padding: '11px 18px', borderRadius: 10, cursor: sending ? 'default' : 'pointer',
             opacity: sending || !input.trim() ? 0.55 : 1,
           }}

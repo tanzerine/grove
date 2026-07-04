@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import type { ChromeDomain } from './chrome-context';
 
-const ACCENT = '#63c281';
+const ACCENT = 'var(--gv-accent)';
 
 /**
  * Bottom-of-sidebar site switcher (Instagram-style): the same user can connect
@@ -48,10 +48,10 @@ export default function SiteSwitcher({ domains, activeId }: { domains: ChromeDom
       {open && (
         <div role="menu" style={{
           position: 'absolute', left: 14, right: 14, bottom: 'calc(100% - 6px)',
-          background: '#15181a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12,
+          background: 'var(--gv-pop)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12,
           boxShadow: '0 16px 40px rgba(0,0,0,0.55)', padding: 6, zIndex: 60, maxHeight: 360, overflowY: 'auto',
         }}>
-          <div style={{ padding: '6px 10px 8px', fontSize: 10.5, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#565a53' }}>Your sites</div>
+          <div style={{ padding: '6px 10px 8px', fontSize: 10.5, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>Your sites</div>
           {domains.map((d) => {
             const isActive = d.id === activeId;
             return (
@@ -59,10 +59,10 @@ export default function SiteSwitcher({ domains, activeId }: { domains: ChromeDom
                 style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', background: isActive ? 'rgba(99,194,129,0.1)' : 'transparent', border: 'none', borderRadius: 9, padding: '8px 10px', cursor: 'pointer', fontFamily: 'inherit' }}>
                 <Avatar host={d.hostname} active={isActive} />
                 <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#eef1ea', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.hostname}</span>
-                  <span style={{ display: 'block', fontSize: 11, color: d.verified_at ? '#6b6f67' : '#e3b65a' }}>{d.verified_at ? 'verified' : 'setup in progress'}</span>
+                  <span style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--gv-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.hostname}</span>
+                  <span style={{ display: 'block', fontSize: 11, color: d.verified_at ? 'var(--gv-faint)' : 'var(--gv-amber)' }}>{d.verified_at ? 'verified' : 'setup in progress'}</span>
                 </span>
-                {switching === d.id ? <span style={{ fontSize: 11, color: '#9aa096' }}>…</span> : isActive ? <span style={{ color: ACCENT, fontSize: 13 }}>✓</span> : null}
+                {switching === d.id ? <span style={{ fontSize: 11, color: 'var(--gv-dim)' }}>…</span> : isActive ? <span style={{ color: ACCENT, fontSize: 13 }}>✓</span> : null}
               </button>
             );
           })}
@@ -80,10 +80,10 @@ export default function SiteSwitcher({ domains, activeId }: { domains: ChromeDom
         style={{ display: 'flex', alignItems: 'center', gap: 11, width: '100%', border: '1px solid rgba(255,255,255,0.09)', background: 'rgba(255,255,255,0.02)', borderRadius: 12, padding: '11px 13px', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
         <Avatar host={active?.hostname ?? 'grove'} active />
         <span style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#eef1ea', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{active?.hostname ?? 'No site yet'}</span>
-          <span style={{ display: 'block', fontSize: 11, color: '#6b6f67' }}>{domains.length > 1 ? `${domains.length} sites · switch` : 'manage site'}</span>
+          <span style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--gv-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{active?.hostname ?? 'No site yet'}</span>
+          <span style={{ display: 'block', fontSize: 11, color: 'var(--gv-faint)' }}>{domains.length > 1 ? `${domains.length} sites · switch` : 'manage site'}</span>
         </span>
-        <span style={{ color: '#6b6f67', fontSize: 13, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }}>⌄</span>
+        <span style={{ color: 'var(--gv-faint)', fontSize: 13, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }}>⌄</span>
       </button>
     </div>
   );
@@ -92,6 +92,6 @@ export default function SiteSwitcher({ domains, activeId }: { domains: ChromeDom
 function Avatar({ host, active }: { host: string; active?: boolean }) {
   const letter = (host.replace(/^https?:\/\//, '')[0] ?? 'g').toUpperCase();
   return (
-    <span style={{ width: 30, height: 30, borderRadius: 8, flexShrink: 0, background: active ? 'rgba(99,194,129,0.14)' : 'rgba(255,255,255,0.05)', border: `1px solid ${active ? 'rgba(99,194,129,0.3)' : 'rgba(255,255,255,0.1)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: active ? ACCENT : '#9aa096', fontWeight: 700, fontSize: 13 }}>{letter}</span>
+    <span style={{ width: 30, height: 30, borderRadius: 8, flexShrink: 0, background: active ? 'rgba(99,194,129,0.14)' : 'rgba(255,255,255,0.05)', border: `1px solid ${active ? 'rgba(99,194,129,0.3)' : 'rgba(255,255,255,0.1)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: active ? ACCENT : 'var(--gv-dim)', fontWeight: 700, fontSize: 13 }}>{letter}</span>
   );
 }

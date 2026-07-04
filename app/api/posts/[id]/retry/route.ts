@@ -3,6 +3,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { generatePost } from '@/lib/pipeline/generate';
 import { runCoverForPost } from '@/lib/pipeline/cover-image';
 import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
+import { canGenerateForUser } from '@/lib/billing';
 
 export const maxDuration = 300;
 
@@ -13,6 +14,14 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
 
   const limited = await enforceRateLimit(`gen:${user.id}`, LIMITS.generate);
   if (limited) return limited;
+
+  // Cost-bearing generation is a paid feature: no live subscription, no LLM run.
+  if (!(await canGenerateForUser(user.id, sb))) {
+    return NextResponse.json(
+      { error: 'payment_required', message: 'An active subscription is required to generate content.' },
+      { status: 402 },
+    );
+  }
 
   const { id } = await ctx.params;
   // The reset is RLS-scoped, but on a post the caller doesn't own it silently

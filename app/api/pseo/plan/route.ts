@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { supabaseServer } from '@/lib/supabase/server';
 import { planProgrammaticSet } from '@/lib/pseo';
 import type { SiteProfile } from '@/lib/pipeline/site-profile';
+import { canGenerateForUser } from '@/lib/billing';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -18,6 +19,14 @@ export async function POST(req: Request) {
   const sb = await supabaseServer();
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+
+  // Cost-bearing generation is a paid feature: no live subscription, no LLM run.
+  if (!(await canGenerateForUser(user.id, sb))) {
+    return NextResponse.json(
+      { error: 'payment_required', message: 'An active subscription is required to generate content.' },
+      { status: 402 },
+    );
+  }
 
   const parsed = body.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: 'invalid' }, { status: 400 });

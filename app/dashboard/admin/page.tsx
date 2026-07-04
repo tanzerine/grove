@@ -8,10 +8,10 @@ import { DashHeader } from '../gv-chrome';
 
 export const dynamic = 'force-dynamic';
 
-const ACCENT = '#63c281';
-const CARD = '#101310';
+const ACCENT = 'var(--gv-accent)';
+const CARD = 'var(--gv-card)';
 const LINE = 'rgba(255,255,255,0.08)';
-const DIM = '#9aa096';
+const DIM = 'var(--gv-dim)';
 
 export default async function AdminOverviewPage() {
   const sb = await supabaseServer();
@@ -45,16 +45,16 @@ export default async function AdminOverviewPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {flags.map((f) => {
                   const crit = f.severity === 'critical';
-                  const fg = crit ? '#ff9b9b' : '#e3b65a';
+                  const fg = crit ? 'var(--gv-red-text)' : 'var(--gv-amber)';
                   const bg = crit ? 'rgba(255,99,99,0.1)' : 'rgba(217,156,43,0.1)';
                   const bd = crit ? 'rgba(255,99,99,0.3)' : 'rgba(217,156,43,0.3)';
                   return (
                     <div key={f.key} style={{ background: bg, border: `1px solid ${bd}`, borderRadius: 10, padding: '11px 14px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: bd, color: fg, textTransform: 'uppercase' }}>{f.severity}</span>
-                        <span style={{ fontSize: 13.5, fontWeight: 600, color: '#eef1ea' }}>{f.title}</span>
+                        <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--gv-ink)' }}>{f.title}</span>
                       </div>
-                      <div style={{ fontSize: 13, color: '#cdd2c9', marginTop: 5 }}>{f.detail}</div>
+                      <div style={{ fontSize: 13, color: 'var(--gv-soft)', marginTop: 5 }}>{f.detail}</div>
                     </div>
                   );
                 })}
@@ -68,8 +68,8 @@ export default async function AdminOverviewPage() {
               const inner = (
                 <>
                   <div style={{ fontSize: 12, color: DIM }}>{c.label}</div>
-                  <div style={{ fontSize: 28, fontWeight: 700, color: '#eef1ea', margin: '6px 0 4px', letterSpacing: '-0.01em' }}>{c.value}</div>
-                  <div style={{ fontSize: 11.5, color: '#6b6f67' }}>{c.sub}</div>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--gv-ink)', margin: '6px 0 4px', letterSpacing: '-0.01em' }}>{c.value}</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--gv-faint)' }}>{c.sub}</div>
                 </>
               );
               return c.href ? (
@@ -90,7 +90,7 @@ export default async function AdminOverviewPage() {
                   {s.referrals.map((r) => (
                     <div key={r.source}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
-                        <span style={{ color: '#cdd2c9' }}>{r.source}</span>
+                        <span style={{ color: 'var(--gv-soft)' }}>{r.source}</span>
                         <span style={{ color: DIM }}>{r.count}</span>
                       </div>
                       <div style={{ height: 6, borderRadius: 99, background: 'rgba(255,255,255,0.05)' }}>
@@ -111,8 +111,8 @@ export default async function AdminOverviewPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {s.payments.recent.map((p, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: i < s.payments.recent.length - 1 ? `1px solid ${LINE}` : 'none' }}>
-                      <span style={{ flex: 1, fontSize: 13, color: '#cdd2c9', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.email ?? '—'}</span>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: p.refunded ? '#6b6f67' : '#eef1ea', textDecoration: p.refunded ? 'line-through' : 'none' }}>
+                      <span style={{ flex: 1, fontSize: 13, color: 'var(--gv-soft)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.email ?? '—'}</span>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: p.refunded ? 'var(--gv-faint)' : 'var(--gv-ink)', textDecoration: p.refunded ? 'line-through' : 'none' }}>
                         {(p.amountCents / 100).toFixed(2)} {p.currency.toUpperCase()}
                       </span>
                       <PayBadge status={p.refunded ? 'refunded' : p.status} />
@@ -138,9 +138,9 @@ export default async function AdminOverviewPage() {
                   <tbody>
                     {s.users.recent.map((u, i) => (
                       <tr key={i} style={{ borderTop: `1px solid ${LINE}` }}>
-                        <td style={{ ...td, color: '#eef1ea' }}>{u.email ?? '—'}</td>
-                        <td style={td}>{u.plan ? <span style={pill}>{cap(u.plan)}</span> : <span style={{ color: '#565a53' }}>free</span>}</td>
-                        <td style={{ ...td, color: '#cdd2c9' }}>{u.source}</td>
+                        <td style={{ ...td, color: 'var(--gv-ink)' }}>{u.email ?? '—'}</td>
+                        <td style={td}>{u.plan ? <span style={pill}>{cap(u.plan)}</span> : <span style={{ color: 'var(--gv-fainter)' }}>free</span>}</td>
+                        <td style={{ ...td, color: 'var(--gv-soft)' }}>{u.source}</td>
                         <td style={{ ...td, color: DIM }}>{new Date(u.createdAt).toLocaleDateString()}</td>
                       </tr>
                     ))}
@@ -164,20 +164,20 @@ function cap(s: string) { return s.charAt(0).toUpperCase() + s.slice(1); }
 function Panel({ title, children, style }: { title: string; children: React.ReactNode; style?: React.CSSProperties }) {
   return (
     <div className="gv-card" style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 14, padding: '18px 20px', ...style }}>
-      <div style={{ fontSize: 13, fontWeight: 600, color: '#eef1ea', marginBottom: 14 }}>{title}</div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--gv-ink)', marginBottom: 14 }}>{title}</div>
       {children}
     </div>
   );
 }
 function Empty({ children }: { children: React.ReactNode }) {
-  return <div style={{ fontSize: 13, color: '#6b6f67', padding: '6px 0' }}>{children}</div>;
+  return <div style={{ fontSize: 13, color: 'var(--gv-faint)', padding: '6px 0' }}>{children}</div>;
 }
 function PayBadge({ status }: { status: string }) {
   const map: Record<string, { bg: string; fg: string }> = {
     succeeded: { bg: 'rgba(99,194,129,0.16)', fg: ACCENT },
     refunded: { bg: 'rgba(255,255,255,0.06)', fg: DIM },
-    failed: { bg: 'rgba(255,99,99,0.14)', fg: '#ff9b9b' },
-    pending: { bg: 'rgba(217,156,43,0.16)', fg: '#e3b65a' },
+    failed: { bg: 'rgba(255,99,99,0.14)', fg: 'var(--gv-red-text)' },
+    pending: { bg: 'rgba(217,156,43,0.16)', fg: 'var(--gv-amber)' },
   };
   const s = map[status] ?? map.pending;
   return <span style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: s.bg, color: s.fg }}>{status}</span>;

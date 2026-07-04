@@ -8,16 +8,16 @@ import Icon from './gv-icons';
 import { DashHeader } from './gv-chrome';
 import OverviewPipeline, { type OvRow } from './OverviewPipeline';
 
-const ACCENT = '#63c281';
+const ACCENT = 'var(--gv-accent)';
 const SAGE = '#9aa79e';
 const SAGE_DOT = '#8ea596';
 
 // Calendar event categories (matches the design's ES map).
 const ES: Record<string, { color: string; chipBg: string; name: string }> = {
   published: { color: SAGE, chipBg: 'rgba(255,255,255,0.05)', name: 'Published' },
-  scheduled: { color: '#9bb0e8', chipBg: 'rgba(123,158,240,0.12)', name: 'Scheduled' },
-  review: { color: '#e0c878', chipBg: 'rgba(224,200,120,0.12)', name: 'In review' },
-  draft: { color: '#7fb6e6', chipBg: 'rgba(127,182,230,0.12)', name: 'Draft' },
+  scheduled: { color: 'var(--gv-blue)', chipBg: 'rgba(123,158,240,0.12)', name: 'Scheduled' },
+  review: { color: 'var(--gv-amber)', chipBg: 'rgba(224,200,120,0.12)', name: 'In review' },
+  draft: { color: 'var(--gv-sky)', chipBg: 'rgba(127,182,230,0.12)', name: 'Draft' },
 };
 
 function categoryFor(status: string): keyof typeof ES {
@@ -97,7 +97,7 @@ export default async function OverviewPage() {
     {
       icon: 'rankings', label: gscVis ? 'Search clicks' : 'Total reads', value: fmtNum(organicClicks),
       delta: readsDelta !== null && Math.abs(readsDelta) >= 1 ? `${readsDelta >= 0 ? '▲' : '▼'} ${Math.abs(readsDelta)}%` : '',
-      deltaColor: (readsDelta ?? 0) >= 0 ? ACCENT : '#c97f7f',
+      deltaColor: (readsDelta ?? 0) >= 0 ? ACCENT : 'var(--gv-red)',
       sub: brief && brief.readsThisWeek ? `${brief.readsThisWeek} reads this week` : organicClicks ? 'all time' : 'no reads yet',
     },
     {
@@ -107,12 +107,12 @@ export default async function OverviewPage() {
     },
     {
       icon: 'pipeline', label: 'In pipeline', value: String(inPipeline.length),
-      delta: inPipeline.length ? 'live' : '', deltaColor: '#9aa096',
+      delta: inPipeline.length ? 'live' : '', deltaColor: 'var(--gv-dim)',
       sub: inReview.length ? `${inReview.length} awaiting review` : inPipeline.length ? 'running on schedule' : 'queue a topic to begin',
     },
     {
       icon: 'clock', label: 'Awaiting review', value: String(inReview.length),
-      delta: inReview.length ? 'action' : 'clear', deltaColor: inReview.length ? '#e0c878' : '#9aa096',
+      delta: inReview.length ? 'action' : 'clear', deltaColor: inReview.length ? 'var(--gv-amber)' : 'var(--gv-dim)',
       sub: inReview.length ? 'approve to publish' : 'nothing waiting on you',
     },
   ];
@@ -146,7 +146,7 @@ export default async function OverviewPage() {
     const evs = (!c.out && eventsByDay[c.num]) ? eventsByDay[c.num].map((e) => ({ label: e.label, full: `${ES[e.s].name} · ${e.label}`, color: ES[e.s].color, chipBg: ES[e.s].chipBg })) : [];
     return {
       num: c.num,
-      numColor: c.out ? '#3a4640' : isToday ? ACCENT : '#9aa096',
+      numColor: c.out ? '#3a4640' : isToday ? ACCENT : 'var(--gv-dim)',
       bg: c.out ? 'transparent' : 'rgba(255,255,255,0.015)',
       border: c.out ? 'transparent' : isToday ? ACCENT : 'rgba(255,255,255,0.05)',
       events: evs,
@@ -202,8 +202,8 @@ export default async function OverviewPage() {
   const pubSocial = (latestPub?.social_published ?? {}) as Record<string, unknown>;
   const chState = (key: string) =>
     pubSocial[key] ? { state: 'Posted', color: ACCENT, dot: ACCENT }
-      : domain?.auto_social ? { state: 'Queued', color: '#9aa096', dot: SAGE_DOT }
-        : { state: 'Off', color: '#6b6f67', dot: '#565a53' };
+      : domain?.auto_social ? { state: 'Queued', color: 'var(--gv-dim)', dot: SAGE_DOT }
+        : { state: 'Off', color: 'var(--gv-faint)', dot: 'var(--gv-fainter)' };
   const channels = latestPub
     ? [
         { name: 'Blog post', dot: ACCENT, color: ACCENT, state: 'Published' },
@@ -224,9 +224,9 @@ export default async function OverviewPage() {
     if (p.status === 'published' && p.published_at) {
       activityRows.push({ text: `Published “${(p.title ?? p.topic ?? '').slice(0, 38)}…”`, time: relTime(p.published_at), dot: ACCENT, ring: 'rgba(99,194,129,0.3)' });
     } else if (p.status === 'review') {
-      activityRows.push({ text: `Draft ready for review · “${(p.title ?? p.topic ?? '').slice(0, 30)}”`, time: relTime(p.created_at), dot: '#e0c878', ring: 'rgba(224,200,120,0.3)' });
+      activityRows.push({ text: `Draft ready for review · “${(p.title ?? p.topic ?? '').slice(0, 30)}”`, time: relTime(p.created_at), dot: 'var(--gv-amber)', ring: 'rgba(224,200,120,0.3)' });
     } else if (['writing', 'researching', 'queued'].includes(p.status)) {
-      activityRows.push({ text: `Started “${(p.title ?? p.topic ?? '').slice(0, 34)}”`, time: relTime(p.created_at), dot: '#7fb6e6', ring: 'rgba(127,182,230,0.3)' });
+      activityRows.push({ text: `Started “${(p.title ?? p.topic ?? '').slice(0, 34)}”`, time: relTime(p.created_at), dot: 'var(--gv-sky)', ring: 'rgba(127,182,230,0.3)' });
     }
     if (activityRows.length >= 5) break;
   }
@@ -244,39 +244,39 @@ export default async function OverviewPage() {
         {/* search — relocated out of the nav bar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 240, maxWidth: 420, display: 'flex', alignItems: 'center', gap: 9, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '9px 13px' }}>
-            <span style={{ color: '#565a53', display: 'flex' }}><Icon name="search" size={16} /></span>
-            <input placeholder="Search posts, keywords, domains…" style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#eef1ea', fontSize: 13, fontFamily: 'inherit', minWidth: 0 }} />
-            <span style={{ fontSize: 10.5, color: '#565a53', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 5, padding: '1px 6px' }}>⌘K</span>
+            <span style={{ color: 'var(--gv-fainter)', display: 'flex' }}><Icon name="search" size={16} /></span>
+            <input placeholder="Search posts, keywords, domains…" style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: 'var(--gv-ink)', fontSize: 13, fontFamily: 'inherit', minWidth: 0 }} />
+            <span style={{ fontSize: 10.5, color: 'var(--gv-fainter)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 5, padding: '1px 6px' }}>⌘K</span>
           </div>
         </div>
         {/* greeting */}
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 22 }}>
           <div>
             <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.025em', margin: 0 }}>{greeting()}</h1>
-            <p style={{ fontSize: 14, color: '#9aa096', margin: '6px 0 0' }}>
+            <p style={{ fontSize: 14, color: 'var(--gv-dim)', margin: '6px 0 0' }}>
               {shippedRecently > 0
-                ? <>grove shipped <span style={{ color: '#eef1ea', fontWeight: 600 }}>{shippedRecently} post{shippedRecently === 1 ? '' : 's'}</span> this week.{inReview.length ? <> {inReview.length} {inReview.length === 1 ? 'draft is' : 'drafts are'} waiting on you.</> : ' Everything is on schedule.'}</>
+                ? <>grove shipped <span style={{ color: 'var(--gv-ink)', fontWeight: 600 }}>{shippedRecently} post{shippedRecently === 1 ? '' : 's'}</span> this week.{inReview.length ? <> {inReview.length} {inReview.length === 1 ? 'draft is' : 'drafts are'} waiting on you.</> : ' Everything is on schedule.'}</>
                 : <>Your agent is running. Queue a topic and the pipeline starts immediately.</>}
             </p>
           </div>
           <div style={{ display: 'flex', gap: 9 }}>
-            <Link href="/dashboard/pipeline" className="gv-ghost" style={{ border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)', color: '#cdd2c9', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '10px 16px', borderRadius: 10, cursor: 'pointer', textDecoration: 'none' }}>Review queue ({inReview.length})</Link>
-            <Link href="/dashboard/write" className="gv-btn" style={{ border: 'none', background: ACCENT, color: '#06120b', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '10px 18px', borderRadius: 10, cursor: 'pointer', textDecoration: 'none' }}>Write</Link>
+            <Link href="/dashboard/pipeline" className="gv-ghost" style={{ border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '10px 16px', borderRadius: 10, cursor: 'pointer', textDecoration: 'none' }}>Review queue ({inReview.length})</Link>
+            <Link href="/dashboard/write" className="gv-btn" style={{ border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '10px 18px', borderRadius: 10, cursor: 'pointer', textDecoration: 'none' }}>Write</Link>
           </div>
         </div>
 
         {/* stat cards */}
         <div className="gv-grid4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 14 }}>
           {stats.map((s, i) => (
-            <div key={i} className="gv-card" style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: '18px 20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 9, color: '#9aa096', fontSize: 12.5 }}>
+            <div key={i} className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: '18px 20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9, color: 'var(--gv-dim)', fontSize: 12.5 }}>
                 <span style={{ display: 'flex', color: SAGE }}><Icon name={s.icon} /></span>{s.label}
               </div>
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: 9, marginTop: 14 }}>
                 <span style={{ fontSize: 30, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1 }}>{s.value}</span>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 12, fontWeight: 600, color: s.deltaColor, paddingBottom: 3 }}>{s.delta}</span>
               </div>
-              <div style={{ fontSize: 11.5, color: '#6b6f67', marginTop: 8 }}>{s.sub}</div>
+              <div style={{ fontSize: 11.5, color: 'var(--gv-faint)', marginTop: 8 }}>{s.sub}</div>
             </div>
           ))}
         </div>
@@ -284,18 +284,18 @@ export default async function OverviewPage() {
         {/* calendar + agent */}
         <div className="gv-2col-wide" style={{ display: 'grid', gridTemplateColumns: '1.85fr 1fr', gap: 14, marginBottom: 14 }}>
           {/* publishing calendar */}
-          <div className="gv-card" style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '22px 24px' }}>
+          <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '22px 24px' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
               <div>
                 <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em' }}>Publishing calendar</div>
-                <div style={{ fontSize: 12.5, color: '#6b6f67', marginTop: 3 }}>When each post goes live, and where it is now</div>
+                <div style={{ fontSize: 12.5, color: 'var(--gv-faint)', marginTop: 3 }}>When each post goes live, and where it is now</div>
               </div>
-              <Link href="/dashboard/calendar" style={{ fontSize: 12.5, color: '#9aa096', textDecoration: 'none', fontWeight: 600 }}>Open calendar →</Link>
+              <Link href="/dashboard/calendar" style={{ fontSize: 12.5, color: 'var(--gv-dim)', textDecoration: 'none', fontWeight: 600 }}>Open calendar →</Link>
             </div>
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, margin: '16px 0 14px' }}>
               {calLegend.map((l) => (
-                <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11.5, color: '#9aa096' }}>
+                <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11.5, color: 'var(--gv-dim)' }}>
                   <span style={{ width: 9, height: 9, borderRadius: 3, background: l.color }} />{l.label}
                 </div>
               ))}
@@ -304,7 +304,7 @@ export default async function OverviewPage() {
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 6 }}>
               {weekdays.map((w) => (
-                <div key={w} style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#565a53', textAlign: 'center', paddingBottom: 2 }}>{w}</div>
+                <div key={w} style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--gv-fainter)', textAlign: 'center', paddingBottom: 2 }}>{w}</div>
               ))}
               {calDays.map((d, i) => (
                 <div key={i} style={{ minHeight: 62, minWidth: 0, overflow: 'hidden', borderRadius: 9, background: d.bg, border: `1px solid ${d.border}`, padding: '6px 6px 5px', display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -319,13 +319,13 @@ export default async function OverviewPage() {
 
           {/* agent panel */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div className="gv-card" style={{ flex: 1, background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 22px' }}>
+            <div className="gv-card" style={{ flex: 1, background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 22px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{ width: 30, height: 30, borderRadius: 9, background: 'rgba(99,194,129,0.12)', border: '1px solid rgba(99,194,129,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: ACCENT }}><Icon name="leaf" /></span>
                   <div style={{ lineHeight: 1.2 }}>
                     <div style={{ fontSize: 14, fontWeight: 700 }}>Your marketing agent</div>
-                    <div style={{ fontSize: 11, color: '#6b6f67' }}>autonomous · loop running</div>
+                    <div style={{ fontSize: 11, color: 'var(--gv-faint)' }}>autonomous · loop running</div>
                   </div>
                 </div>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: SAGE, fontWeight: 600 }}>
@@ -333,19 +333,19 @@ export default async function OverviewPage() {
                 </span>
               </div>
 
-              <div style={{ fontSize: 13, color: '#cdd2c9', lineHeight: 1.6, margin: '16px 0 16px' }}>{agentSummary}</div>
+              <div style={{ fontSize: 13, color: 'var(--gv-soft)', lineHeight: 1.6, margin: '16px 0 16px' }}>{agentSummary}</div>
 
-              <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#565a53', marginBottom: 9 }}>Working on now</div>
+              <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 9 }}>Working on now</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                 {agentItems.map((a, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 10, background: a.attn ? 'rgba(224,200,120,0.06)' : 'rgba(255,255,255,0.025)', border: `1px solid ${a.attn ? 'rgba(224,200,120,0.22)' : 'rgba(255,255,255,0.06)'}` }}>
-                    <span style={{ display: 'flex', color: a.attn ? '#e0c878' : SAGE, flexShrink: 0, marginTop: 1 }}><Icon name={a.icon} /></span>
+                    <span style={{ display: 'flex', color: a.attn ? 'var(--gv-amber)' : SAGE, flexShrink: 0, marginTop: 1 }}><Icon name={a.icon} /></span>
                     <span style={{ flex: 1, minWidth: 0 }}>
-                      <span style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: '#eef1ea' }}>{a.title}</span>
-                      <span style={{ display: 'block', fontSize: 11.5, color: '#6b6f67', marginTop: 1, lineHeight: 1.4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.detail}</span>
+                      <span style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--gv-ink)' }}>{a.title}</span>
+                      <span style={{ display: 'block', fontSize: 11.5, color: 'var(--gv-faint)', marginTop: 1, lineHeight: 1.4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.detail}</span>
                     </span>
                     {a.action && (
-                      <Link href={a.action.href} className="gv-btn" style={{ border: '1px solid rgba(255,255,255,0.16)', background: 'rgba(255,255,255,0.06)', color: '#eef1ea', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, padding: '5px 11px', borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, textDecoration: 'none' }}>{a.action.label}</Link>
+                      <Link href={a.action.href} className="gv-btn" style={{ border: '1px solid rgba(255,255,255,0.16)', background: 'rgba(255,255,255,0.06)', color: 'var(--gv-ink)', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, padding: '5px 11px', borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, textDecoration: 'none' }}>{a.action.label}</Link>
                     )}
                   </div>
                 ))}
@@ -354,9 +354,9 @@ export default async function OverviewPage() {
               {agentInsight && (
                 <div style={{ marginTop: 18, padding: '14px 15px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: SAGE, marginBottom: 8 }}><span style={{ display: 'flex' }}><Icon name="answers" /></span> Agent insight</div>
-                  <div style={{ fontSize: 12.5, color: '#dfe4da', lineHeight: 1.55 }}>{agentInsight}</div>
+                  <div style={{ fontSize: 12.5, color: 'var(--gv-soft)', lineHeight: 1.55 }}>{agentInsight}</div>
                   <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                    <Link href="/dashboard/strategy" className="gv-btn" style={{ border: 'none', background: ACCENT, color: '#06120b', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, padding: '7px 13px', borderRadius: 8, cursor: 'pointer', textDecoration: 'none' }}>Review plan</Link>
+                    <Link href="/dashboard/strategy" className="gv-btn" style={{ border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, padding: '7px 13px', borderRadius: 8, cursor: 'pointer', textDecoration: 'none' }}>Review plan</Link>
                   </div>
                 </div>
               )}
@@ -370,20 +370,20 @@ export default async function OverviewPage() {
         {/* bottom row */}
         <div className="gv-grid3" style={{ display: 'grid', gridTemplateColumns: '1fr 1.15fr 1fr', gap: 14 }}>
           {/* channels */}
-          <div className="gv-card" style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 22px' }}>
+          <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 22px' }}>
             <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>Cross-post queue</div>
-            <div style={{ fontSize: 12, color: '#6b6f67', marginBottom: 18 }}>One brief, every channel</div>
+            <div style={{ fontSize: 12, color: 'var(--gv-faint)', marginBottom: 18 }}>One brief, every channel</div>
             {channels.length === 0 ? (
-              <div style={{ fontSize: 12.5, color: '#6b6f67', lineHeight: 1.6 }}>
+              <div style={{ fontSize: 12.5, color: 'var(--gv-faint)', lineHeight: 1.6 }}>
                 Once your first post publishes, its X / LinkedIn / Instagram variants show up here.{' '}
-                <Link href="/dashboard/connections" style={{ color: '#9aa096', textDecoration: 'underline' }}>Connect channels →</Link>
+                <Link href="/dashboard/connections" style={{ color: 'var(--gv-dim)', textDecoration: 'underline' }}>Connect channels →</Link>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                 {channels.map((c) => (
                   <div key={c.name} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '11px 13px', borderRadius: 11, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
                     <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.dot }} />
-                    <span style={{ fontSize: 13, color: '#cdd2c9' }}>{c.name}</span>
+                    <span style={{ fontSize: 13, color: 'var(--gv-soft)' }}>{c.name}</span>
                     <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 600, color: c.color }}>{c.state}</span>
                   </div>
                 ))}
@@ -392,22 +392,22 @@ export default async function OverviewPage() {
           </div>
 
           {/* top movers */}
-          <div className="gv-card" style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 22px' }}>
+          <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 22px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <div style={{ fontSize: 14, fontWeight: 700 }}>Top queries</div>
-              <span style={{ fontSize: 11.5, color: '#6b6f67' }}>position · clicks</span>
+              <span style={{ fontSize: 11.5, color: 'var(--gv-faint)' }}>position · clicks</span>
             </div>
             {topQueries.length === 0 ? (
-              <div style={{ fontSize: 12.5, color: '#6b6f67', lineHeight: 1.6 }}>
+              <div style={{ fontSize: 12.5, color: 'var(--gv-faint)', lineHeight: 1.6 }}>
                 The search queries you rank for appear here once Search Console is connected.{' '}
-                <Link href="/dashboard/analytics" style={{ color: '#9aa096', textDecoration: 'underline' }}>Connect Search Console →</Link>
+                <Link href="/dashboard/analytics" style={{ color: 'var(--gv-dim)', textDecoration: 'underline' }}>Connect Search Console →</Link>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                 {topQueries.map((k) => (
                   <div key={k.term} className="gv-row" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 10px', borderRadius: 9, transition: 'background .15s' }}>
-                    <span style={{ fontSize: 13, color: '#cdd2c9', flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{k.term}</span>
-                    <span style={{ fontSize: 12, color: '#6b6f67', fontVariantNumeric: 'tabular-nums' }}>#{k.pos}</span>
+                    <span style={{ fontSize: 13, color: 'var(--gv-soft)', flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{k.term}</span>
+                    <span style={{ fontSize: 12, color: 'var(--gv-faint)', fontVariantNumeric: 'tabular-nums' }}>#{k.pos}</span>
                     <span style={{ fontSize: 12, fontWeight: 600, color: ACCENT, width: 52, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{k.clicks}</span>
                   </div>
                 ))}
@@ -416,18 +416,18 @@ export default async function OverviewPage() {
           </div>
 
           {/* activity */}
-          <div className="gv-card" style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 22px' }}>
+          <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 22px' }}>
             <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 18 }}>Recent activity</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
               {activityRows.map((a, i) => (
                 <div key={i} style={{ display: 'flex', gap: 13, paddingBottom: 16 }}>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
-                    <span style={{ width: 9, height: 9, borderRadius: '50%', background: a.dot, border: '2px solid #101310', boxShadow: `0 0 0 1px ${a.ring}` }} />
+                    <span style={{ width: 9, height: 9, borderRadius: '50%', background: a.dot, border: '2px solid var(--gv-card)', boxShadow: `0 0 0 1px ${a.ring}` }} />
                     {i < activityRows.length - 1 && <span style={{ flex: 1, width: 1, background: 'rgba(255,255,255,0.07)', marginTop: 4 }} />}
                   </div>
                   <div style={{ marginTop: -3 }}>
-                    <div style={{ fontSize: 12.5, color: '#cdd2c9', lineHeight: 1.45 }}>{a.text}</div>
-                    <div style={{ fontSize: 11, color: '#565a53', marginTop: 3 }}>{a.time}</div>
+                    <div style={{ fontSize: 12.5, color: 'var(--gv-soft)', lineHeight: 1.45 }}>{a.text}</div>
+                    <div style={{ fontSize: 11, color: 'var(--gv-fainter)', marginTop: 3 }}>{a.time}</div>
                   </div>
                 </div>
               ))}

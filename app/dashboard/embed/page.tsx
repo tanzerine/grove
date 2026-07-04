@@ -148,7 +148,7 @@ function BlogPreview() {
       {/* header: title + search pill */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <div style={{ width: 110, height: 10, borderRadius: 3, background: 'var(--ink)', opacity: 0.7 }} />
-        <div style={{ width: 120, height: 20, borderRadius: 999, background: '#101310', border: '1px solid rgba(255,255,255,0.07)' }} />
+        <div style={{ width: 120, height: 20, borderRadius: 999, background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)' }} />
       </div>
       {/* genre chips */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>

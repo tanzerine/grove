@@ -79,9 +79,9 @@ export default function PostActions({
     r.replace('/dashboard');
   }
 
-  const ACCENT = '#63c281';
-  const primary: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, border: 'none', background: ACCENT, color: '#06120b', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '10px 18px', borderRadius: 10, cursor: 'pointer' };
-  const ghost: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.02)', color: '#cdd2c9', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '10px 16px', borderRadius: 10, cursor: 'pointer' };
+  const ACCENT = 'var(--gv-accent)';
+  const primary: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '10px 18px', borderRadius: 10, cursor: 'pointer' };
+  const ghost: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.02)', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '10px 16px', borderRadius: 10, cursor: 'pointer' };
 
   return (
     <div style={{ display: 'flex', gap: 9, marginTop: 18, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -120,7 +120,7 @@ export default function PostActions({
           View live →
         </a>
       )}
-      <button className="gv-ghost" style={{ ...ghost, marginLeft: 'auto', color: '#d39a9a' }} onClick={del} disabled={!!busy}>
+      <button className="gv-ghost" style={{ ...ghost, marginLeft: 'auto', color: 'var(--gv-red-soft)' }} onClick={del} disabled={!!busy}>
         {busy === 'delete' ? '…' : 'Delete'}
       </button>
     </div>

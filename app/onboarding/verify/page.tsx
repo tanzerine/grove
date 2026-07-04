@@ -6,7 +6,7 @@ import GroveMark from '@/components/GroveMark';
 
 type Domain = { id: string; hostname: string; verify_token: string; verified_at: string | null };
 
-const DIM = '#9aa096';
+const DIM = 'var(--gv-dim)';
 const MONO = 'DM Mono, ui-monospace, monospace';
 
 function VerifyInner() {
@@ -48,25 +48,25 @@ function VerifyInner() {
       <div className="gv-onb-in" style={{ maxWidth: 780 }}>
         <span className="gv-onb-eyebrow">Step 2 of 2</span>
         <h1 className="gv-onb-title" style={{ fontSize: 36 }}>
-          Verify ownership of <span style={{ fontFamily: MONO, color: '#63c281' }}>{d.hostname}</span>
+          Verify ownership of <span style={{ fontFamily: MONO, color: 'var(--gv-accent)' }}>{d.hostname}</span>
         </h1>
         <p className="gv-onb-lede">
-          Pick whichever method is easiest. You only need to do <b style={{ color: '#eef1ea' }}>one</b>.
+          Pick whichever method is easiest. You only need to do <b style={{ color: 'var(--gv-ink)' }}>one</b>.
           We check all three automatically.
         </p>
 
         <div style={{ display: 'flex', gap: 8, marginTop: 24, flexWrap: 'wrap' }}>
           <button className={`gv-onb-tab ${tab === 'dns' ? 'on' : ''}`} onClick={() => setTab('dns')}>
-            🛡️ DNS record <small style={{ color: '#63c281' }}>recommended</small>
+            🛡️ DNS record <small style={{ color: 'var(--gv-accent)' }}>recommended</small>
           </button>
           <button className={`gv-onb-tab ${tab === 'meta' ? 'on' : ''}`} onClick={() => setTab('meta')}>🏷️ Meta tag</button>
           <button className={`gv-onb-tab ${tab === 'file' ? 'on' : ''}`} onClick={() => setTab('file')}>📄 File upload</button>
         </div>
 
         {tab === 'dns' && (
-          <div style={{ marginTop: 20, color: '#cdd2c9', fontSize: 14.5, lineHeight: 1.6 }}>
-            <p><b style={{ color: '#eef1ea' }}>Where:</b> your DNS provider (Cloudflare, Namecheap, GoDaddy, Vercel domains).</p>
-            <p><b style={{ color: '#eef1ea' }}>Why recommended:</b> works with any website setup — even sites behind auth (Clerk, Auth0), Cloudflare Access, or proprietary CMS.</p>
+          <div style={{ marginTop: 20, color: 'var(--gv-soft)', fontSize: 14.5, lineHeight: 1.6 }}>
+            <p><b style={{ color: 'var(--gv-ink)' }}>Where:</b> your DNS provider (Cloudflare, Namecheap, GoDaddy, Vercel domains).</p>
+            <p><b style={{ color: 'var(--gv-ink)' }}>Why recommended:</b> works with any website setup — even sites behind auth (Clerk, Auth0), Cloudflare Access, or proprietary CMS.</p>
             <div className="gv-onb-mini" style={{ marginTop: 12 }}>
               <table style={{ width: '100%', fontFamily: MONO, fontSize: 13 }}>
                 <tbody>
@@ -82,9 +82,9 @@ function VerifyInner() {
         )}
 
         {tab === 'meta' && (
-          <div style={{ marginTop: 20, color: '#cdd2c9', fontSize: 14.5, lineHeight: 1.6 }}>
-            <p><b style={{ color: '#eef1ea' }}>Where:</b> the <code style={{ fontFamily: MONO }}>&lt;head&gt;</code> of your homepage HTML.</p>
-            <p><b style={{ color: '#eef1ea' }}>Why:</b> one line of code. Survives most auth setups because homepages are public.</p>
+          <div style={{ marginTop: 20, color: 'var(--gv-soft)', fontSize: 14.5, lineHeight: 1.6 }}>
+            <p><b style={{ color: 'var(--gv-ink)' }}>Where:</b> the <code style={{ fontFamily: MONO }}>&lt;head&gt;</code> of your homepage HTML.</p>
+            <p><b style={{ color: 'var(--gv-ink)' }}>Why:</b> one line of code. Survives most auth setups because homepages are public.</p>
             <div className="gv-onb-mini" style={{ marginTop: 12 }}>
               <code style={{ fontFamily: MONO, fontSize: 13 }}>{metaTag}</code>
             </div>
@@ -95,9 +95,9 @@ function VerifyInner() {
         )}
 
         {tab === 'file' && (
-          <div style={{ marginTop: 20, color: '#cdd2c9', fontSize: 14.5, lineHeight: 1.6 }}>
-            <p><b style={{ color: '#eef1ea' }}>Where:</b> upload a plain-text file to your site root.</p>
-            <p><b style={{ color: '#eef1ea' }}>Heads up:</b> some auth middleware (Clerk, NextAuth) protects this path by default. Use DNS or meta tag if you hit issues.</p>
+          <div style={{ marginTop: 20, color: 'var(--gv-soft)', fontSize: 14.5, lineHeight: 1.6 }}>
+            <p><b style={{ color: 'var(--gv-ink)' }}>Where:</b> upload a plain-text file to your site root.</p>
+            <p><b style={{ color: 'var(--gv-ink)' }}>Heads up:</b> some auth middleware (Clerk, NextAuth) protects this path by default. Use DNS or meta tag if you hit issues.</p>
             <div className="gv-onb-mini" style={{ marginTop: 12 }}>
               <div>Path: <span style={{ fontFamily: MONO }}>{fileUrl}</span></div>
               <div style={{ marginTop: 6 }}>Contents (exactly):</div>
@@ -113,7 +113,7 @@ function VerifyInner() {
 
         <p style={{ marginTop: 26, fontSize: 14, color: DIM, lineHeight: 1.6 }}>
           Don&apos;t have DNS access right now?{' '}
-          <a href="/dashboard" style={{ color: '#63c281', textDecoration: 'underline' }}>Skip for now →</a>{' '}
+          <a href="/dashboard" style={{ color: 'var(--gv-accent)', textDecoration: 'underline' }}>Skip for now →</a>{' '}
           You can already queue topics and watch Grove write — autopilot publishing stays paused until you verify.
         </p>
       </div>

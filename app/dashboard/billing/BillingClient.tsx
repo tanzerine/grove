@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import type { Plan, PlanId } from '@/lib/plans';
 
-const ACCENT = '#63c281';
+const ACCENT = 'var(--gv-accent)';
 
 export default function BillingClient({
   plans,
@@ -71,8 +71,8 @@ export default function BillingClient({
       {/* current status */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', margin: '6px 0 26px' }}>
         <div>
-          <div style={{ fontSize: 13, color: '#9aa096' }}>Current plan</div>
-          <div style={{ fontSize: 24, fontWeight: 700, color: '#eef1ea', letterSpacing: '-0.01em' }}>
+          <div style={{ fontSize: 13, color: 'var(--gv-dim)' }}>Current plan</div>
+          <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--gv-ink)', letterSpacing: '-0.01em' }}>
             {currentPlan ? plans.find((p) => p.id === currentPlan)?.name : 'No active plan'}
             {status && currentPlan && (
               <span style={{ fontSize: 11, fontWeight: 600, marginLeft: 10, padding: '3px 9px', borderRadius: 999, background: 'rgba(99,194,129,0.14)', color: ACCENT, verticalAlign: 'middle' }}>
@@ -81,12 +81,12 @@ export default function BillingClient({
             )}
           </div>
           {renews && currentPlan && (
-            <div style={{ fontSize: 12.5, color: '#6b6f67', marginTop: 4 }}>Renews {renews}</div>
+            <div style={{ fontSize: 12.5, color: 'var(--gv-faint)', marginTop: 4 }}>Renews {renews}</div>
           )}
         </div>
         {hasCustomer && (
           <button onClick={manage} disabled={busy !== null} className="gv-ghost"
-            style={{ marginLeft: 'auto', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.02)', color: '#cdd2c9', borderRadius: 10, padding: '10px 16px', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ marginLeft: 'auto', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.02)', color: 'var(--gv-soft)', borderRadius: 10, padding: '10px 16px', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             {busy === 'manage' ? 'Opening…' : 'Manage billing'}
           </button>
         )}
@@ -98,28 +98,28 @@ export default function BillingClient({
           const isCurrent = p.id === currentPlan;
           return (
             <div key={p.id} className="gv-card"
-              style={{ background: '#101310', border: `1px solid ${isCurrent ? 'rgba(99,194,129,0.45)' : 'rgba(255,255,255,0.08)'}`, borderRadius: 16, padding: '22px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              style={{ background: 'var(--gv-card)', border: `1px solid ${isCurrent ? 'rgba(99,194,129,0.45)' : 'rgba(255,255,255,0.08)'}`, borderRadius: 16, padding: '22px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 17, fontWeight: 700, color: '#eef1ea' }}>{p.name}</span>
+                  <span style={{ fontSize: 17, fontWeight: 700, color: 'var(--gv-ink)' }}>{p.name}</span>
                   {isCurrent && <span style={{ fontSize: 10.5, fontWeight: 700, color: ACCENT }}>CURRENT</span>}
                 </div>
                 <div style={{ marginTop: 8 }}>
-                  <span style={{ fontSize: 30, fontWeight: 700, color: '#eef1ea' }}>${p.priceUsd}</span>
-                  <span style={{ fontSize: 13, color: '#9aa096' }}>/mo</span>
+                  <span style={{ fontSize: 30, fontWeight: 700, color: 'var(--gv-ink)' }}>${p.priceUsd}</span>
+                  <span style={{ fontSize: 13, color: 'var(--gv-dim)' }}>/mo</span>
                 </div>
-                <div style={{ fontSize: 13, color: '#9aa096', marginTop: 6 }}>{p.blurb}</div>
+                <div style={{ fontSize: 13, color: 'var(--gv-dim)', marginTop: 6 }}>{p.blurb}</div>
               </div>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {p.features.map((f) => (
-                  <li key={f} style={{ fontSize: 13.5, color: '#cdd2c9', display: 'flex', gap: 9 }}>
+                  <li key={f} style={{ fontSize: 13.5, color: 'var(--gv-soft)', display: 'flex', gap: 9 }}>
                     <span style={{ color: ACCENT }}>✓</span>{f}
                   </li>
                 ))}
               </ul>
               <button onClick={() => choose(p.id)} disabled={busy !== null || isCurrent}
                 style={{ marginTop: 'auto', borderRadius: 10, padding: '11px 16px', fontSize: 14, fontWeight: 600, cursor: isCurrent ? 'default' : 'pointer', fontFamily: 'inherit', border: 'none',
-                  background: isCurrent ? 'rgba(255,255,255,0.05)' : ACCENT, color: isCurrent ? '#6b6f67' : '#06120b', opacity: busy && busy !== p.id ? 0.6 : 1 }}>
+                  background: isCurrent ? 'rgba(255,255,255,0.05)' : ACCENT, color: isCurrent ? 'var(--gv-faint)' : 'var(--gv-on-accent)', opacity: busy && busy !== p.id ? 0.6 : 1 }}>
                 {isCurrent ? 'Current plan' : busy === p.id ? 'Redirecting…' : currentPlan ? 'Switch to this' : 'Choose plan'}
               </button>
             </div>
@@ -127,10 +127,10 @@ export default function BillingClient({
         })}
       </div>
 
-      <p style={{ fontSize: 12.5, color: '#6b6f67', marginTop: 22, lineHeight: 1.6 }}>
-        Secure checkout by Stripe. Cancel anytime from <strong style={{ color: '#9aa096' }}>Manage billing</strong>.
+      <p style={{ fontSize: 12.5, color: 'var(--gv-faint)', marginTop: 22, lineHeight: 1.6 }}>
+        Secure checkout by Stripe. Cancel anytime from <strong style={{ color: 'var(--gv-dim)' }}>Manage billing</strong>.
         Full refunds available on request —{' '}
-        <Link href="/dashboard/billing/cancel" style={{ color: '#9aa096', textDecoration: 'underline' }}>
+        <Link href="/dashboard/billing/cancel" style={{ color: 'var(--gv-dim)', textDecoration: 'underline' }}>
           cancel &amp; request a refund
         </Link>.
       </p>
@@ -140,9 +140,9 @@ export default function BillingClient({
 
 function Banner({ tone, children }: { tone: 'ok' | 'err' | 'muted'; children: React.ReactNode }) {
   const styles = {
-    ok: { bg: 'rgba(99,194,129,0.1)', bd: 'rgba(99,194,129,0.3)', fg: '#9ff0bb' },
-    err: { bg: 'rgba(255,99,99,0.1)', bd: 'rgba(255,99,99,0.3)', fg: '#ff9b9b' },
-    muted: { bg: 'rgba(255,255,255,0.04)', bd: 'rgba(255,255,255,0.1)', fg: '#cdd2c9' },
+    ok: { bg: 'rgba(99,194,129,0.1)', bd: 'rgba(99,194,129,0.3)', fg: 'var(--mint)' },
+    err: { bg: 'rgba(255,99,99,0.1)', bd: 'rgba(255,99,99,0.3)', fg: 'var(--gv-red-text)' },
+    muted: { bg: 'rgba(255,255,255,0.04)', bd: 'rgba(255,255,255,0.1)', fg: 'var(--gv-soft)' },
   }[tone];
   return (
     <div style={{ background: styles.bg, border: `1px solid ${styles.bd}`, color: styles.fg, borderRadius: 12, padding: '12px 16px', fontSize: 13.5, marginBottom: 18 }}>

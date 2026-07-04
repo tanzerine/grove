@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { supabaseServer } from '@/lib/supabase/server';
 import { reviseSection } from '@/lib/pipeline/revise';
 import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
+import { canGenerateForUser } from '@/lib/billing';
 
 export const maxDuration = 60;
 
@@ -19,6 +20,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   const limited = await enforceRateLimit(`llm:${user.id}`, LIMITS.llm);
   if (limited) return limited;
+
+  // Cost-bearing generation is a paid feature: no live subscription, no LLM run.
+  if (!(await canGenerateForUser(user.id, sb))) {
+    return NextResponse.json(
+      { error: 'payment_required', message: 'An active subscription is required to generate content.' },
+      { status: 402 },
+    );
+  }
 
   const parsed = body.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: 'invalid' }, { status: 400 });

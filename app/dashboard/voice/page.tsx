@@ -68,7 +68,7 @@ export default async function Page() {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ background: '#101310', padding: 24, borderRadius: 14, border: '1px solid rgba(255,255,255,0.07)', marginTop: 18 }}>
+    <div style={{ background: 'var(--gv-card)', padding: 24, borderRadius: 14, border: '1px solid rgba(255,255,255,0.07)', marginTop: 18 }}>
       <div className="mono" style={{ fontSize: 11, color: 'var(--moss)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>{title}</div>
       {children}
     </div>

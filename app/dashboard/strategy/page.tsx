@@ -14,8 +14,8 @@ import PlanChat from './PlanChat';
 
 export const dynamic = 'force-dynamic';
 
-const ACCENT = '#63c281';
-const PILLAR_COLORS = [ACCENT, '#7fb6e6', '#c8a6e8', '#e0c878', '#9bb0e8', '#c97f7f'];
+const ACCENT = 'var(--gv-accent)';
+const PILLAR_COLORS = [ACCENT, 'var(--gv-sky)', '#c8a6e8', 'var(--gv-amber)', 'var(--gv-blue)', 'var(--gv-red)'];
 
 type SlotStatus = { status: string; slug: string | null; scheduled_at?: string | null };
 
@@ -92,7 +92,7 @@ export default async function StrategyPage() {
       share: `${sharePct}%`, posts: slots.length,
       note: published ? `${published} live` : slots.length ? 'queued' : 'no slots',
       trend: perf?.views ? `${fmtNumber(perf.views)} views` : 'new',
-      trendColor: perf && perf.views >= 1000 ? ACCENT : '#9aa096',
+      trendColor: perf && perf.views >= 1000 ? ACCENT : 'var(--gv-dim)',
     };
   });
 
@@ -109,16 +109,16 @@ export default async function StrategyPage() {
 
   // ---------- plan timeline (weeks) ----------
   const INTENT: Record<string, { label: string; color: string; border: string }> = {
-    editorial: { label: 'TOFU', color: '#7fb6e6', border: 'rgba(127,182,230,0.35)' },
+    editorial: { label: 'TOFU', color: 'var(--gv-sky)', border: 'rgba(127,182,230,0.35)' },
     contextual: { label: 'MOFU', color: '#c8a6e8', border: 'rgba(200,166,232,0.35)' },
     conversion: { label: 'BOFU', color: ACCENT, border: 'rgba(99,194,129,0.35)' },
   };
   const itemStatus = (st?: string): { label: string; color: string; now: boolean } => {
     if (st === 'published') return { label: 'Live', color: ACCENT, now: false };
-    if (st === 'review') return { label: 'In review', color: '#e0c878', now: false };
+    if (st === 'review') return { label: 'In review', color: 'var(--gv-amber)', now: false };
     if (st && ['writing', 'researching', 'queued'].includes(st)) return { label: 'Drafting', color: ACCENT, now: true };
-    if (st === 'scheduled') return { label: 'Scheduled', color: '#9aa096', now: false };
-    return { label: 'Planned', color: '#6b6f67', now: false };
+    if (st === 'scheduled') return { label: 'Scheduled', color: 'var(--gv-dim)', now: false };
+    return { label: 'Planned', color: 'var(--gv-faint)', now: false };
   };
   const pillarIndex = new Map((s.pillars ?? []).map((p, i) => [p.id, i] as const));
   const effectiveDate = (slot: PostSlot) => statusForSlot(slot)?.scheduled_at ?? slot.publish_date ?? '';
@@ -143,7 +143,7 @@ export default async function StrategyPage() {
       };
     });
     const state = w < todayWeek ? 'shipped' : w === todayWeek ? 'this week' : 'planned';
-    const labelColor = w === todayWeek ? ACCENT : w < todayWeek ? '#9aa096' : '#6b6f67';
+    const labelColor = w === todayWeek ? ACCENT : w < todayWeek ? 'var(--gv-dim)' : 'var(--gv-faint)';
     return { label: `Week ${w}`, state, labelColor, items };
   });
 
@@ -153,7 +153,7 @@ export default async function StrategyPage() {
     const snap = await latestSnapshot(domain.id);
     if (snap.date) {
       opportunities = nearWinners(snap.queries, { limit: 3 }).map((w) => ({
-        tag: 'Near win', tagColor: '#06120b', tagBg: ACCENT,
+        tag: 'Near win', tagColor: 'var(--gv-on-accent)', tagBg: ACCENT,
         volume: `${w.impressions.toLocaleString()} impr`,
         title: w.key,
         why: `You rank #${w.position} with ${w.impressions.toLocaleString()} impressions — a stronger page can reach page one.`,
@@ -186,26 +186,26 @@ export default async function StrategyPage() {
         {/* plan controls — relocated out of the nav bar */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 14, marginBottom: 16, flexWrap: 'wrap' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 2, padding: 4, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10 }}>
-            <button className="gv-ghost" style={{ width: 30, height: 30, borderRadius: 7, border: 'none', background: 'transparent', color: '#9aa096', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14 }}>‹</button>
-            <span style={{ fontSize: 12.5, fontWeight: 600, color: '#cdd2c9', padding: '0 10px' }}>{planMonth}</span>
-            <button className="gv-ghost" style={{ width: 30, height: 30, borderRadius: 7, border: 'none', background: 'transparent', color: '#9aa096', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14 }}>›</button>
+            <button className="gv-ghost" style={{ width: 30, height: 30, borderRadius: 7, border: 'none', background: 'transparent', color: 'var(--gv-dim)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14 }}>‹</button>
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--gv-soft)', padding: '0 10px' }}>{planMonth}</span>
+            <button className="gv-ghost" style={{ width: 30, height: 30, borderRadius: 7, border: 'none', background: 'transparent', color: 'var(--gv-dim)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14 }}>›</button>
           </div>
-          <Link href="/onboarding/intent" className="gv-btn" style={{ display: 'flex', alignItems: 'center', gap: 8, border: 'none', background: ACCENT, color: '#06120b', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, padding: '9px 16px', borderRadius: 10, cursor: 'pointer', textDecoration: 'none' }}>
+          <Link href="/onboarding/intent" className="gv-btn" style={{ display: 'flex', alignItems: 'center', gap: 8, border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, padding: '9px 16px', borderRadius: 10, cursor: 'pointer', textDecoration: 'none' }}>
             <Icon name="check" size={15} /> Approve plan
           </Link>
         </div>
         {/* PLAN HERO */}
-        <section className="gv-card" style={{ background: 'linear-gradient(135deg, #0c130e, #0a0d0a)', border: '1px solid rgba(99,194,129,0.18)', borderRadius: 20, padding: '26px 28px', marginBottom: 16 }}>
+        <section className="gv-card" style={{ background: 'var(--gv-card-grad)', border: '1px solid rgba(99,194,129,0.18)', borderRadius: 20, padding: '26px 28px', marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: 300 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 10.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: ACCENT }}>
                 <Icon name="compass" size={13} /> This month&apos;s plan · auto-drafted from last month&apos;s results
               </div>
-              <p style={{ fontSize: 16, lineHeight: 1.62, color: '#dfe4da', margin: '13px 0 0', maxWidth: 720 }}>{heroText}</p>
+              <p style={{ fontSize: 16, lineHeight: 1.62, color: 'var(--gv-soft)', margin: '13px 0 0', maxWidth: 720 }}>{heroText}</p>
             </div>
             <div style={{ display: 'flex', gap: 9, flexShrink: 0 }}>
-              <Link href="/onboarding/intent" className="gv-ghost" style={{ border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.02)', color: '#cdd2c9', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '10px 15px', borderRadius: 10, cursor: 'pointer', textDecoration: 'none' }}>Edit goals</Link>
-              <Link href="/dashboard/pipeline" className="gv-btn" style={{ border: 'none', background: ACCENT, color: '#06120b', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '10px 16px', borderRadius: 10, cursor: 'pointer', whiteSpace: 'nowrap', textDecoration: 'none' }}>Queue all {queueable} →</Link>
+              <Link href="/onboarding/intent" className="gv-ghost" style={{ border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.02)', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '10px 15px', borderRadius: 10, cursor: 'pointer', textDecoration: 'none' }}>Edit goals</Link>
+              <Link href="/dashboard/pipeline" className="gv-btn" style={{ border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '10px 16px', borderRadius: 10, cursor: 'pointer', whiteSpace: 'nowrap', textDecoration: 'none' }}>Queue all {queueable} →</Link>
             </div>
           </div>
         </section>
@@ -213,10 +213,10 @@ export default async function StrategyPage() {
         {/* WHERE WE'RE HEADING — month / week / today */}
         <div className="gv-grid4" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 14 }}>
           {horizonCards.map((h, i) => (
-            <div key={i} className="gv-card" style={{ background: '#101310', border: `1px solid ${i === 2 ? 'rgba(99,194,129,0.22)' : 'rgba(255,255,255,0.07)'}`, borderRadius: 16, padding: '18px 20px' }}>
-              <div style={{ fontSize: 10.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: i === 2 ? ACCENT : '#9aa096', fontWeight: 700 }}>{h.tag}</div>
-              <div style={{ fontSize: 14.5, fontWeight: 600, color: '#eef1ea', lineHeight: 1.45, marginTop: 9 }}>{h.headline}</div>
-              <div style={{ fontSize: 12, color: '#6b6f67', lineHeight: 1.55, marginTop: 7, whiteSpace: 'pre-line' }}>{h.detail}</div>
+            <div key={i} className="gv-card" style={{ background: 'var(--gv-card)', border: `1px solid ${i === 2 ? 'rgba(99,194,129,0.22)' : 'rgba(255,255,255,0.07)'}`, borderRadius: 16, padding: '18px 20px' }}>
+              <div style={{ fontSize: 10.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: i === 2 ? ACCENT : 'var(--gv-dim)', fontWeight: 700 }}>{h.tag}</div>
+              <div style={{ fontSize: 14.5, fontWeight: 600, color: 'var(--gv-ink)', lineHeight: 1.45, marginTop: 9 }}>{h.headline}</div>
+              <div style={{ fontSize: 12, color: 'var(--gv-faint)', lineHeight: 1.55, marginTop: 7, whiteSpace: 'pre-line' }}>{h.detail}</div>
             </div>
           ))}
         </div>
@@ -225,15 +225,15 @@ export default async function StrategyPage() {
         {goals.length > 0 && (
           <div className="gv-grid4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 14 }}>
             {goals.map((g, i) => (
-              <div key={i} className="gv-card" style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
+              <div key={i} className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
                 <div style={{ position: 'relative', width: 58, height: 58, flexShrink: 0 }}>
                   <Ring pct={g.pct} />
                   <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700 }}>{g.pct}%</span>
                 </div>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 12, color: '#9aa096' }}>{g.label}</div>
+                  <div style={{ fontSize: 12, color: 'var(--gv-dim)' }}>{g.label}</div>
                   <div style={{ fontSize: 21, fontWeight: 700, letterSpacing: '-0.02em', marginTop: 3 }}>{g.current}</div>
-                  <div style={{ fontSize: 11.5, color: '#6b6f67', marginTop: 1 }}>of {g.target} goal</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--gv-faint)', marginTop: 1 }}>of {g.target} goal</div>
                 </div>
               </div>
             ))}
@@ -244,12 +244,12 @@ export default async function StrategyPage() {
         <div className="gv-2col-wide" style={{ display: 'grid', gridTemplateColumns: '1.45fr 1fr', gap: 14, alignItems: 'start', marginBottom: 14 }}>
           {clusters.length > 0
             ? <StrategyClusterMap clusters={clusters} />
-            : <div className="gv-card" style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '22px 24px', color: '#6b6f67', fontSize: 13 }}>Topical clusters appear once your plan has slots.</div>}
+            : <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '22px 24px', color: 'var(--gv-faint)', fontSize: 13 }}>Topical clusters appear once your plan has slots.</div>}
 
           {pillars.length > 0 && (
-            <div className="gv-card" style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '22px 24px' }}>
+            <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '22px 24px' }}>
               <div style={{ fontSize: 15, fontWeight: 700 }}>Content pillars</div>
-              <div style={{ fontSize: 12.5, color: '#6b6f67', margin: '3px 0 18px' }}>How {planMonth.split(' ')[0]}&apos;s effort is allocated</div>
+              <div style={{ fontSize: 12.5, color: 'var(--gv-faint)', margin: '3px 0 18px' }}>How {planMonth.split(' ')[0]}&apos;s effort is allocated</div>
               <div style={{ display: 'flex', height: 12, borderRadius: 99, overflow: 'hidden', marginBottom: 20 }}>
                 {pillars.map((p, i) => <span key={i} title={p.name} style={{ width: p.share, background: p.color }} />)}
               </div>
@@ -258,8 +258,8 @@ export default async function StrategyPage() {
                   <div key={i} className="gv-row" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 10px', borderRadius: 10, transition: 'background .15s' }}>
                     <span style={{ width: 10, height: 10, borderRadius: 3, background: p.color, flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13.5, fontWeight: 600, color: '#eef1ea', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
-                      <div style={{ fontSize: 11.5, color: '#6b6f67', marginTop: 1 }}>{p.posts} posts · {p.note}</div>
+                      <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--gv-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
+                      <div style={{ fontSize: 11.5, color: 'var(--gv-faint)', marginTop: 1 }}>{p.posts} posts · {p.note}</div>
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
                       <div style={{ fontSize: 14, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{p.share}</div>
@@ -275,23 +275,23 @@ export default async function StrategyPage() {
         {/* BOTTOM: plan timeline + opportunities */}
         <div className="gv-2col-wide" style={{ display: 'grid', gridTemplateColumns: '1.45fr 1fr', gap: 14, alignItems: 'start' }}>
           {/* plan timeline */}
-          <div className="gv-card" style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '22px 24px' }}>
+          <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '22px 24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
               <div style={{ fontSize: 15, fontWeight: 700 }}>The month, week by week</div>
-              <span style={{ fontSize: 11.5, color: '#6b6f67' }}>{plan.length} posts · {planMonth}</span>
+              <span style={{ fontSize: 11.5, color: 'var(--gv-faint)' }}>{plan.length} posts · {planMonth}</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {weeks.map((w, i) => (
                 <div key={i} style={{ display: 'flex', gap: 14 }}>
                   <div style={{ width: 64, flexShrink: 0, paddingTop: 2 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: w.labelColor }}>{w.label}</div>
-                    <div style={{ fontSize: 10.5, color: '#565a53', marginTop: 2 }}>{w.state}</div>
+                    <div style={{ fontSize: 10.5, color: 'var(--gv-fainter)', marginTop: 2 }}>{w.state}</div>
                   </div>
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 7 }}>
                     {w.items.map((it, j) => (
                       <div key={j} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 13px', borderRadius: 11, background: it.bg, border: `1px solid ${it.border}` }}>
                         <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.04em', color: it.intentColor, border: `1px solid ${it.intentBorder}`, borderRadius: 5, padding: '2px 6px', flexShrink: 0 }}>{it.intent}</span>
-                        <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: '#cdd2c9', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.title}</span>
+                        <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: 'var(--gv-soft)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.title}</span>
                         <span style={{ width: 8, height: 8, borderRadius: '50%', background: it.pillarColor, flexShrink: 0 }} />
                         <span style={{ fontSize: 11, color: it.statusColor, flexShrink: 0, minWidth: 64, textAlign: 'right' }}>{it.status}</span>
                       </div>
@@ -299,21 +299,21 @@ export default async function StrategyPage() {
                   </div>
                 </div>
               ))}
-              {weeks.length === 0 && <p style={{ color: '#6b6f67', fontSize: 13, margin: 0 }}>No slots scheduled yet this month.</p>}
+              {weeks.length === 0 && <p style={{ color: 'var(--gv-faint)', fontSize: 13, margin: 0 }}>No slots scheduled yet this month.</p>}
             </div>
           </div>
 
           {/* opportunities */}
-          <div className="gv-card" style={{ background: 'linear-gradient(150deg, #0c130e, #0a0d0a)', border: '1px solid rgba(99,194,129,0.16)', borderRadius: 18, padding: '22px 24px' }}>
+          <div className="gv-card" style={{ background: 'var(--gv-card-grad)', border: '1px solid rgba(99,194,129,0.16)', borderRadius: 18, padding: '22px 24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
               <div style={{ fontSize: 15, fontWeight: 700 }}>Openings grove spotted</div>
               <span style={{ fontSize: 11, color: ACCENT, fontWeight: 600 }}>live SERP</span>
             </div>
-            <div style={{ fontSize: 12.5, color: '#6b6f67', marginBottom: 16 }}>Queries you rank on page 2 for — ranked by upside</div>
+            <div style={{ fontSize: 12.5, color: 'var(--gv-faint)', marginBottom: 16 }}>Queries you rank on page 2 for — ranked by upside</div>
             {opportunities.length === 0 ? (
-              <div style={{ fontSize: 12.5, color: '#6b6f67', lineHeight: 1.6 }}>
+              <div style={{ fontSize: 12.5, color: 'var(--gv-faint)', lineHeight: 1.6 }}>
                 Once Search Console is connected, the near-win queries grove can push to page one show up here.{' '}
-                <Link href="/dashboard/analytics" style={{ color: '#9aa096', textDecoration: 'underline' }}>Connect Search Console →</Link>
+                <Link href="/dashboard/analytics" style={{ color: 'var(--gv-dim)', textDecoration: 'underline' }}>Connect Search Console →</Link>
               </div>
             ) : (
               <>
@@ -322,14 +322,14 @@ export default async function StrategyPage() {
                     <div key={i} style={{ padding: '13px 15px', borderRadius: 12, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                         <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: o.tagColor, background: o.tagBg, borderRadius: 5, padding: '2px 7px' }}>{o.tag}</span>
-                        <span style={{ marginLeft: 'auto', fontSize: 11.5, color: '#9aa096', fontVariantNumeric: 'tabular-nums' }}>{o.volume}</span>
+                        <span style={{ marginLeft: 'auto', fontSize: 11.5, color: 'var(--gv-dim)', fontVariantNumeric: 'tabular-nums' }}>{o.volume}</span>
                       </div>
-                      <div style={{ fontSize: 13.5, fontWeight: 600, color: '#eef1ea', lineHeight: 1.4 }}>{o.title}</div>
-                      <div style={{ fontSize: 12, color: '#6b6f67', marginTop: 4, lineHeight: 1.45 }}>{o.why}</div>
+                      <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--gv-ink)', lineHeight: 1.4 }}>{o.title}</div>
+                      <div style={{ fontSize: 12, color: 'var(--gv-faint)', marginTop: 4, lineHeight: 1.45 }}>{o.why}</div>
                     </div>
                   ))}
                 </div>
-                <Link href="/dashboard/write" className="gv-btn" style={{ display: 'block', textAlign: 'center', width: '100%', marginTop: 14, border: 'none', background: ACCENT, color: '#06120b', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: 11, borderRadius: 10, cursor: 'pointer', textDecoration: 'none' }}>Draft one of these</Link>
+                <Link href="/dashboard/write" className="gv-btn" style={{ display: 'block', textAlign: 'center', width: '100%', marginTop: 14, border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: 11, borderRadius: 10, cursor: 'pointer', textDecoration: 'none' }}>Draft one of these</Link>
               </>
             )}
           </div>
@@ -384,7 +384,7 @@ function Empty() {
   return (
     <>
       <DashHeader title="Strategy" />
-      <div className="gv-body" style={{ textAlign: 'center', color: '#9aa096', marginTop: 40 }}><p>Connect a domain first.</p></div>
+      <div className="gv-body" style={{ textAlign: 'center', color: 'var(--gv-dim)', marginTop: 40 }}><p>Connect a domain first.</p></div>
     </>
   );
 }
@@ -394,14 +394,14 @@ function NoStrategy({ hasInterview }: { hasInterview: boolean }) {
     <>
       <DashHeader title="Strategy" subtitle="the monthly plan your agent works from" />
       <div className="gv-body">
-        <div style={{ background: '#101310', border: '1px dashed rgba(255,255,255,0.12)', borderRadius: 14, padding: '40px 30px', textAlign: 'center' }}>
+        <div style={{ background: 'var(--gv-card)', border: '1px dashed rgba(255,255,255,0.12)', borderRadius: 14, padding: '40px 30px', textAlign: 'center' }}>
           <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>No strategy yet.</h3>
-          <p style={{ color: '#9aa096', marginTop: 8 }}>
+          <p style={{ color: 'var(--gv-dim)', marginTop: 8 }}>
             {hasInterview
               ? 'Strategy will build automatically on the 1st of the month, or run a generation to seed it.'
               : 'Answer a few questions and the strategist will draft this month’s plan.'}
           </p>
-          <Link href="/onboarding/intent" className="gv-btn" style={{ display: 'inline-block', marginTop: 16, border: 'none', background: ACCENT, color: '#06120b', fontWeight: 700, padding: '10px 18px', borderRadius: 10, textDecoration: 'none' }}>
+          <Link href="/onboarding/intent" className="gv-btn" style={{ display: 'inline-block', marginTop: 16, border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontWeight: 700, padding: '10px 18px', borderRadius: 10, textDecoration: 'none' }}>
             {hasInterview ? 'Edit intent' : 'Answer 5 questions →'}
           </Link>
         </div>

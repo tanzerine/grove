@@ -1,15 +1,15 @@
 'use client';
 import { useState } from 'react';
 
-const ACCENT = '#63c281';
+const ACCENT = 'var(--gv-accent)';
 
 export type Spoke = { label: string; status: 'published' | 'planned' | 'gap' };
 export type Cluster = { hub: string; color: string; spokes: Spoke[] };
 
 const STYLE: Record<Spoke['status'], { fill: string; stroke: string; line: string; dash: string; text: string; tr: boolean }> = {
-  published: { fill: ACCENT, stroke: ACCENT, line: 'rgba(99,194,129,0.45)', dash: '0', text: '#cdd2c9', tr: false },
-  planned: { fill: 'rgba(127,182,230,0.18)', stroke: '#7fb6e6', line: 'rgba(127,182,230,0.4)', dash: '0', text: '#9aa096', tr: false },
-  gap: { fill: 'rgba(224,200,120,0.08)', stroke: '#e0c878', line: 'rgba(224,200,120,0.4)', dash: '4 4', text: '#9aa79e', tr: true },
+  published: { fill: ACCENT, stroke: ACCENT, line: 'rgba(99,194,129,0.45)', dash: '0', text: 'var(--gv-soft)', tr: false },
+  planned: { fill: 'rgba(127,182,230,0.18)', stroke: 'var(--gv-sky)', line: 'rgba(127,182,230,0.4)', dash: '0', text: 'var(--gv-dim)', tr: false },
+  gap: { fill: 'rgba(224,200,120,0.08)', stroke: 'var(--gv-amber)', line: 'rgba(224,200,120,0.4)', dash: '4 4', text: '#9aa79e', tr: true },
 };
 
 function ClusterSvg({ hub, spokes }: { hub: string; spokes: Spoke[] }) {
@@ -27,9 +27,9 @@ function ClusterSvg({ hub, spokes }: { hub: string; spokes: Spoke[] }) {
       })}
       {/* hub */}
       <circle cx={cx} cy={cy} r={40} fill="rgba(99,194,129,0.08)" stroke="rgba(99,194,129,0.3)" strokeWidth={1.5} />
-      <circle cx={cx} cy={cy} r={34} fill="#101310" stroke="rgba(99,194,129,0.5)" strokeWidth={1.5} />
-      <text x={cx} y={cy - 3} textAnchor="middle" fontSize={10} fontWeight={700} fontFamily="Plus Jakarta Sans, sans-serif" fill="#6b6f67" letterSpacing="0.08em">HUB</text>
-      <text x={cx} y={cy + 11} textAnchor="middle" fontSize={12} fontWeight={700} fontFamily="Plus Jakarta Sans, sans-serif" fill="#eef1ea">{hub}</text>
+      <circle cx={cx} cy={cy} r={34} fill="var(--gv-card)" stroke="rgba(99,194,129,0.5)" strokeWidth={1.5} />
+      <text x={cx} y={cy - 3} textAnchor="middle" fontSize={10} fontWeight={700} fontFamily="Plus Jakarta Sans, sans-serif" fill="var(--gv-faint)" letterSpacing="0.08em">HUB</text>
+      <text x={cx} y={cy + 11} textAnchor="middle" fontSize={12} fontWeight={700} fontFamily="Plus Jakarta Sans, sans-serif" fill="var(--gv-ink)">{hub}</text>
       {spokes.map((s, i) => {
         const a = -Math.PI / 2 + i * ((2 * Math.PI) / n);
         const nx = cx + R * Math.cos(a), ny = cy + R * Math.sin(a);
@@ -57,20 +57,20 @@ export default function StrategyClusterMap({ clusters }: { clusters: Cluster[] }
 
   const legend = [
     { label: 'Published', color: ACCENT },
-    { label: 'Planned', color: '#7fb6e6' },
-    { label: 'Gap', color: '#e0c878' },
+    { label: 'Planned', color: 'var(--gv-sky)' },
+    { label: 'Gap', color: 'var(--gv-amber)' },
   ];
 
   return (
-    <div className="gv-card" style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '22px 24px' }}>
+    <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '22px 24px' }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em' }}>Topical authority map</div>
-          <div style={{ fontSize: 12.5, color: '#6b6f67', marginTop: 3 }}>Hub-and-spoke clusters — own a topic, not just a keyword</div>
+          <div style={{ fontSize: 12.5, color: 'var(--gv-faint)', marginTop: 3 }}>Hub-and-spoke clusters — own a topic, not just a keyword</div>
         </div>
         <div style={{ display: 'flex', gap: 16 }}>
           {legend.map((l) => (
-            <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11.5, color: '#9aa096' }}>
+            <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11.5, color: 'var(--gv-dim)' }}>
               <span style={{ width: 9, height: 9, borderRadius: 3, background: l.color }} />{l.label}
             </div>
           ))}
@@ -82,7 +82,7 @@ export default function StrategyClusterMap({ clusters }: { clusters: Cluster[] }
           const active = i === idx;
           return (
             <button key={i} onClick={() => setPi(i)} className="gv-pill"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, border: `1px solid ${active ? 'rgba(99,194,129,0.28)' : 'rgba(255,255,255,0.08)'}`, background: active ? 'rgba(99,194,129,0.1)' : 'rgba(255,255,255,0.02)', color: active ? '#eef1ea' : '#9aa096', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '7px 13px', borderRadius: 999, cursor: 'pointer', transition: '.2s' }}>
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, border: `1px solid ${active ? 'rgba(99,194,129,0.28)' : 'rgba(255,255,255,0.08)'}`, background: active ? 'rgba(99,194,129,0.1)' : 'rgba(255,255,255,0.02)', color: active ? 'var(--gv-ink)' : 'var(--gv-dim)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '7px 13px', borderRadius: 999, cursor: 'pointer', transition: '.2s' }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.color }} />{c.hub}
             </button>
           );
@@ -91,7 +91,7 @@ export default function StrategyClusterMap({ clusters }: { clusters: Cluster[] }
 
       <div style={{ marginTop: 6 }}><ClusterSvg hub={cur.hub} spokes={cur.spokes} /></div>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, fontSize: 12, color: '#6b6f67', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 14, marginTop: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, fontSize: 12, color: 'var(--gv-faint)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 14, marginTop: 6 }}>
         <span><span style={{ color: ACCENT, fontWeight: 600 }}>{covered}</span> of {cur.spokes.length} spokes covered · {gaps} gap{gaps === 1 ? '' : 's'} worth filling</span>
         <button className="gv-btn" style={{ border: '1px solid rgba(99,194,129,0.25)', background: 'rgba(99,194,129,0.08)', color: ACCENT, fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '7px 13px', borderRadius: 9, cursor: 'pointer' }}>Queue the {gaps} gap{gaps === 1 ? '' : 's'} →</button>
       </div>

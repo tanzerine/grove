@@ -5,7 +5,7 @@ import { useState } from 'react';
 import LocalTime from './LocalTime';
 import Icon from './gv-icons';
 
-const ACCENT = '#63c281';
+const ACCENT = 'var(--gv-accent)';
 
 // posts in-flight > STUCK_MIN minutes are almost certainly stuck
 // (Vercel function ceiling is 300s; if it's been > 3 min something died)
@@ -73,8 +73,8 @@ export default function PostRow({ p, score, blogSlug }: { p: any; score?: { over
   const showDelete = p.status === 'failed' || stuck;
   const showRegen = ['review', 'scheduled', 'published'].includes(p.status);
 
-  const scoreColor = !score ? '#6b6f67' : score.overall >= 70 ? ACCENT : score.overall >= 40 ? '#e0c878' : '#c97f7f';
-  const metaColor = v.danger ? '#c98f8f' : '#9aa096';
+  const scoreColor = !score ? 'var(--gv-faint)' : score.overall >= 70 ? ACCENT : score.overall >= 40 ? 'var(--gv-amber)' : 'var(--gv-red)';
+  const metaColor = v.danger ? '#c98f8f' : 'var(--gv-dim)';
 
   const meta: React.ReactNode =
     p.status === 'published' ? <>Live{p.published_at ? <> · <LocalTime iso={p.published_at} withTime={false} /></> : ''}{typeof p.reads === 'number' ? ` · ${p.reads} reads` : ''}</> :
@@ -87,15 +87,15 @@ export default function PostRow({ p, score, blogSlug }: { p: any; score?: { over
 
   const btn = (label: string, onClick: () => void, primary = false, key?: string) => (
     <button key={key} className="gv-btn" onClick={onClick} disabled={!!busy}
-      style={{ border: `1px solid ${primary ? ACCENT : 'rgba(255,255,255,0.12)'}`, background: primary ? ACCENT : 'rgba(255,255,255,0.03)', color: primary ? '#06120b' : '#cdd2c9', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '7px 15px', borderRadius: 9, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
+      style={{ border: `1px solid ${primary ? ACCENT : 'rgba(255,255,255,0.12)'}`, background: primary ? ACCENT : 'rgba(255,255,255,0.03)', color: primary ? 'var(--gv-on-accent)' : 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '7px 15px', borderRadius: 9, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
       {label}
     </button>
   );
 
   return (
-    <div className="gv-prow" style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '14px 16px' }}>
+    <div className="gv-prow" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '14px 16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 13 }}>
-        <span style={{ width: 38, height: 38, borderRadius: 10, background: v.accent ? 'rgba(99,194,129,0.1)' : 'rgba(255,255,255,0.04)', border: `1px solid ${v.accent ? 'rgba(99,194,129,0.2)' : 'rgba(255,255,255,0.07)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: v.danger ? '#c97f7f' : v.accent ? ACCENT : '#9aa096', flexShrink: 0 }}>
+        <span style={{ width: 38, height: 38, borderRadius: 10, background: v.accent ? 'rgba(99,194,129,0.1)' : 'rgba(255,255,255,0.04)', border: `1px solid ${v.accent ? 'rgba(99,194,129,0.2)' : 'rgba(255,255,255,0.07)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: v.danger ? 'var(--gv-red)' : v.accent ? ACCENT : 'var(--gv-dim)', flexShrink: 0 }}>
           <Icon name={v.icon} size={18} />
         </span>
         <Link href={`/dashboard/posts/${p.id}`} style={{ flex: 1, minWidth: 0, textDecoration: 'none', color: 'inherit' }}>
@@ -109,7 +109,7 @@ export default function PostRow({ p, score, blogSlug }: { p: any; score?: { over
         {score ? (
           <span title={`Manager quality score · last decision: ${score.action}`} style={{ display: 'inline-flex', alignItems: 'baseline', gap: 2, flexShrink: 0, fontVariantNumeric: 'tabular-nums', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '4px 9px' }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: scoreColor }}>{score.overall}</span>
-            <span style={{ fontSize: 9, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#565a53' }}>score</span>
+            <span style={{ fontSize: 9, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>score</span>
           </span>
         ) : null}
 
@@ -120,7 +120,7 @@ export default function PostRow({ p, score, blogSlug }: { p: any; score?: { over
           {showDelete && btn(busy === 'delete' ? '…' : 'Delete', del, false, 'd')}
           {p.status === 'published' && blogSlug && p.slug && (
             <a className="gv-btn" href={`/b/${blogSlug}/${p.slug}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}
-              style={{ border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.03)', color: '#cdd2c9', fontSize: 12.5, fontWeight: 600, padding: '7px 15px', borderRadius: 9, textDecoration: 'none', whiteSpace: 'nowrap' }}>View ↗</a>
+              style={{ border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.03)', color: 'var(--gv-soft)', fontSize: 12.5, fontWeight: 600, padding: '7px 15px', borderRadius: 9, textDecoration: 'none', whiteSpace: 'nowrap' }}>View ↗</a>
           )}
         </div>
       </div>
@@ -136,10 +136,10 @@ export default function PostRow({ p, score, blogSlug }: { p: any; score?: { over
               <span className="gv-think" style={{ animationDelay: '.15s' }} />
               <span className="gv-think" style={{ animationDelay: '.3s' }} />
             </span>
-            <span style={{ fontSize: 12.5, color: '#cdd2c9', fontWeight: 500, flex: '1 1 auto', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <span style={{ fontSize: 12.5, color: 'var(--gv-soft)', fontWeight: 500, flex: '1 1 auto', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {currentStep ?? (p.status === 'writing' ? 'Drafting the article…' : p.status === 'researching' ? 'Researching live SERP…' : 'Working…')}
             </span>
-            <span style={{ marginLeft: 'auto', fontSize: 10, color: '#565a53', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+            <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--gv-fainter)', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
               {p.status === 'researching' || p.status === 'queued' ? 'research' : 'draft'}
             </span>
           </div>

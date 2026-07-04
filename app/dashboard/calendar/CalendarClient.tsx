@@ -23,11 +23,11 @@ export type PlannedSlot = {
 
 const STATUS_COLOR: Record<string, string> = {
   published: 'var(--moss)',
-  scheduled: '#7B9EF0',
-  review: '#E0A040',
-  queued: '#B0A8C0',
-  researching: '#B0A8C0',
-  writing: '#B0A8C0',
+  scheduled: 'var(--gv-blue)',
+  review: 'var(--gv-amber)',
+  queued: 'var(--gv-sky)',
+  researching: 'var(--gv-sky)',
+  writing: 'var(--gv-sky)',
 };
 const DRAFTING = new Set(['queued', 'researching', 'writing']);
 
@@ -131,7 +131,7 @@ export default function CalendarClient({
 
       <div className="r-split">
         {/* Calendar grid */}
-        <div style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, overflow: 'hidden', minWidth: 0 }}>
+        <div style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, overflow: 'hidden', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: '1px solid var(--line)' }}>
             <button onClick={prevMonth} style={navBtn}>‹</button>
             <span style={{ fontFamily: 'Clash Display', fontSize: 20, fontWeight: 600 }}>{MONTHS[month]} {year}</span>
@@ -201,7 +201,7 @@ export default function CalendarClient({
           </div>
 
           <div style={{ display: 'flex', gap: 16, padding: '12px 20px', borderTop: '1px solid var(--line)', flexWrap: 'wrap' }}>
-            {[['Published', 'var(--moss)'], ['Scheduled', '#7B9EF0'], ['Review', '#E0A040'], ['Drafting', '#B0A8C0']].map(([label, color]) => (
+            {[['Published', 'var(--moss)'], ['Scheduled', 'var(--gv-blue)'], ['Review', 'var(--gv-amber)'], ['Drafting', 'var(--gv-sky)']].map(([label, color]) => (
               <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--clay)' }}>
                 <div style={{ width: 10, height: 10, borderRadius: 3, background: color }} /> {label}
               </div>
@@ -215,7 +215,7 @@ export default function CalendarClient({
         {/* Right panel */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {selectedDay && (
-            <div style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: 20 }}>
+            <div style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: 20 }}>
               <div style={{ fontFamily: 'Clash Display', fontSize: 15, marginBottom: 12 }}>
                 {MONTHS[month]} {selectedDay}
               </div>
@@ -320,8 +320,8 @@ export default function CalendarClient({
           )}
 
           {unscheduledReview.length > 0 && (
-            <div style={{ background: '#101310', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: 20 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: '#E0A040', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
+            <div style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: 20 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--gv-amber)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
                 Needs scheduling ({unscheduledReview.length})
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

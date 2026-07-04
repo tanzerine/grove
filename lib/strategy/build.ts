@@ -97,6 +97,7 @@ export type BuildStrategyInput = {
   prevReport?: MonthlyReport | null;
   progressMd?: string | null;       // rolling weekly log (agent_context.progress_md)
   alreadyCovered?: string[];        // topic_memory keywords — don't re-propose these
+  llmTimeoutMs?: number;            // cap for the planning call (crons run on a 300s budget)
 };
 
 /**
@@ -298,7 +299,7 @@ Produce the new strategy as JSON:
 
 publishing_plan should contain exactly ${monthlyPostCount} slots, distributed across pillars in proportion to each pillar's importance.`;
 
-  const { text } = await strategyLlmCall({ system, user, maxTokens: 4500 });
+  const { text } = await strategyLlmCall({ system, user, maxTokens: 4500, timeoutMs: input.llmTimeoutMs });
   const parsed = extractJson<Strategy>(text);
 
   return normalizeStrategy(parsed, { month, source, maxSlots: monthlyPostCount, postsPerWeek });

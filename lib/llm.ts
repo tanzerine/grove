@@ -78,13 +78,14 @@ export async function strategyLlmCall(opts: {
   system: string;
   user: string;
   maxTokens?: number;
+  timeoutMs?: number;   // callers on a tight function budget (crons) pass a lower cap
 }): Promise<{ text: string }> {
   try {
     return await llmCall({
       ...opts,
       model: STRATEGY_MODEL,
       maxTokens: opts.maxTokens ?? 4500,
-      timeoutMs: 240_000,          // Opus is slower; monthly cron budget is 300s
+      timeoutMs: opts.timeoutMs ?? 240_000,   // Opus is slower; default fits an interactive call
     });
   } catch (err) {
     // The loop must never stall on a single provider hiccup: fall back to the
