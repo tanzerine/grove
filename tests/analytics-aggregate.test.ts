@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   classifySource, trafficSources, answerReferrals, funnel, answerEngineName,
+  filterWindow, viewsByDay, postRollup,
   type EventRow,
 } from '../lib/analytics/aggregate';
 
@@ -74,6 +75,57 @@ describe('answerReferrals', () => {
     expect(r.total).toBe(3);
     expect(r.byEngine[0]).toEqual({ name: 'ChatGPT', count: 2, pct: 67 });
     expect(r.byEngine[1].name).toBe('Perplexity');
+  });
+});
+
+describe('filterWindow', () => {
+  const now = new Date('2026-07-05T12:00:00Z');
+  it('keeps events inside the window and drops older ones', () => {
+    const events: EventRow[] = [
+      { ...view('google.com'), created_at: '2026-07-04T00:00:00Z' },
+      { ...view('google.com'), created_at: '2026-06-01T00:00:00Z' },
+    ];
+    expect(filterWindow(events, 7, now)).toHaveLength(1);
+    expect(filterWindow(events, 90, now)).toHaveLength(2);
+  });
+  it('keeps rows without a timestamp', () => {
+    expect(filterWindow([view('google.com')], 7, now)).toHaveLength(1);
+  });
+});
+
+describe('viewsByDay', () => {
+  const now = new Date('2026-07-05T12:00:00Z');
+  const at = (iso: string): EventRow => ({ ...view('google.com'), created_at: iso });
+  it('buckets views per UTC day and zero-fills gaps up to today', () => {
+    const days = viewsByDay([
+      at('2026-07-02T03:00:00Z'), at('2026-07-02T20:00:00Z'), at('2026-07-04T09:00:00Z'),
+    ], 30, now);
+    expect(days.map((d) => d.date)).toEqual(['2026-07-02', '2026-07-03', '2026-07-04', '2026-07-05']);
+    expect(days.map((d) => d.views)).toEqual([2, 0, 1, 0]);
+  });
+  it('ignores non-view events and returns [] when nothing qualifies', () => {
+    const scroll: EventRow = { type: 'scroll', referrer_host: null, utm_source: null, scroll_depth: 50, session_id: 's', created_at: '2026-07-04T00:00:00Z' };
+    expect(viewsByDay([scroll], 30, now)).toEqual([]);
+  });
+  it('clips events older than the window', () => {
+    const days = viewsByDay([at('2026-01-01T00:00:00Z'), at('2026-07-05T01:00:00Z')], 7, now);
+    expect(days).toEqual([{ date: '2026-07-05', views: 1 }]);
+  });
+});
+
+describe('postRollup', () => {
+  it('aggregates views/read50/conversions per post, deduped by session', () => {
+    const ev = (post_id: string, type: string, session_id: string, scroll_depth: number | null = null): EventRow =>
+      ({ type, referrer_host: null, utm_source: null, scroll_depth, session_id, post_id });
+    const rows = postRollup([
+      ev('p1', 'view', 'a'), ev('p1', 'view', 'b'), ev('p1', 'scroll', 'a', 75), ev('p1', 'scroll', 'a', 100),
+      ev('p1', 'conversion', 'a'),
+      ev('p2', 'view', 'c'), ev('p2', 'scroll', 'c', 25),
+    ]);
+    expect(rows).toEqual([
+      { post_id: 'p1', views: 2, read50: 1, conversions: 1 },
+      { post_id: 'p2', views: 1, read50: 0, conversions: 0 },
+    ]);
   });
 });
 

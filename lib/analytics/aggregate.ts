@@ -19,6 +19,8 @@ export type EventRow = {
   utm_source: string | null;
   scroll_depth: number | null;  // 25 | 50 | 75 | 100
   session_id: string;
+  created_at?: string | null;   // ISO timestamp — needed for period windowing
+  post_id?: string | null;      // needed for per-post rollups
 };
 
 export type SourceKey = 'search' | 'answer' | 'direct' | 'social';
@@ -129,6 +131,66 @@ export type Funnel = {
   read50: number;     // distinct sessions that scrolled past 50%
   converted: number;  // distinct sessions that clicked the CTA (conversion event)
 };
+
+/** Events within the trailing `days`-day window ending at `now`. Rows without
+ *  a timestamp are kept — they were already fetched inside the outer window. */
+export function filterWindow(events: EventRow[], days: number, now = new Date()): EventRow[] {
+  const since = now.getTime() - days * 86400_000;
+  return events.filter((e) => {
+    if (!e.created_at) return true;
+    const t = new Date(e.created_at).getTime();
+    return !Number.isFinite(t) || t >= since;
+  });
+}
+
+export type DayViews = { date: string; views: number };
+
+/** Daily first-party views (one per `view` event), zero-filled so the trend
+ *  chart is honest about quiet days. Starts at the first recorded view (or the
+ *  window start, whichever is later) and runs through today, oldest→newest. */
+export function viewsByDay(events: EventRow[], days: number, now = new Date()): DayViews[] {
+  const day = (t: number) => new Date(t).toISOString().slice(0, 10);
+  const since = now.getTime() - (days - 1) * 86400_000;
+  const counts = new Map<string, number>();
+  let firstT = Infinity;
+  for (const e of events) {
+    if (e.type !== 'view' || !e.created_at) continue;
+    const t = new Date(e.created_at).getTime();
+    if (!Number.isFinite(t) || t < since || t > now.getTime()) continue;
+    firstT = Math.min(firstT, t);
+    counts.set(day(t), (counts.get(day(t)) ?? 0) + 1);
+  }
+  if (!counts.size) return [];
+  const out: DayViews[] = [];
+  const today = day(now.getTime());
+  for (let t = Math.max(since, firstT); day(t) <= today; t += 86400_000) {
+    const d = day(t);
+    out.push({ date: d, views: counts.get(d) ?? 0 });
+  }
+  return out;
+}
+
+export type PostRollup = { post_id: string; views: number; read50: number; conversions: number };
+
+/** Per-post first-party engagement — the events-only stand-in for GSC's
+ *  top-content table. read50/conversions dedupe by session within a post. */
+export function postRollup(events: EventRow[], limit = 6): PostRollup[] {
+  type Acc = { views: number; read: Set<string>; conv: Set<string> };
+  const by = new Map<string, Acc>();
+  for (const e of events) {
+    if (!e.post_id) continue;
+    let a = by.get(e.post_id);
+    if (!a) { a = { views: 0, read: new Set(), conv: new Set() }; by.set(e.post_id, a); }
+    if (e.type === 'view') a.views++;
+    if (e.type === 'scroll' && (e.scroll_depth ?? 0) >= 50) a.read.add(e.session_id);
+    if (e.type === 'conversion') a.conv.add(e.session_id);
+  }
+  return [...by.entries()]
+    .map(([post_id, a]) => ({ post_id, views: a.views, read50: a.read.size, conversions: a.conv.size }))
+    .filter((r) => r.views > 0)
+    .sort((a, b) => b.views - a.views)
+    .slice(0, limit);
+}
 
 /** Three honest funnel stages, de-duplicated by session. */
 export function funnel(events: EventRow[]): Funnel {

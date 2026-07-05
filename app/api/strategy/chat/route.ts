@@ -22,6 +22,9 @@ import {
 } from '@/lib/strategy/plan-chat';
 import type { Strategy } from '@/lib/strategy/build';
 import { canGenerateForUser } from '@/lib/billing';
+import { loadServiceState } from '@/lib/analytics/dashboard';
+import { serviceStateMd } from '@/lib/analytics/service-state';
+import { isConfigured as gscConfigured } from '@/lib/search-console/client';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -193,9 +196,17 @@ export async function POST(req: Request) {
       budget.revisionsLeft -= 1;
     } else {
       const ctx = await getAgentContext(domain_id);
+      // Ground answers in live operational state (pipeline, syncs, tracking,
+      // quality) so "how are we doing?" reflects what's actually running, not
+      // just the plan memo. Fail-soft: on any error the block is simply absent.
+      let stateMd = '';
+      try {
+        const { data: domRow } = await admin.from('domains').select('*').eq('id', domain_id).maybeSingle();
+        stateMd = serviceStateMd(await loadServiceState(admin, (domRow ?? { id: domain_id }) as any, gscConfigured()));
+      } catch { /* fail-soft — the block is simply absent */ }
       reply = await answerPlanQuestion({
         message,
-        contextMd: contextForPrompt(ctx.plan_md, ctx.progress_md),
+        contextMd: [stateMd, contextForPrompt(ctx.plan_md, ctx.progress_md)].filter(Boolean).join('\n\n'),
         hostname: domain.hostname,
       });
     }
