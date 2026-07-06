@@ -4,12 +4,12 @@
  */
 import { supabaseAdmin } from '../supabase/admin';
 import { runWriter } from './writer';
-import { validatePost } from './validator';
+import { validatePost, blockingIssues } from './validator';
 import { profileSite, type SiteProfile } from './site-profile';
 import { gatherContext } from './research-context';
 import { refineTopic } from './topic-refiner';
 import { appendLog, resetLog } from './log';
-import { evaluateDraft, composeRewriteInstructions } from './manager';
+import { evaluateDraft, composeRewriteInstructions, QUALITY_FLOOR } from './manager';
 import { toManagerDraft } from './draft-adapter';
 import type { Strategy, PostSlot } from '../strategy/build';
 
@@ -146,10 +146,15 @@ export async function generatePost(postId: string) {
   // draft scoring 85 should never be deleted just because round 2 couldn't
   // squeeze in one more rewrite.
   const title = writer.meta_title || brief.title || topic.slice(0, 60);
+  // Everything the writer was allowed to know — numeric claims in the draft
+  // must trace back to this corpus or carry an inline citation (fact grounding).
+  const researchText = [...context.primary, ...context.competitor, ...context.pain]
+    .map((s) => `${s.title} ${s.snippet}`).join('\n');
   const validation = validatePost(writer.blog_post, {
     title,
     intent: brief.marketing_intent,
     serpSubtopics: context.serp.subtopics,
+    researchText,
   });
   if (evaluation) {
     (validation as any).manager = {
@@ -161,12 +166,21 @@ export async function generatePost(postId: string) {
   }
   const slug = slugify(title);
 
-  // Route to review (not auto-publish) when the manager rejected, flagged a
-  // block/rewrite issue, or scored below the bar — even if auto_publish is on.
+  // Route to review (not auto-publish) whenever the gate can't honestly vouch
+  // for the draft — even if auto_publish is on:
+  //   - the manager crashed (no evaluation = no gate; publishing ungated was
+  //     the old behavior and it was wrong)
+  //   - any non-approve verdict (reject, or an attempt-2 rewrite that stands)
+  //   - block/rewrite-severity issues (incl. evaluation_integrity glitches)
+  //   - overall below QUALITY_FLOOR (missing overall counts as 0, not 100)
+  //   - a blocking deterministic-validator issue (unsupported/recycled stats,
+  //     thin content, missing H1, referral-away)
   const managerConcern =
-    evaluation?.action === 'reject' ||
-    (evaluation?.issues ?? []).some((i) => i.severity === 'block' || i.severity === 'rewrite') ||
-    (evaluation ? (evaluation.scores?.overall ?? 100) < 60 : false);
+    !evaluation ||
+    evaluation.action !== 'approve' ||
+    (evaluation.issues ?? []).some((i) => i.severity === 'block' || i.severity === 'rewrite') ||
+    (evaluation.scores?.overall ?? 0) < QUALITY_FLOOR ||
+    blockingIssues(validation).length > 0;
 
   // Preserve a planned date if one was carried through from the strategy slot;
   // otherwise fall back to the rolling auto-publish cadence.
@@ -188,7 +202,7 @@ export async function generatePost(postId: string) {
     }).eq('id', postId);
     await sb.from('topic_memory').insert({ domain_id: domain.id, keyword: topic });
     await appendLog(postId, 'persist', 'done',
-      `→ ${nextStatus}${managerConcern ? ' (manager flagged for your review)' : ''} · ` +
+      `→ ${nextStatus}${managerConcern ? ' (gated — needs your review)' : ''} · ` +
       (validation.passed ? 'validator clean' : `${validation.issues.length} validator flags`));
   } catch (e) { await failAt(postId, 'persist', e); return; }
 

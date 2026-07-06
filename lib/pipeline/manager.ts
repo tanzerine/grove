@@ -45,10 +45,18 @@ export type ManagerInput = {
   slot?: PostSlot | null;       // the publishing_plan slot this article was meant to fill
 };
 
+/** Overall score below this routes the draft to human review instead of
+ *  auto-publish. 70 is the rubric's own "solid and publishable" anchor —
+ *  gating below the bar we tell the model publishable work sits at would
+ *  make the floor decorative. Shared with generate.ts routing. */
+export const QUALITY_FLOOR = 70;
+
 /**
  * Compute the rubric scores from the model's raw axis ratings.
- * - Missing/garbled axes default to a neutral 70 (a tooling glitch must never
- *   read as "terrible article").
+ * - Missing/garbled axes are filled with a neutral 70 so the weighted overall
+ *   still computes, but callers MUST check missingAxes(): a glitch is flagged
+ *   as an integrity issue and routed to human review — it must never silently
+ *   read as "publishable article" (nor as "terrible article").
  * - overall is weighted in code; when there's no active strategy, strategic_fit
  *   is dropped from the weighting (nothing to grade it against).
  */
@@ -74,6 +82,20 @@ export function computeScores(
     sub.craft * w.craft + sub.safety * w.safety,
   );
   return { ...sub, overall };
+}
+
+/**
+ * Axes the model failed to score (absent / non-numeric). strategic_fit is
+ * exempt when there's no strategy — its weight is zero, nothing was graded.
+ * A non-empty result means the evaluation is unreliable: the caller attaches
+ * a block-severity evaluation_integrity issue so the draft goes to human
+ * review instead of publishing on fabricated neutral numbers.
+ */
+export function missingAxes(raw: any, hasStrategy: boolean): string[] {
+  const axes = hasStrategy
+    ? ['strategic_fit', 'marketing', 'craft', 'safety']
+    : ['marketing', 'craft', 'safety'];
+  return axes.filter((a) => !Number.isFinite(Number(raw?.[a])));
 }
 
 export async function evaluateDraft(input: ManagerInput): Promise<Evaluation> {
@@ -114,8 +136,9 @@ Axes:
 - marketing: intent execution + CTA discipline
 - craft: lead, specifics, voice, structure, no banned phrases
 - safety: citations where needed, no fabricated stats, no PII
-Do NOT default to low numbers. Most finished drafts are 70-85 unless they have
-concrete flaws you can name. Score honestly against the anchors above.
+Score honestly against the anchors above — every score must be justified by
+evidence you could quote from the draft, high or low. Do not anchor to any
+"typical" band in either direction.
 You provide the four axis scores; the SYSTEM computes the weighted overall — so
 just rate the axes accurately, don't compute an overall yourself.
 
@@ -168,18 +191,32 @@ Return JSON:
   const parsed = extractJson<Evaluation>(text);
 
   // ── normalize ────────────────────────────────────────────
-  parsed.action = ['approve', 'rewrite', 'reject'].includes(parsed.action) ? parsed.action : 'approve';
   parsed.issues = Array.isArray(parsed.issues) ? parsed.issues : [];
 
+  // Evaluation integrity: a garbled action or missing axis scores means we do
+  // NOT actually know what the manager thought. Never let a tooling glitch
+  // read as a clean approval — attach a block-severity issue so generate.ts
+  // routes the draft to human review with honest numbers-are-unreliable framing.
+  const validAction = ['approve', 'rewrite', 'reject'].includes(parsed.action);
+  const missing = missingAxes(parsed.scores, !!strategy);
+  if (!validAction || missing.length) {
+    parsed.issues.push({
+      rule: 'evaluation_integrity',
+      severity: 'block',
+      note: !validAction
+        ? `model returned unusable action ${JSON.stringify(parsed.action)} — verdict unknown, needs a human`
+        : `model omitted axis scores (${missing.join(', ')}) — displayed scores are neutral fillers, not real grades`,
+    });
+  }
+  if (!validAction) parsed.action = 'approve'; // keep the draft; the block issue forces review
+
   // Compute the overall in code (never trust the model's arithmetic) with
-  // strategy-aware weights and neutral defaults for missing axes.
+  // strategy-aware weights and neutral fillers for missing axes (flagged above).
   parsed.scores = computeScores(parsed.scores, !!strategy);
 
   // Score floor: gating was action-driven, so the LLM could return a low
   // overall AND action:"approve", shipping a weak draft. On attempt 1, force a
   // rewrite when the score is below the bar so the quality pass actually fires.
-  // (Attempt 2 can't rewrite again — serverless time budget — so it stands.)
-  const QUALITY_FLOOR = 60;
   if (attempt === 1 && parsed.action === 'approve' && (parsed.scores.overall ?? 0) < QUALITY_FLOOR) {
     parsed.action = 'rewrite';
     if (!parsed.rewrite_brief) {
@@ -191,17 +228,13 @@ Return JSON:
   }
 
   // Force consistency: pass mirrors action.
+  //
+  // NOTE: if attempt 2 still returns 'rewrite' (the prompt forbids it, but the
+  // model may disobey), the verdict is persisted AS-IS — an unresolved rewrite,
+  // pass=false. We used to launder it into approve/pass=true here; that wrote a
+  // dishonest record. The draft is still never discarded: generate.ts routes
+  // any non-approve action to human review instead of auto-publishing.
   parsed.pass = parsed.action === 'approve';
-
-  // Round 2 may NOT request another rewrite, and must NOT discard the draft.
-  // Whatever's left, approve it through — generate.ts routes drafts that still
-  // carry block/rewrite issues (or score low) to human review instead of
-  // auto-publishing. Throwing away an otherwise-fine draft just because one
-  // rewrite pass couldn't clear every flag is the wrong call.
-  if (attempt === 2 && parsed.action === 'rewrite') {
-    parsed.action = 'approve';
-    parsed.pass = true;
-  }
 
   return parsed;
 }
