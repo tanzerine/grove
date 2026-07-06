@@ -21,6 +21,7 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   const { data: owned } = await sb.from('posts').select('id').eq('id', id).maybeSingle();
   if (!owned) return NextResponse.json({ error: 'not found' }, { status: 404 });
 
-  await runCoverForPost(id);
+  // Manual regenerate: force a fresh image even if one already exists.
+  await runCoverForPost(id, { force: true });
   return NextResponse.json({ ok: true });
 }

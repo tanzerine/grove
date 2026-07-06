@@ -1,10 +1,10 @@
 /**
- * AI-generated cover image via OpenAI gpt-image-2 on Replicate.
+ * AI-generated cover image via openai/gpt-image-2 on Replicate. This is a
+ * native Replicate model — it runs on REPLICATE_API_TOKEN alone (no OpenAI key).
  *
  * Pipeline:
  *  1. LLM art-directs an image prompt from the article + business context
- *  2. gpt-image-2 renders the image. Quality is env-tunable to control cost
- *     (COVER_IMAGE_QUALITY: low ≈ cheapest, medium = balanced, high = pricey)
+ *  2. gpt-image-2 renders the image
  *  3. Image is downloaded and uploaded to Supabase Storage (Replicate URLs
  *     expire after ~60 minutes, so we must persist them)
  *  4. Return the public Supabase URL + AI credit
@@ -12,8 +12,13 @@
  * Required setup (one-time):
  *  - Supabase Dashboard → Storage → Create bucket "post-covers" (Public: ON)
  *
- * Required env:
- *  - REPLICATE_API_TOKEN  (already set for the LLM client)
+ * Env:
+ *  - REPLICATE_API_TOKEN  (required — the Replicate client)
+ *  - COVER_IMAGE_QUALITY  (low | medium | high, default medium)
+ *
+ * IMPORTANT: gpt-image-2's inputs are prompt + aspect_ratio + quality only.
+ * It does NOT accept output_format — passing it makes the prediction fail,
+ * which is why covers silently stopped generating. Keep the input minimal.
  *
  * Returns null on any failure — the article still publishes without a cover,
  * caller logs the reason.
@@ -22,7 +27,7 @@ import Replicate from 'replicate';
 import { llmCall } from '../llm';
 import { supabaseAdmin } from '../supabase/admin';
 
-const IMAGE_MODEL = 'openai/gpt-image-2' as const;
+const IMAGE_MODEL = (process.env.COVER_IMAGE_MODEL ?? 'openai/gpt-image-2') as `${string}/${string}`;
 // low ≈ cheapest, medium = balanced quality/cost, high = pricey. Env-tunable.
 const IMAGE_QUALITY = (process.env.COVER_IMAGE_QUALITY ?? 'medium') as 'low' | 'medium' | 'high';
 const IMAGE_ASPECT = '3:2';   // gpt-image-2 supports 1:1, 3:2, 2:3
@@ -121,17 +126,26 @@ Write the image prompt now.`,
  * runs past the HTTP response (fire-and-forget in plain code dies on
  * Vercel serverless because the function terminates).
  */
-export async function runCoverForPost(postId: string): Promise<void> {
+export async function runCoverForPost(postId: string, opts: { force?: boolean } = {}): Promise<void> {
   const sb = supabaseAdmin();
   const { appendLog } = await import('./log');
 
-  await appendLog(postId, 'cover_image', 'start');
-
   const { data: post } = await sb
-    .from('posts').select('title, meta_title, body_md, domains(site_profile)')
+    .from('posts').select('title, meta_title, body_md, cover_image_url, domains(site_profile)')
     .eq('id', postId).single();
 
   if (!post) { await appendLog(postId, 'cover_image', 'fail', 'post not found'); return; }
+
+  // A retry must never re-generate an image that already exists — that's the
+  // expensive, slow step the owner explicitly doesn't want redone. Only the
+  // manual "regenerate cover" action passes force.
+  if (!opts.force && (post as any).cover_image_url) {
+    await appendLog(postId, 'cover_image', 'done', 'kept existing cover');
+    return;
+  }
+
+  await appendLog(postId, 'cover_image', 'start');
+
   const title = (post as any).meta_title || (post as any).title || '';
   const biz = (post as any).domains?.site_profile?.business ?? {};
   const bodyMd: string = (post as any).body_md ?? '';
@@ -182,16 +196,17 @@ export async function fetchCoverImage(
     const replicate = new Replicate({ auth: apiKey });
     const prompt = await composePrompt(promptInput);
 
-    // 1. Generate via gpt-image-2 with hard 120s timeout (it's slower than Flux)
+    // Minimal, schema-valid input for gpt-image-2. Do NOT add output_format —
+    // it's rejected by the GPT image models and fails the whole prediction.
+    const input: Record<string, unknown> = {
+      prompt,
+      aspect_ratio: IMAGE_ASPECT,
+      quality: IMAGE_QUALITY,
+    };
+
+    // 1. Generate with a hard 120s timeout (gpt-image-2 can be slow)
     const result = await Promise.race([
-      replicate.run(IMAGE_MODEL, {
-        input: {
-          prompt,
-          aspect_ratio: IMAGE_ASPECT,
-          quality: IMAGE_QUALITY,
-          output_format: 'webp',
-        },
-      }),
+      replicate.run(IMAGE_MODEL, { input }),
       new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('image generation timeout')), 120_000)
       ),
@@ -215,7 +230,7 @@ export async function fetchCoverImage(
       return null;
     }
   } catch (err) {
-    console.error('[cover-image] gpt-image-2 failed:', err);
+    console.error(`[cover-image] ${IMAGE_MODEL} failed:`, err);
     return null;
   }
 
@@ -244,11 +259,12 @@ export async function fetchCoverImage(
     const { data: pub } = sb.storage.from(BUCKET).getPublicUrl(filename);
     if (!pub?.publicUrl) return null;
 
+    const modelLabel = IMAGE_MODEL.split('/').pop() || IMAGE_MODEL;
     return {
       url: pub.publicUrl,
       credit: {
-        name: 'AI-generated via gpt-image-2',
-        source: 'gpt-image-2',
+        name: `AI-generated via ${modelLabel}`,
+        source: modelLabel,
         model: IMAGE_MODEL,
       },
     };

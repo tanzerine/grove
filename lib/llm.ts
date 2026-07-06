@@ -74,19 +74,33 @@ const STRATEGY_MODEL = (
   process.env.REPLICATE_STRATEGY_MODEL ?? 'anthropic/claude-opus-4.7'
 ) as `${string}/${string}`;
 
+// Opus needs real wall-clock time to finish (~3-4 min for a full plan). When
+// the caller's budget is too tight for it to complete — the crons run on a
+// ~120s/domain slice under Vercel's 300s ceiling — attempting Opus just burns
+// the whole budget timing out before we fall back to the workhorse anyway. So
+// below this threshold we skip Opus entirely and go straight to the workhorse:
+// same result the timeout+fallback produced, but ~2 min faster and without
+// spending a doomed (and billed) Opus prediction on every single build. Opus
+// still runs where it can actually land (interactive plan revisions, 240s).
+const STRATEGY_MIN_BUDGET_MS = 180_000;
+
 export async function strategyLlmCall(opts: {
   system: string;
   user: string;
   maxTokens?: number;
   timeoutMs?: number;   // callers on a tight function budget (crons) pass a lower cap
 }): Promise<{ text: string }> {
+  const timeoutMs = opts.timeoutMs ?? 240_000;   // Opus is slower; default fits an interactive call
+  const maxTokens = opts.maxTokens ?? 4500;
+
+  if (timeoutMs < STRATEGY_MIN_BUDGET_MS) {
+    // Not enough time for Opus to finish — don't waste the call, just use the
+    // workhorse directly.
+    return llmCall({ ...opts, maxTokens, timeoutMs });
+  }
+
   try {
-    return await llmCall({
-      ...opts,
-      model: STRATEGY_MODEL,
-      maxTokens: opts.maxTokens ?? 4500,
-      timeoutMs: opts.timeoutMs ?? 240_000,   // Opus is slower; default fits an interactive call
-    });
+    return await llmCall({ ...opts, model: STRATEGY_MODEL, maxTokens, timeoutMs });
   } catch (err) {
     // The loop must never stall on a single provider hiccup: fall back to the
     // workhorse model rather than leaving a domain without a plan.
