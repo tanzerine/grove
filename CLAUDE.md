@@ -84,10 +84,13 @@ Other key surfaces:
 ## Supabase
 
 - Project ref `lojgijnjagaozrrpjlbj`. CLI is linked locally (no `.env` in repo —
-  secrets live in Vercel). Migrations in `supabase/migrations/` (0001–0010).
+  secrets live in Vercel). Migrations in `supabase/migrations/` (0001–0018).
 - History was repaired so 0001–0009 are marked applied; `npm run db:push` applies
-  only new ones. **Migration `0010_weekly_digest.sql` is committed but NOT yet
-  pushed to the live DB** — needs explicit user OK.
+  only new ones. **Migration `0018_canonical_blog_base.sql` is committed but NOT
+  yet pushed to the live DB** — needs explicit user OK. (Code tolerates the gap:
+  the blog/embed routes read the column via `select('*')`, so they degrade to
+  grove-hosted URLs until the migration lands; check whether 0010–0017 have been
+  pushed before assuming.)
 - `supabase/.temp/` is gitignored (CLI artifacts).
 
 ## Env vars that gate features (set in Vercel, not the repo)

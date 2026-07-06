@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
-  escapeXml, isBot, jsonLdScript, appBase,
+  escapeXml, isBot, jsonLdScript, appBase, normalizeCanonicalBase,
   blogHomeUrl, blogPostUrl, subdomainSlugFromHost, buildLlmsTxt, buildArticleGraph, buildSitemapXml, buildRssXml,
 } from '../lib/seo';
 
@@ -71,6 +71,38 @@ describe('blog URLs', () => {
   it('tolerates scheme/trailing-slash in the env value', () => {
     process.env.GROVE_BLOG_ROOT_DOMAIN = 'https://grove.so/';
     expect(blogHomeUrl('demo')).toBe('https://demo.grove.so');
+  });
+
+  it('canonical base wins over both path and subdomain modes', () => {
+    expect(blogHomeUrl('demo', 'https://acme.com/blog')).toBe('https://acme.com/blog');
+    expect(blogPostUrl('demo', 'my-post', 'https://acme.com/blog')).toBe('https://acme.com/blog/my-post');
+    process.env.GROVE_BLOG_ROOT_DOMAIN = 'grove.so';
+    expect(blogPostUrl('demo', 'my-post', 'https://acme.com/blog')).toBe('https://acme.com/blog/my-post');
+  });
+
+  it('null/invalid canonical base falls back to grove-hosted URLs', () => {
+    expect(blogHomeUrl('demo', null)).toBe(`${appBase()}/b/demo`);
+    expect(blogHomeUrl('demo', '   ')).toBe(`${appBase()}/b/demo`);
+    expect(blogHomeUrl('demo', 'not a url')).toBe(`${appBase()}/b/demo`);
+  });
+});
+
+describe('normalizeCanonicalBase', () => {
+  it('strips trailing slashes and keeps the path', () => {
+    expect(normalizeCanonicalBase('https://acme.com/blog/')).toBe('https://acme.com/blog');
+    expect(normalizeCanonicalBase('https://acme.com/')).toBe('https://acme.com');
+  });
+
+  it('adds https:// when the scheme is missing', () => {
+    expect(normalizeCanonicalBase('acme.com/blog')).toBe('https://acme.com/blog');
+  });
+
+  it('rejects garbage, empty, and non-dotted hosts', () => {
+    expect(normalizeCanonicalBase('')).toBeNull();
+    expect(normalizeCanonicalBase(null)).toBeNull();
+    expect(normalizeCanonicalBase('   ')).toBeNull();
+    expect(normalizeCanonicalBase('localhost/blog')).toBeNull();
+    expect(normalizeCanonicalBase('ftp://acme.com')).toBeNull();
   });
 });
 
@@ -237,6 +269,47 @@ describe('buildArticleGraph', () => {
     const faq = find(withFaq, 'FAQPage');
     expect(faq.mainEntity).toHaveLength(2);
     expect(faq.mainEntity[0].acceptedAnswer.text).toBe('A1.');
+  });
+});
+
+describe('canonical base threading (equity goes to the customer domain)', () => {
+  const BASE = 'https://acme.com/blog';
+
+  it('sitemap <loc> entries point at the customer domain', () => {
+    const xml = buildSitemapXml({
+      blogSlug: 'demo', canonicalBase: BASE,
+      posts: [{ slug: 'a', published_at: '2026-06-10T12:00:00Z', cover_image_url: null }],
+    });
+    expect(xml).toContain('<loc>https://acme.com/blog</loc>');
+    expect(xml).toContain('<loc>https://acme.com/blog/a</loc>');
+    expect(xml).not.toContain('/b/demo');
+  });
+
+  it('RSS links point at the customer domain but the self-link stays at the feed location', () => {
+    const xml = buildRssXml({
+      hostname: 'acme.com', blogSlug: 'demo', canonicalBase: BASE,
+      items: [{ slug: 'a', title: 'A', publishedAt: '2026-06-10T12:00:00Z' }],
+    });
+    expect(xml).toContain('<link>https://acme.com/blog/a</link>');
+    expect(xml).toContain(`href="${blogHomeUrl('demo')}/rss.xml"`);
+  });
+
+  it('JSON-LD page/article ids live on the customer domain', () => {
+    const g = buildArticleGraph({
+      hostname: 'acme.com', blogSlug: 'demo', postSlug: 'a', title: 'A',
+      businessName: 'Acme', homeUrl: 'https://acme.com', authorName: 'Acme Team',
+      authorIsOrg: true, genreLabel: 'Guides', wordCount: 900, canonicalBase: BASE,
+    });
+    const page: any = g['@graph'].find((n: any) => n['@type'] === 'WebPage');
+    expect(page.url).toBe('https://acme.com/blog/a');
+  });
+
+  it('llms.txt article links point at the customer domain', () => {
+    const out = buildLlmsTxt({
+      hostname: 'acme.com', blogSlug: 'demo', canonicalBase: BASE, description: 'x',
+      posts: [{ slug: 'a', title: 'A', meta_description: '' }],
+    });
+    expect(out).toContain('(https://acme.com/blog/a)');
   });
 });
 

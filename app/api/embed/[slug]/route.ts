@@ -12,7 +12,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ slug: string }>
 
   const sb = supabaseAdmin();
   const { data: domain } = await sb
-    .from('domains').select('id,hostname,blog_slug,site_profile').eq('blog_slug', slug).single();
+    .from('domains').select('*').eq('blog_slug', slug).single(); // '*': survives pre-0018 DB
   if (!domain) return NextResponse.json({ error: 'not found' }, { status: 404 });
 
   const { data: posts, count } = await sb
@@ -33,7 +33,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ slug: string }>
     posts: (posts ?? []).map((p: any) => ({
       title: p.title,
       excerpt: p.meta_description,
-      url: blogPostUrl(slug, p.slug),
+      url: blogPostUrl(slug, p.slug, (domain as any).canonical_blog_base),
       date: p.published_at,
       genre: genreFor(p.format, p.title).label,
       author,

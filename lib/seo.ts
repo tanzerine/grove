@@ -8,11 +8,16 @@ export function appBase(): string {
 }
 
 /* ─────────────── one canonical home per blog ───────────────
- * With GROVE_BLOG_ROOT_DOMAIN set, every blog lives on its own subdomain
- * ({slug}.{root}, served by the middleware host-rewrite). Without it, blogs
- * live under /b/{slug} on the app origin. EVERY absolute blog URL — canonical,
- * OG, JSON-LD, sitemap, RSS, robots, social copy, webhooks — must come from
- * these two builders so the shapes can never diverge again. */
+ * Precedence, most-customer-owned first:
+ *   1. domains.canonical_blog_base — the customer serves articles on their OWN
+ *      domain (reverse proxy or server-rendered route consuming our API);
+ *      search equity accrues to them and the grove-hosted copy is a mirror.
+ *   2. GROVE_BLOG_ROOT_DOMAIN — {slug}.{root} subdomain (middleware rewrite).
+ *   3. /b/{slug} on the app origin.
+ * EVERY absolute blog URL — canonical, OG, JSON-LD, sitemap, RSS, robots,
+ * social copy, webhooks — must come from these builders so the shapes can
+ * never diverge again. Callers that have the domain row pass its
+ * canonical_blog_base through; pure builders take it as an option. */
 
 export function blogRootDomain(): string | null {
   const v = (process.env.GROVE_BLOG_ROOT_DOMAIN ?? '')
@@ -20,15 +25,35 @@ export function blogRootDomain(): string | null {
   return v || null;
 }
 
+/** Validate + normalize a customer-supplied canonical base: force https URL
+ *  shape, strip trailing slashes, reject garbage. Null = not usable. */
+export function normalizeCanonicalBase(v: string | null | undefined): string | null {
+  if (!v) return null;
+  let s = String(v).trim();
+  if (!s) return null;
+  if (!/^https?:\/\//i.test(s)) s = `https://${s}`;
+  try {
+    const u = new URL(s);
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return null;
+    if (!u.hostname.includes('.')) return null;
+    const path = u.pathname.replace(/\/+$/, '');
+    return `${u.protocol}//${u.host}${path}`;
+  } catch {
+    return null;
+  }
+}
+
 /** Absolute URL of a blog's home (no trailing slash). */
-export function blogHomeUrl(blogSlug: string): string {
+export function blogHomeUrl(blogSlug: string, canonicalBase?: string | null): string {
+  const base = normalizeCanonicalBase(canonicalBase);
+  if (base) return base;
   const root = blogRootDomain();
   return root ? `https://${blogSlug}.${root}` : `${appBase()}/b/${blogSlug}`;
 }
 
 /** Absolute URL of one article. */
-export function blogPostUrl(blogSlug: string, postSlug: string): string {
-  return `${blogHomeUrl(blogSlug)}/${postSlug}`;
+export function blogPostUrl(blogSlug: string, postSlug: string, canonicalBase?: string | null): string {
+  return `${blogHomeUrl(blogSlug, canonicalBase)}/${postSlug}`;
 }
 
 /**
@@ -77,6 +102,7 @@ export function jsonLdScript(obj: unknown): string {
 export function buildRssXml(opts: {
   hostname: string;
   blogSlug: string;
+  canonicalBase?: string | null;
   items: {
     slug: string | null;
     title?: string | null;
@@ -88,13 +114,13 @@ export function buildRssXml(opts: {
     author?: string | null;
   }[];
 }): string {
-  const { hostname, blogSlug, items } = opts;
-  const blogUrl = blogHomeUrl(blogSlug);
+  const { hostname, blogSlug, canonicalBase, items } = opts;
+  const blogUrl = blogHomeUrl(blogSlug, canonicalBase);
   const cdata = (s: string) => `<![CDATA[${s.replace(/]]>/g, ']]]]><![CDATA[>')}]]>`;
   const rfc822 = (iso: string) => new Date(iso).toUTCString();
 
   const xmlItems = items.filter((i) => i.slug).map((i) => {
-    const url = blogPostUrl(blogSlug, i.slug!);
+    const url = blogPostUrl(blogSlug, i.slug!, canonicalBase);
     return [
       '<item>',
       `<title>${escapeXml(i.title ?? '')}</title>`,
@@ -118,7 +144,7 @@ export function buildRssXml(opts: {
 <channel>
 <title>${escapeXml(`The ${hostname} blog`)}</title>
 <link>${escapeXml(blogUrl)}</link>
-<atom:link href="${escapeXml(`${blogUrl}/rss.xml`)}" rel="self" type="application/rss+xml"/>
+<atom:link href="${escapeXml(`${blogHomeUrl(blogSlug)}/rss.xml`)}" rel="self" type="application/rss+xml"/>
 <description>${escapeXml(`Articles by ${hostname}`)}</description>
 <language>en</language>
 <lastBuildDate>${lastBuild}</lastBuildDate>
@@ -134,9 +160,10 @@ ${xmlItems}
  */
 export function buildSitemapXml(opts: {
   blogSlug: string;
+  canonicalBase?: string | null;
   posts: { slug: string | null; published_at?: string | null; cover_image_url?: string | null }[];
 }): string {
-  const { blogSlug, posts } = opts;
+  const { blogSlug, canonicalBase, posts } = opts;
   const day = (iso?: string | null) => (iso ? `<lastmod>${iso.slice(0, 10)}</lastmod>` : '');
 
   const urls = posts
@@ -145,7 +172,7 @@ export function buildSitemapXml(opts: {
       const img = p.cover_image_url
         ? `<image:image><image:loc>${escapeXml(p.cover_image_url)}</image:loc></image:image>`
         : '';
-      return `<url><loc>${escapeXml(blogPostUrl(blogSlug, p.slug!))}</loc>${day(p.published_at)}${img}</url>`;
+      return `<url><loc>${escapeXml(blogPostUrl(blogSlug, p.slug!, canonicalBase))}</loc>${day(p.published_at)}${img}</url>`;
     })
     .join('');
 
@@ -154,7 +181,7 @@ export function buildSitemapXml(opts: {
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
-<url><loc>${escapeXml(blogHomeUrl(blogSlug))}</loc>${indexLastmod}</url>${urls}
+<url><loc>${escapeXml(blogHomeUrl(blogSlug, canonicalBase))}</loc>${indexLastmod}</url>${urls}
 </urlset>`;
 }
 
@@ -181,15 +208,16 @@ export function buildArticleGraph(opts: {
   wordCount: number;
   faqs?: { question: string; answer: string }[];
   inLanguage?: string;
+  canonicalBase?: string | null;
 }): { '@context': string; '@graph': unknown[] } {
   const {
     hostname, blogSlug, postSlug, title, description, image, publishedAt,
     businessName, homeUrl, authorName, authorIsOrg, genreLabel, wordCount,
-    faqs = [], inLanguage = 'en',
+    faqs = [], inLanguage = 'en', canonicalBase,
   } = opts;
 
-  const blogHome = blogHomeUrl(blogSlug);
-  const pageUrl = blogPostUrl(blogSlug, postSlug);
+  const blogHome = blogHomeUrl(blogSlug, canonicalBase);
+  const pageUrl = blogPostUrl(blogSlug, postSlug, canonicalBase);
   const orgId = `${homeUrl}#org`;
   const siteId = `${blogHome}#website`;
   const pageId = `${pageUrl}#webpage`;
@@ -279,10 +307,11 @@ export function buildArticleGraph(opts: {
 export function buildLlmsTxt(opts: {
   hostname: string;
   blogSlug: string;
+  canonicalBase?: string | null;
   description?: string | null;
   posts: { slug: string | null; title: string | null; meta_description?: string | null }[];
 }): string {
-  const { hostname, blogSlug, description, posts } = opts;
+  const { hostname, blogSlug, canonicalBase, description, posts } = opts;
   const clean = (s: string | null | undefined) => (s ?? '').replace(/\s+/g, ' ').trim();
   const summary = clean(description) || `Articles and guides from ${hostname}.`;
 
@@ -302,8 +331,8 @@ export function buildLlmsTxt(opts: {
     // break the link syntax for a parser.
     const title = clean(p.title).replace(/[[\]]/g, '');
     const desc = clean(p.meta_description);
-    lines.push(`- [${title}](${blogPostUrl(blogSlug, p.slug)})${desc ? `: ${desc}` : ''}`);
+    lines.push(`- [${title}](${blogPostUrl(blogSlug, p.slug, canonicalBase)})${desc ? `: ${desc}` : ''}`);
   }
-  lines.push('', '## Home', '', `- [${hostname} blog](${blogHomeUrl(blogSlug)})`, '');
+  lines.push('', '## Home', '', `- [${hostname} blog](${blogHomeUrl(blogSlug, canonicalBase)})`, '');
   return lines.join('\n');
 }

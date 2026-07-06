@@ -1,6 +1,7 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import { getActiveDomain } from '@/lib/active-domain';
 import CopySnippet from './CopySnippet';
+import CanonicalBaseForm from './CanonicalBaseForm';
 import { DashHeader } from '../gv-chrome';
 
 export default async function Page() {
@@ -58,8 +59,37 @@ export default async function Page() {
         <li>Cards inherit your page font automatically. Override any class under <span className="mono">.gv</span> to restyle.</li>
       </ul>
 
+      {domain && (
+        <div style={{ marginTop: 40, border: '1px solid var(--line)', borderRadius: 14, padding: '22px 24px', background: 'var(--paper)' }}>
+          <div className="mono" style={{ fontSize: 11, color: 'var(--moss)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            3 · Own the SEO
+          </div>
+          <div style={{ fontFamily: 'Clash Display', fontSize: 20, marginTop: 4 }}>
+            Make your domain the canonical home of every article
+          </div>
+          <p style={{ fontSize: 14, color: 'var(--clay)', margin: '8px 0 14px', lineHeight: 1.55 }}>
+            If you serve articles on your own site — a reverse proxy of the hosted blog, or a
+            server-rendered <span className="mono">/blog/&lt;slug&gt;</span> route that reads our API — set that base URL here.
+            Every absolute URL grove emits (rel=canonical, Open Graph, JSON-LD, sitemap, RSS, llms.txt,
+            social shares, embed links) flips to <span className="mono">{'{base}/{slug}'}</span>, so search
+            equity compounds on <span className="mono">{domain.hostname}</span> instead of grove. The hosted copy
+            at <span className="mono">{groveBase}/b/{domain.blog_slug}</span> stays up as a non-canonical mirror.
+          </p>
+          <CanonicalBaseForm
+            domainId={domain.id}
+            initial={(domain as any).canonical_blog_base ?? null}
+            hostname={domain.hostname}
+          />
+          <p style={{ fontSize: 13, color: 'var(--clay)', margin: '14px 0 0', lineHeight: 1.6 }}>
+            Then add one line to <span className="mono">https://{domain.hostname.replace(/^www\./, '')}/robots.txt</span> so
+            Google accepts the cross-hosted sitemap for your URLs:{' '}
+            <span className="mono">Sitemap: {groveBase}/b/{domain.blog_slug}/sitemap.xml</span>
+          </p>
+        </div>
+      )}
+
       <p style={{ color: 'var(--clay)', fontSize: 13.5, marginTop: 24 }}>
-        Prefer per-article SEO credited to your own domain? Grove also hosts a fully-indexed copy at{' '}
+        No article route of your own yet? Grove hosts a fully-indexed copy at{' '}
         <span className="mono">{groveBase}/b/{domain?.blog_slug}</span> (sitemap, RSS, JSON-LD), so search engines
         find your content even with the in-page embed.
       </p>
