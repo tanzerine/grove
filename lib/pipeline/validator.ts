@@ -2,8 +2,25 @@ import { BANNED_PHRASES, RECYCLED_STATS } from './quality-rules';
 import { extractFaq } from '../faq';
 import { extractTakeaways } from '../takeaways';
 import { coverageGap } from './serp';
+import { findUnsupportedClaims } from './claims';
 
 export type Validation = { passed: boolean; issues: string[]; stats: Record<string, number> };
+
+/** Rules serious enough to block auto-publish and route the draft to human
+ *  review. Style flags (LOW_CITATIONS, EM_DASH_OVERUSE, …) stay advisory —
+ *  gating on those would send everything to review and kill autopilot. */
+export const BLOCKING_RULES = [
+  'UNSUPPORTED_CLAIM',   // possible fabricated stat — the worst failure mode
+  'RECYCLED_STAT',       // known-bogus stat the model loves to repeat
+  'THIN_CONTENT',        // under the word floor
+  'MISSING_H1',          // structurally broken draft
+  'REFERRAL_AWAY',       // sends the reader to a competitor
+] as const;
+
+/** The subset of a validation's issues that must gate publication. */
+export function blockingIssues(v: Validation): string[] {
+  return v.issues.filter((i) => BLOCKING_RULES.some((r) => i.startsWith(r)));
+}
 
 export type ValidateOpts = {
   /** Canonical title (brief.title / meta_title). When given, we enforce H1 == title. */
@@ -16,6 +33,10 @@ export type ValidateOpts = {
   wordCeiling?: number;
   /** Consensus subtopics from SERP analysis — flagged if the draft skips them. */
   serpSubtopics?: string[];
+  /** Concatenated titles + snippets of the research sources the writer saw.
+   *  When given, numeric claims must be cited inline or appear here —
+   *  otherwise they're flagged UNSUPPORTED_CLAIM (blocking). */
+  researchText?: string;
 };
 
 /** Phrases that send the reader to a competitor, alternative tool, or third party.
@@ -99,6 +120,17 @@ export function validatePost(post: string, opts: ValidateOpts = {}): Validation 
     issues.push(`TITLE_H1_MISMATCH: H1 "${h1}" ≠ title "${opts.title}"`);
   }
 
+  // ── fact grounding: numeric claims need a citation or a research source ──
+  // Independent of the LLM manager on purpose — this is the check the writing
+  // model cannot talk its way past. Capped at 3 so one noisy draft doesn't
+  // drown the review UI.
+  const unsupported = opts.researchText !== undefined
+    ? findUnsupportedClaims(post, opts.researchText)
+    : [];
+  for (const c of unsupported.slice(0, 3)) {
+    issues.push(`UNSUPPORTED_CLAIM: '${c.token}' — "${c.sentence}" has no inline citation and doesn't appear in any research source`);
+  }
+
   // ── referral-away: never send the reader to a competitor or agency ──────
   for (const re of REFERRAL_AWAY) {
     const m = post.match(re);
@@ -123,6 +155,7 @@ export function validatePost(post: string, opts: ValidateOpts = {}): Validation 
       faq_count: faqs.length,
       key_takeaways_count: takeaways.length,
       serp_gap_count: serpGap.length,
+      unsupported_claim_count: unsupported.length,
     },
   };
 }

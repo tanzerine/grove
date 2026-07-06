@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validatePost } from '../lib/pipeline/validator';
+import { validatePost, blockingIssues } from '../lib/pipeline/validator';
 
 const TITLE = 'My Real Title';
 
@@ -112,5 +112,47 @@ describe('validatePost', () => {
     const v = validatePost(goodBody(), { title: TITLE });
     expect(v.issues.some((i) => i.startsWith('SERP_GAP'))).toBe(false);
     expect(v.stats.serp_gap_count).toBe(0);
+  });
+
+  it('flags an uncited stat missing from the research corpus (fact grounding)', () => {
+    const body = goodBody() + '\n\nStudies show 93% of blogs fail within a year.';
+    const v = validatePost(body, { title: TITLE, researchText: 'unrelated research text' });
+    expect(v.issues.some((i) => i.startsWith('UNSUPPORTED_CLAIM'))).toBe(true);
+    expect(v.stats.unsupported_claim_count).toBe(1);
+  });
+
+  it('accepts a stat that traces back to the research corpus', () => {
+    const body = goodBody() + '\n\nAdoption grew 42% last year.';
+    const v = validatePost(body, { title: TITLE, researchText: 'report says adoption grew 42% in 2025' });
+    expect(v.issues.some((i) => i.startsWith('UNSUPPORTED_CLAIM'))).toBe(false);
+  });
+
+  it('skips fact grounding entirely when no research text is provided', () => {
+    const body = goodBody() + '\n\nStudies show 93% of blogs fail within a year.';
+    const v = validatePost(body, { title: TITLE });
+    expect(v.issues.some((i) => i.startsWith('UNSUPPORTED_CLAIM'))).toBe(false);
+    expect(v.stats.unsupported_claim_count).toBe(0);
+  });
+});
+
+describe('blockingIssues', () => {
+  it('separates publish-blocking rules from advisory style flags', () => {
+    const v = {
+      passed: false,
+      issues: [
+        'UNSUPPORTED_CLAIM: something',
+        'THIN_CONTENT: 400 words',
+        'LOW_CITATIONS: 1 markdown links',
+        'EM_DASH_OVERUSE: 5',
+      ],
+      stats: {},
+    };
+    const blocking = blockingIssues(v);
+    expect(blocking).toHaveLength(2);
+    expect(blocking.some((i) => i.startsWith('LOW_CITATIONS'))).toBe(false);
+  });
+
+  it('returns empty for a clean validation', () => {
+    expect(blockingIssues({ passed: true, issues: [], stats: {} })).toEqual([]);
   });
 });
