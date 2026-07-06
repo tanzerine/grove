@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { randomBytes } from 'crypto';
 import { supabaseServer } from '@/lib/supabase/server';
 import { isPublicHttpUrl } from '@/lib/net/ssrf';
+import { normalizeCanonicalBase } from '@/lib/seo';
 
 const schema = z.object({
   domain_id: z.string().uuid(),
@@ -11,6 +12,8 @@ const schema = z.object({
   posts_per_week: z.number().min(1).max(14).optional(),
   // empty string clears the webhook; a URL sets it (https only).
   social_webhook_url: z.string().url().startsWith('https://').or(z.literal('')).optional(),
+  // customer-hosted article base for canonical URLs; empty string clears it.
+  canonical_blog_base: z.string().max(300).optional(),
 });
 
 export async function PATCH(req: Request) {
@@ -23,6 +26,17 @@ export async function PATCH(req: Request) {
 
   const { domain_id, ...updates } = parsed.data;
   const patch: Record<string, unknown> = { ...updates };
+
+  // Canonical base: normalize (force https shape, strip trailing slash) and
+  // store null when cleared or unparseable — a garbage base must never leak
+  // into canonical/sitemap/RSS URLs.
+  if (updates.canonical_blog_base !== undefined) {
+    const normalized = normalizeCanonicalBase(updates.canonical_blog_base);
+    if (updates.canonical_blog_base.trim() !== '' && !normalized) {
+      return NextResponse.json({ error: 'canonical base must be a valid URL like https://example.com/blog' }, { status: 400 });
+    }
+    patch.canonical_blog_base = normalized;
+  }
 
   // Webhook lifecycle: clearing the URL drops the secret too; setting a URL
   // mints a signing secret if the domain doesn't already have one.

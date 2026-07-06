@@ -53,4 +53,11 @@ describe('blogUrlFor', () => {
     process.env.GROVE_BLOG_ROOT_DOMAIN = 'grove.so';
     expect(blogUrlFor({ blog_slug: 'demo' }, 'my-post')).toBe('https://demo.grove.so/my-post');
   });
+
+  it('shares the customer-hosted URL when canonical_blog_base is set', () => {
+    process.env.GROVE_BLOG_ROOT_DOMAIN = 'grove.so';
+    const domain = { blog_slug: 'demo', canonical_blog_base: 'https://acme.com/blog' };
+    expect(blogUrlFor(domain, 'my-post')).toBe('https://acme.com/blog/my-post');
+    expect(blogUrlFor(domain, null)).toBe('https://acme.com/blog');
+  });
 });

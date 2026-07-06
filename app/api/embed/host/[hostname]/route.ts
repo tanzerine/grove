@@ -22,7 +22,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ hostname: strin
   const sb = supabaseAdmin();
   const { data: domain } = await sb
     .from('domains')
-    .select('id, hostname, blog_slug, site_profile')
+    .select('*') // '*': survives pre-0018 DB (canonical_blog_base may not exist yet)
     .or(`hostname.eq.${apex},hostname.eq.www.${apex}`)
     .limit(1)
     .maybeSingle();
@@ -55,7 +55,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ hostname: strin
       slug: p.slug,
       title: p.title,
       excerpt: p.meta_description,
-      url: blogPostUrl(domain.blog_slug, p.slug),
+      url: blogPostUrl(domain.blog_slug, p.slug, (domain as any).canonical_blog_base),
       date: p.published_at,
       cover_image_url: p.cover_image_url ?? null,
       cover_image_credit: p.cover_image_credit ?? null,

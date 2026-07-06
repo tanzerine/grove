@@ -7,7 +7,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
   const { slug } = await ctx.params;
   const sb = supabaseAdmin();
   const { data: domain } = await sb
-    .from('domains').select('id,hostname,site_profile').eq('blog_slug', slug).single();
+    .from('domains').select('*').eq('blog_slug', slug).single(); // '*': survives pre-0018 DB
   if (!domain) return new Response('not found', { status: 404 });
 
   const { data: posts } = await sb
@@ -28,7 +28,12 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
     author,
   }));
 
-  const xml = buildRssXml({ hostname: domain.hostname, blogSlug: slug, items });
+  const xml = buildRssXml({
+    hostname: domain.hostname,
+    blogSlug: slug,
+    canonicalBase: (domain as any).canonical_blog_base,
+    items,
+  });
   return new Response(xml, {
     headers: {
       'content-type': 'application/rss+xml; charset=utf-8',

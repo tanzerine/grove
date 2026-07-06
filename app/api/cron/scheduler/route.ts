@@ -57,6 +57,7 @@ export async function GET(req: Request) {
         },
         {
           blog_slug: domain.blog_slug,
+          canonical_blog_base: domain.canonical_blog_base,
           social_webhook_url: domain.social_webhook_url,
           social_webhook_secret: domain.social_webhook_secret,
         },

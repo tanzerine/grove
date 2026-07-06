@@ -11,7 +11,9 @@ import { headers } from 'next/headers';
 export async function generateMetadata({ params }: { params: Promise<{ slug: string; post: string }> }) {
   const { slug, post } = await params;
   const sb = supabaseAdmin();
-  const { data: domain } = await sb.from('domains').select('id,hostname').eq('blog_slug', slug).single();
+  // select('*') on purpose: canonical_blog_base ships ahead of migration 0018
+  // — naming a not-yet-applied column would error and 404 the whole blog.
+  const { data: domain } = await sb.from('domains').select('*').eq('blog_slug', slug).single();
   if (!domain) return {};
   const { data: p } = await sb
     .from('posts')
@@ -19,12 +21,15 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     .eq('domain_id', domain.id).eq('slug', post).eq('status', 'published').single();
   if (!p) return {};
 
-  const url = blogPostUrl(slug, post);
+  // When the customer serves articles on their own domain, THAT page is the
+  // canonical and this hosted copy is a mirror — equity flows to them.
+  const url = blogPostUrl(slug, post, (domain as any).canonical_blog_base);
   const title = p.meta_title || p.title || undefined;
   const description = p.meta_description ?? undefined;
   // Real cover wins; otherwise a branded card generated at {post}/og so every
-  // share still gets a rich preview instead of a bare link.
-  const ogImage = p.cover_image_url || `${url}/og`;
+  // share still gets a rich preview instead of a bare link. The /og route only
+  // exists on the hosted origin, so never build it from the canonical base.
+  const ogImage = p.cover_image_url || `${blogPostUrl(slug, post)}/og`;
   return {
     title,
     description,
@@ -53,7 +58,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 export default async function PostPage({ params }: { params: Promise<{ slug: string; post: string }> }) {
   const { slug, post } = await params;
   const sb = supabaseAdmin();
-  const { data: domain } = await sb.from('domains').select('id,hostname,blog_slug,site_profile').eq('blog_slug', slug).single();
+  const { data: domain } = await sb.from('domains').select('*').eq('blog_slug', slug).single(); // '*': survives pre-0018 DB
   if (!domain) notFound();
   const { data: p } = await sb
     .from('posts').select('title,body_md,published_at,meta_description,reads,id,cover_image_url,cover_image_credit,format:research->brief->>format')
@@ -103,7 +108,9 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
     '--cta-btn-text': branding.btn_text_color,
   } as React.CSSProperties) : undefined;
 
-  const pageUrl = blogPostUrl(slug, post);
+  // Canonical article URL — the customer's own page when canonical_blog_base
+  // is set. Share buttons and JSON-LD must spread THAT url, not the mirror's.
+  const pageUrl = blogPostUrl(slug, post, (domain as any).canonical_blog_base);
   const credit = (p as any).cover_image_credit as { name?: string; profile_url?: string } | null;
   const author = authorFor(profile, domain.hostname);
   const genre = genreFor((p as any).format, p.title);
@@ -129,6 +136,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
     genreLabel: genre.label,
     wordCount: (p.body_md ?? '').split(/\s+/).filter(Boolean).length,
     faqs,
+    canonicalBase: (domain as any).canonical_blog_base,
   });
 
   return (

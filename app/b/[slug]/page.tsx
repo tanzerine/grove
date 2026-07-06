@@ -10,14 +10,18 @@ const PER_PAGE = 9;
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const sb = supabaseAdmin();
-  const { data: domain } = await sb.from('domains').select('hostname').eq('blog_slug', slug).single();
-  const url = blogHomeUrl(slug);
+  // select('*') on purpose: canonical_blog_base ships ahead of migration 0018
+  // — naming a not-yet-applied column would error and 404 the whole blog.
+  const { data: domain } = await sb.from('domains').select('*').eq('blog_slug', slug).single();
+  // Customer-hosted blog home is the canonical when configured; this hosted
+  // index is then a mirror. RSS alternate stays at the hosted feed location.
+  const url = blogHomeUrl(slug, (domain as any)?.canonical_blog_base);
   return {
     title: `${domain?.hostname ?? 'grove blog'} — articles`,
     description: `Posts by ${domain?.hostname}`,
     alternates: {
       canonical: url,
-      types: { 'application/rss+xml': `${url}/rss.xml` },
+      types: { 'application/rss+xml': `${blogHomeUrl(slug)}/rss.xml` },
     },
     openGraph: {
       title: `${domain?.hostname ?? 'grove blog'} — articles`,
