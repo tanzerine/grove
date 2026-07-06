@@ -866,8 +866,14 @@ html { scroll-behavior: smooth; }
 
 /* dashboard inner grids collapse on narrow viewports */
 @media (max-width: 1100px) {
-  .gv-pipe-grid, .gv-2col, .gv-2col-wide, .gv-2col-rail { grid-template-columns: 1fr !important; }
+  .gv-pipe-grid, .gv-2col, .gv-2col-rail { grid-template-columns: 1fr !important; }
   .gv-2col-rail .gv-rail { position: static !important; }
+}
+/* Home "publishing calendar + agent" row keeps its proportions: the calendar
+   stays wide and the agent stays narrow at every laptop/tablet width, so their
+   widths don't shift. It only stacks on true mobile. */
+@media (max-width: 720px) {
+  .gv-2col-wide { grid-template-columns: 1fr !important; }
 }
 @media (max-width: 760px) {
   .gv-grid4, .gv-grid5, .gv-grid3 { grid-template-columns: repeat(2, 1fr) !important; }

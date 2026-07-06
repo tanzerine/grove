@@ -17,6 +17,46 @@ function slugify(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
 }
 
+export type ResumeState = { reuseResearch: boolean; reuseDraft: boolean };
+
+/**
+ * What a (re)generation can safely skip because a prior run already persisted
+ * it. Research is reusable once the brief AND the full context are stored; a
+ * draft is reusable only when research is (the manager + validator need the
+ * context). This is what lets a retry fire from the stage that actually failed
+ * instead of re-drafting, re-managing, and re-imaging work that succeeded.
+ */
+export function resumeState(post: { research?: any; body_md?: string | null }): ResumeState {
+  const research = post?.research;
+  const reuseResearch = !!(research && research.brief && research.context);
+  const draft = (post?.body_md ?? '').trim();
+  const reuseDraft = reuseResearch && draft.length > 200;
+  return { reuseResearch, reuseDraft };
+}
+
+/**
+ * Retry a transient pipeline step a couple of times before giving up. LLM
+ * calls occasionally time out, return empty, or emit malformed JSON — a single
+ * blip shouldn't fail an article the model would produce fine on a retry.
+ * Only wraps idempotent stages (research, refiner, writer); the manager is
+ * already non-fatal, and DB writes aren't retried here.
+ */
+async function withRetry<T>(fn: () => Promise<T>, label: string, attempts = 2): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 1; i <= attempts; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      lastErr = e;
+      if (i < attempts) {
+        console.warn(`[pipeline] ${label} attempt ${i} failed, retrying:`, (e as any)?.message ?? e);
+        await new Promise((r) => setTimeout(r, 1500 * i));
+      }
+    }
+  }
+  throw lastErr;
+}
+
 async function failAt(postId: string, step: any, err: any) {
   const msg = String(err?.message ?? err);
   await appendLog(postId, step, 'fail', msg);
@@ -42,6 +82,10 @@ export async function generatePost(postId: string) {
   // real search demand. Ad-hoc posts (no slot) simply skip this.
   const targetKeyword = await slotTargetKeyword((post as any).strategy_id, (post as any).slot_id);
 
+  // If a prior run already persisted research and/or a draft, resume from the
+  // stage that actually failed instead of redoing expensive work.
+  const { reuseResearch, reuseDraft } = resumeState(post as any);
+
   // 1. SITE PROFILE (lazy)
   let profile: SiteProfile = domain.site_profile;
   if (!profile?.business?.name) {
@@ -54,52 +98,83 @@ export async function generatePost(postId: string) {
     } catch (e) { await failAt(postId, 'site_profile', e); return; }
   }
 
-  // 2. RESEARCH
-  await sb.from('posts').update({ status: 'researching' }).eq('id', postId);
-  await appendLog(postId, 'research', 'start',
-    `Tavily for "${topic}"${targetKeyword ? ` + keyword "${targetKeyword}"` : ''}`);
-  let context;
-  try {
-    context = await gatherContext(topic, profile, targetKeyword);
-    await appendLog(postId, 'research', 'done',
-      `${context.primary.length} primary, ${context.competitor.length} competitor, ${context.pain.length} pain` +
-      `${context.serp.subtopics.length ? `, ${context.serp.subtopics.length} SERP subtopics` : ''}`);
-  } catch (e) { await failAt(postId, 'research', e); return; }
+  // 2 + 3. RESEARCH + TOPIC REFINER
+  let context!: Awaited<ReturnType<typeof gatherContext>>;
+  let brief!: Awaited<ReturnType<typeof refineTopic>>;
+  if (reuseResearch) {
+    // Reuse the persisted research + full context — nothing here is re-run.
+    context = (post as any).research.context;
+    brief = (post as any).research.brief;
+    await appendLog(postId, 'research', 'done', 'reused prior research');
+    await appendLog(postId, 'topic_refiner', 'done', `${brief.format}: ${brief.title} (reused)`);
+  } else {
+    await sb.from('posts').update({ status: 'researching' }).eq('id', postId);
+    await appendLog(postId, 'research', 'start',
+      `Tavily for "${topic}"${targetKeyword ? ` + keyword "${targetKeyword}"` : ''}`);
+    try {
+      context = await withRetry(() => gatherContext(topic, profile, targetKeyword), 'research');
+      await appendLog(postId, 'research', 'done',
+        `${context.primary.length} primary, ${context.competitor.length} competitor, ${context.pain.length} pain` +
+        `${context.serp.subtopics.length ? `, ${context.serp.subtopics.length} SERP subtopics` : ''}`);
+    } catch (e) { await failAt(postId, 'research', e); return; }
 
-  // 3. TOPIC REFINER
-  await appendLog(postId, 'topic_refiner', 'start', 'picking angle + title');
-  let brief;
-  try {
-    brief = await refineTopic(topic, profile, context, targetKeyword);
-    await appendLog(postId, 'topic_refiner', 'done', `${brief.format}: ${brief.title}`);
-  } catch (e) { await failAt(postId, 'topic_refiner', e); return; }
+    await appendLog(postId, 'topic_refiner', 'start', 'picking angle + title');
+    try {
+      brief = await withRetry(() => refineTopic(topic, profile, context, targetKeyword), 'topic_refiner');
+      await appendLog(postId, 'topic_refiner', 'done', `${brief.format}: ${brief.title}`);
+    } catch (e) { await failAt(postId, 'topic_refiner', e); return; }
 
-  await sb.from('posts').update({
-    status: 'writing',
-    research: {
-      topic, brief,
-      primary: context.primary.map((s) => ({ url: s.url, title: s.title })),
-      competitor: context.competitor.map((s) => ({ url: s.url, title: s.title })),
-      pain: context.pain.map((s) => ({ url: s.url, title: s.title })),
-      serp: context.serp,
-    },
-  }).eq('id', postId);
+    await sb.from('posts').update({
+      status: 'writing',
+      research: {
+        topic, brief,
+        primary: context.primary.map((s) => ({ url: s.url, title: s.title })),
+        competitor: context.competitor.map((s) => ({ url: s.url, title: s.title })),
+        pain: context.pain.map((s) => ({ url: s.url, title: s.title })),
+        serp: context.serp,
+        // Full context (with snippets) so a retry can resume at the writer
+        // stage without re-searching.
+        context,
+      },
+    }).eq('id', postId);
+  }
 
   // 4. WRITER
-  await appendLog(postId, 'writer', 'start', `drafting ${brief.format}`);
-  let writer;
-  try {
-    writer = await runWriter({ brief, profile, context, hostname: domain.hostname });
-    await appendLog(postId, 'writer', 'done', `${writer.blog_post.split(/\s+/).length} words`);
-  } catch (e) { await failAt(postId, 'writer', e); return; }
+  let writer!: Awaited<ReturnType<typeof runWriter>>;
+  if (reuseDraft) {
+    writer = {
+      blog_post: (post as any).body_md as string,
+      meta_title: (post as any).meta_title ?? '',
+      meta_description: (post as any).meta_description ?? '',
+      sources_provided: [],
+    };
+    await appendLog(postId, 'writer', 'done',
+      `${writer.blog_post.split(/\s+/).length} words (reused draft)`);
+  } else {
+    await appendLog(postId, 'writer', 'start', `drafting ${brief.format}`);
+    try {
+      writer = await withRetry(
+        () => runWriter({ brief, profile, context, hostname: domain.hostname }), 'writer');
+      await appendLog(postId, 'writer', 'done', `${writer.blog_post.split(/\s+/).length} words`);
+    } catch (e) { await failAt(postId, 'writer', e); return; }
 
-  if (!writer.blog_post || writer.blog_post.length < 200) {
-    await failAt(postId, 'writer', new Error(`writer returned ${writer.blog_post.length} chars`));
-    return;
+    if (!writer.blog_post || writer.blog_post.length < 200) {
+      await failAt(postId, 'writer', new Error(`writer returned ${writer.blog_post.length} chars`));
+      return;
+    }
+
+    // Persist the draft the moment it exists so a later failure (manager or the
+    // final persist) can be retried without paying to re-draft.
+    await sb.from('posts').update({
+      body_md: writer.blog_post,
+      meta_title: writer.meta_title,
+      meta_description: writer.meta_description,
+    }).eq('id', postId);
   }
 
   // 4b. MANAGER — gate on strategic fit + craft + marketing intent.
-  // Loop once on 'rewrite'; on round 2 the manager must approve or reject.
+  // A fresh draft loops once on 'rewrite'; a resumed draft is evaluated once
+  // and never re-drafted (any non-approve routes it to human review below).
   // Prefer the exact strategy/slot link (set when materialized from the plan);
   // fall back to fuzzy title matching for ad-hoc / legacy posts.
   const { strategy, slot } = await loadActiveStrategy(
@@ -107,7 +182,7 @@ export async function generatePost(postId: string) {
   );
   let evaluation;
   try {
-    await appendLog(postId, 'manager', 'start', `attempt 1`);
+    await appendLog(postId, 'manager', 'start', reuseDraft ? 'evaluating existing draft' : `attempt 1`);
     evaluation = await evaluateDraft({
       attempt: 1, brief, strategy, slot, draft: toManagerDraft(writer),
     });
@@ -115,7 +190,7 @@ export async function generatePost(postId: string) {
     await appendLog(postId, 'manager', 'done',
       `${evaluation.action} · overall ${evaluation.scores.overall}`);
 
-    if (evaluation.action === 'rewrite') {
+    if (!reuseDraft && evaluation.action === 'rewrite') {
       await appendLog(postId, 'writer', 'start', `rewrite — applying manager notes`);
       writer = await runWriter({
         brief, profile, context, hostname: domain.hostname,
@@ -124,6 +199,12 @@ export async function generatePost(postId: string) {
       });
       await appendLog(postId, 'writer', 'done',
         `${writer.blog_post.split(/\s+/).length} words (rewrite)`);
+      // Persist the rewritten draft too, for the same resume reason.
+      await sb.from('posts').update({
+        body_md: writer.blog_post,
+        meta_title: writer.meta_title,
+        meta_description: writer.meta_description,
+      }).eq('id', postId);
 
       evaluation = await evaluateDraft({
         attempt: 2, brief, strategy, slot, draft: toManagerDraft(writer),

@@ -317,9 +317,10 @@ export default async function OverviewPage() {
             </div>
           </div>
 
-          {/* agent panel */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div className="gv-card" style={{ flex: 1, background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 22px' }}>
+          {/* agent panel — sits at the top of its column and stays only as tall
+              as its content (short), rather than stretching to the calendar. */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, alignSelf: 'start' }}>
+            <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 22px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{ width: 30, height: 30, borderRadius: 9, background: 'rgba(99,194,129,0.12)', border: '1px solid rgba(99,194,129,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: ACCENT }}><Icon name="leaf" /></span>
