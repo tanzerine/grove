@@ -11,6 +11,11 @@
  * retries the model call internally, and runInlineImagesForPost is idempotent
  * (it no-ops when images are already present), so this is safe to run often.
  *
+ * Runs once a day (Vercel Hobby caps crons at daily) at an hour offset from the
+ * scheduler, with the full 300s budget to itself. Immediate needs are covered
+ * by the after() paths on create/retry and the manual "Generate cover" button;
+ * this drains any backlog and catches posts whose after() never ran.
+ *
  * Guarded by CRON_SECRET.
  */
 import { NextResponse } from 'next/server';
@@ -24,8 +29,8 @@ export const maxDuration = 300;
 // Cover generation is ~1 min each and can retry a couple of times on a bad
 // run; keep the count low enough that a slow batch still fits the 300s ceiling
 // (covers first — they're what the reader sees in the list and at the top).
-// Whatever doesn't fit this tick is picked up on the next one (every 6h).
-const COVER_LIMIT = 3;
+// Whatever doesn't fit today is picked up on the next daily run.
+const COVER_LIMIT = 4;
 const INLINE_LIMIT = 3;
 
 export async function GET(req: Request) {
