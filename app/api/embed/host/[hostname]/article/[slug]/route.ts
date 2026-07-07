@@ -15,10 +15,15 @@ export async function GET(_req: Request, ctx: { params: Promise<{ hostname: stri
   const apex = host.replace(/^www\./, '');
 
   const sb = supabaseAdmin();
+  // A hostname can have more than one domain row (e.g. a stale unverified
+  // duplicate). Prefer the verified row so we don't look the article up under
+  // an empty duplicate and 404 a post that's actually published — this must
+  // match the list endpoint's ordering or the list and articles disagree.
   const { data: domain } = await sb
     .from('domains')
     .select('id, hostname, blog_slug, site_profile')
     .or(`hostname.eq.${apex},hostname.eq.www.${apex}`)
+    .order('verified_at', { ascending: false, nullsFirst: false })
     .limit(1)
     .maybeSingle();
 
