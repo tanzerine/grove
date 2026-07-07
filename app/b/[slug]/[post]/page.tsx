@@ -1,7 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { mdToHtml, extractToc } from '@/lib/markdown';
 import { extractFaq } from '@/lib/faq';
-import { isBot, jsonLdScript, blogHomeUrl, blogPostUrl, subdomainSlugFromHost, buildArticleGraph } from '@/lib/seo';
+import { jsonLdScript, blogHomeUrl, blogPostUrl, subdomainSlugFromHost, buildArticleGraph } from '@/lib/seo';
 import { pickRelated } from '@/lib/related-posts';
 import { injectInternalLinks } from '@/lib/internal-links';
 import { genreFor, authorFor } from '@/lib/blog-genre';
@@ -61,16 +61,14 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   const { data: domain } = await sb.from('domains').select('*').eq('blog_slug', slug).single(); // '*': survives pre-0018 DB
   if (!domain) notFound();
   const { data: p } = await sb
-    .from('posts').select('title,body_md,published_at,meta_description,reads,id,cover_image_url,cover_image_credit,format:research->brief->>format')
+    .from('posts').select('title,body_md,published_at,meta_description,id,cover_image_url,cover_image_credit,format:research->brief->>format')
     .eq('domain_id', domain.id).eq('slug', post).eq('status', 'published').single();
   if (!p) notFound();
 
-  // increment reads (best-effort) — humans only; bots and link-preview
-  // fetchers would otherwise skew the metric the strategy loop feeds on
-  const ua = (await headers()).get('user-agent');
-  if (!isBot(ua)) {
-    await sb.from('posts').update({ reads: (p.reads ?? 0) + 1 }).eq('id', p.id);
-  }
+  // NOTE: `reads` is NOT incremented here. A server render fires for bots and
+  // Next.js RSC prefetches too, which used to inflate the metric several-fold.
+  // The one honest writer of posts.reads is the client 'view' beacon, deduped
+  // per session in lib/analytics/track.ts ingestEvent().
 
   // On a blog subdomain the middleware strips the /b/{slug} prefix, so
   // relative links must be root-relative there and prefixed on the app host.

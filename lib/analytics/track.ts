@@ -113,5 +113,29 @@ export async function ingestEvent(ev: IngestEvent, ctx: IngestContext): Promise<
   if (!post) return { ok: false };
 
   const { error } = await sb.from('post_events').insert(row);
+
+  // Maintain posts.reads — the human-facing "N reads" counter shown across the
+  // dashboard, post list and bylines. A read is one person opening the article
+  // once, so we count it on the FIRST view event of a session (session_id is
+  // per-tab and survives refresh via sessionStorage). This is now the only
+  // writer of the column: the old server-render increments were removed because
+  // they counted bots and RSC/SSR prefetches that never run this beacon. Bots
+  // are already dropped above, so anything here is a real browser.
+  // Best-effort — a failed increment never fails the event.
+  if (!error && row.type === 'view') {
+    const { count } = await sb
+      .from('post_events')
+      .select('id', { count: 'exact', head: true })
+      .eq('post_id', row.post_id)
+      .eq('session_id', row.session_id)
+      .eq('type', 'view');
+    // count includes the row we just inserted; > 1 means this session already
+    // viewed this post (a refresh), so it's not a new read.
+    if ((count ?? 0) <= 1) {
+      const { data: pr } = await sb.from('posts').select('reads').eq('id', row.post_id).maybeSingle();
+      await sb.from('posts').update({ reads: (pr?.reads ?? 0) + 1 }).eq('id', row.post_id);
+    }
+  }
+
   return { ok: !error };
 }
