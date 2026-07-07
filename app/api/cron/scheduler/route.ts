@@ -1,9 +1,12 @@
 /**
- * Hourly cron — runs four responsibilities:
- *   1. publish any 'scheduled' posts whose time has come
- *   2. for verified domains under quota, enqueue new topics
+ * Daily cron — runs the core loop:
+ *   1. publish any 'scheduled' posts whose time has come (+ social fanout)
+ *   2. self-heal the monthly strategy, materialize due plan slots
  *   3. drain the 'queued' bucket by generating drafts
- *   4. backfill cover images for posts that are missing one
+ *   4. refresh Search Console snapshots
+ *
+ * Cover + inline image backfill lives in its own cron (/api/cron/images) so it
+ * isn't starved by the generation drain above.
  *
  * Guarded by CRON_SECRET — Vercel sends it as a Bearer token automatically.
  */
@@ -11,8 +14,6 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { isCronAuthorized } from '@/lib/cron-auth';
 import { generatePost } from '@/lib/pipeline/generate';
-import { runCoverForPost } from '@/lib/pipeline/cover-image';
-import { runInlineImagesForPost } from '@/lib/pipeline/inline-images';
 import { runSocialAdapter } from '@/lib/pipeline/writer';
 import { materializeDuePlanSlots } from '@/lib/strategy/materialize';
 import { ensureMonthlyStrategy, monthBounds, type EnsureDomain } from '@/lib/strategy/ensure';
@@ -128,34 +129,9 @@ export async function GET(req: Request) {
     }
   }
 
-  // 3) backfill cover images — catches posts where after() never ran (e.g. hobby plan)
-  const { data: needCover } = await sb
-    .from('posts')
-    .select('id')
-    .not('status', 'eq', 'failed')
-    .not('status', 'eq', 'queued')
-    .is('cover_image_url', null)
-    .limit(3);
-
-  for (const p of needCover ?? []) {
-    await runCoverForPost(p.id);
-  }
-
-  // 4) backfill inline images — posts that have a cover but not yet inline images
-  //    (limit 2 per tick: each post runs 2 Flux calls in parallel, ~10s total)
-  const { data: needInline } = await sb
-    .from('posts')
-    .select('id')
-    .not('status', 'eq', 'failed')
-    .not('status', 'eq', 'queued')
-    .not('cover_image_url', 'is', null)
-    .limit(2);
-
-  let inlineCount = 0;
-  for (const p of needInline ?? []) {
-    await runInlineImagesForPost(p.id);
-    inlineCount++;
-  }
+  // NOTE: cover + inline image backfill lives in its own cron (/api/cron/images)
+  // now — it was being starved here by the generation drain above. This tick
+  // stays focused on strategy → generation → publishing.
 
   // 5) refresh Search Console snapshots for connected domains. This is the
   //    loop's real-world feedback signal — impressions/position per page —
@@ -176,8 +152,6 @@ export async function GET(req: Request) {
     strategy_healed: strategyHealed,
     materialized,
     generated: queued?.length ?? 0,
-    covers: needCover?.length ?? 0,
-    inline_images: inlineCount,
     gsc_synced: gscSynced,
   });
 }
