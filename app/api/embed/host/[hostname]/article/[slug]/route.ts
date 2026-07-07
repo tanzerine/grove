@@ -36,7 +36,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ hostname: stri
 
   const { data: post } = await sb
     .from('posts')
-    .select('id,slug,title,body_md,meta_title,meta_description,published_at,reads,cover_image_url,cover_image_credit,format:research->brief->>format')
+    .select('id,slug,title,body_md,meta_title,meta_description,published_at,cover_image_url,cover_image_credit,format:research->brief->>format')
     .eq('domain_id', domain.id)
     .eq('slug', slug)
     .eq('status', 'published')
@@ -49,9 +49,12 @@ export async function GET(_req: Request, ctx: { params: Promise<{ hostname: stri
     );
   }
 
-  // best-effort read tracking; never block the response on it
-  sb.from('posts').update({ reads: (post.reads ?? 0) + 1 }).eq('slug', slug).eq('domain_id', domain.id)
-    .then(() => {}, () => {});
+  // NOTE: `reads` is NOT incremented here. This endpoint is fetched server-to-
+  // server on every SSR/ISR render of the customer's blog page (and by any bot
+  // crawling their site), with no way to tell a human from a machine — it used
+  // to inflate reads badly. The article payload returns post_id/domain_id so the
+  // customer's page fires the client 'view' beacon instead, which is the single
+  // honest, per-session-deduped writer of posts.reads (lib/analytics/track.ts).
 
   // Enrich the payload so the TOC + "Try {business}" CTA show on the customer's
   // own site (which renders what we return here, not Grove's hosted page).
