@@ -7,6 +7,7 @@ import { ACTIVE_DOMAIN_COOKIE } from '@/lib/active-domain';
 import { getOnboarding, EMPTY_ONBOARDING } from '@/lib/onboarding/checklist';
 import { getActivity, EMPTY_ACTIVITY } from '@/lib/notifications/feed';
 import DashShell from './DashShell';
+import ActivityPing from './ActivityPing';
 import type { Chrome } from './chrome-context';
 
 export default async function DashLayout({ children }: { children: React.ReactNode }) {
@@ -66,6 +67,7 @@ export default async function DashLayout({ children }: { children: React.ReactNo
   return (
     <>
       <GroveMark />
+      <ActivityPing />
       <DashShell chrome={chrome} badges={badges}>
         {children}
       </DashShell>

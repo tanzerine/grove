@@ -23,7 +23,7 @@ export default async function AdminOverviewPage() {
   const maxRef = Math.max(1, ...s.referrals.map((r) => r.count));
 
   const cards = [
-    { label: 'Total customers', value: s.users.total.toLocaleString(), sub: `${s.users.new7d} new this week` },
+    { label: 'Total customers', value: s.users.total.toLocaleString(), sub: `${s.users.new7d} new this week`, href: '/dashboard/admin/users' },
     { label: 'New (30 days)', value: s.users.new30d.toLocaleString(), sub: `${s.users.new7d} in last 7d` },
     { label: 'Active subscriptions', value: s.subs.active.toLocaleString(), sub: planMix(s.subs.byPlan) },
     { label: 'MRR', value: `$${s.subs.mrrUsd.toLocaleString()}`, sub: 'from active plans' },

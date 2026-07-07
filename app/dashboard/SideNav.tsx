@@ -34,6 +34,7 @@ export default function SideNav({ badges = {}, isAdmin = false }: { badges?: Rec
   const sections = isAdmin
     ? [...SECTIONS, { head: 'Admin', items: [
         { href: '/dashboard/admin', label: 'Overview', icon: 'analytics', match: (p: string) => p === '/dashboard/admin' },
+        { href: '/dashboard/admin/users', label: 'Users', icon: 'eye', match: (p: string) => p.startsWith('/dashboard/admin/users') },
         { href: '/dashboard/admin/refunds', label: 'Refunds', icon: 'billing', match: (p: string) => p.startsWith('/dashboard/admin/refunds') },
       ] }]
     : SECTIONS;
