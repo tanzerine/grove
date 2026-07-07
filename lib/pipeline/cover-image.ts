@@ -180,6 +180,24 @@ export async function runCoverForPost(postId: string, opts: { force?: boolean } 
   }
 }
 
+/** Pull the raw bytes out of a Replicate output item. v1 returns file-like
+ *  objects with .blob()/.url(); older shapes return a plain URL string. Returns
+ *  null for an unrecognized shape or an unreachable URL so the caller retries. */
+async function toImageBytes(first: any): Promise<Uint8Array | null> {
+  if (typeof first?.blob === 'function') {
+    const blob = await first.blob();
+    return new Uint8Array(await blob.arrayBuffer());
+  }
+  if (typeof first?.url === 'function' || typeof first === 'string') {
+    const imgUrl = typeof first === 'string' ? first : first.url();
+    const resolvedUrl = typeof imgUrl === 'string' ? imgUrl : (imgUrl?.toString?.() ?? '');
+    const res = await fetch(resolvedUrl);
+    if (!res.ok) return null;
+    return new Uint8Array(await res.arrayBuffer());
+  }
+  return null;
+}
+
 export async function fetchCoverImage(
   input: string | PromptInput,
   industryArg = '',
@@ -191,48 +209,41 @@ export async function fetchCoverImage(
   const apiKey = process.env.REPLICATE_API_TOKEN;
   if (!apiKey) return null;
 
-  let imageBuffer: Uint8Array;
-  try {
-    const replicate = new Replicate({ auth: apiKey });
-    const prompt = await composePrompt(promptInput);
+  const replicate = new Replicate({ auth: apiKey });
+  const prompt = await composePrompt(promptInput);
 
-    // Minimal, schema-valid input for gpt-image-2. Do NOT add output_format —
-    // it's rejected by the GPT image models and fails the whole prediction.
-    const input: Record<string, unknown> = {
-      prompt,
-      aspect_ratio: IMAGE_ASPECT,
-      quality: IMAGE_QUALITY,
-    };
+  // Minimal, schema-valid input for gpt-image-2. Do NOT add output_format —
+  // it's rejected by the GPT image models and fails the whole prediction.
+  const modelInput: Record<string, unknown> = {
+    prompt,
+    aspect_ratio: IMAGE_ASPECT,
+    quality: IMAGE_QUALITY,
+  };
 
-    // 1. Generate with a hard 120s timeout (gpt-image-2 can be slow)
-    const result = await Promise.race([
-      replicate.run(IMAGE_MODEL, { input }),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('image generation timeout')), 120_000)
-      ),
-    ]);
-
-    // Replicate v1 returns array of file-like objects with .url() and .blob()/.read()
-    const first: any = Array.isArray(result) ? result[0] : result;
-    if (!first) return null;
-
-    // 2. Get the actual bytes (Replicate URLs expire in ~60min so we must persist)
-    if (typeof first.blob === 'function') {
-      const blob = await first.blob();
-      imageBuffer = new Uint8Array(await blob.arrayBuffer());
-    } else if (typeof first.url === 'function' || typeof first === 'string') {
-      const imgUrl = typeof first === 'string' ? first : first.url();
-      const resolvedUrl = typeof imgUrl === 'string' ? imgUrl : (imgUrl?.toString?.() ?? '');
-      const res = await fetch(resolvedUrl);
-      if (!res.ok) return null;
-      imageBuffer = new Uint8Array(await res.arrayBuffer());
-    } else {
-      return null;
+  // Generate with retry. The model call is the flaky step — it can time out or
+  // return a transient error under load, and a single miss used to leave the
+  // article with no cover forever. Retry a few times before giving up.
+  let imageBuffer: Uint8Array | null = null;
+  const ATTEMPTS = 3;
+  for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
+    try {
+      const result = await Promise.race([
+        replicate.run(IMAGE_MODEL, { input: modelInput }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('image generation timeout')), 120_000)
+        ),
+      ]);
+      const first: any = Array.isArray(result) ? result[0] : result;
+      if (!first) throw new Error('empty model output');
+      imageBuffer = await toImageBytes(first);
+      if (imageBuffer) break;
+      throw new Error('unrecognized model output shape');
+    } catch (err) {
+      console.error(`[cover-image] ${IMAGE_MODEL} attempt ${attempt}/${ATTEMPTS} failed:`, err);
+      if (attempt < ATTEMPTS) await new Promise((r) => setTimeout(r, 2000 * attempt));
     }
-  } catch (err) {
-    console.error(`[cover-image] ${IMAGE_MODEL} failed:`, err);
-    return null;
   }
+  if (!imageBuffer) return null;
 
   // 3. Upload to Supabase Storage for permanent URL
   try {
