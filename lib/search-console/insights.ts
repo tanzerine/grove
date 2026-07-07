@@ -95,36 +95,62 @@ export type ContentRow = {
   postId: string | null;
   title: string;
   path: string;          // url path, shown as the secondary line when no keyword
+  views: number;         // first-party tracked reader views (0 until tracking sees one)
   clicks: number;
   impressions: number;
   ctr: number;           // 0..1
   position: number;
 };
 
-/** Top pages by clicks, resolved to post titles where we can. */
-export function topContent(
+export type ArticleInfo = { id: string; title: string | null; slug: string | null; reads?: number | null };
+
+/**
+ * One row per published article — the dashboard's job is "show me every
+ * article's numbers", not "show me my six busiest pages" (which on a young
+ * blog is the homepage and /pricing, never the articles).
+ *
+ * `views` is the article's first-party read counter (posts.reads) — the same
+ * per-article number shown on the published list. GSC page rows are folded in
+ * by post_id: one post can surface under several URLs (grove-hosted mirror +
+ * the customer's own domain), so clicks and impressions are summed and
+ * position is impression-weighted across them. Articles Google hasn't
+ * surfaced yet still get a row (views only, GSC columns zero).
+ */
+export function articleRows(
   pages: MetricRow[],
-  titleById: Map<string, string>,
-  limit = 6,
+  posts: ArticleInfo[],
 ): ContentRow[] {
-  return [...pages]
-    .filter((p) => p.impressions > 0)
-    .sort((a, b) => b.clicks - a.clicks || b.impressions - a.impressions)
-    .slice(0, limit)
-    .map((p) => {
-      let path = p.key;
-      try { path = new URL(p.key).pathname; } catch { /* keep raw key */ }
-      const title = (p.post_id && titleById.get(p.post_id)) || path;
+  const byPost = new Map<string, MetricRow[]>();
+  for (const p of pages) {
+    if (!p.post_id) continue;
+    const list = byPost.get(p.post_id) ?? [];
+    list.push(p);
+    byPost.set(p.post_id, list);
+  }
+
+  return posts
+    .map((post) => {
+      const rows = byPost.get(post.id) ?? [];
+      const clicks = rows.reduce((a, r) => a + r.clicks, 0);
+      const impressions = rows.reduce((a, r) => a + r.impressions, 0);
+      // secondary line: the URL Google shows most (else the article's own path)
+      const busiest = [...rows].sort((a, b) => b.impressions - a.impressions)[0];
+      let path = post.slug ? `/${post.slug}` : '';
+      if (busiest) { try { path = new URL(busiest.key).pathname; } catch { path = busiest.key; } }
       return {
-        postId: p.post_id ?? null,
-        title,
+        postId: post.id,
+        title: post.title || path || 'Untitled',
         path,
-        clicks: p.clicks,
-        impressions: p.impressions,
-        ctr: p.impressions > 0 ? Math.round((p.clicks / p.impressions) * 1000) / 1000 : 0,
-        position: Math.round(p.position * 10) / 10,
+        views: post.reads ?? 0,
+        clicks,
+        impressions,
+        ctr: impressions > 0 ? Math.round((clicks / impressions) * 1000) / 1000 : 0,
+        position: weightedPosition(rows),
       };
-    });
+    })
+    .sort((a, b) =>
+      b.clicks - a.clicks || b.impressions - a.impressions ||
+      b.views - a.views || a.title.localeCompare(b.title));
 }
 
 export function summarize(pages: MetricRow[], queries: MetricRow[]): Visibility {

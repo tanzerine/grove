@@ -7,7 +7,7 @@ import AnalyticsDashboard from './AnalyticsDashboard';
 export const dynamic = 'force-dynamic';
 
 const NO_DATA: AnalyticsData = {
-  live: null, series: null, topContent: null, ranking: null,
+  live: null, series: null, articles: null, ranking: null,
   traffic: null, answers: null, funnel: null,
 };
 
