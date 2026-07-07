@@ -58,6 +58,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
   const [prompt, setPrompt] = useState('');
   const [cards, setCards] = useState<AssistCard[]>([]);
   const baseline = useRef<string>(initialBody);
+  const lastInitialBody = useRef<string>(initialBody);
   const promptRef = useRef<HTMLInputElement>(null);
   const cid = useRef(1);
 
@@ -81,6 +82,21 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
   });
 
   useEffect(() => { editor?.setEditable(editing); }, [editing, editor]);
+
+  // Re-sync the canvas when the server sends new body markdown (e.g. after
+  // generating a cover / inline images, which inject an image into body_md and
+  // then r.refresh()). Without this, tiptap keeps the content it was created
+  // with and the new image never appears. Only sync when the prop actually
+  // changed and the author isn't mid-edit, so we never clobber unsaved work.
+  useEffect(() => {
+    if (!editor) return;
+    if (initialBody === lastInitialBody.current) return;
+    lastInitialBody.current = initialBody;
+    if (editing || dirty) return;
+    editor.commands.setContent(initialBody);
+    baseline.current = getMd(editor);
+    setDirty(false);
+  }, [initialBody, editor, editing, dirty]);
 
   // Fresh manual drafts land in edit mode — drop the cursor into the body so
   // the author can start typing without hunting for where to click.
