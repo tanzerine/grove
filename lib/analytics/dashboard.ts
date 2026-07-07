@@ -9,8 +9,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '../supabase/admin';
 import { latestSnapshot, dailySeries, type DailyPoint } from '../search-console/sync';
 import {
-  summarize, rankingDistribution, topContent,
-  type MetricRow, type RankBand, type ContentRow,
+  summarize, rankingDistribution, articleRows,
+  type MetricRow, type RankBand, type ContentRow, type ArticleInfo,
 } from '../search-console/insights';
 import {
   trafficSources, answerReferrals, funnel,
@@ -28,7 +28,9 @@ export type KpiSummary = {
 export type AnalyticsData = {
   live: KpiSummary;
   series: DailyPoint[] | null;
-  topContent: ContentRow[] | null;
+  /** One row per published article (all of them), GSC + first-party views.
+   *  null only when the domain has no published articles yet. */
+  articles: ContentRow[] | null;
   ranking: { bands: RankBand[]; total: number } | null;
   traffic: { total: number; sources: TrafficSource[] } | null;
   answers: AnswerReferrals | null;
@@ -36,7 +38,7 @@ export type AnalyticsData = {
 };
 
 const EMPTY: AnalyticsData = {
-  live: null, series: null, topContent: null, ranking: null,
+  live: null, series: null, articles: null, ranking: null,
   traffic: null, answers: null, funnel: null,
 };
 
@@ -57,15 +59,28 @@ export async function loadAnalytics(
 ): Promise<AnalyticsData> {
   const out: AnalyticsData = { ...EMPTY };
 
+  // Every published article, independent of GSC — the articles table must show
+  // ALL articles even before Search Console is connected (views are still real,
+  // GSC columns just read zero). `reads` is the per-article first-party view
+  // counter shown across the rest of the product.
+  let posts: ArticleInfo[] = [];
+  try {
+    const { data } = await supabaseAdmin()
+      .from('posts').select('id, title, slug, reads')
+      .eq('domain_id', domainId).eq('status', 'published')
+      .order('published_at', { ascending: false });
+    posts = (data ?? []) as ArticleInfo[];
+  } catch { /* fail-soft */ }
+
   // ── Search Console (admin client; service role, same as sync) ──────────────
+  let pages: MetricRow[] = [];
   if (verified) {
     try {
-      const [snap, series, posts] = await Promise.all([
+      const [snap, series] = await Promise.all([
         latestSnapshot(domainId),
         dailySeries(domainId, 90),
-        supabaseAdmin().from('posts').select('id, title').eq('domain_id', domainId),
       ]);
-      const pages = snap.pages.map(toRow);
+      pages = snap.pages.map(toRow);
       const queries = snap.queries.map(toRow);
 
       if (pages.length || queries.length) {
@@ -73,12 +88,6 @@ export async function loadAnalytics(
         if (v.impressions > 0) {
           out.live = { clicks: v.clicks, impressions: v.impressions, ctr: v.ctr, avgPosition: v.avgPosition, queryCount: v.queryCount };
         }
-        const titleById = new Map<string, string>();
-        for (const p of (posts.data ?? []) as { id: string; title: string | null }[]) {
-          if (p.title) titleById.set(p.id, p.title);
-        }
-        const content = topContent(pages, titleById);
-        if (content.length) out.topContent = content;
         const rank = rankingDistribution(queries);
         if (rank.total > 0) out.ranking = rank;
       }
@@ -105,6 +114,9 @@ export async function loadAnalytics(
       if (f.clicks > 0) out.funnel = f;
     }
   } catch { /* fail-soft */ }
+
+  const rows = articleRows(pages, posts);
+  if (rows.length) out.articles = rows;
 
   return out;
 }

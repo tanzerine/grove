@@ -44,12 +44,14 @@ export default function AnalyticsDashboard({
   syncedAgo: string;
 }) {
   const [period, setPeriod] = useState<PeriodKey>('30d');
-  const [sort, setSort] = useState<'Clicks' | 'Impressions' | 'CTR'>('Clicks');
+  // Live accounts default to sorting by Views (the article metric this table
+  // exists to surface); the sample view has no views column, so keep Clicks.
+  const [sort, setSort] = useState<'Clicks' | 'Impressions' | 'CTR' | 'Views'>(data.articles ? 'Views' : 'Clicks');
   const live = data.live;
   const liveOn = !!live;
   // Any real signal at all (GSC totals OR first-party events) flips the header
   // from "sample view" to "synced".
-  const anyLive = liveOn || !!data.traffic || !!data.funnel || !!data.topContent;
+  const anyLive = liveOn || !!data.traffic || !!data.funnel || !!data.articles;
 
   // ── real trend series, sliced to the selected period ────────────────────────
   // gsc_daily gives up to 90 days oldest→newest; 12mo just shows what we have.
@@ -165,8 +167,11 @@ export default function AnalyticsDashboard({
   let acc = 0;
   const donutGradient = 'conic-gradient(' + sourceDef.map((s) => { const start = acc; acc += s.pct; return `${s.color} ${start}% ${acc}%`; }).join(', ') + ')';
 
-  // ── top posts ───────────────────────────────────────────────────────────────
-  type PostRow = { title: string; keyword: string; clicks: string; impr: string; ctr: string; pos: string; posChange: string; up: boolean; spark: number[] | null };
+  // ── articles table ──────────────────────────────────────────────────────────
+  // Live accounts see EVERY published article (GSC clicks/impressions merged
+  // across the article's URLs + first-party tracked views), not "top pages" —
+  // on a young blog top-pages is the homepage and /pricing, never the articles.
+  type PostRow = { title: string; keyword: string; views?: string; clicks: string; impr: string; ctr: string; pos: string; posChange: string; up: boolean; spark: number[] | null };
   const samplePosts: PostRow[] = [
     { title: 'The SaaS founder’s guide to compounding traffic', keyword: 'compounding organic traffic', clicks: '9,120', impr: '184k', ctr: '4.9%', pos: '3', posChange: '▲12', up: true, spark: [10, 14, 18, 22, 30, 38, 46, 52] },
     { title: 'How to write for answer engines', keyword: 'write for answer engines', clicks: '6,740', impr: '142k', ctr: '4.7%', pos: '2', posChange: '▲8', up: true, spark: [6, 9, 12, 18, 24, 30, 40, 48] },
@@ -175,13 +180,15 @@ export default function AnalyticsDashboard({
     { title: 'How we cut SaaS churn 18% in a quarter', keyword: 'reduce saas churn', clicks: '3,640', impr: '96k', ctr: '3.8%', pos: '6', posChange: '▲4', up: true, spark: [12, 14, 13, 16, 18, 20, 24, 28] },
     { title: 'The honest cost of an in-house content team', keyword: 'content team cost', clicks: '2,210', impr: '88k', ctr: '2.5%', pos: '14', posChange: '▼2', up: false, spark: [20, 18, 19, 16, 15, 14, 13, 12] },
   ];
-  const sortKey = sort === 'Impressions' ? 'impressions' : sort === 'CTR' ? 'ctr' : 'clicks';
-  const postDef: PostRow[] = data.topContent
-    ? [...data.topContent]
+  const articlesLive = !!data.articles;
+  const sortKey = sort === 'Impressions' ? 'impressions' : sort === 'CTR' ? 'ctr' : sort === 'Views' ? 'views' : 'clicks';
+  const postDef: PostRow[] = data.articles
+    ? [...data.articles]
         .sort((a, b) => (b as any)[sortKey] - (a as any)[sortKey])
         .map((c) => ({
           title: c.title,
           keyword: c.path,
+          views: c.views.toLocaleString(),
           clicks: c.clicks.toLocaleString(),
           impr: fmtCompact(c.impressions),
           ctr: fmtPct(c.ctr),
@@ -191,6 +198,9 @@ export default function AnalyticsDashboard({
           spark: null,
         }))
     : samplePosts;
+  // Live: Post | Views | Clicks | Impressions | CTR | Avg pos (every article).
+  // Sample keeps the illustrative 30-day trend sparkline column.
+  const tableCols = articlesLive ? '1fr 90px 100px 120px 80px 90px' : '1fr 110px 120px 80px 90px 110px';
 
   // ── rank distribution ───────────────────────────────────────────────────────
   const RANK_COLORS = [ACCENT, 'rgba(99,194,129,0.55)', '#7f8a86', '#3a4640'];
@@ -381,13 +391,13 @@ export default function AnalyticsDashboard({
           </div>
         </div>
 
-        {/* TOP CONTENT TABLE */}
+        {/* ARTICLES TABLE — every published article when live, sample otherwise */}
         <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, overflow: 'hidden', marginBottom: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, padding: '18px 22px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <span style={{ fontSize: 15, fontWeight: 700 }}>Top performing content</span>
+              <span style={{ fontSize: 15, fontWeight: 700 }}>{articlesLive ? 'Article performance' : 'Top performing content'}</span>
               <div style={{ display: 'flex', gap: 4 }}>
-                {(['Clicks', 'Impressions', 'CTR'] as const).map((t) => {
+                {(articlesLive ? ['Views', 'Clicks', 'Impressions', 'CTR'] as const : ['Clicks', 'Impressions', 'CTR'] as const).map((t) => {
                   const on = sort === t;
                   return (
                     <button key={t} onClick={() => setSort(t)} style={{ border: `1px solid ${on ? 'rgba(99,194,129,0.25)' : 'rgba(255,255,255,0.08)'}`, background: on ? 'rgba(99,194,129,0.12)' : 'transparent', color: on ? 'var(--gv-ink)' : 'var(--gv-dim)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '6px 13px', borderRadius: 999, cursor: 'pointer', transition: '.2s' }}>{t}</button>
@@ -395,15 +405,18 @@ export default function AnalyticsDashboard({
                 })}
               </div>
             </div>
-            <span style={{ fontSize: 12.5, color: 'var(--gv-dim)' }}>{data.topContent ? 'Top pages by clicks' : 'Sample data'}</span>
+            <span style={{ fontSize: 12.5, color: 'var(--gv-dim)' }}>{articlesLive ? `${postDef.length} published article${postDef.length === 1 ? '' : 's'}` : 'Sample data'}</span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px 120px 80px 90px 110px', padding: '11px 22px', fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-fainter)', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-            <span>Post</span><span style={{ textAlign: 'right' }}>Clicks</span><span style={{ textAlign: 'right' }}>Impressions</span><span style={{ textAlign: 'right' }}>CTR</span><span style={{ textAlign: 'right' }}>Avg. pos</span><span style={{ textAlign: 'right' }}>30-day trend</span>
+          <div style={{ display: 'grid', gridTemplateColumns: tableCols, padding: '11px 22px', fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-fainter)', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+            <span>Post</span>
+            {articlesLive && <span style={{ textAlign: 'right' }}>Views</span>}
+            <span style={{ textAlign: 'right' }}>Clicks</span><span style={{ textAlign: 'right' }}>Impressions</span><span style={{ textAlign: 'right' }}>CTR</span><span style={{ textAlign: 'right' }}>Avg. pos</span>
+            {!articlesLive && <span style={{ textAlign: 'right' }}>30-day trend</span>}
           </div>
           {postDef.map((p) => {
             const sp = p.spark ? buildPaths(p.spark, 96, 28, 3) : null;
             return (
-              <div key={p.title} className="gv-row" style={{ display: 'grid', gridTemplateColumns: '1fr 110px 120px 80px 90px 110px', alignItems: 'center', padding: '14px 22px', borderBottom: '1px solid rgba(255,255,255,0.04)', cursor: 'pointer' }}>
+              <div key={p.title} className="gv-row" style={{ display: 'grid', gridTemplateColumns: tableCols, alignItems: 'center', padding: '14px 22px', borderBottom: '1px solid rgba(255,255,255,0.04)', cursor: 'pointer' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, paddingRight: 18 }}>
                   <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(99,194,129,0.1)', border: '1px solid rgba(99,194,129,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: ACCENT, flexShrink: 0 }}><Icon name="doc" /></span>
                   <span style={{ minWidth: 0 }}>
@@ -411,20 +424,28 @@ export default function AnalyticsDashboard({
                     <span style={{ display: 'block', fontSize: 11.5, color: 'var(--gv-faint)' }}>{p.keyword}</span>
                   </span>
                 </div>
+                {articlesLive && <span style={{ fontSize: 13, fontWeight: 700, textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: 'var(--gv-ink)' }}>{p.views}</span>}
                 <span style={{ fontSize: 13, fontWeight: 600, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{p.clicks}</span>
                 <span style={{ fontSize: 12.5, color: 'var(--gv-dim)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{p.impr}</span>
                 <span style={{ fontSize: 12.5, color: 'var(--gv-soft)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{p.ctr}</span>
-                <span style={{ textAlign: 'right' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12.5, color: 'var(--gv-soft)', fontVariantNumeric: 'tabular-nums' }}>#{p.pos}<span style={{ fontSize: 11, fontWeight: 600, color: p.up ? ACCENT : 'var(--gv-red)' }}>{p.posChange}</span></span></span>
-                <span style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  {sp
-                    ? <svg viewBox="0 0 96 28" preserveAspectRatio="none" style={{ width: 92, height: 26, overflow: 'visible' }}>
-                        <path d={sp.line} fill="none" stroke={p.up ? ACCENT : 'var(--gv-red)'} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    : <span style={{ fontSize: 11, color: 'var(--gv-fainter)' }}>—</span>}
-                </span>
+                <span style={{ textAlign: 'right' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12.5, color: 'var(--gv-soft)', fontVariantNumeric: 'tabular-nums' }}>{p.pos === '—' ? '—' : `#${p.pos}`}<span style={{ fontSize: 11, fontWeight: 600, color: p.up ? ACCENT : 'var(--gv-red)' }}>{p.posChange}</span></span></span>
+                {!articlesLive && (
+                  <span style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    {sp
+                      ? <svg viewBox="0 0 96 28" preserveAspectRatio="none" style={{ width: 92, height: 26, overflow: 'visible' }}>
+                          <path d={sp.line} fill="none" stroke={p.up ? ACCENT : 'var(--gv-red)'} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      : <span style={{ fontSize: 11, color: 'var(--gv-fainter)' }}>—</span>}
+                  </span>
+                )}
               </div>
             );
           })}
+          {articlesLive && postDef.length === 0 && (
+            <div style={{ padding: '28px 22px', textAlign: 'center', fontSize: 13, color: 'var(--gv-faint)' }}>
+              No published articles yet — they’ll appear here as the pipeline ships them.
+            </div>
+          )}
         </div>
 
         {/* BOTTOM ROW */}

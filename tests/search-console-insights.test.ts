@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { weightedPosition, nearWinners, summarize, type MetricRow } from '../lib/search-console/insights';
+import { weightedPosition, nearWinners, summarize, articleRows, type MetricRow, type ArticleInfo } from '../lib/search-console/insights';
 
 const page = (key: string, impressions: number, position: number, clicks = 0, post_id: string | null = null): MetricRow =>
   ({ key, impressions, position, clicks, post_id });
@@ -48,5 +48,58 @@ describe('summarize', () => {
     expect(v.queryCount).toBe(2);                 // the zero-impression query is dropped
     expect(v.topQueries[0].query).toBe('best widgets'); // sorted by impressions
     expect(v.nearWinners.map((w) => w.key)).toEqual(['p-12']);
+  });
+});
+
+describe('articleRows', () => {
+  const art = (id: string, title: string | null, slug: string | null, reads: number | null = 0): ArticleInfo =>
+    ({ id, title, slug, reads });
+
+  it('returns one row per published article, even ones Google never surfaced', () => {
+    const posts = [art('a', 'Alpha', 'alpha', 12), art('b', 'Beta', 'beta', 3)];
+    const pages = [page('https://x.com/alpha', 100, 8, 4, 'a')]; // only alpha ranks
+    const rows = articleRows(pages, posts);
+    expect(rows).toHaveLength(2);
+    const beta = rows.find((r) => r.postId === 'b')!;
+    expect(beta.clicks).toBe(0);
+    expect(beta.impressions).toBe(0);
+    expect(beta.views).toBe(3);           // views come from reads, independent of GSC
+    expect(beta.position).toBe(0);
+  });
+
+  it('folds multiple URLs for the same post (mirror + own domain) into one row', () => {
+    const posts = [art('a', 'Alpha', 'alpha', 50)];
+    const pages = [
+      page('https://grove.so/b/demo/alpha', 200, 10, 2, 'a'),
+      page('https://acme.com/blog/alpha', 300, 5, 8, 'a'),
+    ];
+    const rows = articleRows(pages, posts);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].clicks).toBe(10);        // 2 + 8 summed
+    expect(rows[0].impressions).toBe(500);  // 200 + 300 summed
+    expect(rows[0].views).toBe(50);
+    // impression-weighted position: (10*200 + 5*300)/500 = 7
+    expect(rows[0].position).toBe(7);
+    expect(rows[0].ctr).toBe(0.02);         // 10 / 500
+  });
+
+  it('sorts by clicks, then impressions, then views (busiest first)', () => {
+    const posts = [
+      art('a', 'A', 'a', 5),
+      art('b', 'B', 'b', 99),   // most views but no clicks
+      art('c', 'C', 'c', 1),
+    ];
+    const pages = [
+      page('https://x.com/a', 10, 6, 3, 'a'),   // 3 clicks
+      page('https://x.com/c', 10, 6, 9, 'c'),   // 9 clicks
+    ];
+    const rows = articleRows(pages, posts);
+    expect(rows.map((r) => r.postId)).toEqual(['c', 'a', 'b']);
+  });
+
+  it('falls back to the article slug path when no GSC row exists', () => {
+    const rows = articleRows([], [art('a', 'Alpha', 'alpha', 0)]);
+    expect(rows[0].path).toBe('/alpha');
+    expect(rows[0].title).toBe('Alpha');
   });
 });
