@@ -88,4 +88,55 @@ describe('extractBrandColors', () => {
     const result = extractBrandColors(makeHtml(`:root { --primary: #0f172a; }`));
     expect(result!.banner_text_muted).toMatch(/^rgba\(/);
   });
+
+  it('extracts a secondary color from a second brand var', () => {
+    const result = extractBrandColors(makeHtml(`:root { --primary: #1d4ed8; --accent: #f59e0b; }`));
+    expect(result!.secondary_color).toBe('#f59e0b');
+  });
+
+  it('picks a hue-distinct secondary from plain CSS colors', () => {
+    // blue primary (brand var), orange used repeatedly elsewhere → secondary
+    const result = extractBrandColors(makeHtml(
+      `:root { --primary: #1d4ed8; } .a { color: #ea580c; } .b { background: #ea580c; }`
+    ));
+    expect(result!.secondary_color).toBe('#ea580c');
+  });
+
+  it('falls back to a darker shade of primary when no other color exists', () => {
+    const result = extractBrandColors(makeHtml(`:root { --primary: #1d4ed8; }`));
+    expect(result!.secondary_color).toBeTruthy();
+    expect(result!.secondary_color).not.toBe('#1d4ed8');
+  });
+
+  it('parses rgb() colors, not just hex', () => {
+    const result = extractBrandColors(makeHtml(
+      `.btn { background: rgb(29, 78, 216); } .btn:hover { background: rgb(29, 78, 216); }`
+    ));
+    expect(result!.primary_color).toBe('#1d4ed8');
+  });
+
+  it('reads colors from external stylesheet text (second argument)', () => {
+    const result = extractBrandColors(
+      makeHtml(`body { color: #333; }`),
+      `:root { --brand: #7c3aed; } .cta { background: #7c3aed; }`
+    );
+    expect(result!.primary_color).toBe('#7c3aed');
+  });
+
+  it('reads brand color from inline style backgrounds', () => {
+    const html = `<!DOCTYPE html><html><head></head><body>
+      <a style="background:#0ea5e9;color:#fff">Sign up</a>
+      <a style="background-color: rgb(14, 165, 233)">Try it</a>
+    </body></html>`;
+    const result = extractBrandColors(html);
+    expect(result!.primary_color).toBe('#0ea5e9');
+  });
+
+  it('frequency breaks ties: the repeated color wins over a one-off', () => {
+    const result = extractBrandColors(makeHtml(
+      // both fully saturated; #16a34a-ish green appears 3×, red once
+      `.a { color: #15803d; } .b { border-color: #15803d; } .c { background: #15803d; } .d { color: #b91c1c; }`
+    ));
+    expect(result!.primary_color).toBe('#15803d');
+  });
 });

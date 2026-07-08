@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { jsonLdScript, blogHomeUrl, blogPostUrl, subdomainSlugFromHost } from '@/lib/seo';
 import { genreFor, authorFor, type Genre } from '@/lib/blog-genre';
+import { blogThemeVars, fallbackPalette } from '@/lib/blog-theme';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
@@ -70,6 +71,12 @@ export default async function BlogIndex({
   const onSubdomain = !!subdomainSlugFromHost((await headers()).get('host'));
   const prefix = onSubdomain ? '' : `/b/${slug}`;
   const author = authorFor((domain as any).site_profile, domain.hostname);
+
+  // Customer palette: retints --moss (chips, card hovers, featured badge, tags)
+  // and drives the coverless-card fallback colors. Grove greens when absent.
+  const branding = (domain as any).site_profile?.branding ?? null;
+  const themeStyle = blogThemeVars(branding) as React.CSSProperties | undefined;
+  const covers = fallbackPalette(branding);
 
   // genres present across the whole catalog → filter chips
   const genreById = new Map<string, Genre>();
@@ -146,7 +153,7 @@ export default async function BlogIndex({
   };
 
   return (
-    <main className="wrap" style={{ maxWidth: 1080, padding: '54px 28px 80px' }}>
+    <main className="wrap" style={{ maxWidth: 1080, padding: '54px 28px 80px', ...themeStyle }}>
       {/* header: title left, search top-right */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 24, flexWrap: 'wrap' }}>
         <div>
@@ -193,7 +200,7 @@ export default async function BlogIndex({
           </div>
           {featured.cover_image_url
             ? <img src={featured.cover_image_url} alt="" className="feat-media" />
-            : <div className="feat-fallback" aria-hidden style={{ background: fallbackColor(featured.title) }}>{initialOf(featured.title)}</div>}
+            : <div className="feat-fallback" aria-hidden style={{ background: fallbackColor(featured.title, covers) }}>{initialOf(featured.title)}</div>}
         </Link>
       )}
 
@@ -210,7 +217,7 @@ export default async function BlogIndex({
               <Link key={p.slug} href={`${prefix}/${p.slug}`} className="bi-card">
                 {p.cover_image_url
                   ? <img src={p.cover_image_url} alt="" loading="lazy" className="bi-cover" />
-                  : <div className="bi-fallback" aria-hidden style={{ background: fallbackColor(p.title) }}>{initialOf(p.title)}</div>}
+                  : <div className="bi-fallback" aria-hidden style={{ background: fallbackColor(p.title, covers) }}>{initialOf(p.title)}</div>}
                 <div style={{ padding: '16px 18px 18px', display: 'flex', flexDirection: 'column', flex: 1 }}>
                   <div><GenreTag genre={g} /></div>
                   <h2 style={{ fontFamily: 'Clash Display', fontSize: 20, lineHeight: 1.2, margin: '10px 0 0' }}>{p.title}</h2>
@@ -256,12 +263,12 @@ function Chip({ href, active, children }: { href: string; active: boolean; child
 }
 
 /* Deterministic flat brand-family color + display initial for posts without
- * a cover, so coverless cards still look designed instead of bare. */
-const FALLBACK_COLORS = ['#4e9e6a', '#2f6b4f', '#7a8a7d', '#1a2e1f'];
-function fallbackColor(title: string | null): string {
+ * a cover, so coverless cards still look designed instead of bare. The palette
+ * comes from the domain's extracted branding (lib/blog-theme fallbackPalette). */
+function fallbackColor(title: string | null, palette: string[]): string {
   let h = 0;
   for (const ch of title ?? '') h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return FALLBACK_COLORS[h % FALLBACK_COLORS.length];
+  return palette[h % palette.length];
 }
 function initialOf(title: string | null): string {
   return Array.from((title ?? '').trim())[0]?.toUpperCase() ?? '·';
@@ -269,7 +276,7 @@ function initialOf(title: string | null): string {
 
 function GenreTag({ genre }: { genre: Genre }) {
   return (
-    <span className="mono" style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--moss)', background: 'rgba(89,148,94,0.10)', borderRadius: 999, padding: '3px 10px' }}>
+    <span className="mono" style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--moss)', background: 'var(--accent-soft, rgba(89,148,94,0.10))', borderRadius: 999, padding: '3px 10px' }}>
       {genre.label}
     </span>
   );

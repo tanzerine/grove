@@ -18,7 +18,8 @@
    Options (data-attributes on the mount div):
      data-count      widget only — how many posts (default 4)
      data-blog-url   widget only — where "Read the blog →" + cards link (default /blog)
-     data-accent     accent color (default #4e9e6a)
+     data-accent     accent color. Default: the brand color grove extracted from
+                     your homepage (returned by the API), else #4e9e6a.
 */
 (function () {
   var ORIGIN =
@@ -107,12 +108,12 @@
       '.gv-kicker{font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gv-accent);margin-bottom:6px}',
       '.gv-link{font-family:ui-monospace,monospace;font-size:12px;color:var(--gv-accent)}',
       '.gv-search{width:230px;max-width:60vw;padding:9px 14px;border:1px solid var(--gv-line);border-radius:999px;font:inherit;font-size:14px;outline:none}',
-      '.gv-search:focus{border-color:var(--gv-accent);box-shadow:0 0 0 3px rgba(78,158,106,.15)}',
+      '.gv-search:focus{border-color:var(--gv-accent);box-shadow:0 0 0 3px rgba(78,158,106,.15);box-shadow:0 0 0 3px color-mix(in srgb,var(--gv-accent) 15%,transparent)}',
       '.gv-chips{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 22px}',
       '.gv-chip{font-family:ui-monospace,monospace;font-size:12px;padding:6px 14px;border-radius:999px;border:1px solid var(--gv-line);background:#fff;cursor:pointer;color:var(--gv-ink)}',
       '.gv-chip:hover{border-color:var(--gv-accent);color:var(--gv-accent)}',
       '.gv-chip.on{background:var(--gv-accent);color:#fff;border-color:var(--gv-accent)}',
-      '.gv-badge{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--gv-accent);background:rgba(78,158,106,.10);border-radius:999px;padding:3px 9px}',
+      '.gv-badge{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--gv-accent);background:rgba(78,158,106,.10);background:color-mix(in srgb,var(--gv-accent) 10%,transparent);border-radius:999px;padding:3px 9px}',
       '.gv-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}',
       '.gv-card{display:flex;flex-direction:column;background:#fff;border:1px solid var(--gv-line);border-radius:14px;overflow:hidden;transition:transform .16s,box-shadow .16s,border-color .16s}',
       '.gv-card:hover{transform:translateY(-3px);border-color:var(--gv-accent);box-shadow:0 16px 34px -20px rgba(26,46,31,.28)}',
@@ -141,6 +142,15 @@
     document.head.appendChild(s);
   }
 
+  /* Brand accent from the API (extracted from the customer's homepage).
+     A data-accent attribute on the mount div always wins; otherwise the
+     extracted color is set as --gv-accent on the root, so cards, chips, links,
+     and badges follow the site's own palette with zero configuration. */
+  function applyBranding(root, branding) {
+    if (root.getAttribute('data-accent')) return;
+    if (branding && branding.accent) root.style.setProperty('--gv-accent', branding.accent);
+  }
+
   function cardHTML(p, href) {
     var cover = p.cover_image_url
       ? '<div class="gv-cover" style="background-image:url(' + esc(p.cover_image_url) + ')"></div>'
@@ -164,6 +174,7 @@
       var posts = d.posts || [];
       if (!posts.length) return;
       root.className = 'gv';
+      applyBranding(root, d.branding);
       root.innerHTML =
         '<div class="gv-head"><div>' +
           '<div class="gv-kicker">From the blog</div>' +
@@ -188,7 +199,9 @@
       return artBase ? artBase.replace(/\/$/, '') + '/' + slug : HASH + slug;
     }
 
-    loadAll(host).then(function (posts) {
+    loadAll(host).then(function (r) {
+      var posts = r.posts;
+      applyBranding(root, r.branding);
       if (!posts.length) { root.innerHTML = '<div class="gv-empty">New articles are on the way — check back soon.</div>'; return; }
       var genres = ['All'];
       posts.forEach(function (p) { var g = p.genre || 'Article'; if (genres.indexOf(g) < 0) genres.push(g); });
@@ -291,12 +304,13 @@
 
   // page through the host feed (cap 240) so search/filter/pagination is client-side
   function loadAll(host) {
-    var all = [];
+    var all = [], branding = null;
     function page(n) {
       return getJSON(api(host, '?limit=24&page=' + n)).then(function (d) {
         all = all.concat(d.posts || []);
+        if (!branding) branding = d.branding || null;
         if (n < (d.pages || 1) && n < 10) return page(n + 1);
-        return all;
+        return { posts: all, branding: branding };
       });
     }
     return page(1);
@@ -306,6 +320,7 @@
   function mountFeed(root, host) {
     getJSON(api(host, '?limit=12')).then(function (d) {
       root.className = 'gv';
+      applyBranding(root, d.branding);
       root.innerHTML =
         '<div class="gv-kicker">From the ' + esc(d.domain || '') + ' blog</div>' +
         '<div class="gv-grid">' + (d.posts || []).map(function (p) {

@@ -2,6 +2,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { getActiveDomain } from '@/lib/active-domain';
 import CopySnippet from './CopySnippet';
 import CanonicalBaseForm from './CanonicalBaseForm';
+import BannerLinkForm from './BannerLinkForm';
 import { DashHeader } from '../gv-chrome';
 
 export default async function Page() {
@@ -85,6 +86,27 @@ export default async function Page() {
             Google accepts the cross-hosted sitemap for your URLs:{' '}
             <span className="mono">Sitemap: {groveBase}/b/{domain.blog_slug}/sitemap.xml</span>
           </p>
+        </div>
+      )}
+
+      {domain && (
+        <div style={{ marginTop: 26, border: '1px solid var(--line)', borderRadius: 14, padding: '22px 24px', background: 'var(--paper)' }}>
+          <div className="mono" style={{ fontSize: 11, color: 'var(--moss)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            4 · Banner link
+          </div>
+          <div style={{ fontFamily: 'Clash Display', fontSize: 20, marginTop: 4 }}>
+            Choose where the “Try {(domain as any).site_profile?.business?.name || domain.hostname.replace(/^www\./, '')}” banner sends readers
+          </div>
+          <p style={{ fontSize: 14, color: 'var(--clay)', margin: '8px 0 14px', lineHeight: 1.55 }}>
+            Every article ends with a call-to-action banner in your brand colors. By default it links to your
+            homepage — point it at a signup, pricing, or campaign page instead. Clicks are tracked as conversions
+            either way.
+          </p>
+          <BannerLinkForm
+            domainId={domain.id}
+            initial={(domain as any).cta_url ?? null}
+            hostname={domain.hostname}
+          />
         </div>
       )}
 

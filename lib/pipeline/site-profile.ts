@@ -7,16 +7,12 @@
  */
 import { llmCall, extractJson } from '../llm';
 import { isPublicHttpUrl } from '../net/ssrf';
+import {
+  type BrandColors,
+  hexToHsl, isDark, contrastColor, withOpacity, darkenHex,
+} from '../blog-theme';
 
-export type BrandColors = {
-  primary_color: string;
-  btn_color: string;
-  btn_text_color: string;
-  banner_bg: string;
-  banner_text: string;
-  banner_text_muted: string;
-  heading_font: string | null;
-};
+export type { BrandColors };
 
 export type SiteProfile = {
   business: {
@@ -50,103 +46,118 @@ export type SiteProfile = {
 
 // ─── brand-color extraction helpers ─────────────────────────────────────────
 
-function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
-  const h = hex.replace('#', '');
-  if (h.length === 3) {
-    return { r: parseInt(h[0]+h[0],16), g: parseInt(h[1]+h[1],16), b: parseInt(h[2]+h[2],16) };
-  }
-  if (h.length === 6) {
-    return { r: parseInt(h.slice(0,2),16), g: parseInt(h.slice(2,4),16), b: parseInt(h.slice(4,6),16) };
-  }
-  return null;
-}
-
-function relativeLuminance(rgb: { r:number; g:number; b:number }): number {
-  const lin = (c: number) => { const s=c/255; return s<=0.03928 ? s/12.92 : ((s+0.055)/1.055)**2.4; };
-  return 0.2126*lin(rgb.r) + 0.7152*lin(rgb.g) + 0.0722*lin(rgb.b);
-}
-
-function isDark(hex: string): boolean {
-  const rgb = hexToRgb(hex);
-  return !rgb || relativeLuminance(rgb) < 0.179;
-}
-
-function contrastColor(hex: string): string {
-  return isDark(hex) ? '#ffffff' : '#1a2e1f';
-}
-
-function withOpacity(hex: string, opacity: number): string {
-  const rgb = hexToRgb(hex);
-  return rgb ? `rgba(${rgb.r},${rgb.g},${rgb.b},${opacity})` : hex;
-}
-
-function hexToHsl(hex: string): { h:number; s:number; l:number } | null {
-  const rgb = hexToRgb(hex);
-  if (!rgb) return null;
-  const r=rgb.r/255, g=rgb.g/255, b=rgb.b/255;
-  const max=Math.max(r,g,b), min=Math.min(r,g,b);
-  let h=0, s=0;
-  const l=(max+min)/2;
-  if (max!==min) {
-    const d=max-min;
-    s = l>0.5 ? d/(2-max-min) : d/(max+min);
-    switch(max) {
-      case r: h=((g-b)/d+(g<b?6:0))/6; break;
-      case g: h=((b-r)/d+2)/6; break;
-      case b: h=((r-g)/d+4)/6; break;
-    }
-  }
-  return { h:Math.round(h*360), s:Math.round(s*100), l:Math.round(l*100) };
-}
-
 function isInteresting(hex: string): boolean {
   const hsl = hexToHsl(hex);
   return !!hsl && hsl.l>=8 && hsl.l<=90 && hsl.s>=10;
 }
 
-function darkenHex(hex: string, amount=0.25): string {
-  const rgb = hexToRgb(hex);
-  if (!rgb) return hex;
-  const f=1-amount;
-  const r=Math.round(rgb.r*f), g=Math.round(rgb.g*f), b=Math.round(rgb.b*f);
-  return '#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');
+/** Normalize a CSS color token (#abc, #aabbcc, rgb(), rgba()) to 6-digit hex. */
+function cssColorToHex(value: string): string | null {
+  const v = value.trim().toLowerCase();
+  const hex = v.match(/^#([0-9a-f]{6}|[0-9a-f]{3})$/);
+  if (hex) {
+    const h = hex[1];
+    return '#' + (h.length === 3 ? h[0]+h[0]+h[1]+h[1]+h[2]+h[2] : h);
+  }
+  const rgb = v.match(/^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/);
+  if (rgb) {
+    const parts = [rgb[1], rgb[2], rgb[3]].map(Number);
+    if (parts.some((n) => n > 255)) return null;
+    return '#' + parts.map((n) => n.toString(16).padStart(2, '0')).join('');
+  }
+  return null;
+}
+
+const COLOR_TOKEN = /#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b|rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}[^)]*\)/g;
+
+/** Every color token in a chunk of CSS text, normalized to hex. */
+function collectColors(css: string): string[] {
+  const out: string[] = [];
+  for (const m of css.matchAll(COLOR_TOKEN)) {
+    const hex = cssColorToHex(m[0]);
+    if (hex) out.push(hex);
+  }
+  return out;
+}
+
+/**
+ * Colors used as backgrounds in inline style="" attributes. Buttons and hero
+ * sections on JS-framework sites (Tailwind arbitrary values, styled JSX) often
+ * carry the brand color here rather than in a <style> block.
+ */
+function collectInlineBackgroundColors(html: string): string[] {
+  const out: string[] = [];
+  for (const attr of html.matchAll(/style\s*=\s*["']([^"']*)["']/gi)) {
+    for (const decl of attr[1].matchAll(/background(?:-color)?\s*:\s*([^;]+)/gi)) {
+      const hex = cssColorToHex(decl[1].match(COLOR_TOKEN)?.[0] ?? decl[1]);
+      if (hex) out.push(hex);
+    }
+  }
+  return out;
+}
+
+function hueDistance(a: number, b: number): number {
+  const d = Math.abs(a - b) % 360;
+  return Math.min(d, 360 - d);
 }
 
 const SYSTEM_FONTS = /^(arial|helvetica|times new roman|times|georgia|verdana|courier|courier new|trebuchet|impact|palatino|garamond|sans-serif|serif|monospace|cursive|fantasy|system-ui|ui-sans-serif|ui-serif|ui-monospace|-apple-system|blinkmacsystemfont|inherit|initial|unset)/i;
 
-/** Extract brand colors and heading font from raw homepage HTML. */
-export function extractBrandColors(html: string): BrandColors | null {
+/**
+ * Extract brand colors and heading font from raw homepage HTML. `externalCss`
+ * is the concatenated text of the page's linked stylesheets — modern sites
+ * (Tailwind, CSS modules) rarely inline any CSS, so without it extraction
+ * almost always came back null and blogs fell back to Grove's own palette.
+ */
+export function extractBrandColors(html: string, externalCss = ''): BrandColors | null {
   try {
     // meta theme-color
     const themeColor = html.match(
       /<meta[^>]*name=["']theme-color["'][^>]*content=["'](#[0-9a-fA-F]{3,6})["']/i
     )?.[1]?.toLowerCase() ?? null;
 
-    // all <style> block text
+    // all <style> block text + linked stylesheets
     const styleText = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)]
-      .map(m => m[1]).join('\n');
+      .map(m => m[1]).join('\n') + '\n' + externalCss;
 
-    // CSS custom properties with semantic brand names
+    // CSS custom properties with semantic brand names (deduped, order kept)
     const brandVarColors: string[] = [];
     for (const m of styleText.matchAll(
-      /--(primary|brand|accent|main|key|cta|action|button|hero|highlight|link)[-\w]*\s*:\s*(#[0-9a-fA-F]{3,6})/gi
-    )) { brandVarColors.push(m[2].toLowerCase()); }
+      /--(primary|brand|accent|main|key|cta|action|button|hero|highlight|link)[-\w]*\s*:\s*(#[0-9a-fA-F]{3,6}|rgba?\([^)]+\))/gi
+    )) {
+      const hex = cssColorToHex(m[2]);
+      if (hex && !brandVarColors.includes(hex)) brandVarColors.push(hex);
+    }
 
-    // all hex colors in CSS (deduplicated, filtered to interesting ones)
-    const allHex = [...styleText.matchAll(/#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b/g)]
-      .map(m => `#${m[1].toLowerCase()}`);
-    const interesting = [...new Set(allHex)].filter(isInteresting);
-    const bySaturation = interesting
-      .map(c => ({ c, hsl: hexToHsl(c)! }))
+    // every color in CSS + inline style backgrounds, frequency-counted: a brand
+    // color repeats across buttons/links/sections, a one-off illustration tint
+    // doesn't. Score blends saturation with a gentle log of the count.
+    const counts = new Map<string, number>();
+    for (const c of [...collectColors(styleText), ...collectInlineBackgroundColors(html)]) {
+      counts.set(c, (counts.get(c) ?? 0) + 1);
+    }
+    const scored = [...counts.keys()]
+      .filter(isInteresting)
+      .map(c => ({ c, hsl: hexToHsl(c)!, n: counts.get(c)! }))
       .filter(x => x.hsl)
-      .sort((a,b) => b.hsl.s - a.hsl.s);
+      .sort((a, b) => (b.hsl.s + 10 * Math.log2(1 + b.n)) - (a.hsl.s + 10 * Math.log2(1 + a.n)));
 
-    const primary = brandVarColors[0] ?? themeColor ?? bySaturation[0]?.c ?? null;
+    const primary = brandVarColors[0] ?? themeColor ?? scored[0]?.c ?? null;
     if (!primary) return null;
+
+    // secondary: a genuinely different hue when the site has one (≥40° away),
+    // else the next strongest color, else a darker shade of primary.
+    const pHsl = hexToHsl(primary);
+    const others = scored.filter(x => x.c !== primary);
+    const secondary =
+      brandVarColors.find(c => c !== primary)
+      ?? (pHsl ? others.find(x => x.hsl.s >= 25 && hueDistance(x.hsl.h, pHsl.h) >= 40)?.c : undefined)
+      ?? others[0]?.c
+      ?? darkenHex(primary, 0.3);
 
     // pick button color: a different interesting color or fall back to primary
     const btnColor = brandVarColors.find(c => c!==primary)
-      ?? bySaturation.find(x => x.c!==primary)?.c
+      ?? others[0]?.c
       ?? primary;
 
     // banner background: use primary if dark, otherwise darken it
@@ -166,6 +177,7 @@ export function extractBrandColors(html: string): BrandColors | null {
 
     return {
       primary_color: primary,
+      secondary_color: secondary,
       btn_color: btnColor,
       btn_text_color: contrastColor(btnColor),
       banner_bg: bannerBg,
@@ -177,7 +189,7 @@ export function extractBrandColors(html: string): BrandColors | null {
 }
 
 /** Fetch homepage HTML (raw, before stripping) for brand-color extraction. */
-async function fetchHomepageRaw(hostname: string): Promise<string | null> {
+async function fetchHomepageRaw(hostname: string): Promise<{ html: string; base: string } | null> {
   for (const base of [`https://${hostname}`, `https://www.${hostname.replace(/^www\./,'')}`]) {
     try {
       if (!(await isPublicHttpUrl(base))) continue; // SSRF: owner-controlled host
@@ -190,10 +202,47 @@ async function fetchHomepageRaw(hostname: string): Promise<string | null> {
       clearTimeout(t);
       if (!r.ok) continue;
       if (!(r.headers.get('content-type')??'').includes('text/html')) continue;
-      return await r.text();
+      // r.url = post-redirect URL — relative stylesheet hrefs resolve against it
+      return { html: await r.text(), base: r.url || base };
     } catch { /* try next */ }
   }
   return null;
+}
+
+/**
+ * Fetch the page's linked stylesheets (capped: 4 sheets, ~150KB each) so
+ * extraction sees the CSS that actually styles the site. Every URL passes the
+ * same SSRF gate as the page itself — stylesheet hrefs are attacker-influenced.
+ */
+async function fetchExternalCss(html: string, baseUrl: string): Promise<string> {
+  const hrefs: string[] = [];
+  for (const m of html.matchAll(/<link\b[^>]*>/gi)) {
+    const tag = m[0];
+    if (!/rel=["']?[^"'>]*stylesheet/i.test(tag)) continue;
+    const href = tag.match(/href=["']([^"']+)["']/i)?.[1];
+    if (href && !hrefs.includes(href)) hrefs.push(href);
+  }
+  const sheets: string[] = [];
+  for (const href of hrefs.slice(0, 4)) {
+    try {
+      const url = new URL(href, baseUrl);
+      if (!/^https?:$/.test(url.protocol)) continue;
+      if (!(await isPublicHttpUrl(url.toString()))) continue;
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 8_000);
+      const r = await fetch(url.toString(), {
+        signal: ctrl.signal, redirect: 'follow',
+        headers: { 'user-agent': 'grove-profiler/1.0 (+https://grove.so)' },
+      });
+      clearTimeout(t);
+      if (!r.ok) continue;
+      const ct = r.headers.get('content-type') ?? '';
+      if (!ct.includes('css') && !url.pathname.endsWith('.css')) continue;
+      sheets.push((await r.text()).slice(0, 150_000));
+      if (sheets.join('').length > 400_000) break;
+    } catch { /* skip sheet */ }
+  }
+  return sheets.join('\n');
 }
 
 const CANDIDATE_PATHS = [
@@ -285,13 +334,14 @@ export async function profileSite(hostname: string): Promise<SiteProfile> {
     ...CANDIDATE_PATHS.map((p) => `${altBase}${p}`),
   ]));
 
-  const [pagesResults, blogSamples, homepageHtml] = await Promise.all([
+  const [pagesResults, blogSamples, homepage] = await Promise.all([
     Promise.all(urls.map(fetchText)),
     discoverBlogSamples(hostname),
     fetchHomepageRaw(hostname),
   ]);
   const pages = pagesResults.filter((p): p is NonNullable<typeof p> => !!p);
-  const branding = homepageHtml ? extractBrandColors(homepageHtml) : null;
+  const externalCss = homepage ? await fetchExternalCss(homepage.html, homepage.base) : '';
+  const branding = homepage ? extractBrandColors(homepage.html, externalCss) : null;
 
   // Always include the homepage even if empty
   if (!pages.length) {
