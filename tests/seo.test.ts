@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   escapeXml, isBot, jsonLdScript, appBase, normalizeCanonicalBase,
   blogHomeUrl, blogPostUrl, subdomainSlugFromHost, buildLlmsTxt, buildArticleGraph, buildSitemapXml, buildRssXml,
+  sanitizeEmbedHost,
 } from '../lib/seo';
 
 describe('escapeXml', () => {
@@ -343,5 +344,45 @@ describe('subdomainSlugFromHost', () => {
   it('handles null/empty hosts', () => {
     expect(subdomainSlugFromHost(null)).toBeNull();
     expect(subdomainSlugFromHost('')).toBeNull();
+  });
+});
+
+describe('sanitizeEmbedHost', () => {
+  it('normalizes the common variants', () => {
+    expect(sanitizeEmbedHost('oveners.com')).toBe('oveners.com');
+    expect(sanitizeEmbedHost('WWW.Oveners.COM')).toBe('www.oveners.com');
+    expect(sanitizeEmbedHost('https%3A%2F%2Foveners.com%2F')).toBe('oveners.com');
+    expect(sanitizeEmbedHost('oveners.com:3000')).toBe('oveners.com');
+  });
+
+  // Stress run: malformed percent-encoding made decodeURIComponent throw — a
+  // 500 on a public endpoint.
+  it('returns null instead of throwing on malformed encoding', () => {
+    expect(sanitizeEmbedHost('%zz')).toBeNull();
+    expect(sanitizeEmbedHost('%')).toBeNull();
+  });
+
+  // The value is interpolated into a PostgREST .or() filter — commas/parens
+  // would inject extra filter conditions.
+  it('rejects PostgREST filter metacharacters', () => {
+    expect(sanitizeEmbedHost('x.com,id.not.is.null')).toBeNull();
+    expect(sanitizeEmbedHost('x.com)')).toBeNull();
+    expect(sanitizeEmbedHost('a b.com')).toBeNull();
+    expect(sanitizeEmbedHost('')).toBeNull();
+    expect(sanitizeEmbedHost(null)).toBeNull();
+  });
+});
+
+describe('buildRssXml date safety', () => {
+  it('omits pubDate for unparseable timestamps instead of emitting "Invalid Date"', () => {
+    const xml = buildRssXml({
+      hostname: 'x.com', blogSlug: 'x',
+      items: [
+        { slug: 'a', title: 'A', publishedAt: 'not-a-date' },
+        { slug: 'b', title: 'B', publishedAt: '2026-07-01T09:00:00.000Z' },
+      ],
+    });
+    expect(xml).not.toContain('Invalid Date');
+    expect(xml).toContain('<pubDate>Wed, 01 Jul 2026 09:00:00 GMT</pubDate>');
   });
 });

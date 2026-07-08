@@ -54,21 +54,25 @@ export function keyphrases(title: string | null | undefined): string[] {
 
 const isWordChar = (c: string | undefined) => !!c && /[a-z0-9가-힣぀-ヿ一-鿿]/i.test(c);
 
-/** Find a phrase occurrence at word boundaries, outside existing link spans. */
-function findInSegment(line: string, phrase: string): number {
+/** Find a phrase occurrence at word boundaries, outside protected spans
+ *  (existing links/images, inline code). Skips protected occurrences and
+ *  keeps searching — a mention inside `code` must not block a clean prose
+ *  mention later on the same line. */
+function findInSegment(line: string, phrase: string, spans: Array<[number, number]>): number {
   const hay = line.toLowerCase();
   let from = 0;
   while (true) {
     const i = hay.indexOf(phrase, from);
     if (i === -1) return -1;
     const ok = !isWordChar(line[i - 1]) && !isWordChar(line[i + phrase.length]);
-    if (ok) return i;
+    if (ok && !insideAny(i, phrase.length, spans)) return i;
     from = i + 1;
   }
 }
 
-// spans of existing markdown links/images on a line: ![alt](url) / [text](url)
-const LINK_SPAN = /!?\[[^\]]*\]\([^)]*\)/g;
+// spans we must not link inside: existing links/images ![alt](url) / [text](url)
+// and inline code `...` (a phrase in code would render as literal brackets).
+const LINK_SPAN = /!?\[[^\]]*\]\([^)]*\)|`[^`\n]*`/g;
 
 function linkSpans(line: string): Array<[number, number]> {
   const spans: Array<[number, number]> = [];
@@ -107,8 +111,8 @@ export function injectInternalLinks(
       if (added.length >= maxLinks) break;
       if (added.some((a) => a.slug === cand.slug)) continue;
       for (const phrase of cand.phrases) {
-        const idx = findInSegment(line, phrase);
-        if (idx === -1 || insideAny(idx, phrase.length, spans)) continue;
+        const idx = findInSegment(line, phrase, spans);
+        if (idx === -1) continue;
         const original = line.slice(idx, idx + phrase.length);
         lines[li] =
           line.slice(0, idx) +

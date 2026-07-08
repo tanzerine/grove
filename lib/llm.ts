@@ -146,19 +146,47 @@ export async function fastLlmCall(opts: {
 
 export function extractJson<T = unknown>(text: string): T {
   if (!text || !text.trim()) throw new Error('extractJson: empty response');
-  let c = text.trim();
-  const fenced = c.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  if (fenced) c = fenced[1].trim();
-  const first = c.indexOf('{'); const last = c.lastIndexOf('}');
-  if (first === -1 || last === -1 || last < first) throw new Error(`extractJson: no JSON braces. Got: ${text.slice(0, 200)}…`);
-  c = c.slice(first, last + 1).replace(/```json/gi, '').replace(/```/g, '').replace(/[‘’]/g, "'").replace(/[“”]/g, '"');
-  try { return JSON.parse(c) as T; } catch (e: any) {
-    let cleaned = c.replace(/,(\s*[}\]])/g, '$1');
-    cleaned = escapeControlChars(cleaned);
-    try { return JSON.parse(cleaned) as T; } catch (e2: any) {
-      throw new Error(`extractJson: ${e2?.message ?? e?.message}. First 300: ${cleaned.slice(0, 300)}…`);
+  const t = text.trim();
+
+  // Candidate extractions, most-likely-correct first:
+  //   1. the whole response wrapped in one fence (anchored — a ``` INSIDE a
+  //      JSON string value, e.g. an article body with code blocks, must not
+  //      be mistaken for the wrapper)
+  //   2. outermost brace slice of the raw text (covers "Sure! {...}" chatter)
+  //   3. legacy: first non-anchored fence, for chatter that itself contains braces
+  const candidates: string[] = [];
+  const push = (s: string | null | undefined) => {
+    if (!s) return;
+    const first = s.indexOf('{'); const last = s.lastIndexOf('}');
+    if (first === -1 || last < first) return;
+    const sliced = s.slice(first, last + 1);
+    if (!candidates.includes(sliced)) candidates.push(sliced);
+  };
+  push(t.match(/^```(?:json)?\s*([\s\S]*?)```\s*$/i)?.[1]);
+  push(t);
+  push(t.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]);
+  if (!candidates.length) throw new Error(`extractJson: no JSON braces. Got: ${text.slice(0, 200)}…`);
+
+  // Repair ladder — try the clean parse first and only mutate on failure.
+  // Always-on "repairs" used to corrupt VALID output: typographic quotes in a
+  // string value got globally flattened to '"' (breaking the JSON), and ```
+  // inside a value (code blocks in article text) got stripped.
+  const repairs: Array<(s: string) => string> = [
+    (s) => s,
+    (s) => escapeControlChars(s.replace(/,(\s*[}\]])/g, '$1')),
+    (s) => escapeControlChars(
+      s.replace(/```json/gi, '').replace(/```/g, '')
+        .replace(/[‘’]/g, "'").replace(/[“”]/g, '"')
+        .replace(/,(\s*[}\]])/g, '$1'),
+    ),
+  ];
+  let lastErr: unknown;
+  for (const candidate of candidates) {
+    for (const repair of repairs) {
+      try { return JSON.parse(repair(candidate)) as T; } catch (e) { lastErr = e; }
     }
   }
+  throw new Error(`extractJson: ${(lastErr as any)?.message}. First 300: ${candidates[0].slice(0, 300)}…`);
 }
 
 function escapeControlChars(s: string): string {

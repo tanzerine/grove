@@ -8,6 +8,22 @@
  * instants; the dashboard renders them in the viewer's local time. An
  * existing publish_date on a slot is respected (never overwritten).
  */
+/**
+ * Next auto-publish instant for a domain publishing `perWeek` posts/week:
+ * now + one cadence interval, snapped to the top of the hour. Tolerates
+ * 0/null/garbage cadence (legacy rows) by falling back to the column default
+ * of 4/week — an approved draft must never fail its final persist because the
+ * interval math produced an Invalid Date (168/0 = Infinity → toISOString throws).
+ */
+export function nextPublishSlot(perWeek: number | null | undefined): string {
+  const per = Number(perWeek);
+  const safe = Number.isFinite(per) && per > 0 ? per : 4;
+  const intervalHours = Math.max(1, Math.floor((7 * 24) / safe));
+  const d = new Date(Date.now() + intervalHours * 3600_000);
+  d.setMinutes(0, 0, 0);
+  return d.toISOString();
+}
+
 export function assignPublishDates<T extends { publish_date?: string }>(
   slots: T[], month: string, _postsPerWeek: number,
 ): T[] {

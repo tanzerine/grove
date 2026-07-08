@@ -11,11 +11,9 @@ import { refineTopic } from './topic-refiner';
 import { appendLog, resetLog } from './log';
 import { evaluateDraft, composeRewriteInstructions, QUALITY_FLOOR } from './manager';
 import { toManagerDraft } from './draft-adapter';
+import { postSlug } from '../slug';
+import { nextPublishSlot } from '../strategy/schedule';
 import type { Strategy, PostSlot } from '../strategy/build';
-
-function slugify(s: string) {
-  return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
-}
 
 export type ResumeState = { reuseResearch: boolean; reuseDraft: boolean };
 
@@ -245,7 +243,9 @@ export async function generatePost(postId: string) {
       issues: (evaluation.issues ?? []).filter((i) => i.severity !== 'note').map((i) => `${i.rule}: ${i.note}`),
     };
   }
-  const slug = slugify(title);
+  // CJK/emoji-only titles produce no ASCII — fall back to post-{id8} so the
+  // article never publishes at the blog-home URL with an empty slug.
+  const slug = postSlug(title, postId);
 
   // Route to review (not auto-publish) whenever the gate can't honestly vouch
   // for the draft — even if auto_publish is on:
@@ -358,6 +358,9 @@ async function slotTargetKeyword(
   return kw || undefined;
 }
 
+// nextPublishSlot lives in lib/strategy/schedule.ts (pure, unit-tested) — it
+// must tolerate legacy posts_per_week values (0/null) without throwing here.
+
 async function persistEvaluation(
   postId: string,
   strategyId: string | null,
@@ -375,11 +378,4 @@ async function persistEvaluation(
     issues: ev.issues,
     rewrite_brief: ev.rewrite_brief ?? null,
   });
-}
-
-function nextPublishSlot(perWeek: number): string {
-  const intervalHours = Math.max(1, Math.floor((7 * 24) / perWeek));
-  const d = new Date(Date.now() + intervalHours * 3600_000);
-  d.setMinutes(0, 0, 0);
-  return d.toISOString();
 }

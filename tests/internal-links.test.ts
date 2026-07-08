@@ -94,4 +94,27 @@ describe('injectInternalLinks', () => {
     const { body: out } = injectInternalLinks('hello world', [], BASE);
     expect(out).toBe('hello world');
   });
+
+  // Stress run: a phrase inside `inline code` was being wrapped in a link,
+  // which renders as literal [brackets](…) inside the code span.
+  it('never links a phrase inside an inline code span', () => {
+    const { body: out, added } = injectInternalLinks(
+      'Run `brew filter coffee` to start.',
+      [t('brew', 'How to Brew Filter Coffee')],
+      BASE,
+    );
+    expect(added).toHaveLength(0);
+    expect(out).toBe('Run `brew filter coffee` to start.');
+  });
+
+  it('still links the same phrase when it also appears in prose', () => {
+    const { body: out, added } = injectInternalLinks(
+      'Run `brew filter coffee` first. Then brew filter coffee slowly.',
+      [t('brew', 'How to Brew Filter Coffee')],
+      BASE,
+    );
+    expect(added).toHaveLength(1);
+    expect(out).toContain('`brew filter coffee`');
+    expect(out).toContain('[brew filter coffee](/b/demo/brew)');
+  });
 });

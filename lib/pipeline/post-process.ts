@@ -8,8 +8,13 @@
  *   4. Collapse duplicate paragraphs (catches model-loop output)
  *   5. Strip stray "Title:" or "Welcome back to..." preambles from drafts
  *      that ignored the section delimiters
+ *
+ * Code is sacred: fenced blocks and inline code spans are stashed behind
+ * sentinels before any transform runs (see stashCode). Every pass above would
+ * otherwise corrupt code — `items[0]` reads as a numeric citation ref,
+ * indentation collapses, em-dashes become commas, repeated lines dedupe away.
  */
-import { BANNED_PHRASES } from './quality-rules';
+import { BANNED_PHRASES, phraseBoundaryRe } from './quality-rules';
 import type { SearchResult } from '../search';
 
 const REPLACEMENTS: Record<string, string> = {
@@ -30,14 +35,44 @@ const REPLACEMENTS: Record<string, string> = {
   underscore: 'highlight',
 };
 
+// Sentinels sit in Unicode private-use space so they can't collide with
+// article text; each stashed block keeps its index so restore is exact.
+const CODE_SENTINEL = /\uE000(\d+)\uE001/g;
+
+function stashCode(body: string): { text: string; stash: string[] } {
+  const stash: string[] = [];
+  const put = (m: string) => {
+    stash.push(m);
+    return `\uE000${stash.length - 1}\uE001`;
+  };
+  const text = body
+    .replace(/^[ \t]*```[^\n]*\n[\s\S]*?\n[ \t]*```[ \t]*$/gm, put) // fenced blocks
+    .replace(/`[^`\n]+`/g, put); // inline code spans
+  return { text, stash };
+}
+
+function restoreCode(text: string, stash: string[]): string {
+  return text.replace(CODE_SENTINEL, (_m, i) => stash[Number(i)] ?? '');
+}
+
+/** Keep a leading capital when substituting at a sentence start. */
+function matchCase(replacement: string, source: string): string {
+  if (!replacement) return replacement;
+  return /^[A-Z]/.test(source)
+    ? replacement[0].toUpperCase() + replacement.slice(1)
+    : replacement;
+}
+
 export function postProcess(rawBody: string, sources: SearchResult[]): string {
-  let body = rawBody;
+  const { text, stash } = stashCode(rawBody);
+  let body = text;
 
   // ── 0. strip self-introducing preamble that some drafts include ──────
   body = body.replace(/^\s*(?:title:.*?\n)?(?:welcome back to[^\n]*\n)?/i, '');
 
   // ── 1. convert numeric refs like [1] [2] to markdown links ───────────
-  body = body.replace(/\[(\d+)\]/g, (_match, n) => {
+  // (?!\() so an existing numeric link `[1](url)` keeps its own URL.
+  body = body.replace(/\[(\d+)\](?!\()/g, (_match, n) => {
     const idx = parseInt(n, 10) - 1;
     const src = sources[idx];
     if (!src) return '';
@@ -45,13 +80,16 @@ export function postProcess(rawBody: string, sources: SearchResult[]): string {
   });
 
   // ── 2. mechanical banned-phrase substitution ─────────────────────────
-  for (const phrase of BANNED_PHRASES) {
+  // Whole-phrase matches only ("robustness" must not become "solidness"),
+  // longest phrase first so 'delve into' → 'cover' wins over 'delve' → 'go'.
+  const phrases = [...BANNED_PHRASES].sort((a, b) => b.length - a.length);
+  for (const phrase of phrases) {
     const replacement = REPLACEMENTS[phrase.toLowerCase().replace(/[:.]/g, '').trim()] ?? '';
-    const re = new RegExp(escapeRegex(phrase), 'gi');
-    body = body.replace(re, replacement);
+    body = body.replace(phraseBoundaryRe(phrase, 'gi'), (m) => matchCase(replacement, m));
   }
-  // tidy double spaces left behind by removals
-  body = body.replace(/[ \t]+/g, ' ').replace(/ ,/g, ',').replace(/ \./g, '.');
+  // tidy double spaces left behind by removals — interior runs only, so
+  // markdown indentation (nested lists) and trailing-space line breaks survive
+  body = body.replace(/(?<=\S)[ \t]{2,}(?=\S)/g, ' ').replace(/ ,/g, ',').replace(/ \./g, '.');
 
   // ── 3. cap em-dashes at 2; turn extras into commas ───────────────────
   let dashCount = 0;
@@ -73,11 +111,7 @@ export function postProcess(rawBody: string, sources: SearchResult[]): string {
   // ── 5. final whitespace cleanup ──────────────────────────────────────
   body = body.trim().replace(/\n{3,}/g, '\n\n');
 
-  return body;
-}
-
-function escapeRegex(s: string) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return restoreCode(body, stash);
 }
 
 /**
@@ -99,7 +133,8 @@ export function citationCount(body: string): number {
  *   - If the body's first non-empty line is an H1, replace it with `# {title}`.
  *   - If there is no leading H1, prepend one.
  *   - Any *additional* H1s later in the body are demoted to H2 (an article has
- *     exactly one H1).
+ *     exactly one H1). Lines inside fenced code are left alone — a bash/python
+ *     `# comment` is not a heading.
  */
 export function forceCanonicalH1(body: string, title: string): string {
   if (!title?.trim()) return body;
@@ -122,9 +157,12 @@ export function forceCanonicalH1(body: string, title: string): string {
 
   // demote any later H1s to H2 so there's exactly one H1
   let seenH1 = false;
+  let inFence = false;
   body = body
     .split('\n')
     .map((l) => {
+      if (/^\s*```/.test(l)) { inFence = !inFence; return l; }
+      if (inFence) return l;
       if (/^#\s+/.test(l)) {
         if (seenH1) return l.replace(/^#\s+/, '## ');
         seenH1 = true;
@@ -165,17 +203,26 @@ export function ensureHomepageCta(
   const escapedName = businessName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const hostLinked = new RegExp(`https?://(?:www\\.)?${escapedHost}`, 'i').test(body);
 
-  // Inline-link the first plain-prose brand mention.
+  // Inline-link the first plain-prose brand mention. Prose only: headings,
+  // fenced code, and inline code spans are never touched (a brand token in
+  // `import Acme from "acme"` is code, not a mention).
   const inlineLinkBrand = (text: string): { out: string; linked: boolean } => {
     const re = new RegExp(`(?<![\\[\\w])${escapedName}(?!\\w|\\])`);
     let replaced = false;
+    let inFence = false;
     const lines = text.split('\n').map((line) => {
-      if (replaced) return line;
+      if (/^\s*```/.test(line)) { inFence = !inFence; return line; }
+      if (inFence || replaced) return line;
       if (/^\s*#/.test(line)) return line;
-      if (/^\s*```/.test(line)) return line;
-      if (!re.test(line)) return line;
+      const masked = line.replace(/`[^`\n]*`/g, (m) => ' '.repeat(m.length));
+      const m = re.exec(masked);
+      if (!m) return line;
       replaced = true;
-      return line.replace(re, `[${businessName}](https://${host})`);
+      return (
+        line.slice(0, m.index) +
+        `[${businessName}](https://${host})` +
+        line.slice(m.index + m[0].length)
+      );
     });
     return { out: lines.join('\n'), linked: replaced };
   };

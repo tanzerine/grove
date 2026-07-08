@@ -33,6 +33,9 @@ const SANITIZE_OPTS: sanitizeHtml.IOptions = {
   allowedSchemesByTag: { img: ['http', 'https'] },
   allowProtocolRelative: false,
   disallowedTagsMode: 'discard', // also drops <script>/<style> content by default
+  // <input> is allowlisted only for gfm task-list checkboxes — raw HTML in a
+  // draft must not render live form fields (<input type="text">) on a blog.
+  exclusiveFilter: (frame) => frame.tag === 'input' && frame.attribs?.type !== 'checkbox',
 };
 
 function slugify(text: string): string {
@@ -45,28 +48,51 @@ function slugify(text: string): string {
     .slice(0, 80);
 }
 
-// Walk the renderer to make every link open in a new tab (since blogs may
+const stripMdLinks = (s: string) => s.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+
+/**
+ * Heading-id generator shared (by construction) between mdToHtml and
+ * extractToc — the two MUST emit identical ids or ToC anchors dangle.
+ * Duplicate heading text is common in generated posts ("Pros"/"Cons" repeated
+ * per option in a comparison); duplicates get -2, -3… suffixes, and both
+ * sides count every heading level so the sequences stay aligned.
+ */
+function headingIdFactory() {
+  const used = new Map<string, number>();
+  return (text: string) => {
+    const base = slugify(stripMdLinks(text)) || 'section';
+    const n = (used.get(base) ?? 0) + 1;
+    used.set(base, n);
+    return n === 1 ? base : `${base}-${n}`;
+  };
+}
+
+// Renderer is built per-parse: heading ids carry dedupe state that must reset
+// for every document. Links: every external link opens in a new tab (blogs may
 // embed back to the customer's site, but external citation links should pop).
-const renderer = new marked.Renderer();
-const originalLink = renderer.link.bind(renderer);
-renderer.link = (token) => {
-  const html = originalLink(token);
-  const href = token.href ?? '';
-  if (/^https?:\/\//.test(href)) {
-    return html.replace('<a ', '<a target="_blank" rel="noopener noreferrer" ');
-  }
-  return html;
-};
-const originalHeading = renderer.heading.bind(renderer);
-renderer.heading = (token) => {
-  const html = originalHeading(token);
-  const id = slugify(token.text);
-  return html.replace(/^<h([1-6])>/, `<h$1 id="${id}">`);
-};
+function makeRenderer() {
+  const renderer = new marked.Renderer();
+  const nextId = headingIdFactory();
+  const originalLink = renderer.link.bind(renderer);
+  renderer.link = (token) => {
+    const html = originalLink(token);
+    const href = token.href ?? '';
+    if (/^https?:\/\//.test(href)) {
+      return html.replace('<a ', '<a target="_blank" rel="noopener noreferrer" ');
+    }
+    return html;
+  };
+  const originalHeading = renderer.heading.bind(renderer);
+  renderer.heading = (token) => {
+    const html = originalHeading(token);
+    return html.replace(/^<h([1-6])>/, (_m, lvl) => `<h${lvl} id="${nextId(token.text)}">`);
+  };
+  return renderer;
+}
 
 export function mdToHtml(md: string): string {
   if (!md) return '';
-  const raw = marked.parse(md, { renderer, async: false }) as string;
+  const raw = marked.parse(md, { renderer: makeRenderer(), async: false }) as string;
   return sanitizeHtml(raw, SANITIZE_OPTS);
 }
 
@@ -80,6 +106,7 @@ export type TocItem = { id: string; text: string; level: 2 | 3 };
 export function extractToc(md: string): TocItem[] {
   if (!md) return [];
   const items: TocItem[] = [];
+  const nextId = headingIdFactory();
   let inFence = false;
   for (const line of md.split('\n')) {
     if (/^```/.test(line)) {
@@ -87,12 +114,16 @@ export function extractToc(md: string): TocItem[] {
       continue;
     }
     if (inFence) continue;
-    const m = line.match(/^(#{2,3})\s+(.+?)\s*#*\s*$/);
+    // Match ALL heading levels so the dedupe counter stays aligned with
+    // mdToHtml (which assigns ids to h1–h6), then emit only H2/H3.
+    const m = line.match(/^(#{1,6})\s+(.+?)\s*#*\s*$/);
     if (!m) continue;
-    const level = m[1].length as 2 | 3;
-    const text = m[2].replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').trim();
+    const level = m[1].length;
+    const text = stripMdLinks(m[2]).trim();
     if (!text) continue;
-    items.push({ id: slugify(text), text, level });
+    const id = nextId(text);
+    if (level !== 2 && level !== 3) continue;
+    items.push({ id, text, level: level as 2 | 3 });
   }
   return items;
 }

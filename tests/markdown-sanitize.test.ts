@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mdToHtml } from '../lib/markdown';
+import { mdToHtml, extractToc } from '../lib/markdown';
 
 describe('mdToHtml sanitization', () => {
   it('strips <script> tags and their content', () => {
@@ -41,5 +41,54 @@ describe('mdToHtml sanitization', () => {
     expect(html).toContain('<img');
     expect(html).toContain('src="https://cdn.test/pic.webp"');
     expect(html).toContain('alt="alt text"');
+  });
+
+  it('keeps task-list checkboxes but drops any other <input>', () => {
+    const html = mdToHtml('hello <input type="text" value="x"> world\n\n- [x] done');
+    expect(html).not.toContain('type="text"');
+    expect(html).toContain('type="checkbox"');
+  });
+});
+
+/* ── stress-run regressions: heading ids must be unique AND identical
+      between the rendered HTML and the extracted ToC, or anchors dangle.
+      Repeated headings are the norm in generated comparison posts
+      ("Pros"/"Cons" per option). ─────────────────────────────────────── */
+
+describe('heading id dedupe', () => {
+  const md = [
+    '# Top Picks',
+    '## Option A', '### Pros', '### Cons',
+    '## Option B', '### Pros', '### Cons',
+  ].join('\n\n');
+
+  it('suffixes duplicate ids in the rendered HTML', () => {
+    const html = mdToHtml(md);
+    expect(html).toContain('<h3 id="pros">');
+    expect(html).toContain('<h3 id="pros-2">');
+    expect(html).toContain('<h3 id="cons">');
+    expect(html).toContain('<h3 id="cons-2">');
+  });
+
+  it('extractToc emits the exact ids the HTML renders', () => {
+    const html = mdToHtml(md);
+    for (const item of extractToc(md)) {
+      expect(html).toContain(`id="${item.id}"`);
+    }
+    const ids = extractToc(md).map((t) => t.id);
+    expect(new Set(ids).size).toBe(ids.length); // all unique
+  });
+
+  it('stays aligned when an H1 shares text with an H2', () => {
+    const both = '# Setup\n\n## Setup\n\n## Setup';
+    const html = mdToHtml(both);
+    const toc = extractToc(both);
+    expect(toc.map((t) => t.id)).toEqual(['setup-2', 'setup-3']);
+    for (const item of toc) expect(html).toContain(`id="${item.id}"`);
+  });
+
+  it('resets numbering between documents', () => {
+    mdToHtml('## Pros');
+    expect(mdToHtml('## Pros')).toContain('id="pros"'); // not pros-2
   });
 });
