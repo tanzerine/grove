@@ -14,6 +14,17 @@ export const BANNED_PHRASES = [
 
 export const BANNED_OPENERS = ['Now,', 'Next,', 'Additionally,', 'Moreover,', 'Furthermore,', 'Indeed,', 'Notably,', 'Importantly,'];
 
+/**
+ * Match a banned phrase as a whole word/phrase. Substring matching flagged and
+ * rewrote innocent words — "robustness" is not "robust", "underscored" is not
+ * "underscore". Lookarounds (not \b) so phrases ending in punctuation
+ * ("Bottom line:") still anchor correctly.
+ */
+export function phraseBoundaryRe(phrase: string, flags = 'i'): RegExp {
+  const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(?<![a-z0-9])${escaped}(?![a-z0-9])`, flags);
+}
+
 export const RECYCLED_STATS = [
   '85% watch without sound', '85% of social video',
   'captions increase view time by 12%', '12% increase in view time',

@@ -77,6 +77,13 @@ describe('validatePost', () => {
     expect(v.issues.some((i) => i.includes('game-changer'))).toBe(true);
   });
 
+  // Stress run: substring matching flagged innocent words ("robustness" as
+  // 'robust', "underscored" as 'underscore') — noise in the review UI.
+  it('does not flag banned phrases inside larger words', () => {
+    const v = validatePost(goodBody() + '\n\nThe robustness of the underscored design delves nowhere.', { title: TITLE });
+    expect(v.issues.some((i) => i.startsWith('BANNED_PHRASE'))).toBe(false);
+  });
+
   it('flags too few citations', () => {
     const body = `# ${TITLE}\n\nI tested it. ${'Words here and there in a sentence. '.repeat(200)}`;
     const v = validatePost(body, { title: TITLE });

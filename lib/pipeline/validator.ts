@@ -1,4 +1,4 @@
-import { BANNED_PHRASES, RECYCLED_STATS } from './quality-rules';
+import { BANNED_PHRASES, RECYCLED_STATS, phraseBoundaryRe } from './quality-rules';
 import { extractFaq } from '../faq';
 import { extractTakeaways } from '../takeaways';
 import { coverageGap } from './serp';
@@ -69,7 +69,8 @@ export function validatePost(post: string, opts: ValidateOpts = {}): Validation 
   const lower = post.toLowerCase();
   const { intent, wordFloor = 800, wordCeiling = 1900 } = opts;
 
-  for (const p of BANNED_PHRASES) if (lower.includes(p.toLowerCase())) issues.push(`BANNED_PHRASE: '${p}'`);
+  // whole-phrase only — "robustness"/"underscored" must not flag as banned
+  for (const p of BANNED_PHRASES) if (phraseBoundaryRe(p).test(post)) issues.push(`BANNED_PHRASE: '${p}'`);
 
   const em = (post.match(/—/g) || []).length;
   if (em > 2) issues.push(`EM_DASH_OVERUSE: ${em} (max 2)`);

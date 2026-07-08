@@ -76,9 +76,20 @@ function queryFromReferrer(ref?: string): string | null {
   } catch { return null; }
 }
 
+const EVENT_TYPES: ReadonlySet<string> = new Set([
+  'view', 'dwell', 'scroll', 'outbound', 'exit', 'conversion',
+]);
+
+// Dwell cap: 6 hours. The endpoint is public — an absurd forged dwell_ms
+// must not be able to drag the per-post averages the strategy loop reads.
+const MAX_DWELL_MS = 6 * 3600_000;
+
 export async function ingestEvent(ev: IngestEvent, ctx: IngestContext): Promise<{ ok: boolean }> {
   const kind = uaKind(ctx.ua);
   if (kind === 'bot') return { ok: true };   // silently drop
+  // Unknown event types never reach the table (public endpoint — junk types
+  // would silently accumulate and every aggregate would have to filter them).
+  if (typeof ev?.type !== 'string' || !EVENT_TYPES.has(ev.type)) return { ok: false };
 
   const row = {
     post_id: ev.post_id,
@@ -92,8 +103,8 @@ export async function ingestEvent(ev: IngestEvent, ctx: IngestContext): Promise<
     utm_campaign: ev.utm_campaign?.slice(0, 120) ?? null,
     query: (ev.query ?? queryFromReferrer(ev.referrer))?.slice(0, 200) ?? null,
     outbound_url: ev.outbound_url?.slice(0, 500) ?? null,
-    scroll_depth: typeof ev.scroll_depth === 'number' ? Math.min(100, Math.max(0, Math.round(ev.scroll_depth))) : null,
-    dwell_ms: typeof ev.dwell_ms === 'number' ? Math.max(0, Math.round(ev.dwell_ms)) : null,
+    scroll_depth: Number.isFinite(ev.scroll_depth) ? Math.min(100, Math.max(0, Math.round(ev.scroll_depth!))) : null,
+    dwell_ms: Number.isFinite(ev.dwell_ms) ? Math.min(MAX_DWELL_MS, Math.max(0, Math.round(ev.dwell_ms!))) : null,
     country: ctx.country?.toUpperCase().slice(0, 2) ?? null,
     ua_kind: kind ?? null,
     ip_prefix: ipPrefix(ctx.ip),

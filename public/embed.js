@@ -239,7 +239,7 @@
         var href = articleHref;
 
         var featHTML = (feat && state.page === 1) ? (
-          '<a class="gv-feat" href="' + href(feat.slug) + '">' +
+          '<a class="gv-feat" href="' + esc(href(feat.slug)) + '">' +
             (feat.cover_image_url
               ? '<div class="gv-feat-media" style="background-image:url(' + esc(feat.cover_image_url) + ')"></div>'
               : '<div class="gv-feat-media" style="background:' + bgFor(feat.slug) + '">' + esc(initial(feat.title)) + '</div>') +

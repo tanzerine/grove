@@ -86,6 +86,27 @@ export function isBot(ua: string | null | undefined): boolean {
 }
 
 /**
+ * Normalize a customer hostname arriving from a URL path segment (the
+ * /api/embed/host/[hostname] routes). Returns null for anything that isn't a
+ * plain hostname. Two failure modes this closes:
+ *   - malformed percent-encoding made decodeURIComponent throw → a 500 on a
+ *     public, CORS-open endpoint
+ *   - the raw value was interpolated into a PostgREST .or() filter, where a
+ *     comma injects extra filter conditions
+ */
+export function sanitizeEmbedHost(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  let s = String(raw);
+  try { s = decodeURIComponent(s); } catch { return null; }
+  s = s.trim().toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/+$/, '')
+    .split(':')[0]; // stray port
+  if (!/^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$/.test(s)) return null;
+  return s;
+}
+
+/**
  * Serialize an object for an inline <script type="application/ld+json">.
  * Escapes `<` so post titles containing "</script>" can't break out of the tag.
  */
@@ -117,10 +138,16 @@ export function buildRssXml(opts: {
   const { hostname, blogSlug, canonicalBase, items } = opts;
   const blogUrl = blogHomeUrl(blogSlug, canonicalBase);
   const cdata = (s: string) => `<![CDATA[${s.replace(/]]>/g, ']]]]><![CDATA[>')}]]>`;
-  const rfc822 = (iso: string) => new Date(iso).toUTCString();
+  // Unparseable timestamps must not serialize as "Invalid Date" — feed
+  // validators reject the whole feed over one bad pubDate. Omit instead.
+  const rfc822 = (iso: string): string | null => {
+    const t = Date.parse(iso);
+    return Number.isFinite(t) ? new Date(t).toUTCString() : null;
+  };
 
   const xmlItems = items.filter((i) => i.slug).map((i) => {
     const url = blogPostUrl(blogSlug, i.slug!, canonicalBase);
+    const pubDate = i.publishedAt ? rfc822(i.publishedAt) : null;
     return [
       '<item>',
       `<title>${escapeXml(i.title ?? '')}</title>`,
@@ -129,7 +156,7 @@ export function buildRssXml(opts: {
       i.author ? `<dc:creator>${escapeXml(i.author)}</dc:creator>` : '',
       i.category ? `<category>${escapeXml(i.category)}</category>` : '',
       i.description ? `<description>${escapeXml(i.description)}</description>` : '',
-      i.publishedAt ? `<pubDate>${rfc822(i.publishedAt)}</pubDate>` : '',
+      pubDate ? `<pubDate>${pubDate}</pubDate>` : '',
       i.coverUrl ? `<enclosure url="${escapeXml(i.coverUrl)}" type="image/webp" length="0"/>` : '',
       i.contentHtml ? `<content:encoded>${cdata(i.contentHtml)}</content:encoded>` : '',
       '</item>',
@@ -137,7 +164,7 @@ export function buildRssXml(opts: {
   }).join('\n');
 
   const newest = items.find((i) => i.publishedAt)?.publishedAt;
-  const lastBuild = newest ? rfc822(newest) : new Date(0).toUTCString();
+  const lastBuild = (newest ? rfc822(newest) : null) ?? new Date(0).toUTCString();
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/">

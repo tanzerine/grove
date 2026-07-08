@@ -7,12 +7,20 @@
  */
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { blogPostUrl } from '@/lib/seo';
+import { blogPostUrl, sanitizeEmbedHost } from '@/lib/seo';
 import { genreFor, authorFor } from '@/lib/blog-genre';
 
 export async function GET(req: Request, ctx: { params: Promise<{ hostname: string }> }) {
   const { hostname: raw } = await ctx.params;
-  const host = decodeURIComponent(raw).replace(/^https?:\/\//, '').replace(/\/$/, '').toLowerCase();
+  // Strict hostname shape: malformed encoding must not 500, and the value is
+  // interpolated into the .or() filter below — commas would inject conditions.
+  const host = sanitizeEmbedHost(raw);
+  if (!host) {
+    return NextResponse.json(
+      { error: 'no grove blog found for this domain', hostname: String(raw ?? '') },
+      { status: 404, headers: { 'access-control-allow-origin': '*' } }
+    );
+  }
   const apex = host.replace(/^www\./, '');
   const url = new URL(req.url);
   // ?limit (1–24, default 12) and ?page for older articles

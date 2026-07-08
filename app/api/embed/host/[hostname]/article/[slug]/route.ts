@@ -8,10 +8,19 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import { mdToHtml, extractToc } from '@/lib/markdown';
 import { genreFor, authorFor } from '@/lib/blog-genre';
 import { pickRelated } from '@/lib/related-posts';
+import { sanitizeEmbedHost } from '@/lib/seo';
 
 export async function GET(_req: Request, ctx: { params: Promise<{ hostname: string; slug: string }> }) {
   const { hostname: raw, slug } = await ctx.params;
-  const host = decodeURIComponent(raw).replace(/^https?:\/\//, '').replace(/\/$/, '').toLowerCase();
+  // Strict hostname shape: malformed encoding must not 500, and the value is
+  // interpolated into the .or() filter below — commas would inject conditions.
+  const host = sanitizeEmbedHost(raw);
+  if (!host) {
+    return NextResponse.json(
+      { error: 'no grove blog for this domain' },
+      { status: 404, headers: { 'access-control-allow-origin': '*' } }
+    );
+  }
   const apex = host.replace(/^www\./, '');
 
   const sb = supabaseAdmin();
