@@ -9,6 +9,7 @@ import { mdToHtml, extractToc } from '@/lib/markdown';
 import { genreFor, authorFor } from '@/lib/blog-genre';
 import { pickRelated } from '@/lib/related-posts';
 import { sanitizeEmbedHost } from '@/lib/seo';
+import { embedTheme, brandingPayload, type EmbedTheme } from '@/lib/blog-theme';
 
 export async function GET(_req: Request, ctx: { params: Promise<{ hostname: string; slug: string }> }) {
   const { hostname: raw, slug } = await ctx.params;
@@ -30,7 +31,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ hostname: stri
   // match the list endpoint's ordering or the list and articles disagree.
   const { data: domain } = await sb
     .from('domains')
-    .select('id, hostname, blog_slug, site_profile')
+    .select('*') // '*': survives a DB where cta_url (0021) hasn't been applied yet
     .or(`hostname.eq.${apex},hostname.eq.www.${apex}`)
     .order('verified_at', { ascending: false, nullsFirst: false })
     .limit(1)
@@ -71,10 +72,16 @@ export async function GET(_req: Request, ctx: { params: Promise<{ hostname: stri
   const businessName: string = business?.name || domain.hostname.replace(/^www\./, '');
   const subline: string = business?.value_props?.[0] || business?.description || '';
   const homeUrl = `https://${domain.hostname.replace(/^https?:\/\//, '').replace(/\/$/, '')}`;
+  // Owner-adjustable banner target (domains.cta_url); homepage when unset.
+  const ctaUrl: string = (domain as any).cta_url || homeUrl;
+  // Palette extracted from the customer's homepage — the CTA + TOC we return
+  // must match THEIR site, not Grove's greens (those are only the fallback).
+  const branding = (domain as any).site_profile?.branding ?? null;
+  const theme = embedTheme(branding);
 
   const rawBody = post.body_md ?? '';
   const toc = extractToc(rawBody);
-  const cta = { headline: `Try ${businessName}`, subline, url: homeUrl };
+  const cta = { headline: `Try ${businessName}`, subline, url: ctaUrl };
 
   // Siblings for "Keep reading" — returned as structured data so the customer
   // can link to their own article URLs rather than grove's hosted pages.
@@ -92,8 +99,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ hostname: stri
   // show them (fallback). html: a self-contained, responsive 2-column layout
   // (article + sticky right rail + polished CTA) — render THIS field to get the
   // true sidebar with no CSS work on the customer's side.
-  const enrichedBody = enrichBody(rawBody, { toc, cta, businessName });
-  const html = buildHtmlField(rawBody, toc, cta, businessName);
+  const enrichedBody = enrichBody(rawBody, { toc, cta, businessName, theme });
+  const html = buildHtmlField(rawBody, toc, cta, businessName, theme);
 
   return NextResponse.json({
     domain: domain.hostname,
@@ -110,6 +117,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ hostname: stri
       html,                              // RECOMMENDED: full 2-col article + right-rail TOC + CTA
       toc,                               // [{ id, text, level }] — build your own rail if you prefer
       cta,                               // { headline, subline, url } — place the banner yourself
+      branding: brandingPayload(branding), // customer palette — theme your own layout with it
       related,                           // [{ slug, title, meta_description, cover_image_url }] — "Keep reading"
       published_at: post.published_at,
       cover_image_url: post.cover_image_url ?? null,
@@ -149,12 +157,12 @@ function tocHtml(toc: Toc[]): string {
 type Cta = { headline: string; subline: string; url: string };
 
 /** Polished, self-contained CTA box (dark gradient card + pill button), inline-styled. */
-function ctaHtml(cta: Cta, name: string): string {
-  return `<div style="clear:both;margin:48px 0 8px;padding:40px 36px;border-radius:18px;background:linear-gradient(135deg,#16271c,#1f3a29);color:#fff;text-align:center;box-shadow:0 12px 40px rgba(20,40,25,.18)">` +
-    `<div style="font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#8fcaa3">Powered by ${esc(name)}</div>` +
-    `<div style="font-size:27px;font-weight:700;line-height:1.2;margin:10px 0 8px;color:#fff">${esc(cta.headline)}</div>` +
-    (cta.subline ? `<p style="color:rgba(255,255,255,.82);font-size:15.5px;line-height:1.6;margin:0 auto 22px;max-width:48ch">${esc(cta.subline)}</p>` : '') +
-    `<a href="${esc(cta.url)}" data-conv style="display:inline-block;background:#5bb87e;color:#0f1f15;text-decoration:none;padding:14px 30px;border-radius:999px;font-weight:700;font-size:15px;box-shadow:0 6px 18px rgba(91,184,126,.35)">Visit ${esc(name)} &rarr;</a></div>`;
+function ctaHtml(cta: Cta, name: string, theme: EmbedTheme): string {
+  return `<div style="clear:both;margin:48px 0 8px;padding:40px 36px;border-radius:18px;background:linear-gradient(135deg,${theme.bannerFrom},${theme.bannerTo});color:${theme.bannerText};text-align:center;box-shadow:0 12px 40px rgba(20,20,20,.18)">` +
+    `<div style="font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:${theme.bannerMuted}">Powered by ${esc(name)}</div>` +
+    `<div style="font-size:27px;font-weight:700;line-height:1.2;margin:10px 0 8px;color:${theme.bannerText}">${esc(cta.headline)}</div>` +
+    (cta.subline ? `<p style="color:${theme.bannerMuted};font-size:15.5px;line-height:1.6;margin:0 auto 22px;max-width:48ch">${esc(cta.subline)}</p>` : '') +
+    `<a href="${esc(cta.url)}" data-conv style="display:inline-block;background:${theme.btn};color:${theme.btnText};text-decoration:none;padding:14px 30px;border-radius:999px;font-weight:700;font-size:15px;box-shadow:0 6px 18px rgba(20,20,20,.25)">Visit ${esc(name)} &rarr;</a></div>`;
 }
 
 /**
@@ -170,7 +178,7 @@ function stripLeadingH1(md: string): string {
   return lines.join('\n');
 }
 
-function buildHtmlField(rawBody: string, toc: Toc[], cta: Cta, name: string): string {
+function buildHtmlField(rawBody: string, toc: Toc[], cta: Cta, name: string, theme: EmbedTheme): string {
   // Drop the article's own H1 — the customer's page already renders the title,
   // so keeping it here would print the title twice.
   const article = mdToHtml(stripLeadingH1(rawBody));
@@ -188,13 +196,13 @@ function buildHtmlField(rawBody: string, toc: Toc[], cta: Cta, name: string): st
     `.grv-toc-t{font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#7a8a7d;margin-bottom:10px}` +
     `.grv-toc ol{list-style:none;margin:0;padding:0}` +
     `.grv-toc a{display:block;color:#7a8a7d;text-decoration:none;padding:5px 0 5px 14px;border-left:2px solid #e6e2d6}` +
-    `.grv-toc a:hover{color:#1a2e1f;border-left-color:#4e9e6a}` +
+    `.grv-toc a:hover{color:#1a2e1f;border-left-color:${theme.accent}}` +
     `.grv-toc li.grv-l3 a{padding-left:26px;font-size:13px}` +
-    `.grv-cta{margin:48px 0 8px;padding:40px 36px;border-radius:18px;background:linear-gradient(135deg,#16271c,#1f3a29);color:#fff;text-align:center;box-shadow:0 12px 40px rgba(20,40,25,.18)}` +
-    `.grv-cta .k{font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#8fcaa3}` +
-    `.grv-cta h3{font-size:27px;font-weight:700;line-height:1.2;margin:10px 0 8px;color:#fff}` +
-    `.grv-cta p{color:rgba(255,255,255,.82);font-size:15.5px;line-height:1.6;margin:0 auto 22px;max-width:48ch}` +
-    `.grv-cta a{display:inline-block;background:#5bb87e;color:#0f1f15;text-decoration:none;padding:14px 30px;border-radius:999px;font-weight:700;font-size:15px}` +
+    `.grv-cta{margin:48px 0 8px;padding:40px 36px;border-radius:18px;background:linear-gradient(135deg,${theme.bannerFrom},${theme.bannerTo});color:${theme.bannerText};text-align:center;box-shadow:0 12px 40px rgba(20,20,20,.18)}` +
+    `.grv-cta .k{font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:${theme.bannerMuted}}` +
+    `.grv-cta h3{font-size:27px;font-weight:700;line-height:1.2;margin:10px 0 8px;color:${theme.bannerText}}` +
+    `.grv-cta p{color:${theme.bannerMuted};font-size:15.5px;line-height:1.6;margin:0 auto 22px;max-width:48ch}` +
+    `.grv-cta a{display:inline-block;background:${theme.btn};color:${theme.btnText};text-decoration:none;padding:14px 30px;border-radius:999px;font-weight:700;font-size:15px}` +
     `@media(max-width:820px){.grv-wrap{grid-template-columns:1fr}.grv-toc{display:none}}` +
     `</style>`;
   const ctaBox =
@@ -211,9 +219,9 @@ function buildHtmlField(rawBody: string, toc: Toc[], cta: Cta, name: string): st
  */
 function enrichBody(
   bodyMd: string,
-  opts: { toc: Toc[]; cta: { headline: string; subline: string; url: string }; businessName: string },
+  opts: { toc: Toc[]; cta: { headline: string; subline: string; url: string }; businessName: string; theme: EmbedTheme },
 ): string {
-  const { toc, cta, businessName } = opts;
+  const { toc, cta, businessName, theme } = opts;
   let body = bodyMd;
 
   if (toc.length >= 2) {
@@ -229,5 +237,5 @@ function enrichBody(
     body = lines.join('\n');
   }
 
-  return `${body}\n\n${ctaHtml(cta, businessName)}\n`;
+  return `${body}\n\n${ctaHtml(cta, businessName, theme)}\n`;
 }

@@ -14,6 +14,9 @@ const schema = z.object({
   social_webhook_url: z.string().url().startsWith('https://').or(z.literal('')).optional(),
   // customer-hosted article base for canonical URLs; empty string clears it.
   canonical_blog_base: z.string().max(300).optional(),
+  // where the article-bottom "Try {business}" banner links; empty string
+  // clears it (banner falls back to the homepage).
+  cta_url: z.string().url().startsWith('https://').max(300).or(z.literal('')).optional(),
 });
 
 export async function PATCH(req: Request) {
@@ -36,6 +39,12 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'canonical base must be a valid URL like https://example.com/blog' }, { status: 400 });
     }
     patch.canonical_blog_base = normalized;
+  }
+
+  // Banner link is a plain reader-facing href (never fetched server-side, so
+  // no SSRF gate) — https is enforced by zod; empty clears back to homepage.
+  if (updates.cta_url !== undefined) {
+    patch.cta_url = updates.cta_url === '' ? null : updates.cta_url;
   }
 
   // Webhook lifecycle: clearing the URL drops the secret too; setting a URL

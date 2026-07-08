@@ -5,6 +5,7 @@ import { jsonLdScript, blogHomeUrl, blogPostUrl, subdomainSlugFromHost, buildArt
 import { pickRelated } from '@/lib/related-posts';
 import { injectInternalLinks } from '@/lib/internal-links';
 import { genreFor, authorFor } from '@/lib/blog-genre';
+import { blogThemeVars } from '@/lib/blog-theme';
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
 
@@ -88,23 +89,21 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   const html = mdToHtml(linkedMd);
   const toc = extractToc(p.body_md ?? '');
 
-  // CTA banner: "Try {business}" → the customer's own site (counts as a conversion).
+  // CTA banner: "Try {business}" → the owner's chosen page (domains.cta_url,
+  // e.g. a signup or pricing page), defaulting to their homepage. Counts as a
+  // conversion either way.
   const profile = (domain as any).site_profile ?? null;
   const business = profile?.business ?? null;
   const businessName: string = business?.name || domain.hostname.replace(/^www\./, '');
   const subline: string = business?.value_props?.[0] || business?.description || '';
   const homeUrl = `https://${domain.hostname.replace(/^https?:\/\//, '').replace(/\/$/, '')}`;
+  const ctaUrl: string = (domain as any).cta_url || homeUrl;
 
   // Brand colors extracted from the customer's homepage — applied as CSS custom
-  // properties so the banner inherits the customer's palette instead of Grove's defaults.
+  // properties on the page root, so the banner AND everything hanging off
+  // --moss (TOC, genre tag, read-progress, card hovers) pick up their palette.
   const branding = profile?.branding ?? null;
-  const bannerStyle = branding ? ({
-    '--cta-bg': branding.banner_bg,
-    '--cta-text': branding.banner_text,
-    '--cta-text-muted': branding.banner_text_muted,
-    '--cta-btn': branding.btn_color,
-    '--cta-btn-text': branding.btn_text_color,
-  } as React.CSSProperties) : undefined;
+  const themeStyle = blogThemeVars(branding) as React.CSSProperties | undefined;
 
   // Canonical article URL — the customer's own page when canonical_blog_base
   // is set. Share buttons and JSON-LD must spread THAT url, not the mirror's.
@@ -138,7 +137,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   });
 
   return (
-    <main className="post-shell">
+    <main className="post-shell" style={themeStyle}>
       <div id="rp" className="read-progress" aria-hidden />
       <a href={prefix || '/'} className="mono" style={{ fontSize: 12, color: 'var(--moss)' }}>← {domain.hostname}</a>
 
@@ -146,7 +145,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
         <div className="post-main">
           <h1 className="display" style={{ fontSize: 46 }}>{p.title}</h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <span className="mono" style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--moss)', background: 'rgba(89,148,94,0.10)', borderRadius: 999, padding: '3px 10px' }}>
+            <span className="mono" style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--moss)', background: 'var(--accent-soft, rgba(89,148,94,0.10))', borderRadius: 999, padding: '3px 10px' }}>
               {genre.label}
             </span>
             <p className="mono" style={{ color: 'var(--clay)', fontSize: 12, margin: 0 }}>
@@ -177,12 +176,12 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
             dangerouslySetInnerHTML={{ __html: html }}
           />
 
-          {/* "Try {business}" banner — links to the customer's site, tracked as a conversion */}
-          <aside className="cta-banner" style={bannerStyle}>
+          {/* "Try {business}" banner — links where the owner points it, tracked as a conversion */}
+          <aside className="cta-banner">
             <div className="cta-kicker">Powered by {businessName}</div>
             <h3>Try {businessName}</h3>
             {subline && <p>{subline}</p>}
-            <a className="cta-btn" href={homeUrl} target="_blank" rel="noopener noreferrer" data-conv>
+            <a className="cta-btn" href={ctaUrl} target="_blank" rel="noopener noreferrer" data-conv>
               Visit {businessName} →
             </a>
           </aside>

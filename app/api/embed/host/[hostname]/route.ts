@@ -9,6 +9,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { blogPostUrl, sanitizeEmbedHost } from '@/lib/seo';
 import { genreFor, authorFor } from '@/lib/blog-genre';
+import { brandingPayload } from '@/lib/blog-theme';
 
 export async function GET(req: Request, ctx: { params: Promise<{ hostname: string }> }) {
   const { hostname: raw } = await ctx.params;
@@ -67,6 +68,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ hostname: strin
     page,
     pages: Math.max(1, Math.ceil(total / limit)),
     total,
+    // customer palette (extracted from their homepage) — embed.js themes its
+    // cards/chips with `accent` unless the mount div pins data-accent.
+    branding: brandingPayload((domain as any).site_profile?.branding ?? null),
     posts: (posts ?? []).map((p: any) => ({
       slug: p.slug,
       title: p.title,
