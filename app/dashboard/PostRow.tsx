@@ -76,6 +76,11 @@ export default function PostRow({ p, score, blogSlug }: { p: any; score?: { over
   const scoreColor = !score ? 'var(--gv-faint)' : score.overall >= 70 ? ACCENT : score.overall >= 40 ? 'var(--gv-amber)' : 'var(--gv-red)';
   const metaColor = v.danger ? '#c98f8f' : 'var(--gv-dim)';
 
+  // A post that reached a post-manager stage but has no evaluation means the
+  // gate didn't run (crashed / unparseable) — that's WHY it's held for review,
+  // so make it legible instead of showing a blank space where a score goes.
+  const ungraded = !score && ['review', 'scheduled', 'published'].includes(p.status);
+
   const meta: React.ReactNode =
     p.status === 'published' ? <>Live{p.published_at ? <> · <LocalTime iso={p.published_at} withTime={false} /></> : ''}{typeof p.reads === 'number' ? ` · ${p.reads} reads` : ''}</> :
     p.status === 'scheduled' ? (p.scheduled_at ? <>Publishes <LocalTime iso={p.scheduled_at} /></> : 'Scheduled') :
@@ -110,6 +115,11 @@ export default function PostRow({ p, score, blogSlug }: { p: any; score?: { over
           <span title={`Manager quality score · last decision: ${score.action}`} style={{ display: 'inline-flex', alignItems: 'baseline', gap: 2, flexShrink: 0, fontVariantNumeric: 'tabular-nums', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '4px 9px' }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: scoreColor }}>{score.overall}</span>
             <span style={{ fontSize: 9, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>score</span>
+          </span>
+        ) : ungraded ? (
+          <span title="No quality score — the manager's evaluation didn't run or couldn't be read for this draft. It's held for your review by default." style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0, border: '1px dashed rgba(255,255,255,0.16)', borderRadius: 8, padding: '4px 9px' }}>
+            <Icon name="alert" size={11} />
+            <span style={{ fontSize: 9.5, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--gv-faint)' }}>ungraded</span>
           </span>
         ) : null}
 
