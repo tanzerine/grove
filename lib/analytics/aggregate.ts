@@ -19,6 +19,7 @@ export type EventRow = {
   utm_source: string | null;
   scroll_depth: number | null;  // 25 | 50 | 75 | 100
   session_id: string;
+  dwell_ms?: number | null;     // cumulative time in tab, from dwell/exit beacons
 };
 
 export type SourceKey = 'search' | 'answer' | 'direct' | 'social';
@@ -129,6 +130,36 @@ export type Funnel = {
   read50: number;     // distinct sessions that scrolled past 50%
   converted: number;  // distinct sessions that clicked the CTA (conversion event)
 };
+
+export type Engagement = {
+  views: number;      // 'view' events (page loads)
+  events: number;     // ALL first-party events, GA's "event count" equivalent
+  sessions: number;   // distinct sessions
+  avgDwellSec: number; // avg per-session time on page (max dwell seen per session)
+};
+
+/**
+ * First-party engagement summary — the honest counterpart to GA's engagement
+ * time + event count, over blog articles (the only pages the beacon runs on).
+ * Dwell is cumulative and re-sent every 15s (plus a final exit beacon), so a
+ * session's real time-on-page is the MAX dwell_ms it emitted; we average those.
+ */
+export function engagement(events: EventRow[]): Engagement {
+  const perSession = new Map<string, number>(); // session_id → max dwell_ms
+  const sessions = new Set<string>();
+  let views = 0;
+  for (const e of events) {
+    if (e.session_id) sessions.add(e.session_id);
+    if (e.type === 'view') views++;
+    if ((e.type === 'dwell' || e.type === 'exit') && e.session_id) {
+      const ms = Number.isFinite(e.dwell_ms as number) ? (e.dwell_ms as number) : 0;
+      perSession.set(e.session_id, Math.max(perSession.get(e.session_id) ?? 0, ms));
+    }
+  }
+  const dwellVals = [...perSession.values()];
+  const avgMs = dwellVals.length ? dwellVals.reduce((a, b) => a + b, 0) / dwellVals.length : 0;
+  return { views, events: events.length, sessions: sessions.size, avgDwellSec: avgMs / 1000 };
+}
 
 /** Three honest funnel stages, de-duplicated by session. */
 export function funnel(events: EventRow[]): Funnel {

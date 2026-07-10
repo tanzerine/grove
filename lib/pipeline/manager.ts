@@ -45,11 +45,47 @@ export type ManagerInput = {
   slot?: PostSlot | null;       // the publishing_plan slot this article was meant to fill
 };
 
-/** Overall score below this routes the draft to human review instead of
- *  auto-publish. 70 is the rubric's own "solid and publishable" anchor —
- *  gating below the bar we tell the model publishable work sits at would
- *  make the floor decorative. Shared with generate.ts routing. */
+/** The bar the WRITER is pushed to hit: on attempt 1, an approved draft scoring
+ *  below this is forced through one rewrite so the quality pass actually fires.
+ *  70 is the rubric's own "solid and publishable" anchor. This is an
+ *  aspiration, not the publish gate — see AUTO_PUBLISH_FLOOR. */
 export const QUALITY_FLOOR = 70;
+
+/** The bar for AUTOPILOT to publish without a human. Deliberately well below
+ *  QUALITY_FLOOR: with autopilot on, the owner has opted into "ship it unless
+ *  something is actually wrong," so only genuinely weak drafts (and fatal
+ *  issues — see the gate in generate.ts) hold for review. The rewrite loop
+ *  still aims for 70; this just decides what's good enough to go live on its
+ *  own. */
+export const AUTO_PUBLISH_FLOOR = 45;
+
+/**
+ * The autopilot publish gate: should this draft be held for a human instead of
+ * auto-publishing? With autopilot on we ship unless something is actually
+ * WRONG — not merely improvable. Held only on fatal signals:
+ *   - no evaluation (the manager crashed — no gate, so we can't vouch for it)
+ *   - a REJECT verdict (off-strategy at the topic level). A 'rewrite' verdict
+ *     is publishable-with-notes, so it does NOT hold.
+ *   - a block-severity issue (safety / fabricated facts). rewrite-severity
+ *     notes do NOT hold.
+ *   - overall below AUTO_PUBLISH_FLOOR (way too poor). Missing overall = 0.
+ *   - a blocking deterministic-validator issue (fabricated/recycled stats,
+ *     thin content, missing H1, referral-away) — pass the count from
+ *     validator.blockingIssues().
+ * Pure so the routing decision is unit-tested (generate.ts wires it up).
+ */
+export function holdForReview(
+  evaluation: Evaluation | null | undefined,
+  validationBlockingCount: number,
+): boolean {
+  return (
+    !evaluation ||
+    evaluation.action === 'reject' ||
+    (evaluation.issues ?? []).some((i) => i.severity === 'block') ||
+    (evaluation.scores?.overall ?? 0) < AUTO_PUBLISH_FLOOR ||
+    validationBlockingCount > 0
+  );
+}
 
 /**
  * Compute the rubric scores from the model's raw axis ratings.

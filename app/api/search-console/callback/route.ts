@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { supabaseServer } from '@/lib/supabase/server';
 import { exchangeCode, storeConnection } from '@/lib/search-console/client';
 import { ensurePropertyOnConnect } from '@/lib/search-console/setup';
+import { ensureGa4OnConnect } from '@/lib/ga4/setup';
 
 /**
  * Google OAuth callback. Like the social callback, returns a tiny page that
@@ -61,6 +62,10 @@ export async function GET(req: Request) {
     // Phase 2: if they already have a matching verified property, wire it up now
     // (the one-click path). Otherwise the dashboard shows the one-DNS-record step.
     await ensurePropertyOnConnect(domain.id, domain.hostname, tok.access_token);
+    // Same access token also carries analytics.readonly — resolve + store the
+    // GA4 property so whole-site numbers light up without a second connect.
+    // Best-effort: never blocks the Search Console connection.
+    await ensureGa4OnConnect(domain.id, domain.hostname, tok.access_token);
   } catch (e: any) {
     console.error('[gsc] connect failed:', e?.message ?? e);
     return finish({ error: 'connect_failed' });

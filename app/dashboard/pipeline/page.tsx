@@ -248,9 +248,9 @@ function ReviewWhy({ autoPublish }: { autoPublish: boolean }) {
               held by the second gate.
             </p>
             <p style={li}>
-              <span style={strong}>2 · Manager quality gate — held.</span> The manager didn&apos;t approve this draft,
-              flagged a blocking issue, or the overall score came in below 70/100. Approve to publish it anyway, or
-              Regenerate to rewrite it.
+              <span style={strong}>2 · Something was actually wrong.</span> Autopilot ships unless a draft is rejected as
+              off-strategy, trips a fatal check (fabricated stats, thin or structurally broken content, or links that
+              send readers to a competitor), or scores far too low. Approve to publish anyway, or Regenerate to rewrite.
             </p>
           </>
         ) : (
@@ -260,8 +260,9 @@ function ReviewWhy({ autoPublish }: { autoPublish: boolean }) {
               whatever it scores. Turn on Autopilot above to let clean drafts publish themselves.
             </p>
             <p style={li}>
-              <span style={strong}>2 · Manager quality gate.</span> Even on Autopilot, a draft is held when the manager
-              doesn&apos;t approve it, flags a blocking issue, or scores below 70/100.
+              <span style={strong}>2 · Fatal-issue gate.</span> Even on Autopilot, a draft is still held when something&apos;s
+              actually wrong — the manager rejects it as off-strategy, it trips a fatal check (fabricated stats, thin or
+              broken content, links that send readers away), or it scores far too low.
             </p>
           </>
         )}
