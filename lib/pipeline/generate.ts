@@ -8,6 +8,7 @@ import { validatePost, blockingIssues } from './validator';
 import { profileSite, type SiteProfile } from './site-profile';
 import { gatherContext } from './research-context';
 import { refineTopic } from './topic-refiner';
+import { repoKbPrompt, type RepoKnowledge } from './repo-knowledge';
 import { appendLog, resetLog } from './log';
 import { evaluateDraft, composeRewriteInstructions, QUALITY_FLOOR } from './manager';
 import { toManagerDraft } from './draft-adapter';
@@ -80,6 +81,12 @@ export async function generatePost(postId: string) {
   // real search demand. Ad-hoc posts (no slot) simply skip this.
   const targetKeyword = await slotTargetKeyword((post as any).strategy_id, (post as any).slot_id);
 
+  // Product knowledge extracted from the customer's connected GitHub repo
+  // (nullable — most domains have none). Gives the refiner the tutorial /
+  // deep-dive formats and the writer real features + real steps to cite.
+  const repoKb: RepoKnowledge | null = (domain.repo_knowledge as RepoKnowledge | null) ?? null;
+  const kb = repoKbPrompt(repoKb);
+
   // If a prior run already persisted research and/or a draft, resume from the
   // stage that actually failed instead of redoing expensive work.
   const { reuseResearch, reuseDraft } = resumeState(post as any);
@@ -118,7 +125,7 @@ export async function generatePost(postId: string) {
 
     await appendLog(postId, 'topic_refiner', 'start', 'picking angle + title');
     try {
-      brief = await withRetry(() => refineTopic(topic, profile, context, targetKeyword), 'topic_refiner');
+      brief = await withRetry(() => refineTopic(topic, profile, context, targetKeyword, repoKb), 'topic_refiner');
       await appendLog(postId, 'topic_refiner', 'done', `${brief.format}: ${brief.title}`);
     } catch (e) { await failAt(postId, 'topic_refiner', e); return; }
 
@@ -152,7 +159,7 @@ export async function generatePost(postId: string) {
     await appendLog(postId, 'writer', 'start', `drafting ${brief.format}`);
     try {
       writer = await withRetry(
-        () => runWriter({ brief, profile, context, hostname: domain.hostname }), 'writer');
+        () => runWriter({ brief, profile, context, kb, hostname: domain.hostname }), 'writer');
       await appendLog(postId, 'writer', 'done', `${writer.blog_post.split(/\s+/).length} words`);
     } catch (e) { await failAt(postId, 'writer', e); return; }
 
@@ -191,7 +198,7 @@ export async function generatePost(postId: string) {
     if (!reuseDraft && evaluation.action === 'rewrite') {
       await appendLog(postId, 'writer', 'start', `rewrite — applying manager notes`);
       writer = await runWriter({
-        brief, profile, context, hostname: domain.hostname,
+        brief, profile, context, kb, hostname: domain.hostname,
         managerNotes: composeRewriteInstructions(evaluation),
         previousDraft: writer.blog_post,
       });

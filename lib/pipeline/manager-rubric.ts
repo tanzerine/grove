@@ -114,7 +114,7 @@ export const MANAGER_RUBRIC: RubricRule[] = [
     id: 'format_adherence',
     scope: 'craft',
     severity: 'rewrite',
-    rule: 'Article must actually execute the brief format. A "behind-the-scenes" must be a real process story (what we tried, what failed), not a product explainer or "Why choose us / N steps" listicle. An "experiment" must report what was tested + numbers.',
+    rule: 'Article must actually execute the brief format. A "behind-the-scenes" must be a real process story (what we tried, what failed), not a product explainer or "Why choose us / N steps" listicle. An "experiment" must report what was tested + numbers. A "tutorial" must be followable numbered steps with expected outcomes, not a feature overview. A "deep-dive" must examine ONE feature in depth (how it works, when to use it), not skim several.',
   },
   {
     id: 'structure_balance',

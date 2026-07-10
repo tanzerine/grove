@@ -154,6 +154,16 @@ EXECUTION RULES (in priority order)
    - roadmap          → transparent share of what's next + honest hedging
    - behind-the-scenes → process story, what we tried, what didn't work
    - list             → numbered list, 5–10 items, each with a specific reason
+   - tutorial         → step-by-step walkthrough of the named feature/service. Numbered
+                        steps under "## Step N:" style headings; each step = the exact
+                        action, what the reader should see when it works, and one
+                        pitfall or tip. Steps come from the CUSTOMER KNOWLEDGE BASE —
+                        never invent a step, flag, or menu the docs don't describe.
+                        A reader following along must be able to finish.
+   - deep-dive        → one named feature examined properly: what it does, how it
+                        works underneath, why it's designed that way, when to reach
+                        for it (and when not). Ground every capability claim in the
+                        CUSTOMER KNOWLEDGE BASE; no invented internals.
 
 ${marketingRulesFor(brief.marketing_intent, business, homeUrl)}
 

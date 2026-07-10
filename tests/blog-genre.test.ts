@@ -11,6 +11,8 @@ describe('genreFor', () => {
     expect(genreFor('roadmap', null).label).toBe('Roadmap');
     expect(genreFor('behind-the-scenes', null).label).toBe('Inside look');
     expect(genreFor('list', null).label).toBe('Listicle');
+    expect(genreFor('tutorial', null).label).toBe('Tutorial');
+    expect(genreFor('deep-dive', null).label).toBe('Deep dive');
   });
 
   it('falls back to title heuristics for legacy posts without a format', () => {
@@ -18,6 +20,7 @@ describe('genreFor', () => {
     expect(genreFor(null, '7 ways to store beans').id).toBe('listicle');
     expect(genreFor(null, 'Aeropress vs French press compared').id).toBe('comparison');
     expect(genreFor(null, 'Why dark roast is overrated').id).toBe('opinion');
+    expect(genreFor(null, 'A deep dive into style memory').id).toBe('deep-dive');
   });
 
   it('handles Korean title patterns', () => {
