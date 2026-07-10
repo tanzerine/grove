@@ -1,7 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { jsonLdScript, blogHomeUrl, blogPostUrl, subdomainSlugFromHost } from '@/lib/seo';
 import { genreFor, authorFor, type Genre } from '@/lib/blog-genre';
-import { blogThemeVars, fallbackPalette } from '@/lib/blog-theme';
+import { blogThemeVars, fallbackPalette, resolveBranding } from '@/lib/blog-theme';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
@@ -57,8 +57,10 @@ export default async function BlogIndex({
   const page = Math.max(1, Number(sp.page) || 1);
 
   const sb = supabaseAdmin();
+  // select('*'): brand_override (0023) may ship ahead of the migration — naming
+  // a not-yet-applied column would error and 404 the whole blog index.
   const { data: domain } = await sb
-    .from('domains').select('id,hostname,blog_slug,site_profile').eq('blog_slug', slug).single();
+    .from('domains').select('*').eq('blog_slug', slug).single();
   if (!domain) notFound();
 
   const { data } = await sb
@@ -72,9 +74,10 @@ export default async function BlogIndex({
   const prefix = onSubdomain ? '' : `/b/${slug}`;
   const author = authorFor((domain as any).site_profile, domain.hostname);
 
-  // Customer palette: retints --moss (chips, card hovers, featured badge, tags)
-  // and drives the coverless-card fallback colors. Grove greens when absent.
-  const branding = (domain as any).site_profile?.branding ?? null;
+  // Customer palette (manual override wins over crawl): retints --moss (chips,
+  // card hovers, featured badge, tags) and drives the coverless-card fallback
+  // colors. Grove greens when absent.
+  const branding = resolveBranding(domain);
   const themeStyle = blogThemeVars(branding) as React.CSSProperties | undefined;
   const covers = fallbackPalette(branding);
 

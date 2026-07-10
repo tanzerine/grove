@@ -9,7 +9,7 @@ import { mdToHtml, extractToc } from '@/lib/markdown';
 import { genreFor, authorFor } from '@/lib/blog-genre';
 import { pickRelated } from '@/lib/related-posts';
 import { sanitizeEmbedHost } from '@/lib/seo';
-import { embedTheme, brandingPayload, type EmbedTheme } from '@/lib/blog-theme';
+import { embedTheme, brandingPayload, resolveBranding, type EmbedTheme } from '@/lib/blog-theme';
 
 export async function GET(_req: Request, ctx: { params: Promise<{ hostname: string; slug: string }> }) {
   const { hostname: raw, slug } = await ctx.params;
@@ -74,9 +74,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ hostname: stri
   const homeUrl = `https://${domain.hostname.replace(/^https?:\/\//, '').replace(/\/$/, '')}`;
   // Owner-adjustable banner target (domains.cta_url); homepage when unset.
   const ctaUrl: string = (domain as any).cta_url || homeUrl;
-  // Palette extracted from the customer's homepage — the CTA + TOC we return
-  // must match THEIR site, not Grove's greens (those are only the fallback).
-  const branding = (domain as any).site_profile?.branding ?? null;
+  // Palette for the CTA + TOC we return — a manual override wins over the
+  // colors crawled from the homepage; Grove greens only when neither is set.
+  const branding = resolveBranding(domain);
   const theme = embedTheme(branding);
 
   const rawBody = post.body_md ?? '';

@@ -4,6 +4,9 @@ import { randomBytes } from 'crypto';
 import { supabaseServer } from '@/lib/supabase/server';
 import { isPublicHttpUrl } from '@/lib/net/ssrf';
 import { normalizeCanonicalBase } from '@/lib/seo';
+import { deriveBrandColors } from '@/lib/blog-theme';
+
+const HEX = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
 const schema = z.object({
   domain_id: z.string().uuid(),
@@ -17,6 +20,10 @@ const schema = z.object({
   // where the article-bottom "Try {business}" banner links; empty string
   // clears it (banner falls back to the homepage).
   cta_url: z.string().url().startsWith('https://').max(300).or(z.literal('')).optional(),
+  // manual brand-color override. brand_primary === '' clears it (back to the
+  // crawled palette); a hex sets it. brand_secondary is optional.
+  brand_primary: z.string().regex(HEX).or(z.literal('')).optional(),
+  brand_secondary: z.string().regex(HEX).optional(),
 });
 
 export async function PATCH(req: Request) {
@@ -46,6 +53,19 @@ export async function PATCH(req: Request) {
   if (updates.cta_url !== undefined) {
     patch.cta_url = updates.cta_url === '' ? null : updates.cta_url;
   }
+
+  // Manual brand palette: derive the full BrandColors from the picked
+  // primary/secondary (same path the crawler uses) so the stored override and a
+  // crawled palette are shaped identically. Empty primary clears the override.
+  if (updates.brand_primary !== undefined) {
+    patch.brand_override = updates.brand_primary === ''
+      ? null
+      : deriveBrandColors(updates.brand_primary, { secondary: updates.brand_secondary });
+  }
+  // brand_secondary alone (primary unchanged) is meaningless — ignore it so a
+  // stray field can't half-write an override.
+  delete (patch as Record<string, unknown>).brand_primary;
+  delete (patch as Record<string, unknown>).brand_secondary;
 
   // Webhook lifecycle: clearing the URL drops the secret too; setting a URL
   // mints a signing secret if the domain doesn't already have one.

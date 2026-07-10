@@ -3,6 +3,8 @@ import { getActiveDomain } from '@/lib/active-domain';
 import CopySnippet from './CopySnippet';
 import CanonicalBaseForm from './CanonicalBaseForm';
 import BannerLinkForm from './BannerLinkForm';
+import ThemeColorsForm from './ThemeColorsForm';
+import { resolveBranding } from '@/lib/blog-theme';
 import { DashHeader } from '../gv-chrome';
 
 export default async function Page() {
@@ -15,6 +17,12 @@ export default async function Page() {
 
   const widgetSnippet = `<div id="grove-widget" data-blog-url="/blog" data-count="4"></div>
 <script src="${groveBase}/embed.js" async></script>`;
+
+  // Seed the color picker from the effective palette (manual override if set,
+  // else crawled), and remember the crawled primary for the reset button.
+  const effective = domain ? resolveBranding(domain) : null;
+  const crawledPrimary = (domain as any)?.site_profile?.branding?.primary_color ?? null;
+  const hasOverride = !!(domain as any)?.brand_override?.primary_color;
 
   return (
     <>
@@ -92,7 +100,31 @@ export default async function Page() {
       {domain && (
         <div style={{ marginTop: 26, border: '1px solid var(--line)', borderRadius: 14, padding: '22px 24px', background: 'var(--paper)' }}>
           <div className="mono" style={{ fontSize: 11, color: 'var(--moss)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-            4 · Banner link
+            4 · Theme colors
+          </div>
+          <div style={{ fontFamily: 'Clash Display', fontSize: 20, marginTop: 4 }}>
+            Set your blog&rsquo;s brand colors
+          </div>
+          <p style={{ fontSize: 14, color: 'var(--clay)', margin: '8px 0 16px', lineHeight: 1.55 }}>
+            Grove reads these from <span className="mono">{domain.hostname.replace(/^www\./, '')}</span> automatically, and
+            they color the banner, table of contents, tags, and card accents across your whole blog. If the guess is off
+            — or your brand differs from your site — set them by hand here. Your choice wins over the crawled colors and
+            survives future re-crawls.
+          </p>
+          <ThemeColorsForm
+            domainId={domain.id}
+            initialPrimary={effective?.primary_color ?? '#4e9e6a'}
+            initialSecondary={effective?.secondary_color ?? '#2f6b4f'}
+            hasOverride={hasOverride}
+            crawledPrimary={crawledPrimary}
+          />
+        </div>
+      )}
+
+      {domain && (
+        <div style={{ marginTop: 26, border: '1px solid var(--line)', borderRadius: 14, padding: '22px 24px', background: 'var(--paper)' }}>
+          <div className="mono" style={{ fontSize: 11, color: 'var(--moss)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            5 · Banner link
           </div>
           <div style={{ fontFamily: 'Clash Display', fontSize: 20, marginTop: 4 }}>
             Choose where the “Try {(domain as any).site_profile?.business?.name || domain.hostname.replace(/^www\./, '')}” banner sends readers

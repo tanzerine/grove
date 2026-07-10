@@ -5,7 +5,7 @@ import { jsonLdScript, blogHomeUrl, blogPostUrl, subdomainSlugFromHost, buildArt
 import { pickRelated } from '@/lib/related-posts';
 import { injectInternalLinks } from '@/lib/internal-links';
 import { genreFor, authorFor } from '@/lib/blog-genre';
-import { blogThemeVars } from '@/lib/blog-theme';
+import { blogThemeVars, resolveBranding } from '@/lib/blog-theme';
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
 
@@ -99,10 +99,10 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   const homeUrl = `https://${domain.hostname.replace(/^https?:\/\//, '').replace(/\/$/, '')}`;
   const ctaUrl: string = (domain as any).cta_url || homeUrl;
 
-  // Brand colors extracted from the customer's homepage — applied as CSS custom
-  // properties on the page root, so the banner AND everything hanging off
-  // --moss (TOC, genre tag, read-progress, card hovers) pick up their palette.
-  const branding = profile?.branding ?? null;
+  // Brand palette (manual override wins over the crawled colors) — applied as
+  // CSS custom properties on the page root, so the banner AND everything hanging
+  // off --moss (TOC, genre tag, read-progress, card hovers) pick up the palette.
+  const branding = resolveBranding(domain);
   const themeStyle = blogThemeVars(branding) as React.CSSProperties | undefined;
 
   // Canonical article URL — the customer's own page when canonical_blog_base

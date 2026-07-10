@@ -87,6 +87,46 @@ export function accentForText(hex: string): string {
   return c;
 }
 
+/**
+ * Build a full BrandColors from a primary (+ optional secondary) color. This is
+ * the single source of truth for turning a couple of brand colors into the
+ * banner/button palette — both the homepage extractor and the manual
+ * color-picker in the dashboard go through here, so a hand-picked palette and a
+ * crawled one derive identical downstream colors.
+ */
+export function deriveBrandColors(
+  primary: string,
+  opts: { secondary?: string; btn?: string; headingFont?: string | null } = {},
+): BrandColors {
+  const secondary = opts.secondary || darkenHex(primary, 0.3);
+  const btn = opts.btn || secondary;
+  const bannerBg = isDark(primary) ? primary : darkenHex(primary);
+  const bannerText = contrastColor(bannerBg);
+  return {
+    primary_color: primary,
+    secondary_color: secondary,
+    btn_color: btn,
+    btn_text_color: contrastColor(btn),
+    banner_bg: bannerBg,
+    banner_text: bannerText,
+    banner_text_muted: withOpacity(bannerText, 0.65),
+    heading_font: opts.headingFont ?? null,
+  };
+}
+
+/**
+ * The palette a blog surface should actually use, in precedence order:
+ * a manual override the owner set in the dashboard (domains.brand_override)
+ * wins over the colors crawled from their homepage (site_profile.branding),
+ * which is null when neither exists. Every render path reads through this so
+ * the precedence can't drift between the hosted pages and the embed.
+ */
+export function resolveBranding(domain: any): BrandColors | null {
+  const override = domain?.brand_override;
+  if (override && override.primary_color) return override as BrandColors;
+  return domain?.site_profile?.branding ?? null;
+}
+
 // ─── theme builders ──────────────────────────────────────────────────────────
 
 /**
