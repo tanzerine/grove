@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  classifySource, trafficSources, answerReferrals, funnel, answerEngineName,
+  classifySource, trafficSources, answerReferrals, funnel, answerEngineName, engagement,
   type EventRow,
 } from '../lib/analytics/aggregate';
 
@@ -88,5 +88,35 @@ describe('funnel', () => {
       { type: 'conversion', referrer_host: null, utm_source: null, scroll_depth: null, session_id: 'a' },
     ];
     expect(funnel(events)).toEqual({ clicks: 2, read50: 1, converted: 1 });
+  });
+});
+
+describe('engagement', () => {
+  const ev = (type: string, session_id: string, dwell_ms?: number): EventRow =>
+    ({ type, referrer_host: null, utm_source: null, scroll_depth: null, session_id, dwell_ms: dwell_ms ?? null });
+
+  it('counts views, total events and distinct sessions', () => {
+    const events: EventRow[] = [
+      ev('view', 'a'), ev('view', 'a'), ev('view', 'b'),
+      ev('scroll', 'a'), ev('conversion', 'b'),
+    ];
+    const e = engagement(events);
+    expect(e.views).toBe(3);
+    expect(e.events).toBe(5);
+    expect(e.sessions).toBe(2);
+  });
+
+  it('averages per-session MAX dwell (cumulative beacons de-duped)', () => {
+    const events: EventRow[] = [
+      ev('view', 'a'), ev('dwell', 'a', 15000), ev('dwell', 'a', 30000), ev('exit', 'a', 42000),
+      ev('view', 'b'), ev('dwell', 'b', 15000), ev('exit', 'b', 18000),
+    ];
+    // session a → 42s, session b → 18s, avg = 30s
+    expect(engagement(events).avgDwellSec).toBe(30);
+  });
+
+  it('is zero-dwell when no dwell/exit beacons arrived', () => {
+    const e = engagement([ev('view', 'a'), ev('scroll', 'a')]);
+    expect(e.avgDwellSec).toBe(0);
   });
 });

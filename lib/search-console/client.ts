@@ -20,9 +20,13 @@ const API_BASE = 'https://searchconsole.googleapis.com/webmasters/v3';
 const SV_BASE = 'https://www.googleapis.com/siteVerification/v1';
 // Read performance data + add/verify the property on the owner's behalf, so
 // onboarding is one DNS record instead of a trip through the Search Console UI.
+// analytics.readonly rides the same consent so the one "Connect Google" also
+// unlocks whole-site GA4 numbers (lib/ga4) — the stored refresh token grants
+// both. Adding a scope requires re-consent, which prompt=consent already forces.
 const SCOPE = [
   'https://www.googleapis.com/auth/webmasters',
   'https://www.googleapis.com/auth/siteverification',
+  'https://www.googleapis.com/auth/analytics.readonly',
 ].join(' ');
 
 /** Bare host used as the Site Verification INET_DOMAIN identifier.

@@ -13,9 +13,10 @@ import {
   type MetricRow, type RankBand, type ContentRow, type ArticleInfo,
 } from '../search-console/insights';
 import {
-  trafficSources, answerReferrals, funnel,
-  type EventRow, type TrafficSource, type AnswerReferrals, type Funnel,
+  trafficSources, answerReferrals, funnel, engagement,
+  type EventRow, type TrafficSource, type AnswerReferrals, type Funnel, type Engagement,
 } from './aggregate';
+import { loadGa4, type Ga4Data } from '../ga4/load';
 
 export type KpiSummary = {
   clicks: number;
@@ -35,11 +36,15 @@ export type AnalyticsData = {
   traffic: { total: number; sources: TrafficSource[] } | null;
   answers: AnswerReferrals | null;
   funnel: Funnel | null;
+  /** Whole-site Google Analytics (landing + blog + articles), live per range. */
+  ga: Ga4Data;
+  /** First-party engagement (dwell + event count) over blog articles. */
+  engagement: Engagement | null;
 };
 
 const EMPTY: AnalyticsData = {
   live: null, series: null, articles: null, ranking: null,
-  traffic: null, answers: null, funnel: null,
+  traffic: null, answers: null, funnel: null, ga: null, engagement: null,
 };
 
 const toRow = (r: any): MetricRow => ({
@@ -48,16 +53,25 @@ const toRow = (r: any): MetricRow => ({
 });
 
 /**
- * @param sb       user-scoped client (post_events is read under RLS)
- * @param domainId active domain
- * @param verified whether a GSC property is wired up (gsc_site_url present)
+ * @param sb           user-scoped client (post_events is read under RLS)
+ * @param domainId      active domain
+ * @param verified      whether a GSC property is wired up (gsc_site_url present)
+ * @param periodDays    selected window (7 / 30 / 90 / 365) — drives GA + events
+ * @param ga4PropertyId GA4 numeric property id, or null when GA isn't connected
  */
 export async function loadAnalytics(
   sb: SupabaseClient,
   domainId: string,
   verified: boolean,
+  periodDays = 90,
+  ga4PropertyId: string | null = null,
 ): Promise<AnalyticsData> {
   const out: AnalyticsData = { ...EMPTY };
+
+  // ── Google Analytics — whole-site, queried LIVE for the selected range ─────
+  if (ga4PropertyId) {
+    out.ga = await loadGa4(domainId, ga4PropertyId, periodDays);
+  }
 
   // Every published article, independent of GSC — the articles table must show
   // ALL articles even before Search Console is connected (views are still real,
@@ -95,12 +109,12 @@ export async function loadAnalytics(
     } catch { /* fail-soft — section stays null, sample view shows */ }
   }
 
-  // ── First-party events (RLS-scoped to the owner) ───────────────────────────
+  // ── First-party events (RLS-scoped to the owner), windowed to the period ───
   try {
-    const since = new Date(Date.now() - 90 * 86400_000).toISOString();
+    const since = new Date(Date.now() - periodDays * 86400_000).toISOString();
     const { data } = await sb
       .from('post_events')
-      .select('type, referrer_host, utm_source, scroll_depth, session_id')
+      .select('type, referrer_host, utm_source, scroll_depth, session_id, dwell_ms')
       .eq('domain_id', domainId)
       .gte('created_at', since)
       .limit(20000);
@@ -112,6 +126,8 @@ export async function loadAnalytics(
       if (ans.total > 0) out.answers = ans;
       const f = funnel(events);
       if (f.clicks > 0) out.funnel = f;
+      const eng = engagement(events);
+      if (eng.events > 0) out.engagement = eng;
     }
   } catch { /* fail-soft */ }
 

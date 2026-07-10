@@ -1,9 +1,11 @@
 'use client';
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import Icon from '../gv-icons';
 import { DashHeader } from '../gv-chrome';
 import GoogleConnect from './GoogleConnect';
 import type { AnalyticsData } from '@/lib/analytics/dashboard';
+import { formatDuration } from '@/lib/ga4/insights';
 
 const ACCENT = 'var(--gv-accent)';
 
@@ -34,7 +36,7 @@ const fmtCompact = (n: number): string => {
 type PeriodKey = '7d' | '30d' | '90d' | '12mo';
 
 export default function AnalyticsDashboard({
-  hostname, configured, connected, verified, data, syncedAgo,
+  hostname, configured, connected, verified, data, syncedAgo, period,
 }: {
   hostname: string;
   configured: boolean;
@@ -42,13 +44,22 @@ export default function AnalyticsDashboard({
   verified: boolean;
   data: AnalyticsData;
   syncedAgo: string;
+  period: PeriodKey;
 }) {
-  const [period, setPeriod] = useState<PeriodKey>('30d');
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  // The period selector writes ?range= and the server refetches GA + first-party
+  // events for that window — the old client-only state left every live number
+  // frozen while only the sample chart moved.
+  const setPeriod = (p: PeriodKey) =>
+    startTransition(() => router.push(`/dashboard/analytics?range=${p}`, { scroll: false }));
   // Live accounts default to sorting by Views (the article metric this table
   // exists to surface); the sample view has no views column, so keep Clicks.
   const [sort, setSort] = useState<'Clicks' | 'Impressions' | 'CTR' | 'Views'>(data.articles ? 'Views' : 'Clicks');
   const live = data.live;
   const liveOn = !!live;
+  const ga = data.ga;           // whole-site Google Analytics (landing + blog + articles)
+  const eng = data.engagement;  // first-party dwell + event count (blog articles)
   // Any real signal at all (GSC totals OR first-party events) flips the header
   // from "sample view" to "synced".
   const anyLive = liveOn || !!data.traffic || !!data.funnel || !!data.articles;
@@ -256,11 +267,11 @@ export default function AnalyticsDashboard({
 
         {/* report controls — relocated out of the nav bar */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 14, marginBottom: 18, flexWrap: 'wrap' }}>
-          <div style={{ display: 'inline-flex', padding: 4, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 999, gap: 3 }}>
+          <div style={{ display: 'inline-flex', padding: 4, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 999, gap: 3, opacity: pending ? 0.6 : 1, transition: 'opacity .2s' }}>
             {periodDef.map((p) => {
               const on = period === p.key;
               return (
-                <button key={p.key} onClick={() => setPeriod(p.key)} style={{ border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '6px 14px', borderRadius: 999, transition: '.2s', background: on ? ACCENT : 'transparent', color: on ? 'var(--gv-on-accent)' : 'var(--gv-dim)' }}>{p.label}</button>
+                <button key={p.key} onClick={() => setPeriod(p.key)} disabled={pending} style={{ border: 'none', cursor: pending ? 'default' : 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '6px 14px', borderRadius: 999, transition: '.2s', background: on ? ACCENT : 'transparent', color: on ? 'var(--gv-on-accent)' : 'var(--gv-dim)' }}>{p.label}</button>
               );
             })}
           </div>
@@ -288,6 +299,81 @@ export default function AnalyticsDashboard({
               : <>Sample view — connect Google to see your numbers</>}
           </div>
         </div>
+
+        {/* ============ WHOLE-SITE TRAFFIC (Google Analytics) ============ */}
+        {/* GSC + first-party events only ever see blog articles; GA counts the
+            whole domain — landing page, pricing, the blog index, everything —
+            which is what the owner compares Grove against. Live per range. */}
+        {ga && (
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 12px' }}>
+              <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em' }}>Whole-site traffic</span>
+              <span style={{ fontSize: 11.5, color: 'var(--gv-faint)' }}>Google Analytics · every page, not just the blog · {curP.short}</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 14 }}>
+              {[
+                { icon: 'eye', label: 'Page views', value: fmtCompact(ga.totals.views) },
+                { icon: 'rankings', label: 'Active users', value: fmtCompact(ga.totals.activeUsers) },
+                { icon: 'cursor', label: 'Avg. engagement', value: formatDuration(ga.totals.avgEngagementSec) },
+                { icon: 'spark', label: 'Events', value: fmtCompact(ga.totals.events) },
+              ].map((k) => (
+                <div key={k.label} className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: '18px 18px 16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 9, color: 'var(--gv-dim)', fontSize: 12 }}>
+                    <span style={{ display: 'flex', color: ACCENT }}><Icon name={k.icon} /></span>{k.label}
+                  </div>
+                  <div style={{ fontSize: 27, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1, marginTop: 12 }}>{k.value}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* per-page breakdown — landing page + blog index + every article,
+                the exact columns GA shows (views / users / engagement / events) */}
+            {ga.pages.length > 0 && (
+              <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, overflow: 'hidden' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 22px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                  <span style={{ fontSize: 14, fontWeight: 700 }}>Pages by traffic</span>
+                  <span style={{ fontSize: 12, color: 'var(--gv-dim)' }}>{ga.pages.length} page{ga.pages.length === 1 ? '' : 's'}</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 90px 110px 80px', padding: '11px 22px', fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-fainter)', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                  <span>Page</span>
+                  <span style={{ textAlign: 'right' }}>Views</span>
+                  <span style={{ textAlign: 'right' }}>Users</span>
+                  <span style={{ textAlign: 'right' }}>Avg. time</span>
+                  <span style={{ textAlign: 'right' }}>Events</span>
+                </div>
+                {ga.pages.slice(0, 15).map((p, i) => (
+                  <div key={p.title + i} className="gv-row" style={{ display: 'grid', gridTemplateColumns: '1fr 90px 90px 110px 80px', alignItems: 'center', padding: '13px 22px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                    <span style={{ minWidth: 0, fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', paddingRight: 16 }}>{p.title}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmtCompact(p.views)}</span>
+                    <span style={{ fontSize: 12.5, color: 'var(--gv-dim)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmtCompact(p.activeUsers)}</span>
+                    <span style={{ fontSize: 12.5, color: 'var(--gv-soft)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{formatDuration(p.avgEngagementSec)}</span>
+                    <span style={{ fontSize: 12.5, color: 'var(--gv-dim)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmtCompact(p.events)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* First-party engagement — shown when GA isn't connected but the blog
+            beacon has data, so dwell time + event count still surface. */}
+        {!ga && eng && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 14 }}>
+            {[
+              { icon: 'eye', label: 'Blog views', value: fmtCompact(eng.views), sub: `${eng.sessions.toLocaleString()} sessions` },
+              { icon: 'cursor', label: 'Avg. time on page', value: formatDuration(eng.avgDwellSec), sub: 'first-party, cookieless' },
+              { icon: 'spark', label: 'Events tracked', value: fmtCompact(eng.events), sub: 'views · scroll · dwell · CTA' },
+            ].map((k) => (
+              <div key={k.label} className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: '18px 18px 16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 9, color: 'var(--gv-dim)', fontSize: 12 }}>
+                  <span style={{ display: 'flex', color: ACCENT }}><Icon name={k.icon} /></span>{k.label}
+                </div>
+                <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1, marginTop: 12 }}>{k.value}</div>
+                <div style={{ fontSize: 11, color: 'var(--gv-faint)', marginTop: 7 }}>{k.sub}</div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* KPI ROW */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14, marginBottom: 14 }}>

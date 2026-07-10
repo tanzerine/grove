@@ -8,10 +8,24 @@ export const dynamic = 'force-dynamic';
 
 const NO_DATA: AnalyticsData = {
   live: null, series: null, articles: null, ranking: null,
-  traffic: null, answers: null, funnel: null,
+  traffic: null, answers: null, funnel: null, ga: null, engagement: null,
 };
 
-export default async function AnalyticsPage() {
+// Server-driven period: the selector writes ?range=, so switching it re-queries
+// GA + first-party events for the new window (client-only state couldn't).
+const PERIODS = { '7d': 7, '30d': 30, '90d': 90, '12mo': 365 } as const;
+type PeriodKey = keyof typeof PERIODS;
+function periodFrom(range: string | undefined): PeriodKey {
+  return range && range in PERIODS ? (range as PeriodKey) : '30d';
+}
+
+export default async function AnalyticsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ range?: string }>;
+}) {
+  const { range } = await searchParams;
+  const period = periodFrom(range);
   const sb = await supabaseServer();
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return null;
@@ -27,8 +41,11 @@ export default async function AnalyticsPage() {
   // property is wired up and we can pull data. Between them sits one DNS step.
   const connected = !!(domain as any)?.gsc_connected_at;
   const verified = !!(domain as any)?.gsc_site_url;
+  const ga4PropertyId = (domain as any)?.ga4_property_id ?? null;
 
-  const data = domain ? await loadAnalytics(sb, domain.id, verified) : NO_DATA;
+  const data = domain
+    ? await loadAnalytics(sb, domain.id, verified, PERIODS[period], ga4PropertyId)
+    : NO_DATA;
 
   const syncedAt = (domain as any)?.gsc_synced_at;
   const syncedAgo = syncedAt ? relativeTime(new Date(syncedAt)) : 'just now';
@@ -41,6 +58,7 @@ export default async function AnalyticsPage() {
       verified={verified}
       data={data}
       syncedAgo={syncedAgo}
+      period={period}
     />
   );
 }
