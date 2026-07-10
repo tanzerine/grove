@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { computeScores, missingAxes } from '../lib/pipeline/manager';
+import { computeScores, missingAxes, holdForReview, AUTO_PUBLISH_FLOOR, QUALITY_FLOOR, type Evaluation } from '../lib/pipeline/manager';
+
+const evalWith = (over: Partial<Evaluation> & { overall?: number }): Evaluation => ({
+  action: 'approve',
+  pass: true,
+  scores: { strategic_fit: 70, marketing: 70, craft: 70, safety: 70, overall: over.overall ?? 72 },
+  issues: [],
+  ...over,
+});
 
 describe('computeScores', () => {
   it('a competent draft lands in the 70-85 band (with strategy)', () => {
@@ -48,5 +56,50 @@ describe('missingAxes', () => {
 
   it('a fully empty response is flagged on every weighted axis', () => {
     expect(missingAxes({}, false)).toEqual(['marketing', 'craft', 'safety']);
+  });
+});
+
+describe('holdForReview (autopilot publish gate)', () => {
+  it('auto-publishes a solid approved draft', () => {
+    expect(holdForReview(evalWith({ overall: 78 }), 0)).toBe(false);
+  });
+
+  it('auto-publishes a mediocre-but-not-fatal draft (above the low floor)', () => {
+    // 55 would have been held by the old 70 bar; autopilot now ships it.
+    expect(holdForReview(evalWith({ overall: 55 }), 0)).toBe(false);
+  });
+
+  it('does NOT hold on a rewrite verdict (publishable with notes)', () => {
+    expect(holdForReview(evalWith({ action: 'rewrite', overall: 60 }), 0)).toBe(false);
+  });
+
+  it('does NOT hold on rewrite-severity issues', () => {
+    const e = evalWith({ overall: 60, issues: [{ rule: 'craft', severity: 'rewrite', note: 'x' }] });
+    expect(holdForReview(e, 0)).toBe(false);
+  });
+
+  it('holds when the manager rejected it (off-strategy)', () => {
+    expect(holdForReview(evalWith({ action: 'reject', overall: 80 }), 0)).toBe(true);
+  });
+
+  it('holds on a block-severity issue even with a high score', () => {
+    const e = evalWith({ overall: 90, issues: [{ rule: 'safety', severity: 'block', note: 'x' }] });
+    expect(holdForReview(e, 0)).toBe(true);
+  });
+
+  it('holds when the score is way too poor', () => {
+    expect(holdForReview(evalWith({ overall: AUTO_PUBLISH_FLOOR - 1 }), 0)).toBe(true);
+  });
+
+  it('holds when the deterministic validator has a blocking issue', () => {
+    expect(holdForReview(evalWith({ overall: 85 }), 1)).toBe(true);
+  });
+
+  it('holds when the manager never produced an evaluation', () => {
+    expect(holdForReview(null, 0)).toBe(true);
+  });
+
+  it('the autopilot floor sits well below the writer-target floor', () => {
+    expect(AUTO_PUBLISH_FLOOR).toBeLessThan(QUALITY_FLOOR);
   });
 });
