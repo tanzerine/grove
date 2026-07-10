@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeScores, missingAxes, holdForReview, AUTO_PUBLISH_FLOOR, QUALITY_FLOOR, type Evaluation } from '../lib/pipeline/manager';
+import { computeScores, missingAxes, holdForReview, resolvePublishFloor, AUTO_PUBLISH_FLOOR, QUALITY_FLOOR, type Evaluation } from '../lib/pipeline/manager';
 
 const evalWith = (over: Partial<Evaluation> & { overall?: number }): Evaluation => ({
   action: 'approve',
@@ -101,5 +101,28 @@ describe('holdForReview (autopilot publish gate)', () => {
 
   it('the autopilot floor sits well below the writer-target floor', () => {
     expect(AUTO_PUBLISH_FLOOR).toBeLessThan(QUALITY_FLOOR);
+  });
+
+  it('respects a per-domain floor override', () => {
+    // owner raised the bar to 80: a 72 draft now holds…
+    expect(holdForReview(evalWith({ overall: 72 }), 0, 80)).toBe(true);
+    // …and lowered to 0: even a 10 publishes (fatal checks still apply)
+    expect(holdForReview(evalWith({ overall: 10 }), 0, 0)).toBe(false);
+    expect(holdForReview(evalWith({ overall: 90, action: 'reject' }), 0, 0)).toBe(true);
+  });
+});
+
+describe('resolvePublishFloor', () => {
+  it('clamps and rounds owner input to 0-100', () => {
+    expect(resolvePublishFloor(60)).toBe(60);
+    expect(resolvePublishFloor(140)).toBe(100);
+    expect(resolvePublishFloor(-5)).toBe(0);
+    expect(resolvePublishFloor(47.6)).toBe(48);
+  });
+
+  it('falls back to the default for missing/garbage (pre-migration rows)', () => {
+    expect(resolvePublishFloor(null)).toBe(AUTO_PUBLISH_FLOOR);
+    expect(resolvePublishFloor(undefined)).toBe(AUTO_PUBLISH_FLOOR);
+    expect(resolvePublishFloor('nope')).toBe(AUTO_PUBLISH_FLOOR);
   });
 });

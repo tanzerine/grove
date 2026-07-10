@@ -10,7 +10,7 @@ import { gatherContext } from './research-context';
 import { refineTopic } from './topic-refiner';
 import { repoKbPrompt, type RepoKnowledge } from './repo-knowledge';
 import { appendLog, resetLog } from './log';
-import { evaluateDraft, composeRewriteInstructions, holdForReview } from './manager';
+import { evaluateDraft, composeRewriteInstructions, holdForReview, resolvePublishFloor } from './manager';
 import { toManagerDraft } from './draft-adapter';
 import { postSlug } from '../slug';
 import { nextPublishSlot } from '../strategy/schedule';
@@ -257,8 +257,13 @@ export async function generatePost(postId: string) {
   const slug = postSlug(title, postId);
 
   // Autopilot ships unless something is actually WRONG (see holdForReview) —
-  // fatal signals only, not "could be better."
-  const fatalConcern = holdForReview(evaluation, blockingIssues(validation).length);
+  // fatal signals only, not "could be better." The score bar is per-domain
+  // (owner-adjustable slider), defaulting to AUTO_PUBLISH_FLOOR.
+  const fatalConcern = holdForReview(
+    evaluation,
+    blockingIssues(validation).length,
+    resolvePublishFloor((domain as any).auto_publish_floor),
+  );
 
   // Preserve a planned date if one was carried through from the strategy slot;
   // otherwise fall back to the rolling auto-publish cadence.

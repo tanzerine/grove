@@ -138,7 +138,7 @@ export default async function Page() {
           {/* LEFT */}
           <div>
             <PipelineActions domainId={domain?.id} />
-            {domain && <ModeToggle domainId={domain.id} autoPublish={domain.auto_publish ?? false} postsPerWeek={domain.posts_per_week ?? 2} />}
+            {domain && <ModeToggle domainId={domain.id} autoPublish={domain.auto_publish ?? false} postsPerWeek={domain.posts_per_week ?? 2} autoPublishFloor={domain.auto_publish_floor ?? 45} />}
 
             {groups.map((g) => (
               <div key={g.key}>
