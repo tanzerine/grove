@@ -9,7 +9,7 @@ import { llmCall, extractJson } from '../llm';
 import { isPublicHttpUrl } from '../net/ssrf';
 import {
   type BrandColors,
-  hexToHsl, isDark, contrastColor, withOpacity, darkenHex,
+  hexToHsl, darkenHex, deriveBrandColors,
 } from '../blog-theme';
 
 export type { BrandColors };
@@ -160,10 +160,6 @@ export function extractBrandColors(html: string, externalCss = ''): BrandColors 
       ?? others[0]?.c
       ?? primary;
 
-    // banner background: use primary if dark, otherwise darken it
-    const bannerBg = isDark(primary) ? primary : darkenHex(primary);
-    const bannerText = contrastColor(bannerBg);
-
     // heading font: h1/h2/h3 rule or first @font-face
     const headingRuleFont = styleText.match(
       /h[123][^{]*\{[^}]*font-family\s*:\s*['"]?([^;,'"}\n]+)/i
@@ -175,16 +171,9 @@ export function extractBrandColors(html: string, externalCss = ''): BrandColors 
       f => f && !SYSTEM_FONTS.test(f.trim())
     ) ?? null;
 
-    return {
-      primary_color: primary,
-      secondary_color: secondary,
-      btn_color: btnColor,
-      btn_text_color: contrastColor(btnColor),
-      banner_bg: bannerBg,
-      banner_text: bannerText,
-      banner_text_muted: withOpacity(bannerText, 0.65),
-      heading_font: headingFont,
-    };
+    // Same derivation the manual color-picker uses, so crawled and hand-picked
+    // palettes produce identical banner/button colors.
+    return deriveBrandColors(primary, { secondary, btn: btnColor, headingFont });
   } catch { return null; }
 }
 
