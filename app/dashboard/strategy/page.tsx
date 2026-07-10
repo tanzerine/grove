@@ -58,7 +58,10 @@ export default async function StrategyPage() {
 
   const s = strategy as unknown as Strategy & { id: string; month: string; source: string };
   const plan = s.publishing_plan ?? [];
-  const planMonth = new Date(s.month + '-01T00:00:00Z').toLocaleString(undefined, { month: 'long', year: 'numeric' });
+  // strategies.month is a Postgres `date`, so it comes back as "YYYY-MM-DD"
+  // (e.g. "2026-07-01"). Slice to "YYYY-MM" before rebuilding the UTC date —
+  // appending "-01T00:00:00Z" to a full date produced "Invalid Date".
+  const planMonth = new Date(String(s.month).slice(0, 7) + '-01T00:00:00Z').toLocaleString(undefined, { month: 'long', year: 'numeric' });
 
   // ---------- goals (rings) ----------
   const now = new Date();
@@ -161,7 +164,6 @@ export default async function StrategyPage() {
     }
   } catch { /* GSC optional — opportunities stay empty until connected */ }
 
-  const queueable = plan.filter((sl) => catFor(sl) === 'gap').length || plan.length;
   const heroText = s.notes
     ? s.notes
     : `${planMonth}'s plan: ${plan.length} posts across ${(s.pillars ?? []).length} pillars, drafted from last month's results.`;
@@ -183,17 +185,6 @@ export default async function StrategyPage() {
       <DashHeader title="Strategy" subtitle={`${domain.hostname} · the monthly plan your agent works from`} />
 
       <div className="gv-body">
-        {/* plan controls — relocated out of the nav bar */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 14, marginBottom: 16, flexWrap: 'wrap' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 2, padding: 4, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10 }}>
-            <button className="gv-ghost" style={{ width: 30, height: 30, borderRadius: 7, border: 'none', background: 'transparent', color: 'var(--gv-dim)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14 }}>‹</button>
-            <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--gv-soft)', padding: '0 10px' }}>{planMonth}</span>
-            <button className="gv-ghost" style={{ width: 30, height: 30, borderRadius: 7, border: 'none', background: 'transparent', color: 'var(--gv-dim)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14 }}>›</button>
-          </div>
-          <Link href="/onboarding/intent" className="gv-btn" style={{ display: 'flex', alignItems: 'center', gap: 8, border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, padding: '9px 16px', borderRadius: 10, cursor: 'pointer', textDecoration: 'none' }}>
-            <Icon name="check" size={15} /> Approve plan
-          </Link>
-        </div>
         {/* PLAN HERO */}
         <section className="gv-card" style={{ background: 'var(--gv-card-grad)', border: '1px solid rgba(99,194,129,0.18)', borderRadius: 20, padding: '26px 28px', marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
@@ -205,7 +196,7 @@ export default async function StrategyPage() {
             </div>
             <div style={{ display: 'flex', gap: 9, flexShrink: 0 }}>
               <Link href="/onboarding/intent" className="gv-ghost" style={{ border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.02)', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '10px 15px', borderRadius: 10, cursor: 'pointer', textDecoration: 'none' }}>Edit goals</Link>
-              <Link href="/dashboard/pipeline" className="gv-btn" style={{ border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '10px 16px', borderRadius: 10, cursor: 'pointer', whiteSpace: 'nowrap', textDecoration: 'none' }}>Queue all {queueable} →</Link>
+              <Link href="/dashboard/pipeline" className="gv-btn" style={{ border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '10px 16px', borderRadius: 10, cursor: 'pointer', whiteSpace: 'nowrap', textDecoration: 'none' }}>Open the pipeline →</Link>
             </div>
           </div>
         </section>
