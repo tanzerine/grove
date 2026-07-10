@@ -148,6 +148,7 @@ export default async function Page() {
                   <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gv-fainter)', fontVariantNumeric: 'tabular-nums' }}>{g.items.length}</span>
                   <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
                 </div>
+                {g.key === 'review' && <ReviewWhy autoPublish={domain?.auto_publish ?? false} />}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                   {g.items.map((p) => <PostRow key={p.id} p={p} score={scoreByPost.get(p.id) ?? null} blogSlug={domain?.blog_slug} />)}
                 </div>
@@ -219,5 +220,56 @@ export default async function Page() {
         </div>
       </div>
     </>
+  );
+}
+
+/**
+ * Inline "why is this waiting for you?" explainer for the review group. A draft
+ * only publishes on its own when BOTH gates pass — this spells out which one is
+ * holding these, and the copy adapts to whether Autopilot is on. Native
+ * <details> so it works in a server component with no client JS.
+ */
+function ReviewWhy({ autoPublish }: { autoPublish: boolean }) {
+  const li: React.CSSProperties = { fontSize: 12, color: 'var(--gv-faint)', lineHeight: 1.55, margin: '0 0 6px' };
+  const strong: React.CSSProperties = { color: 'var(--gv-soft)', fontWeight: 600 };
+  return (
+    <details style={{ margin: '-2px 2px 12px' }}>
+      <summary style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 11.5, color: 'var(--gv-dim)', listStyle: 'none', userSelect: 'none', width: 'fit-content' }}>
+        <Icon name="q" size={13} /> Why is this waiting for you?
+      </summary>
+      <div style={{ marginTop: 9, padding: '13px 15px', background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, maxWidth: 560 }}>
+        <div style={{ fontSize: 11.5, color: 'var(--gv-soft)', fontWeight: 600, marginBottom: 8 }}>
+          A draft publishes on its own only when both gates pass:
+        </div>
+        {autoPublish ? (
+          <>
+            <p style={li}>
+              <span style={strong}>1 · Autopilot — on.</span> Clean drafts publish themselves, so these were
+              held by the second gate.
+            </p>
+            <p style={li}>
+              <span style={strong}>2 · Manager quality gate — held.</span> The manager didn&apos;t approve this draft,
+              flagged a blocking issue, or the overall score came in below 70/100. Approve to publish it anyway, or
+              Regenerate to rewrite it.
+            </p>
+          </>
+        ) : (
+          <>
+            <p style={li}>
+              <span style={strong}>1 · Autopilot — off.</span> Every finished draft waits here for your approval,
+              whatever it scores. Turn on Autopilot above to let clean drafts publish themselves.
+            </p>
+            <p style={li}>
+              <span style={strong}>2 · Manager quality gate.</span> Even on Autopilot, a draft is held when the manager
+              doesn&apos;t approve it, flags a blocking issue, or scores below 70/100.
+            </p>
+          </>
+        )}
+        <p style={{ ...li, margin: 0, color: 'var(--gv-fainter)' }}>
+          An <span style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>ungraded</span> tag means the
+          manager&apos;s score didn&apos;t run for that draft — so it&apos;s held for you by default.
+        </p>
+      </div>
+    </details>
   );
 }
