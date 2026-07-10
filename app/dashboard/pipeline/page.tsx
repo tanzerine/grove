@@ -266,8 +266,10 @@ function ReviewWhy({ autoPublish }: { autoPublish: boolean }) {
           </>
         )}
         <p style={{ ...li, margin: 0, color: 'var(--gv-fainter)' }}>
-          An <span style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>ungraded</span> tag means the
-          manager&apos;s score didn&apos;t run for that draft — so it&apos;s held for you by default.
+          An <span style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>ungraded</span> or{' '}
+          <span style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>grading&nbsp;failed</span> tag means the
+          quality check didn&apos;t finish for that draft — the draft is kept and held for you. Use{' '}
+          <span style={strong}>Re-run check</span> to grade it (it re-scores the same draft, no rewrite).
         </p>
       </div>
     </details>

@@ -188,9 +188,11 @@ export async function generatePost(postId: string) {
   let evaluation;
   try {
     await appendLog(postId, 'manager', 'start', reuseDraft ? 'evaluating existing draft' : `attempt 1`);
-    evaluation = await evaluateDraft({
+    // withRetry like every other model call — a transient provider blip (E004
+    // "temporarily unavailable") shouldn't leave a good draft ungraded.
+    evaluation = await withRetry(() => evaluateDraft({
       attempt: 1, brief, strategy, slot, draft: toManagerDraft(writer),
-    });
+    }), 'manager');
     await persistEvaluation(postId, strategy?.id ?? null, 1, evaluation);
     await appendLog(postId, 'manager', 'done',
       `${evaluation.action} · overall ${evaluation.scores.overall}`);
@@ -211,9 +213,9 @@ export async function generatePost(postId: string) {
         meta_description: writer.meta_description,
       }).eq('id', postId);
 
-      evaluation = await evaluateDraft({
+      evaluation = await withRetry(() => evaluateDraft({
         attempt: 2, brief, strategy, slot, draft: toManagerDraft(writer),
-      });
+      }), 'manager');
       await persistEvaluation(postId, strategy?.id ?? null, 2, evaluation);
       await appendLog(postId, 'manager', 'done',
         `final ${evaluation.action} · overall ${evaluation.scores.overall}`);

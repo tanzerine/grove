@@ -64,22 +64,39 @@ export default function PostRow({ p, score, blogSlug }: { p: any; score?: { over
     if (!res.ok) { const j = await res.json().catch(() => ({})); alert(`Regenerate failed: ${j.error ?? 'unknown'}`); }
     r.refresh();
   }
+  // Re-run only the quality check. The pipeline reuses the persisted research +
+  // draft (reuseDraft), so this re-grades the SAME article — no re-drafting —
+  // which is the right recovery when the manager hit a transient error.
+  async function regrade() {
+    if (busy) return; setBusy('regen');
+    const res = await fetch(`/api/posts/${p.id}/retry`, { method: 'POST' });
+    setBusy(null);
+    if (!res.ok) { const j = await res.json().catch(() => ({})); alert(`Re-run failed: ${j.error ?? 'unknown'}`); }
+    r.refresh();
+  }
   async function approve() {
     if (busy) return; setBusy('approve');
     await fetch(`/api/posts/${p.id}/approve`, { method: 'POST' }); setBusy(null); r.refresh();
   }
 
-  const showRetry = p.status === 'failed' || stuck;
-  const showDelete = p.status === 'failed' || stuck;
-  const showRegen = ['review', 'scheduled', 'published'].includes(p.status);
-
   const scoreColor = !score ? 'var(--gv-faint)' : score.overall >= 70 ? ACCENT : score.overall >= 40 ? 'var(--gv-amber)' : 'var(--gv-red)';
   const metaColor = v.danger ? '#c98f8f' : 'var(--gv-dim)';
 
   // A post that reached a post-manager stage but has no evaluation means the
-  // gate didn't run (crashed / unparseable) — that's WHY it's held for review,
-  // so make it legible instead of showing a blank space where a score goes.
+  // gate didn't run — that's WHY it's held for review, so make it legible
+  // instead of showing a blank where a score goes. Distinguish a hard failure
+  // (the manager step errored, e.g. a transient provider blip) from a benign
+  // "never graded": the former is retryable and worth flagging louder.
+  const mgrEvents = ((p.generation_log ?? []) as { step: string; event: string }[]).filter((e) => e.step === 'manager');
+  const managerFailed = mgrEvents.length > 0 && mgrEvents[mgrEvents.length - 1].event === 'fail';
   const ungraded = !score && ['review', 'scheduled', 'published'].includes(p.status);
+  // review posts held only because grading didn't complete → offer a cheap
+  // re-grade instead of the scary "rewrite from scratch" regenerate.
+  const needsRegrade = p.status === 'review' && ungraded;
+
+  const showRetry = p.status === 'failed' || stuck;
+  const showDelete = p.status === 'failed' || stuck;
+  const showRegen = ['review', 'scheduled', 'published'].includes(p.status) && !needsRegrade;
 
   const meta: React.ReactNode =
     p.status === 'published' ? <>Live{p.published_at ? <> · <LocalTime iso={p.published_at} withTime={false} /></> : ''}{typeof p.reads === 'number' ? ` · ${p.reads} reads` : ''}</> :
@@ -116,8 +133,13 @@ export default function PostRow({ p, score, blogSlug }: { p: any; score?: { over
             <span style={{ fontSize: 13, fontWeight: 700, color: scoreColor }}>{score.overall}</span>
             <span style={{ fontSize: 9, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>score</span>
           </span>
+        ) : managerFailed ? (
+          <span title="The quality check hit an error (often a temporary provider outage) and didn't finish. Your draft is safe — use “Re-run check” to grade it." style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0, border: '1px solid rgba(224,200,120,0.3)', background: 'rgba(224,200,120,0.08)', borderRadius: 8, padding: '4px 9px' }}>
+            <span style={{ color: 'var(--gv-amber)', display: 'flex' }}><Icon name="alert" size={11} /></span>
+            <span style={{ fontSize: 9.5, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--gv-amber)' }}>grading failed</span>
+          </span>
         ) : ungraded ? (
-          <span title="No quality score — the manager's evaluation didn't run or couldn't be read for this draft. It's held for your review by default." style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0, border: '1px dashed rgba(255,255,255,0.16)', borderRadius: 8, padding: '4px 9px' }}>
+          <span title="No quality score — the manager's evaluation didn't run for this draft. It's held for your review by default." style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0, border: '1px dashed rgba(255,255,255,0.16)', borderRadius: 8, padding: '4px 9px' }}>
             <Icon name="alert" size={11} />
             <span style={{ fontSize: 9.5, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--gv-faint)' }}>ungraded</span>
           </span>
@@ -125,6 +147,7 @@ export default function PostRow({ p, score, blogSlug }: { p: any; score?: { over
 
         <div className="pactions" style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
           {p.status === 'review' && btn(busy === 'approve' ? '…' : 'Approve', approve, true, 'a')}
+          {needsRegrade && btn(busy === 'regen' ? '…' : 'Re-run check', regrade, false, 'rg')}
           {showRetry && btn(busy === 'retry' ? 'Retrying…' : 'Retry', retry, true, 'r')}
           {showRegen && btn(busy === 'regen' ? '…' : 'Regenerate', regenerate, false, 'g')}
           {showDelete && btn(busy === 'delete' ? '…' : 'Delete', del, false, 'd')}
