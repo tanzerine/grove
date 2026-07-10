@@ -13,6 +13,8 @@ const schema = z.object({
   auto_publish: z.boolean().optional(),
   auto_social: z.boolean().optional(),
   posts_per_week: z.number().min(1).max(14).optional(),
+  // autopilot quality bar: min manager score (0-100) to publish without a human.
+  auto_publish_floor: z.number().int().min(0).max(100).optional(),
   // empty string clears the webhook; a URL sets it (https only).
   social_webhook_url: z.string().url().startsWith('https://').or(z.literal('')).optional(),
   // customer-hosted article base for canonical URLs; empty string clears it.

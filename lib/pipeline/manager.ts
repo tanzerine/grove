@@ -68,7 +68,8 @@ export const AUTO_PUBLISH_FLOOR = 45;
  *     is publishable-with-notes, so it does NOT hold.
  *   - a block-severity issue (safety / fabricated facts). rewrite-severity
  *     notes do NOT hold.
- *   - overall below AUTO_PUBLISH_FLOOR (way too poor). Missing overall = 0.
+ *   - overall below `floor` (way too poor). Missing overall = 0. The floor is
+ *     per-domain (domains.auto_publish_floor), defaulting to AUTO_PUBLISH_FLOOR.
  *   - a blocking deterministic-validator issue (fabricated/recycled stats,
  *     thin content, missing H1, referral-away) — pass the count from
  *     validator.blockingIssues().
@@ -77,14 +78,24 @@ export const AUTO_PUBLISH_FLOOR = 45;
 export function holdForReview(
   evaluation: Evaluation | null | undefined,
   validationBlockingCount: number,
+  floor: number = AUTO_PUBLISH_FLOOR,
 ): boolean {
   return (
     !evaluation ||
     evaluation.action === 'reject' ||
     (evaluation.issues ?? []).some((i) => i.severity === 'block') ||
-    (evaluation.scores?.overall ?? 0) < AUTO_PUBLISH_FLOOR ||
+    (evaluation.scores?.overall ?? 0) < floor ||
     validationBlockingCount > 0
   );
+}
+
+/** Clamp an owner-supplied publish floor to a sane 0-100 int, falling back to
+ *  the default when it's missing or garbage (e.g. a pre-0025 DB row). */
+export function resolvePublishFloor(raw: unknown): number {
+  // Distinguish a real stored 0 (Number(null) is 0!) from a missing value.
+  if (raw === null || raw === undefined || raw === '') return AUTO_PUBLISH_FLOOR;
+  const n = Number(raw);
+  return Number.isFinite(n) ? Math.max(0, Math.min(100, Math.round(n))) : AUTO_PUBLISH_FLOOR;
 }
 
 /**
