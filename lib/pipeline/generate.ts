@@ -10,7 +10,7 @@ import { gatherContext } from './research-context';
 import { refineTopic } from './topic-refiner';
 import { repoKbPrompt, type RepoKnowledge } from './repo-knowledge';
 import { appendLog, resetLog } from './log';
-import { evaluateDraft, composeRewriteInstructions, QUALITY_FLOOR } from './manager';
+import { evaluateDraft, composeRewriteInstructions, holdForReview } from './manager';
 import { toManagerDraft } from './draft-adapter';
 import { postSlug } from '../slug';
 import { nextPublishSlot } from '../strategy/schedule';
@@ -256,26 +256,14 @@ export async function generatePost(postId: string) {
   // article never publishes at the blog-home URL with an empty slug.
   const slug = postSlug(title, postId);
 
-  // Route to review (not auto-publish) whenever the gate can't honestly vouch
-  // for the draft — even if auto_publish is on:
-  //   - the manager crashed (no evaluation = no gate; publishing ungated was
-  //     the old behavior and it was wrong)
-  //   - any non-approve verdict (reject, or an attempt-2 rewrite that stands)
-  //   - block/rewrite-severity issues (incl. evaluation_integrity glitches)
-  //   - overall below QUALITY_FLOOR (missing overall counts as 0, not 100)
-  //   - a blocking deterministic-validator issue (unsupported/recycled stats,
-  //     thin content, missing H1, referral-away)
-  const managerConcern =
-    !evaluation ||
-    evaluation.action !== 'approve' ||
-    (evaluation.issues ?? []).some((i) => i.severity === 'block' || i.severity === 'rewrite') ||
-    (evaluation.scores?.overall ?? 0) < QUALITY_FLOOR ||
-    blockingIssues(validation).length > 0;
+  // Autopilot ships unless something is actually WRONG (see holdForReview) —
+  // fatal signals only, not "could be better."
+  const fatalConcern = holdForReview(evaluation, blockingIssues(validation).length);
 
   // Preserve a planned date if one was carried through from the strategy slot;
   // otherwise fall back to the rolling auto-publish cadence.
   const plannedAt: string | null = (post as any).scheduled_at ?? null;
-  const canAutoPublish = domain.auto_publish && !managerConcern;
+  const canAutoPublish = domain.auto_publish && !fatalConcern;
   const nextStatus: 'review' | 'scheduled' = canAutoPublish ? 'scheduled' : 'review';
   const scheduled_at = plannedAt ?? (canAutoPublish ? nextPublishSlot(domain.posts_per_week) : null);
 
@@ -292,7 +280,7 @@ export async function generatePost(postId: string) {
     }).eq('id', postId);
     await sb.from('topic_memory').insert({ domain_id: domain.id, keyword: topic });
     await appendLog(postId, 'persist', 'done',
-      `→ ${nextStatus}${managerConcern ? ' (gated — needs your review)' : ''} · ` +
+      `→ ${nextStatus}${fatalConcern ? ' (gated — needs your review)' : ''} · ` +
       (validation.passed ? 'validator clean' : `${validation.issues.length} validator flags`));
   } catch (e) { await failAt(postId, 'persist', e); return; }
 
