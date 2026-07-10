@@ -28,6 +28,7 @@
 import { llmCall, extractJson } from '../llm';
 import type { SiteProfile } from './site-profile';
 import type { ResearchContext } from './research-context';
+import type { RepoKnowledge } from './repo-knowledge';
 
 /**
  * Marketing funnel position for this article:
@@ -45,7 +46,7 @@ export type MarketingIntent = 'editorial' | 'contextual' | 'conversion';
 export type RefinedBrief = {
   title: string;                       // strong, opinionated, ≤ 60 chars when possible
   angle: string;                       // one-sentence POV / thesis
-  format: 'experiment' | 'guide' | 'opinion' | 'launch' | 'curation' | 'roadmap' | 'behind-the-scenes' | 'list';
+  format: 'experiment' | 'guide' | 'opinion' | 'launch' | 'curation' | 'roadmap' | 'behind-the-scenes' | 'list' | 'tutorial' | 'deep-dive';
   marketing_intent: MarketingIntent;   // funnel position — drives writer's marketing rules
   hook: string;                        // proposed first-person opening line
   promise: string;                     // what concrete value the reader walks away with
@@ -96,16 +97,24 @@ FORMAT — pick the one that fits the topic + business:
 - list            → "N mistakes/lessons/patterns" with specific examples
 `;
 
+// Only offered when the domain has repo-extracted product knowledge — these
+// formats need REAL feature names and REAL steps to be honest.
+const REPO_FORMATS = `- tutorial        → step-by-step "how to use [named feature/service]" walkthrough; every step comes from the product's real documentation
+- deep-dive       → deep dive into ONE named feature: what it does, how it works, why it's built that way, when to use it (and when not)
+`;
+
 export async function refineTopic(
   rawTopic: string,
   profile: SiteProfile,
   context: ResearchContext,
   targetKeyword?: string,
+  repoKb?: RepoKnowledge | null,
 ): Promise<RefinedBrief> {
   const competitorList = context.competitor.map((s) => `- ${s.title}`).join('\n') || '(none)';
   const painList = context.pain.map((s) => `- ${s.title}`).join('\n') || '(none)';
   const questionList = (context.questions ?? []).map((q) => `- ${q}`).join('\n') || '(none)';
   const serpList = (context.serp?.subtopics ?? []).map((s) => `- ${s}`).join('\n') || '(none)';
+  const hasRepoKb = !!(repoKb?.features?.length);
 
   const system = `You are an editorial strategist. You take a vague topic and turn it
 into a sharp brief for a writer — picking the strongest angle a founder
@@ -120,8 +129,16 @@ YOU MUST:
 - Output strict JSON, no markdown, no preamble
 
 ${TITLE_EXAMPLES}
-${FORMATS}
-
+${FORMATS}${hasRepoKb ? REPO_FORMATS : ''}
+${hasRepoKb ? `
+The business connected its product repository, so you have VERIFIED product
+knowledge (features + real usage steps) below. When the topic touches one of
+those features, strongly prefer "tutorial" (the reader wants to DO the thing)
+or "deep-dive" (the reader wants to UNDERSTAND the feature) — and name the
+feature in the title. Ground must_include in the documented steps/details, not
+invented ones. If the topic doesn't touch a documented feature, pick a normal
+format; never force it.
+` : ''}
 MARKETING INTENT — pick honestly based on how naturally the product fits the topic:
 - editorial   → thought-leadership where the product would be a forced fit.
                 Industry trends, philosophical takes, broad craft lessons.
@@ -135,7 +152,7 @@ MARKETING INTENT — pick honestly based on how naturally the product fits the t
                 the product IS the answer for the reader's job. The article
                 earns a real CTA at the end.
                 Roughly 25% of articles. Best for launch, comparison guides,
-                "how to do [exact thing product does]" experiments and behind-the-scenes.
+                "how to do [exact thing product does]" experiments and behind-the-scenes${hasRepoKb ? ',\n                and tutorials (a step-by-step on your own product IS a buyer answer);\n                deep-dives usually land contextual unless the feature is the buying reason' : ''}.
 
 If unsure, pick "contextual". Never pick "conversion" just to push the product —
 only when the topic genuinely calls for it.
@@ -153,7 +170,12 @@ Target audience: ${profile.business.target_audience}
 Value props: ${profile.business.value_props.join('; ') || 'unknown'}
 
 RAW TOPIC: "${rawTopic}"
-${targetKeyword?.trim() ? `\nTARGET SEARCH KEYWORD: "${targetKeyword.trim()}" — real demand this article should rank for. Work it naturally into the title and ensure the angle satisfies that search intent. Do NOT keyword-stuff; one natural use in the title/lead is enough.\n` : ''}
+${targetKeyword?.trim() ? `\nTARGET SEARCH KEYWORD: "${targetKeyword.trim()}" — real demand this article should rank for. Work it naturally into the title and ensure the angle satisfies that search intent. Do NOT keyword-stuff; one natural use in the title/lead is enough.\n` : ''}${hasRepoKb ? `
+PRODUCT KNOWLEDGE (verified — extracted from the team's own repository ${repoKb!.repo}):
+${repoKb!.product_summary ? `What it is: ${repoKb!.product_summary}` : ''}
+Documented features:
+${repoKb!.features.map((f) => `- ${f.name}: ${f.what_it_does}${f.how_to_use?.length ? ` (${f.how_to_use.length} documented usage steps)` : ''}`).join('\n')}
+` : ''}
 CONTEXT FROM RESEARCH
 Common competitor angles for this topic:
 ${competitorList}
@@ -175,7 +197,7 @@ Pick ONE strong angle. Output:
 {
   "title": "the chosen title (uses one of the proven patterns, has specificity)",
   "angle": "one-sentence POV / thesis the article defends",
-  "format": "experiment | guide | opinion | launch | curation | roadmap | behind-the-scenes | list",
+  "format": "experiment | guide | opinion | launch | curation | roadmap | behind-the-scenes | list${hasRepoKb ? ' | tutorial | deep-dive' : ''}",
   "marketing_intent": "editorial | contextual | conversion",
   "hook": "the proposed first-person opener — must start with I, we, or our",
   "promise": "the concrete value the reader walks away with",
@@ -218,12 +240,19 @@ Pick ONE strong angle. Output:
     return true;
   }).slice(0, 5);
 
+  // sanity: repo-grounded formats are only honest when repo knowledge exists —
+  // downgrade to the closest generic format if the model picked one anyway.
+  if (!hasRepoKb && (parsed.format === 'tutorial' || parsed.format === 'deep-dive')) {
+    parsed.format = 'guide';
+  }
+
   // sanity: marketing_intent must be one of three known values
   const validIntents: MarketingIntent[] = ['editorial', 'contextual', 'conversion'];
   if (!validIntents.includes(parsed.marketing_intent as MarketingIntent)) {
-    // default by format: launch leans conversion, opinion/roadmap lean editorial,
+    // default by format: launch/tutorial lean conversion (a step-by-step on
+    // your own product is a buyer answer), opinion/roadmap lean editorial,
     // everything else lands at contextual.
-    parsed.marketing_intent = parsed.format === 'launch'
+    parsed.marketing_intent = (parsed.format === 'launch' || parsed.format === 'tutorial')
       ? 'conversion'
       : (parsed.format === 'opinion' || parsed.format === 'roadmap')
         ? 'editorial'

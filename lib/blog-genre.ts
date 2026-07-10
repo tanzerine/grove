@@ -18,12 +18,15 @@ const FORMAT_GENRES: Record<string, Genre> = {
   roadmap: { id: 'roadmap', label: 'Roadmap' },
   'behind-the-scenes': { id: 'inside', label: 'Inside look' },
   list: { id: 'listicle', label: 'Listicle' },
+  tutorial: { id: 'tutorial', label: 'Tutorial' },
+  'deep-dive': { id: 'deep-dive', label: 'Deep dive' },
 };
 
 export function genreFor(format?: string | null, title?: string | null): Genre {
   if (format && FORMAT_GENRES[format]) return FORMAT_GENRES[format];
   const t = (title ?? '').toLowerCase();
   if (/\bvs\.?\s|versus|\bcompared\b|비교/.test(t)) return { id: 'comparison', label: 'Comparison' };
+  if (/deep dive|딥\s?다이브/.test(t)) return { id: 'deep-dive', label: 'Deep dive' };
   if (/^how\s|how to|how we|방법|하는 법|가이드/.test(t)) return { id: 'guide', label: 'Guide' };
   if (/^\d+\s|top \d+|best \d+|\d+가지/.test(t)) return { id: 'listicle', label: 'Listicle' };
   if (/^why\s|^왜\s/.test(t)) return { id: 'opinion', label: 'Opinion' };

@@ -1,6 +1,8 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import { getActiveDomain } from '@/lib/active-domain';
+import type { RepoKnowledge } from '@/lib/pipeline/repo-knowledge';
 import CrawlButton from './CrawlButton';
+import RepoConnect from './RepoConnect';
 import { DashHeader } from '../gv-chrome';
 
 export default async function Page() {
@@ -11,6 +13,7 @@ export default async function Page() {
   const v = profile.voice ?? {};
   const meta = profile.meta ?? {};
   const hasProfile = !!b.name;
+  const repoKb = (domain?.repo_knowledge ?? null) as RepoKnowledge | null;
 
   return (
     <>
@@ -60,6 +63,39 @@ export default async function Page() {
             </ul>
           </Section>
         </>
+      )}
+
+      {domain?.id && (
+        <Section title="Product knowledge · GitHub">
+          <p style={{ margin: '0 0 14px', fontSize: 14, color: 'var(--clay)' }}>
+            Connect your product&apos;s repository and grove reads its README and docs — so
+            articles can include step-by-step tutorials and feature deep-dives grounded in
+            what the product actually does, not what the landing page says.
+          </p>
+          <RepoConnect
+            domainId={domain.id}
+            repo={(domain.github_repo as string | null) ?? null}
+            syncedAt={repoKb?.synced_at ?? null}
+          />
+          {repoKb && (
+            <div style={{ marginTop: 16 }}>
+              <Row k="What it is" v={repoKb.product_summary} />
+              {(repoKb.features ?? []).map((f) => (
+                <div key={f.name} className="r-kv" style={{ padding: '8px 0', borderTop: '1px solid var(--paper)', fontSize: 14 }}>
+                  <div style={{ color: 'var(--clay)' }}>{f.name}</div>
+                  <div>
+                    {f.what_it_does}
+                    {f.how_to_use?.length > 0 && (
+                      <span style={{ color: 'var(--clay)' }}> · {f.how_to_use.length} steps documented</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+              <Row k="Vocabulary" v={(repoKb.concepts ?? []).join(', ')} />
+              <Row k="Files read" v={(repoKb.files_read ?? []).join(', ')} />
+            </div>
+          )}
+        </Section>
       )}
       </div>
     </>
