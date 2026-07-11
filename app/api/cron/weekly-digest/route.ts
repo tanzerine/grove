@@ -37,7 +37,7 @@ export async function GET(req: Request) {
   if (!isCronAuthorized(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
   const sb = supabaseAdmin();
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://grove.so';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://grove-red.vercel.app';
 
   // All verified domains — progress tracking runs for everyone; the email
   // below additionally respects the weekly_digest opt-out.
