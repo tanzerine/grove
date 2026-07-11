@@ -45,8 +45,12 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
   })();
 
   const managerOverall = evals && evals.length ? ((evals[evals.length - 1] as any)?.scores?.overall ?? null) : null;
+  // Published posts already cleared the gate — only surface the "sent back"
+  // framing while the draft is actually held.
+  const managerAction = p.status !== 'published' && evals && evals.length
+    ? ((evals[evals.length - 1] as any)?.action ?? null) : null;
   const readiness: Readiness | null = validation?.stats && p.body_md
-    ? summarizeReadiness({ stats: validation.stats, issues: validation.issues, managerOverall }) : null;
+    ? summarizeReadiness({ stats: validation.stats, issues: validation.issues, managerOverall, managerAction }) : null;
 
   const stats = validation?.stats ?? {};
   const words = stats.word_count ?? null;

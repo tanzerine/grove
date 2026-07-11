@@ -36,7 +36,7 @@ function OnboardInner() {
       <div className="gv-onb-in" style={{ maxWidth: 520 }}>
         <span className="gv-onb-eyebrow">Step 1 of 2</span>
         <h1 className="gv-onb-title" style={{ fontSize: 44 }}>Enter your domain</h1>
-        <p className="gv-onb-lede">One field. We&apos;ll handle the rest.</p>
+        <p className="gv-onb-lede">One field. We&apos;ll handle the rest. Use a domain you control &mdash; the next step verifies ownership via DNS or a meta tag.</p>
         <form onSubmit={go} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 24, background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '6px 6px 6px 14px' }}>
           <span style={{ color: 'var(--gv-faint)', fontFamily: 'DM Mono, monospace', fontSize: 14 }}>https://</span>
           <input value={host} onChange={(e) => setHost(e.target.value)} placeholder="yourdomain.com"

@@ -50,7 +50,7 @@ function relTime(iso: string): string {
   const d = h / 24;
   if (d < 2) return 'Yesterday';
   if (d < 7) return `${Math.round(d)}d ago`;
-  return new Date(iso).toLocaleDateString();
+  return new Date(iso).toLocaleDateString('en-US');
 }
 
 function schedLabel(p: any): string {
@@ -98,7 +98,7 @@ export default async function OverviewPage() {
       icon: 'rankings', label: gscVis ? 'Search clicks' : 'Total reads', value: fmtNum(organicClicks),
       delta: readsDelta !== null && Math.abs(readsDelta) >= 1 ? `${readsDelta >= 0 ? '▲' : '▼'} ${Math.abs(readsDelta)}%` : '',
       deltaColor: (readsDelta ?? 0) >= 0 ? ACCENT : 'var(--gv-red)',
-      sub: brief && brief.readsThisWeek ? `${brief.readsThisWeek} reads this week` : organicClicks ? 'all time' : 'no reads yet',
+      sub: brief && brief.readsThisWeek ? `${brief.readsThisWeek} read${brief.readsThisWeek === 1 ? '' : 's'} this week` : organicClicks ? 'all time' : 'no reads yet',
     },
     {
       icon: 'published', label: 'Posts published', value: String(publishedCount),
@@ -160,7 +160,7 @@ export default async function OverviewPage() {
     : 'Ready to go. Queue your first topic (or flip on autopilot) and I’ll start researching and drafting right away.';
   // Real insight from the data we have (top performer / review backlog) — or null.
   const agentInsight = brief?.topPost
-    ? `“${brief.topPost.title}” is your top performer with ${brief.topPost.views} reads — grove can build a content cluster around it.`
+    ? `“${brief.topPost.title}” is your top performer with ${brief.topPost.views} read${brief.topPost.views === 1 ? '' : 's'} — grove can build a content cluster around it.`
     : inReview.length
     ? `${inReview.length} draft${inReview.length === 1 ? '' : 's'} ${inReview.length === 1 ? 'is' : 'are'} ready — approving keeps your publishing cadence on track.`
     : null;

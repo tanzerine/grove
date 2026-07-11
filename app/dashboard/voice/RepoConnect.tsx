@@ -109,7 +109,7 @@ export default function RepoConnect({
 
       {syncedAt && (
         <div className="mono" style={{ fontSize: 11, color: 'var(--clay)' }}>
-          last read {new Date(syncedAt).toLocaleString()}
+          last read {new Date(syncedAt).toLocaleString('en-US')}
         </div>
       )}
       {err && (

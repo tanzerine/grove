@@ -161,5 +161,5 @@ function relTime(iso: string): string {
   if (h < 24) return `${Math.round(h)}h ago`;
   const d = h / 24;
   if (d < 7) return `${Math.round(d)}d ago`;
-  return new Date(iso).toLocaleDateString();
+  return new Date(iso).toLocaleDateString('en-US');
 }

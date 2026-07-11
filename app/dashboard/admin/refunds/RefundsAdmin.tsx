@@ -69,7 +69,7 @@ export default function RefundsAdmin({ initialRows }: { initialRows: RefundRow[]
                 <span style={{ fontSize: 12, color: 'var(--gv-dim)' }}>{r.plan ? r.plan.charAt(0).toUpperCase() + r.plan.slice(1) : '—'}</span>
                 {amount && <span style={{ fontSize: 12, color: 'var(--gv-dim)' }}>· {amount}</span>}
                 <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: s.bg, color: s.fg }}>{r.status}</span>
-                <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--gv-faint)' }}>{new Date(r.created_at).toLocaleString()}</span>
+                <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--gv-faint)' }}>{new Date(r.created_at).toLocaleString('en-US')}</span>
               </div>
 
               <div style={{ marginTop: 10, fontSize: 13.5, color: 'var(--gv-soft)', lineHeight: 1.6 }}>
@@ -91,7 +91,7 @@ export default function RefundsAdmin({ initialRows }: { initialRows: RefundRow[]
                 </div>
               ) : r.processed_at ? (
                 <div style={{ marginTop: 10, fontSize: 12, color: 'var(--gv-faint)' }}>
-                  {r.status} {r.processed_by ? `by ${r.processed_by}` : ''} · {new Date(r.processed_at).toLocaleString()}
+                  {r.status} {r.processed_by ? `by ${r.processed_by}` : ''} · {new Date(r.processed_at).toLocaleString('en-US')}
                 </div>
               ) : null}
             </div>
