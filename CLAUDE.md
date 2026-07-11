@@ -84,13 +84,16 @@ Other key surfaces:
 ## Supabase
 
 - Project ref `lojgijnjagaozrrpjlbj`. CLI is linked locally (no `.env` in repo —
-  secrets live in Vercel). Migrations in `supabase/migrations/` (0001–0018).
+  secrets live in Vercel). Migrations in `supabase/migrations/` (0001–0025).
 - History was repaired so 0001–0009 are marked applied; `npm run db:push` applies
-  only new ones. **Migration `0018_canonical_blog_base.sql` is committed but NOT
-  yet pushed to the live DB** — needs explicit user OK. (Code tolerates the gap:
-  the blog/embed routes read the column via `select('*')`, so they degrade to
-  grove-hosted URLs until the migration lands; check whether 0010–0017 have been
-  pushed before assuming.)
+  only new ones. **Always run `supabase migration list` first instead of trusting
+  this file** — as of 2026-07-11, 0001–0023 are applied (0018 canonical_blog_base
+  included) and **0024_ga4 + 0025_auto_publish_floor are committed but NOT yet
+  pushed** (needs explicit user OK; until 0025 lands, the deployed publish-bar
+  slider reads its default but can't persist changes).
+- `domains.canonical_blog_base` makes the customer's own URLs canonical
+  everywhere (rel=canonical, sitemap, RSS, social). It must also be SET per
+  domain — the column existing isn't enough.
 - `supabase/.temp/` is gitignored (CLI artifacts).
 
 ## Env vars that gate features (set in Vercel, not the repo)
