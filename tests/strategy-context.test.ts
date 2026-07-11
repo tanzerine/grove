@@ -130,3 +130,35 @@ describe('contextForPrompt', () => {
     expect(out.length).toBeLessThanOrEqual(1000 + 60); // + section header
   });
 });
+
+// dedupeSlots lives in build.ts — imported here to avoid a new test file for one helper
+import { dedupeSlots } from '../lib/strategy/build';
+
+describe('dedupeSlots', () => {
+  it('drops slots that repeat an earlier target_keyword', () => {
+    const out = dedupeSlots([
+      { topic: 'A guide to icon design', target_keyword: 'ai icon generator' },
+      { topic: 'Totally different words here entirely', target_keyword: 'AI  Icon Generator' },
+      { topic: 'Background removal in GIMP', target_keyword: 'background removal gimp' },
+    ]);
+    expect(out).toHaveLength(2);
+    expect(out[1].target_keyword).toBe('background removal gimp');
+  });
+
+  it('drops near-twin topics even when keywords differ', () => {
+    const out = dedupeSlots([
+      { topic: 'AI 3D Icon Generator Free: What You Actually Get', target_keyword: 'ai 3d icon generator free' },
+      { topic: 'The Reality of Using an AI 3D Icon Generator Free in 2026: What $0 Actually Gets', target_keyword: 'free ai 3d icon generator' },
+    ]);
+    expect(out).toHaveLength(1);
+  });
+
+  it('keeps genuinely distinct topics', () => {
+    const out = dedupeSlots([
+      { topic: 'Automatic background removal in GIMP: step-by-step', target_keyword: 'background removal gimp' },
+      { topic: 'Automatic background removal online: 5 no-download tools', target_keyword: 'background removal online' },
+      { topic: 'How solo founders keep icons on-brand across 40+ screens', target_keyword: 'brand consistent icons' },
+    ]);
+    expect(out).toHaveLength(3);
+  });
+});
