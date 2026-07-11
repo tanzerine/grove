@@ -16,6 +16,7 @@ import { strategyLlmCall, extractJson } from '../llm';
 import type { SiteProfile } from '../pipeline/site-profile';
 import { interviewSummary, type InterviewAnswers } from './interview';
 import { assignPublishDates } from './schedule';
+import { titleTokens } from '../related-posts';
 import { gatherKeywordDemand, formatDemandForPrompt } from './keywords';
 import type { MonthlyReport } from './review';
 
@@ -227,6 +228,10 @@ DON'T
 - Don't pick topics that violate the owner's off-limits list.
 - Don't fabricate prior performance — only reference fields you actually see.
 - Don't re-propose a topic in ALREADY COVERED — pick a fresh angle or a new keyword.
+- ONE PAGE PER QUERY: every slot must target a DISTINCT primary keyword. No two
+  slots may chase the same query or near-synonyms of it ("free AI icon
+  generator" vs "AI icon generator free" is the SAME query) — overlapping posts
+  cannibalize each other in Google and split what one strong page would earn.
 
 OUTPUT: ONE raw JSON object. No markdown. No prose. No code fences.`;
 
@@ -338,11 +343,44 @@ export function normalizeStrategy(
     intent: ['editorial', 'contextual', 'conversion'].includes(slot.intent) ? slot.intent : 'contextual',
   }));
 
+  // Drop within-plan duplicates BEFORE dates are assigned — the prompt forbids
+  // them, but the July plan still shipped three "free AI 3D icon generator"
+  // posts in one month, which cannibalize each other in Google.
+  parsed.publishing_plan = dedupeSlots(parsed.publishing_plan);
+
   // Deterministically assign each slot a real publish date so the calendar has
   // a concrete schedule (the LLM is bad at evenly spacing dates; code isn't).
   parsed.publishing_plan = assignPublishDates(parsed.publishing_plan, month, postsPerWeek);
 
   return parsed;
+}
+
+/**
+ * Keep the first slot per query; drop later slots that target the same
+ * normalized keyword or whose topic tokens are ≥80% contained in an earlier
+ * slot's (catches "AI icon generator free" vs "free AI icon generator: what
+ * you actually get"). Fewer, distinct posts beat a cluster of near-twins.
+ */
+export function dedupeSlots<T extends { topic?: string; target_keyword?: string }>(slots: T[]): T[] {
+  const kept: T[] = [];
+  const keywords = new Set<string>();
+  const tokenSets: Set<string>[] = [];
+  for (const s of slots) {
+    const kw = (s.target_keyword ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+    if (kw && keywords.has(kw)) continue;
+    const toks = titleTokens(s.topic ?? '');
+    const nearDup = toks.size >= 3 && tokenSets.some((prev) => {
+      if (prev.size < 3) return false;
+      let common = 0;
+      for (const t of toks) if (prev.has(t)) common++;
+      return common / Math.min(prev.size, toks.size) >= 0.8;
+    });
+    if (nearDup) continue;
+    if (kw) keywords.add(kw);
+    tokenSets.push(toks);
+    kept.push(s);
+  }
+  return kept;
 }
 
 /** Direction is optional in the raw output — synthesize a fallback from the
