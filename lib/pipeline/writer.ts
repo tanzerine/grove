@@ -4,9 +4,12 @@
  * format, and first-person opener. The writer's job is to execute on it.
  */
 import { llmCall } from '../llm';
-import { deriveMetaDescription } from '../meta';
+import { deriveMetaDescription, capTitle } from '../meta';
 import { qualityRulesPrompt } from './quality-rules';
-import { postProcess, capCitations, ensureHomepageCta, forceCanonicalH1 } from './post-process';
+import {
+  postProcess, capCitations, ensureHomepageCta, forceCanonicalH1,
+  ensureTakeaways, ensureFaqSection,
+} from './post-process';
 import type { SiteProfile } from './site-profile';
 import type { ResearchContext } from './research-context';
 import { flatSources } from './research-context';
@@ -259,8 +262,12 @@ OUTPUT FORMAT — exact delimiters, nothing else:
 
 ---BLOG_POST---
 [the article — open with the hook line, # heading is the brief's title, 900–1400 words, ending with the ## FAQ section]
+---KEY_TAKEAWAYS---
+[the same 3–5 "Key takeaways" bullets from the article, one "- " bullet per line, each ≤ 15 words]
+---FAQ---
+[the same FAQ from the article: each Q&A as a "### <question>" heading followed by its 40–80 word answer]
 ---META_TITLE---
-[the brief's title, under 60 chars]
+[the brief's title verbatim]
 ---META_DESCRIPTION---
 [under 155 chars — capture the promise]`;
 
@@ -286,7 +293,9 @@ Deliver the article now. Open with the hook line verbatim. Use the title as your
   const parsed = parseSections(draft.text);
   let body = parsed.blog_post || draft.text.trim();
   // Canonical title is decided here (brief wins) so we can force it onto the H1.
-  const title = (parsed.meta_title?.trim() || brief.title).slice(0, 80);
+  // The brief's full title, capped only at a word boundary — a hard .slice(80)
+  // shipped mid-word titles ("…Designers Swi") to live blogs.
+  const title = capTitle(brief.title?.trim() || parsed.meta_title?.trim() || '');
   body = postProcess(body, sources);
   // force the H1 to the canonical title verbatim (prompt rule #1, now guaranteed)
   body = forceCanonicalH1(body, title);
@@ -299,6 +308,13 @@ Deliver the article now. Open with the hook line verbatim. Use the title as your
     hostname,
     intent: brief.marketing_intent,
   });
+  // AEO safety net — models routinely skip the in-body "Key takeaways" and FAQ
+  // (0 of the first 28 published posts had takeaways, 1 had a FAQ, despite the
+  // prompt demanding both). They follow OUTPUT delimiters far more reliably, so
+  // we collect the blocks as sections and splice them in when the body lacks
+  // them; the CTA is already in place, so the FAQ still lands last.
+  body = ensureTakeaways(body, parsed.key_takeaways);
+  body = ensureFaqSection(body, parsed.faq);
 
   // Title already computed above (canonical, forced onto the H1).
   // Prefer a usable model description; otherwise fall back to the strongest
@@ -333,6 +349,8 @@ function parseSections(text: string) {
   if (cur) out[cur.toLowerCase()] = buf.join('\n').trim();
   return {
     blog_post: out['blog_post'] ?? '',
+    key_takeaways: out['key_takeaways'] ?? '',
+    faq: out['faq'] ?? '',
     meta_title: out['meta_title'] ?? '',
     meta_description: out['meta_description'] ?? '',
   };

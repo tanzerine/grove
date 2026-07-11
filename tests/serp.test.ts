@@ -71,3 +71,17 @@ describe('coverageGap', () => {
     expect(coverageGap(subs, 'none of them here', 3)).toHaveLength(3);
   });
 });
+
+describe('stopword filtering', () => {
+  it('never surfaces function words as consensus subtopics', () => {
+    const filler =
+      'How to turn your flat design into a 3d logo. Not all apps can turn designs into icons. ' +
+      'Turn it into something. Not all of them. All into turn not.';
+    const pages = [1, 2, 3].map(() => ({ title: 'p', content: filler.repeat(3) }));
+    const { subtopics } = extractSerpCoverage(pages, '3d logo');
+    for (const bad of ['into', 'turn', 'not', 'all']) {
+      expect(subtopics).not.toContain(bad);
+      expect(subtopics.some((s) => s.split(' ').includes(bad))).toBe(false);
+    }
+  });
+});
