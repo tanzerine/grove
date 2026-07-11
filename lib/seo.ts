@@ -4,7 +4,9 @@
 
 /** Absolute origin the hosted blogs live on, no trailing slash. */
 export function appBase(): string {
-  return (process.env.NEXT_PUBLIC_APP_URL ?? 'https://grove.so').replace(/\/$/, '');
+  // Fallback must be a domain that actually resolves — grove.so's DNS is dead,
+  // so falling back to it turns every canonical/sitemap/RSS URL into a 404.
+  return (process.env.NEXT_PUBLIC_APP_URL ?? 'https://grove-red.vercel.app').replace(/\/$/, '');
 }
 
 /* ─────────────── one canonical home per blog ───────────────
