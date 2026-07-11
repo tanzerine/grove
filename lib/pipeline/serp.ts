@@ -20,6 +20,9 @@ export type SerpCoverage = {
 export type SerpInsights = SerpCoverage & { sources: { url: string; title: string }[] };
 
 // Web/SEO filler that says nothing about the topic — never a useful "subtopic".
+// Includes plain English function words: STOP (from related-posts) is a tiny
+// title-matching list, and gaps in it let "into", "turn", "not", "all" ship as
+// ✓-checked "consensus subtopics" in the review UI.
 const GENERIC = new Set([
   'guide', 'best', 'top', 'how', 'what', 'why', 'when', 'review', 'reviews', 'vs',
   'blog', 'article', 'learn', 'tips', 'ways', 'things', 'need', 'know', 'about',
@@ -27,6 +30,16 @@ const GENERIC = new Set([
   'their', 'they', 'more', 'most', 'one', 'two', 'first', 'step', 'steps', 'read',
   'example', 'examples', 'website', 'com', 'www', 'https', 'http', 'home', 'click',
   'free', 'online', 'good', 'great', 'like', 'also', 'will', 'can', 'this', 'that',
+  // function words / light verbs
+  'all', 'and', 'any', 'are', 'because', 'been', 'before', 'being', 'between',
+  'both', 'but', 'come', 'could', 'does', 'doing', 'done', 'down', 'each', 'even',
+  'every', 'find', 'from', 'give', 'goes', 'going', 'had', 'has', 'have', 'here',
+  'into', 'its', 'just', 'look', 'made', 'many', 'much', 'not', 'now', 'off',
+  'only', 'other', 'out', 'over', 'put', 'right', 'same', 'should', 'some',
+  'something', 'still', 'such', 'take', 'than', 'them', 'then', 'there', 'these',
+  'those', 'through', 'turn', 'under', 'until', 'upon', 'very', 'want', 'was',
+  'well', 'were', 'where', 'which', 'while', 'who', 'whose', 'with', 'without',
+  'work', 'would', 'yet',
 ]);
 
 const tokenize = (s: string): string[] =>

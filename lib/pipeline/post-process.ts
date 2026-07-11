@@ -16,6 +16,8 @@
  */
 import { BANNED_PHRASES, phraseBoundaryRe } from './quality-rules';
 import type { SearchResult } from '../search';
+import { extractTakeaways } from '../takeaways';
+import { extractFaq } from '../faq';
 
 const REPLACEMENTS: Record<string, string> = {
   elevate: 'lift',
@@ -72,11 +74,14 @@ export function postProcess(rawBody: string, sources: SearchResult[]): string {
 
   // ── 1. convert numeric refs like [1] [2] to markdown links ───────────
   // (?!\() so an existing numeric link `[1](url)` keeps its own URL.
+  // Link text is the source's domain — "(source)" as visible link text reads
+  // as templated AI output (the manager flagged drafts "riddled with literal
+  // '(source)'", and this line was what produced it).
   body = body.replace(/\[(\d+)\](?!\()/g, (_match, n) => {
     const idx = parseInt(n, 10) - 1;
     const src = sources[idx];
     if (!src) return '';
-    return `[(source)](${src.url})`;
+    return `[${citationLabel(src.url)}](${src.url})`;
   });
 
   // ── 2. mechanical banned-phrase substitution ─────────────────────────
@@ -108,10 +113,37 @@ export function postProcess(rawBody: string, sources: SearchResult[]): string {
     })
     .join('\n\n');
 
-  // ── 5. final whitespace cleanup ──────────────────────────────────────
+  // ── 5. strip literal "(source)" artifacts the model emits itself ─────
+  body = stripCitationArtifacts(body);
+
+  // ── 6. final whitespace cleanup ──────────────────────────────────────
   body = body.trim().replace(/\n{3,}/g, '\n\n');
 
   return restoreCode(body, stash);
+}
+
+/** Visible link text for a citation: the source's bare domain ("adobe.com"). */
+export function citationLabel(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '') || 'source';
+  } catch {
+    return 'source';
+  }
+}
+
+/**
+ * Remove literal "(source)" / "[(source)]" / "[source]" placeholders that are
+ * NOT part of a markdown link. Models emit these instead of real citations
+ * (and rewrite passes copy them from previous drafts); left in, they read as
+ * template junk on the live blog. A real link `[(source)](url)` is untouched —
+ * the closing bracket there is followed by `(`.
+ */
+export function stripCitationArtifacts(body: string): string {
+  return body
+    .replace(/ ?\[?\(sources?(?::[^)\n]*)?\)\]?(?![(\]])/gi, '')
+    .replace(/ ?\[sources?\](?!\()/gi, '')
+    .replace(/(?<=\S)[ \t]{2,}(?=\S)/g, ' ')
+    .replace(/ ([,.;:])/g, '$1');
 }
 
 /**
@@ -266,8 +298,65 @@ export function ensureHomepageCta(
  */
 export function capCitations(body: string, max = 4): string {
   let count = 0;
-  return body.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, (_match, text) => {
+  return body.replace(/( ?)\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, (_match, pre, text) => {
     count += 1;
-    return count <= max ? _match : text;
+    if (count <= max) return _match;
+    // Demoting: keep meaningful prose text, but drop pure citation labels —
+    // "(source)" or a bare domain reads as debris once the URL is gone.
+    const t = String(text).trim();
+    const isArtifact = /^\(?source\)?$/i.test(t) || /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(t);
+    return isArtifact ? '' : `${pre}${t}`;
   });
+}
+
+/**
+ * Guarantee the "**Key takeaways**" block the readiness checks (and AI answer
+ * engines) look for. If the body already has one, no-op; otherwise insert the
+ * writer's ---KEY_TAKEAWAYS--- section right before the first H2. Bullets are
+ * normalized to "- item" form; fewer than 2 usable bullets → no-op (a fake
+ * one-line TL;DR is worse than none).
+ */
+export function ensureTakeaways(body: string, sectionMd?: string | null): string {
+  if (extractTakeaways(body).length > 0) return body;
+  const bullets = (sectionMd ?? '')
+    .split('\n')
+    .map((l) => l.match(/^\s*(?:[-*+]|\d+[.)])\s+(.*\S)\s*$/)?.[1])
+    .filter((s): s is string => !!s && !/^key takeaways/i.test(s))
+    .slice(0, 5);
+  if (bullets.length < 2) return body;
+
+  const block = `**Key takeaways**\n\n${bullets.map((b) => `- ${b}`).join('\n')}`;
+  const lines = body.split('\n');
+  let inFence = false;
+  for (let i = 0; i < lines.length; i++) {
+    if (/^\s*```/.test(lines[i])) { inFence = !inFence; continue; }
+    if (!inFence && /^##\s+/.test(lines[i])) {
+      lines.splice(i, 0, block, '');
+      return lines.join('\n');
+    }
+  }
+  return `${body.trimEnd()}\n\n${block}\n`;
+}
+
+/**
+ * Guarantee the closing "## FAQ" section (drives FAQPage JSON-LD + the AI-quote
+ * readiness check). No-op when the body already has extractable Q&As; otherwise
+ * append the writer's ---FAQ--- section, normalized so each question is an
+ * `### ` heading. Appending keeps the prompt's contract that FAQ is the final
+ * section (any closing CTA paragraph lands right before it).
+ */
+export function ensureFaqSection(body: string, sectionMd?: string | null): string {
+  if (extractFaq(body).length > 0) return body;
+  const raw = (sectionMd ?? '').trim();
+  if (!raw) return body;
+
+  const content = raw
+    .replace(/^#{1,6}\s*faqs?\s*$/gim, '')                    // model repeated the FAQ heading
+    .replace(/^#{1,6}\s+/gm, '### ')                          // every remaining heading is a question
+    .replace(/^(?:\*\*)?Q(?:uestion)?[:.]\s*(.+?)(?:\*\*)?\s*$/gim, '### $1')
+    .trim();
+  const candidate = `${body.trimEnd()}\n\n## FAQ\n\n${content}\n`;
+  // Only ship it if the result actually parses as Q&As — otherwise the section
+  // would be schema-less noise at the end of the article.
+  return extractFaq(candidate).length >= 1 ? candidate : body;
 }

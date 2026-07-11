@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { postProcess, forceCanonicalH1, capCitations, ensureHomepageCta } from '../lib/pipeline/post-process';
+import { postProcess, forceCanonicalH1, capCitations, ensureHomepageCta, ensureTakeaways, ensureFaqSection } from '../lib/pipeline/post-process';
 
 const SOURCES = [
   { url: 'https://s1.com', title: 't1', snippet: 'sn1' },
@@ -75,7 +75,7 @@ describe('postProcess code safety', () => {
     expect(out).toContain('    first = items[0]');
     expect(out).toContain('    second = items[1]');
     expect(out).toContain('return first — second'); // em-dash in code kept
-    expect(out).toContain('Intro — one — two , three dashes.'); // prose cap still applies
+    expect(out).toContain('Intro — one — two, three dashes.'); // prose cap still applies
   });
 
   it('leaves inline code spans untouched', () => {
@@ -92,8 +92,8 @@ describe('postProcess code safety', () => {
 
   it('still converts numeric refs to citation links in prose', () => {
     const out = postProcess('A claim [1] and another [2] and a dud [9].', SOURCES);
-    expect(out).toContain('[(source)](https://s1.com)');
-    expect(out).toContain('[(source)](https://s2.com)');
+    expect(out).toContain('[s1.com](https://s1.com)');
+    expect(out).toContain('[s2.com](https://s2.com)');
     expect(out).not.toContain('[9]');
   });
 
@@ -127,5 +127,82 @@ describe('forceCanonicalH1 code safety', () => {
     expect(out).toContain('# install deps');   // bash comment untouched
     expect(out).toContain('## Stray H1');      // real extra H1 still demoted
     expect(out.startsWith('# Real Title')).toBe(true);
+  });
+});
+
+describe('citation artifacts', () => {
+  it('numeric refs become domain-labelled links, not "(source)"', () => {
+    const out = postProcess('A claim [1] and another [2].', [
+      { url: 'https://www.adobe.com/guide', title: 't1', snippet: 's' },
+      { url: 'https://helpx.adobe.com/x', title: 't2', snippet: 's' },
+    ] as any);
+    expect(out).toContain('[adobe.com](https://www.adobe.com/guide)');
+    expect(out).not.toContain('(source)');
+  });
+
+  it('strips literal "(source)" placeholders the model emits itself', () => {
+    const out = postProcess('Inflate flat vectors (source). Also [(source)] and [source] junk.', []);
+    expect(out).not.toMatch(/\(source\)|\[source\]/i);
+    expect(out).toContain('Inflate flat vectors.');
+  });
+
+  it('keeps a real [(source)](url) link intact', () => {
+    const out = postProcess('A cited claim [(source)](https://x.com/a).', []);
+    expect(out).toContain('[(source)](https://x.com/a)');
+  });
+
+  it('capCitations drops artifact link text instead of leaving "(source)" prose', () => {
+    const body =
+      '[a](https://x.com/1) [b](https://x.com/2) claim [(source)](https://x.com/3) and [adobe.com](https://x.com/4)';
+    const out = capCitations(body, 2);
+    expect(out).not.toContain('(source)');
+    expect(out).not.toContain('adobe.com');
+    expect(out).toContain('claim and');
+  });
+});
+
+describe('ensureTakeaways', () => {
+  const section = '- Paper filters trap oils\n- Grind size decides bitterness\n- Water at 93°C';
+
+  it('inserts the block before the first H2 when the body has none', () => {
+    const out = ensureTakeaways('# T\n\nIntro para.\n\n## First section\n\nBody.', section);
+    expect(out.indexOf('**Key takeaways**')).toBeGreaterThan(-1);
+    expect(out.indexOf('**Key takeaways**')).toBeLessThan(out.indexOf('## First section'));
+    expect(out).toContain('- Paper filters trap oils');
+  });
+
+  it('no-ops when the body already has a takeaways block', () => {
+    const body = '# T\n\n**Key takeaways**\n\n- one\n- two\n\n## S\n\nBody.';
+    expect(ensureTakeaways(body, section)).toBe(body);
+  });
+
+  it('no-ops when the section has fewer than 2 bullets', () => {
+    const body = '# T\n\nIntro.\n\n## S\n\nBody.';
+    expect(ensureTakeaways(body, '- only one')).toBe(body);
+  });
+});
+
+describe('ensureFaqSection', () => {
+  const section = '### Is it free?\n\nYes, within limits that matter.\n\n### Does it export SVG?\n\nIt does, plus PNG and WEBP.';
+
+  it('appends a parseable ## FAQ when the body lacks one', () => {
+    const out = ensureFaqSection('# T\n\nBody text.', section);
+    expect(out).toContain('## FAQ');
+    expect(out).toContain('### Is it free?');
+  });
+
+  it('no-ops when the body already has a FAQ', () => {
+    const body = '# T\n\nBody.\n\n## FAQ\n\n### Q?\n\nAnswer here.';
+    expect(ensureFaqSection(body, section)).toBe(body);
+  });
+
+  it('drops a section that does not parse into Q&As', () => {
+    const body = '# T\n\nBody.';
+    expect(ensureFaqSection(body, 'just some prose, no headings')).toBe(body);
+  });
+
+  it('normalizes a repeated "## FAQ" heading inside the section', () => {
+    const out = ensureFaqSection('# T\n\nBody.', `## FAQ\n${section}`);
+    expect(out.match(/## FAQ/g)?.length).toBe(1);
   });
 });

@@ -24,6 +24,20 @@ function cap(s: string): string {
   return s.slice(0, MAX - 1).replace(/\s+\S*$/, '').trimEnd() + '…';
 }
 
+/**
+ * Cap a post title at a word boundary. Titles are stored verbatim as the H1 and
+ * <title>, so a hard character slice ships mid-word truncations ("…Designers
+ * Swi") to the live blog — 10 of the first 28 published posts did exactly that.
+ * The limit is a runaway guard, not a display target (Google truncates long
+ * titles visually on its own); at 140 it should almost never fire.
+ */
+export function capTitle(s: string, max = 140): string {
+  const t = (s ?? '').replace(/\s+/g, ' ').trim();
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max).replace(/\s+\S*$/, '').trimEnd();
+  return (cut || t.slice(0, max).trimEnd()) + '…';
+}
+
 export function deriveMetaDescription(opts: {
   modelMeta?: string | null;
   body?: string | null;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deriveMetaDescription } from '../lib/meta';
+import { deriveMetaDescription, capTitle } from '../lib/meta';
 
 describe('deriveMetaDescription', () => {
   it('keeps a usable model description, stripping markdown', () => {
@@ -30,5 +30,22 @@ describe('deriveMetaDescription', () => {
   it('falls back to the promise when there is no takeaway', () => {
     expect(deriveMetaDescription({ modelMeta: 'too short', body: '# T\n\nProse.', promise: 'Learn exactly how to dial in espresso at home in one afternoon.' }))
       .toBe('Learn exactly how to dial in espresso at home in one afternoon.');
+  });
+});
+
+describe('capTitle', () => {
+  it('returns short titles verbatim', () => {
+    expect(capTitle('How to Make a 3D Logo in Illustrator')).toBe('How to Make a 3D Logo in Illustrator');
+  });
+
+  it('never cuts mid-word', () => {
+    const long = 'word '.repeat(40).trim(); // 199 chars
+    const out = capTitle(long, 140);
+    expect(out.length).toBeLessThanOrEqual(141);
+    expect(out.endsWith('word…')).toBe(true);
+  });
+
+  it('collapses whitespace', () => {
+    expect(capTitle('  A   spaced\ttitle ')).toBe('A spaced title');
   });
 });
