@@ -47,6 +47,7 @@ export function summarizeReadiness(opts: {
   stats?: Record<string, number> | null;
   issues?: string[] | null;
   managerOverall?: number | null;
+  managerAction?: string | null;
 }): Readiness {
   const s = opts.stats ?? {};
   const n = (k: string) => (Number.isFinite(Number(s[k])) ? Number(s[k]) : 0);
@@ -66,9 +67,17 @@ export function summarizeReadiness(opts: {
 
   // The first three are the ones that decide "ready"; voice is shown but soft.
   const hardOk = checks.slice(0, 3).filter((c) => c.ok).length;
-  const status: Readiness['status'] = hardOk === 3 ? 'ready' : hardOk >= 1 ? 'almost' : 'draft';
+  // The editor's verdict outranks the checklist. A draft the manager sent back
+  // for rewrite (or scored in the red) must not headline "Almost there — a
+  // quick polish" — that contradiction sat next to a 31/100 score in the UI.
+  const sentBack =
+    opts.managerAction === 'rewrite' || opts.managerAction === 'reject' ||
+    (mgr != null && mgr < 40);
+  const status: Readiness['status'] =
+    sentBack ? 'draft' : hardOk === 3 ? 'ready' : hardOk >= 1 ? 'almost' : 'draft';
   const headline =
-    status === 'ready' ? 'Ready to bring you visitors'
+    sentBack ? 'The editor sent this back — it needs another pass'
+    : status === 'ready' ? 'Ready to bring you visitors'
     : status === 'almost' ? 'Almost there — a quick polish'
     : 'Still a rough draft';
 

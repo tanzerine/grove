@@ -57,3 +57,24 @@ describe('plainNote', () => {
     expect(plainNote('BANNED_PHRASE: \'game-changer\'')).toBeNull();
   });
 });
+
+describe('manager verdict outranks the checklist', () => {
+  const goodStats = { word_count: 1200, faq_count: 3, key_takeaways_count: 4, citation_count: 3, serp_gap_count: 0 };
+
+  it('a rewrite verdict forces "sent back" framing even when checks pass', () => {
+    const r = summarizeReadiness({ stats: goodStats, issues: [], managerOverall: 31, managerAction: 'rewrite' });
+    expect(r.status).toBe('draft');
+    expect(r.headline).toMatch(/sent this back/i);
+  });
+
+  it('a red score without an action string is also held', () => {
+    const r = summarizeReadiness({ stats: goodStats, issues: [], managerOverall: 30 });
+    expect(r.status).toBe('draft');
+  });
+
+  it('an approved high-scoring draft still reads ready', () => {
+    const r = summarizeReadiness({ stats: goodStats, issues: [], managerOverall: 84, managerAction: 'approve' });
+    expect(r.status).toBe('ready');
+    expect(r.headline).toMatch(/ready/i);
+  });
+});

@@ -55,7 +55,7 @@ export default function BillingClient({
   }
 
   const renews = currentPeriodEnd
-    ? new Date(currentPeriodEnd).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+    ? new Date(currentPeriodEnd).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
     : null;
 
   return (

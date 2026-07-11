@@ -179,7 +179,7 @@ function UserTr({ u, now }: { u: AdminUserRow; now: number }) {
     <tr style={{ borderTop: `1px solid ${LINE}` }}>
       <td style={{ ...td, maxWidth: 220 }}>
         <div style={{ color: 'var(--gv-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.email ?? '—'}</div>
-        <div style={{ fontSize: 11, color: 'var(--gv-faint)' }}>joined {new Date(u.createdAt).toLocaleDateString()}</div>
+        <div style={{ fontSize: 11, color: 'var(--gv-faint)' }}>joined {new Date(u.createdAt).toLocaleDateString('en-US')}</div>
       </td>
       <td style={td}>
         <span style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: c.bg, color: c.fg, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{u.status}</span>
@@ -224,7 +224,7 @@ function timeAgo(iso: string | null, now: number): string {
   if (h < 24) return `${h}h ago`;
   const d = Math.round(h / 24);
   if (d < 30) return `${d}d ago`;
-  return new Date(iso).toLocaleDateString();
+  return new Date(iso).toLocaleDateString('en-US');
 }
 
 function statusColor(s: EngagementStatus): { bg: string; fg: string } {

@@ -224,7 +224,7 @@ export default async function StrategyPage() {
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 12, color: 'var(--gv-dim)' }}>{g.label}</div>
                   <div style={{ fontSize: 21, fontWeight: 700, letterSpacing: '-0.02em', marginTop: 3 }}>{g.current}</div>
-                  <div style={{ fontSize: 11.5, color: 'var(--gv-faint)', marginTop: 1 }}>of {g.target} goal</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--gv-faint)', marginTop: 1 }}>{g.target === '—' ? 'no numeric target yet' : `of ${g.target} goal`}</div>
                 </div>
               </div>
             ))}

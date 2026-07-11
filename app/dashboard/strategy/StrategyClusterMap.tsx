@@ -93,7 +93,6 @@ export default function StrategyClusterMap({ clusters }: { clusters: Cluster[] }
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, fontSize: 12, color: 'var(--gv-faint)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 14, marginTop: 6 }}>
         <span><span style={{ color: ACCENT, fontWeight: 600 }}>{covered}</span> of {cur.spokes.length} spokes covered · {gaps} gap{gaps === 1 ? '' : 's'} worth filling</span>
-        <button className="gv-btn" style={{ border: '1px solid rgba(99,194,129,0.25)', background: 'rgba(99,194,129,0.08)', color: ACCENT, fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '7px 13px', borderRadius: 9, cursor: 'pointer' }}>Queue the {gaps} gap{gaps === 1 ? '' : 's'} →</button>
       </div>
     </div>
   );

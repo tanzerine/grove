@@ -141,7 +141,7 @@ export default async function AdminOverviewPage() {
                         <td style={{ ...td, color: 'var(--gv-ink)' }}>{u.email ?? '—'}</td>
                         <td style={td}>{u.plan ? <span style={pill}>{cap(u.plan)}</span> : <span style={{ color: 'var(--gv-fainter)' }}>free</span>}</td>
                         <td style={{ ...td, color: 'var(--gv-soft)' }}>{u.source}</td>
-                        <td style={{ ...td, color: DIM }}>{new Date(u.createdAt).toLocaleDateString()}</td>
+                        <td style={{ ...td, color: DIM }}>{new Date(u.createdAt).toLocaleDateString('en-US')}</td>
                       </tr>
                     ))}
                   </tbody>

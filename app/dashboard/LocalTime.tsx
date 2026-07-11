@@ -2,7 +2,9 @@
 
 /**
  * Renders a UTC ISO instant in the viewer's local timezone (browser-local is
- * the product convention). suppressHydrationWarning silences the expected
+ * the product convention). Locale is pinned to en-US so dates match the
+ * English UI instead of flipping to the browser language (a Korean browser
+ * rendered "7월 13일 (월) 오후 6:00" inside otherwise-English screens). suppressHydrationWarning silences the expected
  * server(UTC)→client(local) text difference.
  */
 export default function LocalTime({
@@ -13,5 +15,5 @@ export default function LocalTime({
   const opts: Intl.DateTimeFormatOptions = withTime
     ? { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }
     : { weekday: 'short', month: 'short', day: 'numeric' };
-  return <time dateTime={iso} suppressHydrationWarning>{d.toLocaleString(undefined, opts)}</time>;
+  return <time dateTime={iso} suppressHydrationWarning>{d.toLocaleString('en-US', opts)}</time>;
 }
