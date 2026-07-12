@@ -23,7 +23,7 @@ export const maxDuration = 300;
 export async function GET(req: Request) {
   if (!isCronAuthorized(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://grove-red.vercel.app';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://trygroveai.com';
 
   const [stats, flags] = await Promise.all([getAdminStats(), detectAnomalies()]);
   const { subject, html, text } = composeAdminDigestEmail(stats, flags, baseUrl);

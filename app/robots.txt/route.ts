@@ -3,22 +3,34 @@
  * discover every hosted blog without waiting on external links.
  */
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { blogHomeUrl } from '@/lib/seo';
+import { blogHomeUrl, appBase } from '@/lib/seo';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const sb = supabaseAdmin();
-  const { data: domains } = await sb
-    .from('domains').select('blog_slug')
-    .not('verified_at', 'is', null)
-    .limit(500);
+  // Blog sitemaps are a best-effort enrichment: if the DB is unreachable or the
+  // service-role env is missing, robots.txt must STILL serve (a crashing
+  // robots.txt is far worse for crawling than one missing a few blog sitemaps).
+  let domains: { blog_slug: string }[] = [];
+  try {
+    const sb = supabaseAdmin();
+    const { data } = await sb
+      .from('domains').select('blog_slug')
+      .not('verified_at', 'is', null)
+      .limit(500);
+    domains = data ?? [];
+  } catch {
+    /* DB/env unavailable — fall through with just the marketing sitemap */
+  }
 
   // With GROVE_BLOG_ROOT_DOMAIN set these point at the subdomains (each of
   // which also serves its own robots.txt); without it, at the /b/ paths.
-  const sitemaps = (domains ?? [])
-    .map((d) => `Sitemap: ${blogHomeUrl(d.blog_slug)}/sitemap.xml`)
-    .join('\n');
+  // The marketing sitemap (app/sitemap.ts) goes first so the homepage + legal
+  // pages have a crawl entry point — they were in no sitemap before.
+  const sitemaps = [
+    `Sitemap: ${appBase()}/sitemap.xml`,
+    ...domains.map((d) => `Sitemap: ${blogHomeUrl(d.blog_slug)}/sitemap.xml`),
+  ].join('\n');
 
   const body = `User-agent: *
 Allow: /

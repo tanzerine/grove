@@ -1,7 +1,10 @@
 import type { Metadata } from 'next';
 import LegalPage, { LegalSection } from '@/components/LegalPage';
 
-export const metadata: Metadata = { title: 'Terms of Service — grove' };
+export const metadata: Metadata = {
+  title: 'Terms of Service',
+  alternates: { canonical: '/terms' },
+};
 
 export default function Page() {
   return (

@@ -1,6 +1,13 @@
+import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import Landing from '@/components/Landing';
+import StructuredData from '@/components/StructuredData';
 import { supabaseServer } from '@/lib/supabase/server';
+
+export const metadata: Metadata = {
+  alternates: { canonical: '/' },
+  openGraph: { url: '/' },
+};
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ code?: string }> }) {
   const sp = await searchParams;
@@ -22,5 +29,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
     // backend down or misconfigured — render the signed-out landing
   }
 
-  return <Landing loggedIn={loggedIn} />;
+  return (
+    <>
+      <StructuredData />
+      <Landing loggedIn={loggedIn} />
+    </>
+  );
 }
