@@ -158,26 +158,26 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
     { title: 'A buyer’s guide to programmatic SEO', meta: 'ranking for 14 keywords', status: 'live' },
   ];
   const steps = [
-    { n: '01', title: 'Enter your domain', sub: 'One field. No plugins.' },
+    { n: '01', title: 'Plant your domain', sub: 'One field. No plugins.' },
     { n: '02', title: 'Verify ownership', sub: 'DNS or meta tag · 2 min' },
-    { n: '03', title: 'Posts go live', sub: 'Researched & published' },
+    { n: '03', title: 'You approve, it ships', sub: 'Or flip to full auto' },
   ];
   // Real publish surfaces only — grove has no WordPress/Webflow/Ghost plugin,
   // and pretending otherwise is a bait-and-switch a customer discovers on day 1.
   const platforms = ['Hosted blog', 'One-line embed', 'Webhook', 'Zapier / n8n', 'RSS', 'JSON API'];
   // Product facts, not invented social proof.
   const stats = [
-    { big: '5 steps', label: 'research → write → gate → publish → learn' },
-    { big: '0–100', label: 'every draft scored before it can ship' },
-    { big: '1 line', label: 'of code to run the blog on your site' },
-    { big: '100%', label: 'first-party analytics — no tracking JS' },
+    { big: '1 editor', label: 'an agent scores every draft; weak ones never ship' },
+    { big: '0–100', label: 'quality score on each post before it goes live' },
+    { big: '1 line', label: 'of code to run the whole blog on your site' },
+    { big: '0', label: 'third-party trackers — your analytics stay yours' },
   ];
   const features = [
     { n: '01', title: 'Live SERP analysis', body: 'grove reads what’s actually ranking for your keywords, then reverse-engineers the brief — gap, intent, structure and word count.' },
-    { n: '02', title: 'Answer-engine ready', body: 'Structured for AI Overviews and ChatGPT citations, so you show up where the next click now starts.' },
+    { n: '02', title: 'Written to be quoted', body: 'Structured for AI Overviews and ChatGPT — the answer engines where the next click now starts.' },
     { n: '03', title: 'Writes in your voice', body: 'Trained on your site and past posts. Reads like your best writer — not a content mill.' },
-    { n: '04', title: 'Ranking in plain English', body: 'See exactly why each post moves — no Search Console spreadsheet required.' },
-    { n: '05', title: 'Cross-posts everywhere', body: 'One brief becomes a blog post, an X thread, a LinkedIn post and an Instagram caption.' },
+    { n: '04', title: 'Results in plain English', body: 'See exactly why each post moves — no Search Console spreadsheet required.' },
+    { n: '05', title: 'Cross-posts where it counts', body: 'One brief becomes a blog post, an X thread, a LinkedIn post, and an Instagram caption.' },
     { n: '06', title: 'Publishes itself', body: 'Straight to your domain — URL, sitemap, internal links, metadata, schema. No copy-paste, no plugins.' },
   ];
   const wave = ['40%','70%','55%','85%','45%','95%','60%','75%','50%','88%','42%','66%','80%','52%','92%','58%','72%','48%','84%','62%','46%','78%'];
@@ -326,7 +326,7 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
             Plant your domain.<br />The blog <span style={{ color: 'var(--accent,#63c281)', fontStyle: 'italic', fontWeight: 600 }}>grows itself.</span>
           </h1>
           <p style={{ fontSize: 18, lineHeight: 1.6, color: '#9aa096', maxWidth: 600, margin: '0 auto 34px' }}>
-            grove reads the live SERP, writes content engineered to rank on Google and get quoted by ChatGPT &amp; AI Overviews, then publishes it to your site — automatically.
+            Your marketing agent reads what&apos;s actually ranking, writes in your voice, and publishes to your site — holding anything weak for your review. Built for Google, written to be quoted by ChatGPT &amp; AI Overviews.
           </p>
           {domainForm('1')}
           <div style={{ fontSize: 11.5, letterSpacing: '0.04em', color: '#6b6f67' }}>Free to start · First draft in minutes · No card required</div>
@@ -343,7 +343,7 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
               <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#2a2d29' }} />
               <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#2a2d29' }} />
               <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#2a2d29' }} />
-              <span style={{ marginLeft: 14, fontSize: 12, color: '#6b6f67' }}>app.grove.so/dashboard</span>
+              <span style={{ marginLeft: 14, fontSize: 12, color: '#6b6f67' }}>grove · dashboard</span>
               <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--accent,#63c281)' }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent,#63c281)' }} /> autopilot on</span>
             </div>
             <div className="gv-mock-grid" style={{ minHeight: 300, textAlign: 'left' }}>
@@ -425,7 +425,7 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
 
       {/* LOGO ROW */}
       <section style={{ padding: '40px 24px 56px', textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
-        <div style={{ fontSize: 11, letterSpacing: '0.16em', color: '#565a53', textTransform: 'uppercase', marginBottom: 26 }}>Publishes through</div>
+        <div style={{ fontSize: 11, letterSpacing: '0.16em', color: '#565a53', textTransform: 'uppercase', marginBottom: 26 }}>Works with any stack</div>
         <div className="gv-r" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '40px 56px', opacity: 0.62 }}>
           {platforms.map((p) => (
             <span key={p} style={{ fontSize: 21, fontWeight: 700, letterSpacing: '-0.02em', color: '#cdd2c9' }}>{p}</span>
@@ -596,7 +596,7 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
         <div className="gv-r" style={{ position: 'relative', maxWidth: 720, margin: '0 auto' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 11.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--accent,#63c281)', marginBottom: 24 }}><span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent,#63c281)', boxShadow: '0 0 8px var(--accent,#63c281)' }} /> Available for new domains</div>
           <h2 style={{ fontSize: 'clamp(38px, 6vw, 68px)', fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.04, margin: '0 0 22px' }}>Your blog is one<br /><span style={{ fontStyle: 'italic', color: 'var(--accent,#63c281)', fontWeight: 600 }}>field away.</span></h2>
-          <p style={{ fontSize: 17, color: '#9aa096', margin: '0 0 32px' }}>Plant your domain tonight. Wake up to a researched, ranked, published post.</p>
+          <p style={{ fontSize: 17, color: '#9aa096', margin: '0 0 32px' }}>Plant your domain tonight. Wake up to a researched draft in your queue — approve it, and it&apos;s live.</p>
           {domainForm('2')}
         </div>
       </section>
