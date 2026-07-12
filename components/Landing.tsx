@@ -40,6 +40,12 @@ const CSS = `
   .gv-land .gv-faqgrid { grid-template-columns: 1fr !important; }
   .gv-land .gv-footgrid { grid-template-columns: 1fr 1fr !important; }
 }
+.gv-land .gv-mock-grid { display: grid; grid-template-columns: 194px 1fr; }
+@media (max-width: 720px) {
+  .gv-land .gv-mock-side { display: none !important; }
+  .gv-land .gv-mock-grid { grid-template-columns: 1fr; }
+  .gv-land .gv-mock-stats { grid-template-columns: repeat(2, 1fr) !important; }
+}
 `;
 
 export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
@@ -176,6 +182,43 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
   ];
   const wave = ['40%','70%','55%','85%','45%','95%','60%','75%','50%','88%','42%','66%','80%','52%','92%','58%','72%','48%','84%','62%','46%','78%'];
   const channels = ['Blog post', 'X thread', 'LinkedIn', 'Instagram'];
+
+  // Hero product mock — mirrors the real dashboard "Overview": the SideNav
+  // sections/items (app/dashboard/SideNav.tsx) and the four stat cards
+  // (app/dashboard/page.tsx). Keep these in sync if the app shell changes.
+  const mockNav = [
+    { head: 'Create', items: [
+      { label: 'Home', icon: 'home', active: true },
+      { label: 'Strategy', icon: 'strategy' },
+      { label: 'Write', icon: 'write' },
+      { label: 'Pipeline', icon: 'pipeline', badge: 3 },
+    ] },
+    { head: 'Publish', items: [
+      { label: 'Calendar', icon: 'calendar' },
+      { label: 'Analytics', icon: 'analytics' },
+    ] },
+  ];
+  const mockStats = [
+    { label: 'Reads', value: '3.2k', delta: '+18%', tone: 'accent', sub: '142 this week' },
+    { label: 'Published', value: '128', delta: '+6', tone: 'accent', sub: '4 / week' },
+    { label: 'In pipeline', value: '3', delta: 'live', tone: 'dim', sub: 'on schedule' },
+    { label: 'Review', value: '2', delta: 'action', tone: 'amber', sub: 'approve to publish' },
+  ];
+  const navIcon = (name: string) => {
+    const paths: Record<string, string> = {
+      home: 'M3 9l7-6 7 6M5 8.5V17h10V8.5',
+      strategy: 'M10 3a7 7 0 100 14 7 7 0 000-14M10 7l2.2 4.5L8 10z',
+      write: 'M4 16l1.5-.4 8.6-8.6-1.1-1.1L4.4 14.5z',
+      pipeline: 'M4 6l6-2.5L16 6l-6 2.5zM4 10l6 2.5 6-2.5M4 14l6 2.5 6-2.5',
+      calendar: 'M4 5h12v11H4zM4 8.5h12M8 3.5v3M12 3.5v3',
+      analytics: 'M4 16V9M9.5 16V4M15 16v-6',
+    };
+    return (
+      <svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d={paths[name]} />
+      </svg>
+    );
+  };
   // Pricing renders straight from the plan catalogue so this page can never
   // disagree with /dashboard/billing again (it did: 4/16/unlimited vs 12/40/150).
   const tierBase = (['starter', 'growth', 'agency'] as const).map((id) => ({
@@ -300,27 +343,65 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
               <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#2a2d29' }} />
               <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#2a2d29' }} />
               <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#2a2d29' }} />
-              <span style={{ marginLeft: 14, fontSize: 12, color: '#6b6f67' }}>grove · content pipeline</span>
+              <span style={{ marginLeft: 14, fontSize: 12, color: '#6b6f67' }}>app.grove.so/dashboard</span>
               <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--accent,#63c281)' }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent,#63c281)' }} /> autopilot on</span>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '188px 1fr', minHeight: 280, textAlign: 'left' }}>
-              <div style={{ borderRight: '1px solid rgba(255,255,255,0.06)', padding: '18px 16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 11px', borderRadius: 9, background: 'rgba(99,194,129,0.1)', border: '1px solid rgba(99,194,129,0.2)', fontSize: 13, fontWeight: 600 }}>Pipeline <span style={{ color: 'var(--accent,#63c281)' }}>3</span></div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 11px', borderRadius: 9, fontSize: 13, color: '#9aa096' }}>Published <span>128</span></div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 11px', borderRadius: 9, fontSize: 13, color: '#9aa096' }}>In review <span>2</span></div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 11px', borderRadius: 9, fontSize: 13, color: '#9aa096' }}>Live now <span>9 / 12</span></div>
-                <div style={{ marginTop: 'auto', paddingTop: 14, fontSize: 10.5, color: '#565a53', lineHeight: 1.5 }}>NEXT PUBLISH<br /><span style={{ color: 'var(--accent,#63c281)' }}>in 06h 12m</span></div>
+            <div className="gv-mock-grid" style={{ minHeight: 300, textAlign: 'left' }}>
+              {/* left rail — mirrors the real SideNav */}
+              <div className="gv-mock-side" style={{ borderRight: '1px solid rgba(255,255,255,0.06)', padding: '15px 12px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '2px 8px 4px' }}>
+                  <span style={{ width: 20, height: 20, borderRadius: 6, background: 'var(--accent,#63c281)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#06120b', fontWeight: 800, fontSize: 13 }}>g</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#eef1ea' }}>grove</span>
+                </div>
+                {mockNav.map((sec) => (
+                  <div key={sec.head} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <div style={{ fontSize: 9, letterSpacing: '0.13em', textTransform: 'uppercase', color: '#565a53', padding: '2px 10px 4px' }}>{sec.head}</div>
+                    {sec.items.map((it) => (
+                      <div key={it.label} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', borderRadius: 9, border: `1px solid ${it.active ? 'rgba(99,194,129,0.22)' : 'transparent'}`, background: it.active ? 'rgba(99,194,129,0.1)' : 'transparent', color: it.active ? '#eef1ea' : '#9aa096', fontSize: 12.5, fontWeight: 500 }}>
+                        <span style={{ color: it.active ? 'var(--accent,#63c281)' : '#6b6f67', display: 'flex', flexShrink: 0 }}>{navIcon(it.icon)}</span>
+                        <span style={{ flex: 1 }}>{it.label}</span>
+                        {it.badge ? <span style={{ fontSize: 9.5, fontWeight: 700, color: '#06120b', background: 'var(--accent,#63c281)', borderRadius: 999, padding: '0 6px' }}>{it.badge}</span> : null}
+                      </div>
+                    ))}
+                  </div>
+                ))}
               </div>
-              <div style={{ padding: 18 }}>
-                <div style={{ fontSize: 11, letterSpacing: '0.1em', color: '#6b6f67', marginBottom: 14 }}>CONTENT PIPELINE</div>
-                {pipeline.map((row, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '13px 14px', borderRadius: 12, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', marginBottom: 9 }}>
-                    <span style={{ width: 26, height: 26, borderRadius: 7, background: 'rgba(99,194,129,0.12)', border: '1px solid rgba(99,194,129,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent,#63c281)', fontSize: 13, flexShrink: 0 }}>✓</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13.5, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.title}</div>
-                      <div style={{ fontSize: 11.5, color: '#6b6f67', marginTop: 2 }}>{row.meta}</div>
+
+              {/* main — Overview header, stat cards, content pipeline */}
+              <div style={{ padding: 18, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
+                  <div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: '#eef1ea', letterSpacing: '-0.02em' }}>Overview</div>
+                    <div style={{ fontSize: 11.5, color: '#6b6f67', marginTop: 3 }}>oveners.com · autopilot active</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 7, flexShrink: 0 }}>
+                    <span style={{ fontSize: 11.5, color: '#b6bcb1', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)', borderRadius: 8, padding: '6px 11px', whiteSpace: 'nowrap' }}>Review · 2</span>
+                    <span style={{ fontSize: 11.5, fontWeight: 700, color: '#06120b', background: 'var(--accent,#63c281)', borderRadius: 8, padding: '6px 13px' }}>Write</span>
+                  </div>
+                </div>
+
+                <div className="gv-mock-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 9, marginBottom: 16 }}>
+                  {mockStats.map((s) => (
+                    <div key={s.label} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 11, padding: '12px 13px' }}>
+                      <div style={{ fontSize: 11, color: '#6b6f67' }}>{s.label}</div>
+                      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, marginTop: 8 }}>
+                        <span style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1, color: '#eef1ea' }}>{s.value}</span>
+                        <span style={{ fontSize: 10.5, fontWeight: 600, paddingBottom: 2, color: s.tone === 'amber' ? '#e0c878' : s.tone === 'accent' ? 'var(--accent,#63c281)' : '#6b6f67' }}>{s.delta}</span>
+                      </div>
+                      <div style={{ fontSize: 10, color: '#565a53', marginTop: 6 }}>{s.sub}</div>
                     </div>
-                    <span style={{ fontSize: 10.5, padding: '4px 9px', borderRadius: 999, background: 'rgba(255,255,255,0.04)', color: '#b6bcb1', whiteSpace: 'nowrap' }}>{row.status}</span>
+                  ))}
+                </div>
+
+                <div style={{ fontSize: 10.5, letterSpacing: '0.1em', color: '#6b6f67', marginBottom: 9 }}>CONTENT PIPELINE</div>
+                {pipeline.map((row, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', marginBottom: 7 }}>
+                    <span style={{ width: 24, height: 24, borderRadius: 7, background: 'rgba(99,194,129,0.12)', border: '1px solid rgba(99,194,129,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent,#63c281)', fontSize: 12, flexShrink: 0 }}>✓</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 600, color: '#dfe4db', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.title}</div>
+                      <div style={{ fontSize: 11, color: '#6b6f67', marginTop: 2 }}>{row.meta}</div>
+                    </div>
+                    <span style={{ fontSize: 10, padding: '3px 8px', borderRadius: 999, background: 'rgba(255,255,255,0.04)', color: '#b6bcb1', whiteSpace: 'nowrap' }}>{row.status}</span>
                   </div>
                 ))}
               </div>
