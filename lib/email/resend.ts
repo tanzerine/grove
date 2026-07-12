@@ -23,7 +23,7 @@ const TIMEOUT_MS = 10_000;
 
 /** From address — defaults to a Grove-branded sender; override per env. */
 function fromAddress(): string {
-  return process.env.RESEND_FROM ?? 'Grove <agent@grove.so>';
+  return process.env.RESEND_FROM ?? 'Grove <agent@trygroveai.com>';
 }
 
 export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult> {

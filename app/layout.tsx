@@ -1,10 +1,36 @@
 import './globals.css';
 import type { Metadata } from 'next';
 
+import { SITE } from '@/lib/site';
+import { appBase } from '@/lib/seo';
+
 export const metadata: Metadata = {
-  title: 'grove — content that keeps growing',
-  description:
-    'grove researches, writes, and publishes SEO blog posts straight to your site — automatically.',
+  metadataBase: new URL(appBase()),
+  title: {
+    default: SITE.title,
+    template: `%s · ${SITE.name}`,
+  },
+  description: SITE.description,
+  keywords: [...SITE.keywords],
+  applicationName: SITE.name,
+  // NOTE: no site-wide `alternates.canonical` here — it would cascade to every
+  // route (privacy, blog, …). Canonicals are set per-page.
+  openGraph: {
+    type: 'website',
+    siteName: SITE.name,
+    title: SITE.title,
+    description: SITE.description,
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: SITE.title,
+    description: SITE.description,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1 },
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

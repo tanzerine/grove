@@ -10,7 +10,7 @@ import { DashHeader } from '../gv-chrome';
 export default async function Page() {
   const sb = await supabaseServer();
   const domain = await getActiveDomain(sb);
-  const groveBase = process.env.NEXT_PUBLIC_APP_URL ?? 'https://grove-red.vercel.app';
+  const groveBase = process.env.NEXT_PUBLIC_APP_URL ?? 'https://trygroveai.com';
 
   const blogSnippet = `<div id="grove-blog"></div>
 <script src="${groveBase}/embed.js" async></script>`;
