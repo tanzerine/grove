@@ -3,50 +3,41 @@ import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import GroveMark from '@/components/GroveMark';
+import { afterSignIn, afterCreate } from '@/lib/auth/flow';
 
-const REFERRAL_OPTIONS = [
-  'Google / search',
-  'X (Twitter)',
-  'LinkedIn',
-  'Reddit / community',
-  'Friend or colleague',
-  'Newsletter / blog',
-  'YouTube / podcast',
-  'Other',
-];
-
-// One Google button + one email/password card, shared by /login and /signup.
-export default function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
+/**
+ * One auth surface — no separate sign-up. The user enters an email + password
+ * (or uses Google) and we figure out the rest: an existing account signs in, a
+ * new one is created on the spot. New users land in onboarding via the
+ * dashboard's domain gate; returning users go straight to their dashboard.
+ */
+export default function AuthForm() {
   const sb = supabaseBrowser();
   const router = useRouter();
   const sp = useSearchParams();
-  const isSignup = mode === 'signup';
+
+  // A domain typed on the landing hero flows straight into onboarding; a plain
+  // sign-in goes to the dashboard, which redirects new (domain-less) users into
+  // onboarding on its own. An explicit ?next= (e.g. from the middleware gate)
+  // always wins.
   const prefillDomain = sp.get('domain') ?? '';
-  const next = sp.get('next') ?? (isSignup ? `/onboarding/domain?domain=${encodeURIComponent(prefillDomain)}` : '/dashboard');
+  const explicitNext = sp.get('next');
+  const next =
+    explicitNext ??
+    (prefillDomain ? `/onboarding/about?domain=${encodeURIComponent(prefillDomain)}` : '/dashboard');
 
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
-  const [referral, setReferral] = useState('');
   const [err, setErr] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState<null | 'google' | 'email'>(null);
-
-  // Stash the referral answer so the Google OAuth round-trip can pick it up
-  // in /auth/callback (where we finally know the authenticated user).
-  function stashReferral() {
-    if (isSignup && referral) {
-      document.cookie = `grove_ref=${encodeURIComponent(referral)}; path=/; max-age=600; samesite=lax`;
-    }
-  }
 
   async function withGoogle() {
     setErr(null);
+    setNotice(null);
     setBusy('google');
-    stashReferral();
     const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
-    const { error } = await sb.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo },
-    });
+    const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo } });
     if (error) {
       setErr(error.message);
       setBusy(null);
@@ -57,25 +48,32 @@ export default function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
   async function withEmail(e: React.FormEvent) {
     e.preventDefault();
     setErr(null);
+    setNotice(null);
     setBusy('email');
-    if (isSignup) {
-      const { error } = await sb.auth.signUp({
-        email,
-        password: pw,
-        options: { data: referral ? { referral_source: referral } : undefined },
-      });
-      if (error) {
-        setBusy(null);
-        return setErr(error.message);
-      }
-      router.replace(next);
-    } else {
-      const { error } = await sb.auth.signInWithPassword({ email, password: pw });
-      if (error) {
-        setBusy(null);
-        return setErr(error.message);
-      }
-      router.replace(next);
+
+    // 1. Try to sign in.
+    const signIn = await sb.auth.signInWithPassword({ email, password: pw });
+    const d1 = afterSignIn(signIn.error);
+    if (d1.step === 'signed-in') return router.replace(next);
+    if (d1.step === 'error') {
+      setBusy(null);
+      return setErr(d1.message);
+    }
+
+    // 2. Sign-in failed on bad credentials — the account may not exist yet, so
+    //    attempt to create it. This is what makes the single surface work.
+    const signUp = await sb.auth.signUp({ email, password: pw });
+    const d2 = afterCreate({ hasSession: !!signUp.data.session, error: signUp.error });
+    setBusy(null);
+    switch (d2.step) {
+      case 'onboard':
+        return router.replace(next);
+      case 'confirm-email':
+        return setNotice('Account created — check your email to confirm it, then come back and sign in.');
+      case 'wrong-password':
+        return setErr('That email already has an account, but the password is wrong. Try again, or reset it.');
+      case 'error':
+        return setErr(d2.message);
     }
   }
 
@@ -95,11 +93,9 @@ export default function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
           <span>grove<span className="dot">.</span></span>
         </a>
 
-        <h1 className="gv-auth-title">{isSignup ? 'Plant your domain' : 'Welcome back'}</h1>
+        <h1 className="gv-auth-title">Sign in to Grove</h1>
         <p className="gv-auth-sub">
-          {isSignup
-            ? 'Create your grove account. Your first post arrives in minutes.'
-            : 'Sign in to your grove dashboard.'}
+          Enter your email to continue. New here? We’ll create your account automatically.
         </p>
 
         <button type="button" className="gv-auth-google" onClick={withGoogle} disabled={busy !== null}>
@@ -109,7 +105,7 @@ export default function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
             <path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z" />
             <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.9 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z" />
           </svg>
-          {busy === 'google' ? 'Connecting…' : `Continue with Google`}
+          {busy === 'google' ? 'Connecting…' : 'Continue with Google'}
         </button>
 
         <div className="gv-auth-or"><span>or</span></div>
@@ -126,43 +122,24 @@ export default function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
           />
           <input
             className="gv-auth-input"
-            placeholder={isSignup ? 'Password (8+ chars)' : 'Password'}
+            placeholder="Password (8+ chars)"
             type="password"
-            autoComplete={isSignup ? 'new-password' : 'current-password'}
+            autoComplete="current-password"
             value={pw}
             onChange={(e) => setPw(e.target.value)}
             required
           />
 
-          {isSignup && (
-            <label className="gv-auth-ref">
-              <span>How did you hear about us? <em>(optional)</em></span>
-              <select
-                className="gv-auth-input gv-auth-select"
-                value={referral}
-                onChange={(e) => setReferral(e.target.value)}
-              >
-                <option value="">Select one…</option>
-                {REFERRAL_OPTIONS.map((o) => (
-                  <option key={o} value={o}>{o}</option>
-                ))}
-              </select>
-            </label>
-          )}
-
           {err && <p className="gv-auth-err">{err}</p>}
+          {notice && <p className="gv-auth-sub" style={{ marginTop: 4 }}>{notice}</p>}
 
           <button type="submit" className="gv-auth-submit" disabled={busy !== null}>
-            {busy === 'email' ? '…' : isSignup ? 'Create account →' : 'Sign in →'}
+            {busy === 'email' ? '…' : 'Continue →'}
           </button>
         </form>
 
         <p className="gv-auth-switch">
-          {isSignup ? (
-            <>Already have an account? <a href="/login">Sign in →</a></>
-          ) : (
-            <>No account? <a href="/signup">Create one →</a></>
-          )}
+          One sign-in for everything. No account yet? Just continue — we’ll set it up.
         </p>
       </div>
     </main>

@@ -16,7 +16,10 @@ export default async function DashLayout({ children }: { children: React.ReactNo
   if (!user) redirect('/login');
 
   const { data: domains } = await sb.from('domains').select('id,hostname,verified_at,auto_publish').order('created_at');
-  if ((domains?.length ?? 0) === 0) redirect('/onboarding/domain');
+  // New users have no domain yet — start onboarding at the "about you" step,
+  // which forwards to the domain step (and skips itself for anyone who already
+  // answered it). Returning users with a domain never reach this line.
+  if ((domains?.length ?? 0) === 0) redirect('/onboarding/about');
 
   // Resolve the active site (cookie pick → first verified → first).
   const jar = await cookies();
