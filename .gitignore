@@ -12,3 +12,4 @@ tsconfig.tsbuildinfo
 # Supabase CLI local link artifacts
 supabase/.temp/
 supabase/.branches/
+.env*
