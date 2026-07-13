@@ -761,6 +761,9 @@ html { scroll-behavior: smooth; }
 }
 .gv-app ::selection { background: rgba(99,194,129,0.3); color: #fff; }
 .gv-app input::placeholder { color: var(--gv-fainter); }
+/* .lede is a landing-page class (muted --clay on light); on the dark dashboard
+   that's too low-contrast, so lift it to the dark muted token. */
+.gv-app .lede { color: var(--gv-dim); }
 .gv-app *, .gv-app *::before, .gv-app *::after { box-sizing: border-box; }
 
 @keyframes gvPulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.45; transform: scale(0.85); } }

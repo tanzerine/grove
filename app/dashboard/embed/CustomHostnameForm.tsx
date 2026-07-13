@@ -133,7 +133,7 @@ export default function CustomHostnameForm({
           className="mono"
           style={{
             flex: '1 1 280px', fontSize: 13, padding: '9px 12px', borderRadius: 10,
-            border: '1px solid var(--line)', background: 'white', color: 'var(--ink)',
+            border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', color: 'var(--gv-ink)',
           }}
         />
         <button
@@ -143,9 +143,9 @@ export default function CustomHostnameForm({
           title={cannotSubmit ? 'Enter a hostname first' : undefined}
           style={{
             padding: '9px 16px', borderRadius: 10,
-            border: `1px solid ${isClear ? 'var(--line)' : 'var(--moss)'}`,
-            background: isClear ? 'white' : 'var(--moss)',
-            color: isClear ? 'var(--ink)' : 'white',
+            border: `1px solid ${isClear ? 'rgba(255,255,255,0.14)' : 'var(--gv-accent)'}`,
+            background: isClear ? 'transparent' : 'var(--gv-accent)',
+            color: isClear ? 'var(--gv-ink)' : 'var(--gv-on-accent)',
             fontSize: 13, cursor: saveDisabled ? 'not-allowed' : 'pointer',
             opacity: saveDisabled ? 0.5 : 1,
           }}
@@ -154,64 +154,64 @@ export default function CustomHostnameForm({
         </button>
       </div>
       {state === 'error' && (
-        <p style={{ color: '#c04b3c', fontSize: 12.5, margin: '8px 0 0' }}>{error}</p>
+        <p style={{ color: 'var(--gv-red)', fontSize: 12.5, margin: '8px 0 0' }}>{error}</p>
       )}
       {cannotSubmit && state !== 'error' && (
-        <p style={{ color: 'var(--clay)', fontSize: 12, margin: '6px 0 0' }}>
+        <p style={{ color: 'var(--gv-dim)', fontSize: 12, margin: '6px 0 0' }}>
           Type a subdomain like <span className="mono">blog.{apex}</span> — the grey text is just an example.
         </p>
       )}
 
       {/* Live setup checklist — three real probes, polled until green. */}
       {configured && (
-        <div style={{ margin: '12px 0 0', padding: '14px 16px', borderRadius: 12, border: '1px solid var(--line)', background: 'white' }}>
+        <div style={{ margin: '12px 0 0', padding: '14px 16px', borderRadius: 12, border: '1px solid var(--gv-line)', background: 'rgba(255,255,255,0.03)' }}>
           {status!.steps!.map((s) => (
             <div key={s.id} style={{ display: 'flex', gap: 10, alignItems: 'baseline', padding: '4px 0' }}>
-              <span className="mono" aria-hidden style={{ fontSize: 13, color: s.ok ? 'var(--moss)' : 'var(--clay)' }}>
+              <span className="mono" aria-hidden style={{ fontSize: 13, color: s.ok ? 'var(--gv-accent)' : 'var(--gv-faint)' }}>
                 {s.ok ? '✓' : '○'}
               </span>
               <div style={{ minWidth: 0 }}>
-                <span style={{ fontSize: 13.5, color: s.ok ? 'var(--ink)' : 'var(--clay)' }}>{s.label}</span>
+                <span style={{ fontSize: 13.5, color: s.ok ? 'var(--gv-ink)' : 'var(--gv-dim)' }}>{s.label}</span>
                 {!s.ok && s.hint && (
-                  <div style={{ fontSize: 12, color: 'var(--clay)', lineHeight: 1.5, marginTop: 2 }}>{s.hint}</div>
+                  <div style={{ fontSize: 12, color: 'var(--gv-dim)', lineHeight: 1.5, marginTop: 2 }}>{s.hint}</div>
                 )}
               </div>
             </div>
           ))}
 
           {status!.allOk ? (
-            <p style={{ margin: '10px 0 0', fontSize: 12.5, lineHeight: 1.55, color: 'var(--ink)' }}>
-              Your blog is live at <a className="mono" href={`https://${status!.hostname}`} target="_blank" rel="noopener noreferrer">https://{status!.hostname}</a>.
+            <p style={{ margin: '10px 0 0', fontSize: 12.5, lineHeight: 1.55, color: 'var(--gv-ink)' }}>
+              Your blog is live at <a className="mono" style={{ color: 'var(--gv-accent)' }} href={`https://${status!.hostname}`} target="_blank" rel="noopener noreferrer">https://{status!.hostname}</a>.
               Canonical URLs, sitemap, RSS, robots.txt, and JSON-LD all point here — search credit lands on your domain.
             </p>
           ) : (
             <>
               {/* The one DNS record, copy-ready. Trailing-dot note because some
                   registrars require it and reject the bare value. */}
-              <div style={{ margin: '10px 0 0', padding: '10px 12px', borderRadius: 10, background: 'var(--paper)', border: '1px solid var(--line)', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-                <span className="mono" style={{ fontSize: 12.5, color: 'var(--ink)' }}>
+              <div style={{ margin: '10px 0 0', padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--gv-line)', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                <span className="mono" style={{ fontSize: 12.5, color: 'var(--gv-ink)' }}>
                   CNAME&nbsp;&nbsp;{status!.record?.host ?? 'blog'}&nbsp;→&nbsp;{status!.record?.value ?? 'cname.vercel-dns.com'}
                 </span>
                 <button
                   type="button"
                   onClick={copyRecord}
-                  style={{ padding: '4px 10px', borderRadius: 8, border: '1px solid var(--line)', background: 'white', fontSize: 12, cursor: 'pointer', color: 'var(--ink)' }}
+                  style={{ padding: '4px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.14)', background: 'transparent', fontSize: 12, cursor: 'pointer', color: 'var(--gv-ink)' }}
                 >
                   {copied ? 'Copied ✓' : 'Copy value'}
                 </button>
               </div>
-              <p style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--clay)', lineHeight: 1.5 }}>
+              <p style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--gv-dim)', lineHeight: 1.5 }}>
                 If your registrar says the value must end with a dot, use{' '}
                 <span className="mono">cname.vercel-dns.com.</span> — same record.
               </p>
               <div style={{ marginTop: 10 }}>
                 {polling ? (
-                  <span className="mono" style={{ fontSize: 12, color: 'var(--clay)' }}>checking every few seconds…</span>
+                  <span className="mono" style={{ fontSize: 12, color: 'var(--gv-dim)' }}>checking every few seconds…</span>
                 ) : (
                   <button
                     type="button"
                     onClick={startPolling}
-                    style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--line)', background: 'white', fontSize: 12.5, cursor: 'pointer', color: 'var(--ink)' }}
+                    style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.14)', background: 'transparent', fontSize: 12.5, cursor: 'pointer', color: 'var(--gv-ink)' }}
                   >
                     Check again
                   </button>
@@ -223,7 +223,7 @@ export default function CustomHostnameForm({
       )}
 
       {!configured && (
-        <p style={{ color: 'var(--clay)', fontSize: 12.5, margin: '8px 0 0', lineHeight: 1.55 }}>
+        <p style={{ color: 'var(--gv-dim)', fontSize: 12.5, margin: '8px 0 0', lineHeight: 1.55 }}>
           Save a hostname and grove connects it automatically — you&rsquo;ll get the one DNS record to add,
           and this card checks itself off as it goes live. Leave empty to keep the grove-hosted URLs.
         </p>

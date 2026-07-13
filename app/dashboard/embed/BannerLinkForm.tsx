@@ -43,7 +43,7 @@ export default function BannerLinkForm({
           className="mono"
           style={{
             flex: '1 1 280px', fontSize: 13, padding: '9px 12px', borderRadius: 10,
-            border: '1px solid var(--line)', background: 'white', color: 'var(--ink)',
+            border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', color: 'var(--gv-ink)',
           }}
         />
         <button
@@ -51,8 +51,8 @@ export default function BannerLinkForm({
           onClick={save}
           disabled={state === 'saving'}
           style={{
-            padding: '9px 16px', borderRadius: 10, border: '1px solid var(--moss)',
-            background: 'var(--moss)', color: 'white', fontSize: 13, cursor: 'pointer',
+            padding: '9px 16px', borderRadius: 10, border: 'none',
+            background: 'var(--gv-accent)', color: 'var(--gv-on-accent)', fontSize: 13, cursor: 'pointer',
             opacity: state === 'saving' ? 0.6 : 1,
           }}
         >
@@ -60,9 +60,9 @@ export default function BannerLinkForm({
         </button>
       </div>
       {state === 'error' && (
-        <p style={{ color: '#c04b3c', fontSize: 12.5, margin: '8px 0 0' }}>{error}</p>
+        <p style={{ color: 'var(--gv-red)', fontSize: 12.5, margin: '8px 0 0' }}>{error}</p>
       )}
-      <p style={{ color: 'var(--clay)', fontSize: 12.5, margin: '8px 0 0', lineHeight: 1.55 }}>
+      <p style={{ color: 'var(--gv-dim)', fontSize: 12.5, margin: '8px 0 0', lineHeight: 1.55 }}>
         Must be an https URL. Leave empty to send readers to your homepage.
       </p>
     </div>
