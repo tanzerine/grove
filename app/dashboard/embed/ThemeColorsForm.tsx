@@ -63,7 +63,7 @@ export default function ThemeColorsForm({
 
         {/* live preview: banner mockup + accent chip, using the real derivation */}
         <div style={{ flex: '1 1 260px', minWidth: 240 }}>
-          <div className="mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--clay)', marginBottom: 8 }}>
+          <div className="mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-dim)', marginBottom: 8 }}>
             Preview
           </div>
           <div style={{ borderRadius: 12, padding: '20px 18px', textAlign: 'center', background: derived.banner_bg, color: derived.banner_text }}>
@@ -77,7 +77,7 @@ export default function ThemeColorsForm({
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 8 }}>
             <span style={{ width: 12, height: 12, borderRadius: 3, background: accent, display: 'inline-block' }} />
-            <span className="mono" style={{ fontSize: 11, color: 'var(--clay)' }}>links, table of contents &amp; tags</span>
+            <span className="mono" style={{ fontSize: 11, color: 'var(--gv-dim)' }}>links, table of contents &amp; tags</span>
           </div>
         </div>
       </div>
@@ -85,23 +85,23 @@ export default function ThemeColorsForm({
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 16, flexWrap: 'wrap' }}>
         <button
           type="button" onClick={save} disabled={state === 'saving'}
-          style={{ padding: '9px 16px', borderRadius: 10, border: '1px solid var(--moss)', background: 'var(--moss)', color: 'white', fontSize: 13, cursor: 'pointer', opacity: state === 'saving' ? 0.6 : 1 }}
+          style={{ padding: '9px 16px', borderRadius: 10, border: 'none', background: 'var(--gv-accent)', color: 'var(--gv-on-accent)', fontSize: 13, cursor: 'pointer', opacity: state === 'saving' ? 0.6 : 1 }}
         >
           {state === 'saving' ? 'Saving…' : state === 'saved' ? 'Saved ✓' : 'Save colors'}
         </button>
         {override && (
           <button
             type="button" onClick={reset} disabled={state === 'saving'}
-            style={{ padding: '9px 16px', borderRadius: 10, border: '1px solid var(--line)', background: 'white', color: 'var(--ink)', fontSize: 13, cursor: 'pointer' }}
+            style={{ padding: '9px 16px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'transparent', color: 'var(--gv-ink)', fontSize: 13, cursor: 'pointer' }}
           >
             Reset to crawled colors
           </button>
         )}
-        <span className="mono" style={{ fontSize: 12, color: 'var(--clay)' }}>
+        <span className="mono" style={{ fontSize: 12, color: 'var(--gv-dim)' }}>
           {override ? 'Using your custom colors' : 'Using colors from your site'}
         </span>
       </div>
-      {state === 'error' && <p style={{ color: '#c04b3c', fontSize: 12.5, margin: '8px 0 0' }}>{error}</p>}
+      {state === 'error' && <p style={{ color: 'var(--gv-red)', fontSize: 12.5, margin: '8px 0 0' }}>{error}</p>}
     </div>
   );
 }
@@ -110,7 +110,7 @@ function Swatch({ label, hint, value, onChange }: { label: string; hint: string;
   const valid = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value);
   return (
     <div>
-      <div className="mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--clay)', marginBottom: 8 }}>
+      <div className="mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-dim)', marginBottom: 8 }}>
         {label} <span style={{ textTransform: 'none', letterSpacing: 0 }}>· {hint}</span>
       </div>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -119,14 +119,14 @@ function Swatch({ label, hint, value, onChange }: { label: string; hint: string;
           value={valid ? (value.length === 4 ? expand(value) : value) : '#000000'}
           onChange={(e) => onChange(e.target.value)}
           aria-label={`${label} color`}
-          style={{ width: 42, height: 42, border: '1px solid var(--line)', borderRadius: 10, background: 'white', padding: 2, cursor: 'pointer' }}
+          style={{ width: 42, height: 42, border: '1px solid rgba(255,255,255,0.14)', borderRadius: 10, background: 'transparent', padding: 2, cursor: 'pointer' }}
         />
         <input
           value={value}
           onChange={(e) => onChange(e.target.value)}
           spellCheck={false}
           className="mono"
-          style={{ width: 100, fontSize: 13, padding: '9px 10px', borderRadius: 10, border: `1px solid ${valid ? 'var(--line)' : '#e0a0a0'}`, background: 'white', color: 'var(--ink)' }}
+          style={{ width: 100, fontSize: 13, padding: '9px 10px', borderRadius: 10, border: `1px solid ${valid ? 'rgba(255,255,255,0.1)' : 'var(--gv-red)'}`, background: 'rgba(255,255,255,0.04)', color: 'var(--gv-ink)' }}
         />
       </div>
     </div>

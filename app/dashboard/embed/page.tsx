@@ -36,14 +36,14 @@ export default async function Page() {
       </p>
 
       {domain && (
-        <div style={{ marginTop: 26, border: '1px solid var(--moss)', borderRadius: 14, padding: '22px 24px', background: 'var(--paper)' }}>
-          <div className="mono" style={{ fontSize: 11, color: 'var(--moss)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+        <div style={{ marginTop: 26, border: '1px solid var(--gv-accent)', borderRadius: 14, padding: '22px 24px', background: 'var(--gv-card)' }}>
+          <div className="mono" style={{ fontSize: 11, color: 'var(--gv-accent)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
             1 · Own the SEO — zero code
           </div>
           <div style={{ fontFamily: 'Clash Display', fontSize: 20, marginTop: 4 }}>
             Serve the whole blog on your own subdomain
           </div>
-          <p style={{ fontSize: 14, color: 'var(--clay)', margin: '8px 0 14px', lineHeight: 1.55 }}>
+          <p style={{ fontSize: 14, color: 'var(--gv-dim)', margin: '8px 0 14px', lineHeight: 1.55 }}>
             Pick a subdomain like <span className="mono">blog.{domain.hostname.replace(/^www\./, '')}</span>, save it,
             add the one DNS record we give you — done. Grove serves everything there (pages, canonicals, JSON-LD,
             sitemap, RSS, robots.txt, llms.txt, analytics), so search equity lands on{' '}
@@ -76,7 +76,7 @@ export default async function Page() {
       />
 
       <h3 style={{ fontFamily: 'Clash Display', fontSize: 22, marginTop: 40 }}>How it works</h3>
-      <ol style={{ paddingLeft: 18, marginTop: 10, lineHeight: 1.8, color: 'var(--clay)' }}>
+      <ol style={{ paddingLeft: 18, marginTop: 10, lineHeight: 1.8, color: 'var(--gv-dim)' }}>
         <li>Paste a snippet. On load, the script reads <span className="mono">window.location.hostname</span>.</li>
         <li>It calls <span className="mono">/api/embed/host/&lt;your-domain&gt;</span> on grove for your published posts.</li>
         <li>It renders styled HTML directly into the page — no iframe, no tracking pixel, no third-party CSS leaking onto your site.</li>
@@ -84,7 +84,7 @@ export default async function Page() {
       </ol>
 
       <h3 style={{ fontFamily: 'Clash Display', fontSize: 22, marginTop: 30 }}>Make it yours</h3>
-      <ul style={{ paddingLeft: 18, marginTop: 10, lineHeight: 1.8, color: 'var(--clay)' }}>
+      <ul style={{ paddingLeft: 18, marginTop: 10, lineHeight: 1.8, color: 'var(--gv-dim)' }}>
         <li><span className="mono">data-accent=&quot;#hex&quot;</span> — match your brand color (links, chips, hover).</li>
         <li><span className="mono">data-article-base=&quot;/blog&quot;</span> on <span className="mono">#grove-blog</span> — link cards to your own
           server-rendered article pages (<span className="mono">/blog/&lt;slug&gt;</span>) instead of the in-page reader.
@@ -93,21 +93,21 @@ export default async function Page() {
       </ul>
 
       {domain && (
-        <details style={{ marginTop: 26, border: '1px solid var(--line)', borderRadius: 14, background: 'var(--paper)' }}>
+        <details style={{ marginTop: 26, border: '1px solid var(--gv-line)', borderRadius: 14, background: 'var(--gv-card)' }}>
           <summary style={{ padding: '18px 24px', cursor: 'pointer', listStyle: 'none' }}>
-            <span className="mono" style={{ fontSize: 11, color: 'var(--clay)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            <span className="mono" style={{ fontSize: 11, color: 'var(--gv-dim)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
               Advanced · serve articles yourself
             </span>
             <span style={{ display: 'block', fontFamily: 'Clash Display', fontSize: 18, marginTop: 4 }}>
               I already render articles on my own site — make those pages canonical
             </span>
-            <span style={{ display: 'block', fontSize: 13, color: 'var(--clay)', marginTop: 4, lineHeight: 1.5 }}>
+            <span style={{ display: 'block', fontSize: 13, color: 'var(--gv-dim)', marginTop: 4, lineHeight: 1.5 }}>
               Only for sites with their own server-rendered <span className="mono">/blog/&lt;slug&gt;</span> route or reverse
               proxy. If that&rsquo;s not you, step 1 above does everything with zero code.
             </span>
           </summary>
           <div style={{ padding: '0 24px 22px' }}>
-            <p style={{ fontSize: 14, color: 'var(--clay)', margin: '8px 0 14px', lineHeight: 1.55 }}>
+            <p style={{ fontSize: 14, color: 'var(--gv-dim)', margin: '8px 0 14px', lineHeight: 1.55 }}>
               Set the base URL your articles live under. Every absolute URL grove emits (rel=canonical, Open Graph,
               JSON-LD, sitemap, RSS, llms.txt, social shares, embed links) flips to{' '}
               <span className="mono">{'{base}/{slug}'}</span>, so search equity compounds on{' '}
@@ -120,7 +120,7 @@ export default async function Page() {
               initial={(domain as any).canonical_blog_base ?? null}
               hostname={domain.hostname}
             />
-            <p style={{ fontSize: 13, color: 'var(--clay)', margin: '14px 0 0', lineHeight: 1.6 }}>
+            <p style={{ fontSize: 13, color: 'var(--gv-dim)', margin: '14px 0 0', lineHeight: 1.6 }}>
               Then add one line to <span className="mono">https://{domain.hostname.replace(/^www\./, '')}/robots.txt</span> so
               Google accepts the cross-hosted sitemap for your URLs:{' '}
               <span className="mono">Sitemap: {groveBase}/b/{domain.blog_slug}/sitemap.xml</span>
@@ -130,14 +130,14 @@ export default async function Page() {
       )}
 
       {domain && (
-        <div style={{ marginTop: 26, border: '1px solid var(--line)', borderRadius: 14, padding: '22px 24px', background: 'var(--paper)' }}>
-          <div className="mono" style={{ fontSize: 11, color: 'var(--moss)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+        <div style={{ marginTop: 26, border: '1px solid var(--gv-line)', borderRadius: 14, padding: '22px 24px', background: 'var(--gv-card)' }}>
+          <div className="mono" style={{ fontSize: 11, color: 'var(--gv-accent)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
             4 · Theme colors
           </div>
           <div style={{ fontFamily: 'Clash Display', fontSize: 20, marginTop: 4 }}>
             Set your blog&rsquo;s brand colors
           </div>
-          <p style={{ fontSize: 14, color: 'var(--clay)', margin: '8px 0 16px', lineHeight: 1.55 }}>
+          <p style={{ fontSize: 14, color: 'var(--gv-dim)', margin: '8px 0 16px', lineHeight: 1.55 }}>
             Grove reads these from <span className="mono">{domain.hostname.replace(/^www\./, '')}</span> automatically, and
             they color the banner, table of contents, tags, and card accents across your whole blog. If the guess is off
             — or your brand differs from your site — set them by hand here. Your choice wins over the crawled colors and
@@ -154,14 +154,14 @@ export default async function Page() {
       )}
 
       {domain && (
-        <div style={{ marginTop: 26, border: '1px solid var(--line)', borderRadius: 14, padding: '22px 24px', background: 'var(--paper)' }}>
-          <div className="mono" style={{ fontSize: 11, color: 'var(--moss)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+        <div style={{ marginTop: 26, border: '1px solid var(--gv-line)', borderRadius: 14, padding: '22px 24px', background: 'var(--gv-card)' }}>
+          <div className="mono" style={{ fontSize: 11, color: 'var(--gv-accent)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
             5 · Banner link
           </div>
           <div style={{ fontFamily: 'Clash Display', fontSize: 20, marginTop: 4 }}>
             Choose where the “Try {(domain as any).site_profile?.business?.name || domain.hostname.replace(/^www\./, '')}” banner sends readers
           </div>
-          <p style={{ fontSize: 14, color: 'var(--clay)', margin: '8px 0 14px', lineHeight: 1.55 }}>
+          <p style={{ fontSize: 14, color: 'var(--gv-dim)', margin: '8px 0 14px', lineHeight: 1.55 }}>
             Every article ends with a call-to-action banner in your brand colors. By default it links to your
             homepage — point it at a signup, pricing, or campaign page instead. Clicks are tracked as conversions
             either way.
@@ -174,7 +174,7 @@ export default async function Page() {
         </div>
       )}
 
-      <p style={{ color: 'var(--clay)', fontSize: 13.5, marginTop: 24 }}>
+      <p style={{ color: 'var(--gv-dim)', fontSize: 13.5, marginTop: 24 }}>
         Haven&rsquo;t set up step 1 yet? Grove hosts your blog at{' '}
         <span className="mono">{groveBase}/b/{domain?.blog_slug}</span> (sitemap, RSS, JSON-LD) in the meantime —
         but that credit goes to grove&rsquo;s domain, not yours. Setting your subdomain moves it to you.
@@ -188,15 +188,15 @@ function SnippetCard({
   kicker, title, desc, snippet, preview,
 }: { kicker: string; title: string; desc: string; snippet: string; preview?: React.ReactNode }) {
   return (
-    <div style={{ marginTop: 26, border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden' }}>
-      <div style={{ padding: '18px 22px', background: 'var(--paper)', borderBottom: '1px solid var(--line)' }}>
-        <div className="mono" style={{ fontSize: 11, color: 'var(--moss)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{kicker}</div>
+    <div style={{ marginTop: 26, border: '1px solid var(--gv-line)', borderRadius: 14, overflow: 'hidden' }}>
+      <div style={{ padding: '18px 22px', background: 'var(--gv-card)', borderBottom: '1px solid var(--gv-line)' }}>
+        <div className="mono" style={{ fontSize: 11, color: 'var(--gv-accent)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{kicker}</div>
         <div style={{ fontFamily: 'Clash Display', fontSize: 20, marginTop: 4 }}>{title}</div>
-        <p style={{ fontSize: 14, color: 'var(--clay)', margin: '8px 0 0', lineHeight: 1.55 }}>{desc}</p>
+        <p style={{ fontSize: 14, color: 'var(--gv-dim)', margin: '8px 0 0', lineHeight: 1.55 }}>{desc}</p>
       </div>
       {preview && (
         <div style={{ padding: '22px 22px 6px', background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-          <div className="mono" style={{ fontSize: 10, color: 'var(--clay)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>
+          <div className="mono" style={{ fontSize: 10, color: 'var(--gv-dim)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>
             Preview
           </div>
           <div style={{ pointerEvents: 'none', userSelect: 'none' }} aria-hidden>{preview}</div>
@@ -246,7 +246,7 @@ function WidgetPreview() {
           <div style={{ width: 60, height: 6, borderRadius: 999, background: 'rgba(78,158,106,0.35)', marginBottom: 5 }} />
           <div style={{ width: 92, height: 9, borderRadius: 3, background: 'var(--ink)', opacity: 0.7 }} />
         </div>
-        <div className="mono" style={{ fontSize: 10, color: 'var(--moss)' }}>Read the blog →</div>
+        <div className="mono" style={{ fontSize: 10, color: 'var(--gv-accent)' }}>Read the blog →</div>
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
         <MiniCard /><MiniCard /><MiniCard />
