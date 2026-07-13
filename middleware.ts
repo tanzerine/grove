@@ -1,34 +1,85 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
-import { subdomainSlugFromHost } from '@/lib/seo';
+import { subdomainSlugFromHost, normalizeBlogHostname, appBase, blogRootDomain } from '@/lib/seo';
 
 const PROTECTED = ['/dashboard', '/onboarding'];
 
-export async function middleware(req: NextRequest) {
-  // ── 1. Blog subdomains: {slug}.{GROVE_BLOG_ROOT_DOMAIN} ──────────────────
-  // Rewrite the clean public URLs onto the internal /b/{slug} routes. No-op
-  // when the env is unset or the host isn't a blog subdomain.
-  const sub = subdomainSlugFromHost(req.headers.get('host'));
-  if (sub) {
-    const url = req.nextUrl.clone();
-    const p = url.pathname;
+/** Serve a blog on a non-app host: rewrite the clean public URLs onto the
+ *  internal /b/{slug} routes. Shared by grove's own {slug}.{root} subdomains
+ *  and customer CNAME'd hostnames — the two must never diverge in path shape. */
+function rewriteBlogHost(req: NextRequest, slug: string): NextResponse {
+  const url = req.nextUrl.clone();
+  const p = url.pathname;
 
-    // same-app endpoints that must pass through untouched (tracker, assets)
-    if (p.startsWith('/api/') || p.startsWith('/_next') || p === '/favicon.ico' || p === '/embed.js') {
-      return NextResponse.next();
-    }
-    // canonicalize the internal path shape if someone lands on it directly
-    if (p === `/b/${sub}` || p.startsWith(`/b/${sub}/`)) {
-      url.pathname = p.slice(`/b/${sub}`.length) || '/';
-      return NextResponse.redirect(url, 301);
-    }
-    if (p === '/robots.txt' || p === '/sitemap.xml' || p === '/rss.xml' || p === '/llms.txt') {
-      url.pathname = `/b/${sub}${p}`;
-      return NextResponse.rewrite(url);
-    }
-    url.pathname = p === '/' ? `/b/${sub}` : `/b/${sub}${p}`;
-    return NextResponse.rewrite(url);
+  // same-app endpoints that must pass through untouched (tracker, assets)
+  if (p.startsWith('/api/') || p.startsWith('/_next') || p === '/favicon.ico' || p === '/embed.js') {
+    return NextResponse.next();
   }
+  // canonicalize the internal path shape if someone lands on it directly
+  if (p === `/b/${slug}` || p.startsWith(`/b/${slug}/`)) {
+    url.pathname = p.slice(`/b/${slug}`.length) || '/';
+    return NextResponse.redirect(url, 301);
+  }
+  url.pathname = p === '/' ? `/b/${slug}` : `/b/${slug}${p}`;
+  return NextResponse.rewrite(url);
+}
+
+// ── customer CNAME'd hostnames → blog_slug ─────────────────────────────────
+// blog.customer.com points at us; the mapping lives in
+// domains.custom_blog_hostname, so resolving it needs the DB. Cached per edge
+// isolate: hits stay hot 5 min, misses 1 min (a fresh DNS setup shouldn't sit
+// behind a long negative cache). Must never throw: like the auth block below,
+// an unhandled error here is a site-wide 500.
+const CUSTOM_HOST_TTL_MS = 5 * 60_000;
+const CUSTOM_HOST_MISS_TTL_MS = 60_000;
+const customHostCache = new Map<string, { slug: string | null; exp: number }>();
+
+async function customBlogSlug(rawHost: string | null): Promise<string | null> {
+  const host = normalizeBlogHostname(rawHost);
+  if (!host || host.endsWith('.vercel.app')) return null;
+
+  // the app's own host is never a customer blog host — bail before any I/O so
+  // normal traffic pays nothing for this feature
+  let appHost = '';
+  try { appHost = new URL(appBase()).hostname.toLowerCase(); } catch { /* keep '' */ }
+  if (host === appHost || host === `www.${appHost}` || appHost === `www.${host}`) return null;
+  const root = blogRootDomain();
+  if (root && (host === root || host.endsWith(`.${root}`))) return null;
+
+  const cached = customHostCache.get(host);
+  if (cached && cached.exp > Date.now()) return cached.slug;
+
+  let slug: string | null = null;
+  const sbUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (sbUrl && key) {
+    try {
+      const res = await fetch(
+        `${sbUrl}/rest/v1/domains?custom_blog_hostname=eq.${encodeURIComponent(host)}&select=blog_slug&limit=1`,
+        { headers: { apikey: key, authorization: `Bearer ${key}` } },
+      );
+      // a pre-0026 DB 400s on the unknown column — any non-ok is just "no match"
+      if (res.ok) {
+        const rows = (await res.json()) as { blog_slug?: string }[];
+        slug = rows?.[0]?.blog_slug ?? null;
+      }
+    } catch {
+      slug = null; // DB unreachable — serve the request as a normal app route
+    }
+  }
+  customHostCache.set(host, { slug, exp: Date.now() + (slug ? CUSTOM_HOST_TTL_MS : CUSTOM_HOST_MISS_TTL_MS) });
+  return slug;
+}
+
+export async function middleware(req: NextRequest) {
+  // ── 1. Blog hosts ─────────────────────────────────────────────────────────
+  // {slug}.{GROVE_BLOG_ROOT_DOMAIN} first (pure string check, no I/O), then
+  // customer CNAME'd hostnames (cached DB lookup). No-op on the app's host.
+  const sub = subdomainSlugFromHost(req.headers.get('host'));
+  if (sub) return rewriteBlogHost(req, sub);
+
+  const custom = await customBlogSlug(req.headers.get('host'));
+  if (custom) return rewriteBlogHost(req, custom);
 
   // ── 2. App auth — refresh the session on EVERY route ─────────────────────
   // Supabase rotates the access/refresh token pair on expiry, and the rotated

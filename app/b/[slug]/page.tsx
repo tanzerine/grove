@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { jsonLdScript, blogHomeUrl, blogPostUrl, subdomainSlugFromHost } from '@/lib/seo';
+import { jsonLdScript, blogHomeUrl, blogPostUrl, subdomainSlugFromHost, isCustomBlogHost, canonicalBaseFor, servedBlogBaseFor } from '@/lib/seo';
 import { genreFor, authorFor, type Genre } from '@/lib/blog-genre';
 import { blogThemeVars, fallbackPalette, resolveBranding } from '@/lib/blog-theme';
 import Link from 'next/link';
@@ -14,15 +14,16 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   // select('*') on purpose: canonical_blog_base ships ahead of migration 0018
   // — naming a not-yet-applied column would error and 404 the whole blog.
   const { data: domain } = await sb.from('domains').select('*').eq('blog_slug', slug).single();
-  // Customer-hosted blog home is the canonical when configured; this hosted
-  // index is then a mirror. RSS alternate stays at the hosted feed location.
-  const url = blogHomeUrl(slug, (domain as any)?.canonical_blog_base);
+  // A customer-owned blog home (self-served base or CNAME'd hostname) is the
+  // canonical when configured; this hosted index is then a mirror. The RSS
+  // alternate stays on an origin grove serves.
+  const url = blogHomeUrl(slug, canonicalBaseFor(domain as any));
   return {
     title: `${domain?.hostname ?? 'grove blog'} — articles`,
     description: `Posts by ${domain?.hostname}`,
     alternates: {
       canonical: url,
-      types: { 'application/rss+xml': `${blogHomeUrl(slug)}/rss.xml` },
+      types: { 'application/rss+xml': `${blogHomeUrl(slug, servedBlogBaseFor(domain as any))}/rss.xml` },
     },
     openGraph: {
       title: `${domain?.hostname ?? 'grove blog'} — articles`,
@@ -70,8 +71,9 @@ export default async function BlogIndex({
     .order('published_at', { ascending: false });
   const all = (data ?? []) as unknown as Row[];
 
-  const onSubdomain = !!subdomainSlugFromHost((await headers()).get('host'));
-  const prefix = onSubdomain ? '' : `/b/${slug}`;
+  const host = (await headers()).get('host');
+  const onBlogHost = !!subdomainSlugFromHost(host) || isCustomBlogHost(host, domain as any);
+  const prefix = onBlogHost ? '' : `/b/${slug}`;
   const author = authorFor((domain as any).site_profile, domain.hostname);
 
   // Customer palette (manual override wins over crawl): retints --moss (chips,
@@ -117,7 +119,9 @@ export default async function BlogIndex({
 
   const homeUrl = `https://${domain.hostname.replace(/^https?:\/\//, '').replace(/\/$/, '')}`;
   const businessName = (domain as any).site_profile?.business?.name || domain.hostname.replace(/^www\./, '');
-  const blogHome = blogHomeUrl(slug);
+  // JSON-LD must reference the canonical URLs, same as the <link rel=canonical>
+  const ldBase = canonicalBaseFor(domain as any);
+  const blogHome = blogHomeUrl(slug, ldBase);
   const orgId = `${homeUrl}#org`;
   const siteId = `${blogHome}#website`;
   const blogLd = {
@@ -147,7 +151,7 @@ export default async function BlogIndex({
         blogPost: all.slice(0, 20).map((p) => ({
           '@type': 'BlogPosting',
           headline: p.title,
-          url: blogPostUrl(slug, p.slug!),
+          url: blogPostUrl(slug, p.slug!, ldBase),
           datePublished: p.published_at ?? undefined,
           author: { '@type': author.endsWith('Team') ? 'Organization' : 'Person', name: author },
         })),

@@ -84,16 +84,22 @@ Other key surfaces:
 ## Supabase
 
 - Project ref `lojgijnjagaozrrpjlbj`. CLI is linked locally (no `.env` in repo —
-  secrets live in Vercel). Migrations in `supabase/migrations/` (0001–0025).
+  secrets live in Vercel). Migrations in `supabase/migrations/` (0001–0026).
 - History was repaired so 0001–0009 are marked applied; `npm run db:push` applies
   only new ones. **Always run `supabase migration list` first instead of trusting
-  this file** — as of 2026-07-11, 0001–0023 are applied (0018 canonical_blog_base
-  included) and **0024_ga4 + 0025_auto_publish_floor are committed but NOT yet
-  pushed** (needs explicit user OK; until 0025 lands, the deployed publish-bar
-  slider reads its default but can't persist changes).
+  this file** — as of 2026-07-13, 0001–0023 are applied (0018 canonical_blog_base
+  included) and **0024_ga4 + 0025_auto_publish_floor + 0026_custom_blog_hostname
+  are committed but NOT yet pushed** (needs explicit user OK; until 0025 lands the
+  deployed publish-bar slider can't persist, and until 0026 lands the CNAME'd
+  blog hostname feature fails open — every host serves as a normal app route).
 - `domains.canonical_blog_base` makes the customer's own URLs canonical
   everywhere (rel=canonical, sitemap, RSS, social). It must also be SET per
   domain — the column existing isn't enough.
+- `domains.custom_blog_hostname` (0026) — customer CNAMEs e.g. `blog.acme.com`
+  at grove; middleware serves the whole blog there (zero customer code). Read it
+  via `lib/seo canonicalBaseFor()/servedBlogBaseFor()`, never raw. The hostname
+  must ALSO be attached to the Vercel project (dashboard → Domains) or Vercel
+  won't route/TLS it — DNS + DB alone aren't enough.
 - `supabase/.temp/` is gitignored (CLI artifacts).
 
 ## Env vars that gate features (set in Vercel, not the repo)

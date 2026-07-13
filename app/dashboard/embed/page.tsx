@@ -2,6 +2,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { getActiveDomain } from '@/lib/active-domain';
 import CopySnippet from './CopySnippet';
 import CanonicalBaseForm from './CanonicalBaseForm';
+import CustomHostnameForm from './CustomHostnameForm';
 import BannerLinkForm from './BannerLinkForm';
 import ThemeColorsForm from './ThemeColorsForm';
 import { resolveBranding } from '@/lib/blog-theme';
@@ -69,12 +70,36 @@ export default async function Page() {
       </ul>
 
       {domain && (
-        <div style={{ marginTop: 40, border: '1px solid var(--line)', borderRadius: 14, padding: '22px 24px', background: 'var(--paper)' }}>
+        <div style={{ marginTop: 40, border: '1px solid var(--moss)', borderRadius: 14, padding: '22px 24px', background: 'var(--paper)' }}>
           <div className="mono" style={{ fontSize: 11, color: 'var(--moss)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-            3 · Own the SEO
+            3 · Own the SEO — zero code
           </div>
           <div style={{ fontFamily: 'Clash Display', fontSize: 20, marginTop: 4 }}>
-            Make your domain the canonical home of every article
+            Serve the whole blog on your own subdomain
+          </div>
+          <p style={{ fontSize: 14, color: 'var(--clay)', margin: '8px 0 14px', lineHeight: 1.55 }}>
+            Point a subdomain like <span className="mono">blog.{domain.hostname.replace(/^www\./, '')}</span> at grove
+            and we serve everything there — pages, <span className="mono">rel=canonical</span>, Open Graph, JSON-LD,
+            sitemap, RSS, robots.txt, llms.txt, internal links, analytics. Search equity lands on{' '}
+            <span className="mono">{domain.hostname.replace(/^www\./, '')}</span> with nothing to build or maintain on
+            your site. The hosted copy at <span className="mono">{groveBase}/b/{domain.blog_slug}</span> stays up and
+            canonicalizes to your subdomain, so the two never compete.
+          </p>
+          <CustomHostnameForm
+            domainId={domain.id}
+            initial={(domain as any).custom_blog_hostname ?? null}
+            hostname={domain.hostname}
+          />
+        </div>
+      )}
+
+      {domain && (
+        <div style={{ marginTop: 26, border: '1px solid var(--line)', borderRadius: 14, padding: '22px 24px', background: 'var(--paper)' }}>
+          <div className="mono" style={{ fontSize: 11, color: 'var(--moss)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            4 · Advanced: serve articles yourself
+          </div>
+          <div style={{ fontFamily: 'Clash Display', fontSize: 20, marginTop: 4 }}>
+            Make your own pages the canonical home of every article
           </div>
           <p style={{ fontSize: 14, color: 'var(--clay)', margin: '8px 0 14px', lineHeight: 1.55 }}>
             If you serve articles on your own site — a reverse proxy of the hosted blog, or a
@@ -100,7 +125,7 @@ export default async function Page() {
       {domain && (
         <div style={{ marginTop: 26, border: '1px solid var(--line)', borderRadius: 14, padding: '22px 24px', background: 'var(--paper)' }}>
           <div className="mono" style={{ fontSize: 11, color: 'var(--moss)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-            4 · Theme colors
+            5 · Theme colors
           </div>
           <div style={{ fontFamily: 'Clash Display', fontSize: 20, marginTop: 4 }}>
             Set your blog&rsquo;s brand colors
@@ -124,7 +149,7 @@ export default async function Page() {
       {domain && (
         <div style={{ marginTop: 26, border: '1px solid var(--line)', borderRadius: 14, padding: '22px 24px', background: 'var(--paper)' }}>
           <div className="mono" style={{ fontSize: 11, color: 'var(--moss)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-            5 · Banner link
+            6 · Banner link
           </div>
           <div style={{ fontFamily: 'Clash Display', fontSize: 20, marginTop: 4 }}>
             Choose where the “Try {(domain as any).site_profile?.business?.name || domain.hostname.replace(/^www\./, '')}” banner sends readers

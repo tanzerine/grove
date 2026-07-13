@@ -6,7 +6,7 @@
  * to make the blog as legible to ChatGPT/Perplexity as it is to Google.
  */
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { buildLlmsTxt } from '@/lib/seo';
+import { buildLlmsTxt, canonicalBaseFor } from '@/lib/seo';
 
 export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }> }) {
   const { slug } = await ctx.params;
@@ -25,7 +25,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
   const body = buildLlmsTxt({
     hostname: domain.hostname,
     blogSlug: slug,
-    canonicalBase: (domain as any).canonical_blog_base,
+    canonicalBase: canonicalBaseFor(domain as any),
     description,
     posts: posts ?? [],
   });

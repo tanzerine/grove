@@ -3,7 +3,7 @@
  * discover every hosted blog without waiting on external links.
  */
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { blogHomeUrl, appBase } from '@/lib/seo';
+import { blogHomeUrl, appBase, canonicalBaseFor } from '@/lib/seo';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +15,7 @@ export async function GET() {
   try {
     const sb = supabaseAdmin();
     const { data } = await sb
-      .from('domains').select('blog_slug')
+      .from('domains').select('*') // '*': survives pre-0026 DB
       .not('verified_at', 'is', null)
       .limit(500);
     domains = data ?? [];
@@ -25,11 +25,17 @@ export async function GET() {
 
   // With GROVE_BLOG_ROOT_DOMAIN set these point at the subdomains (each of
   // which also serves its own robots.txt); without it, at the /b/ paths.
+  // Blogs whose canonical home is customer-owned (self-served base or CNAME'd
+  // hostname) are skipped: their sitemap is announced from that origin's own
+  // robots.txt, and advertising the mirror from here would submit URLs that
+  // compete with the customer's copy.
   // The marketing sitemap (app/sitemap.ts) goes first so the homepage + legal
   // pages have a crawl entry point — they were in no sitemap before.
   const sitemaps = [
     `Sitemap: ${appBase()}/sitemap.xml`,
-    ...domains.map((d) => `Sitemap: ${blogHomeUrl(d.blog_slug)}/sitemap.xml`),
+    ...domains
+      .filter((d) => !canonicalBaseFor(d as any))
+      .map((d) => `Sitemap: ${blogHomeUrl(d.blog_slug)}/sitemap.xml`),
   ].join('\n');
 
   const body = `User-agent: *

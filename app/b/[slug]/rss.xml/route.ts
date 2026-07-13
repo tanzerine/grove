@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { buildRssXml } from '@/lib/seo';
+import { buildRssXml, canonicalBaseFor } from '@/lib/seo';
 import { mdToHtml } from '@/lib/markdown';
 import { genreFor, authorFor } from '@/lib/blog-genre';
 
@@ -31,7 +31,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
   const xml = buildRssXml({
     hostname: domain.hostname,
     blogSlug: slug,
-    canonicalBase: (domain as any).canonical_blog_base,
+    canonicalBase: canonicalBaseFor(domain as any),
     items,
   });
   return new Response(xml, {

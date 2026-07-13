@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   escapeXml, isBot, jsonLdScript, appBase, normalizeCanonicalBase,
   blogHomeUrl, blogPostUrl, subdomainSlugFromHost, buildLlmsTxt, buildArticleGraph, buildSitemapXml, buildRssXml,
-  sanitizeEmbedHost,
+  sanitizeEmbedHost, normalizeBlogHostname, canonicalBaseFor, servedBlogBaseFor, isCustomBlogHost,
 } from '../lib/seo';
 
 describe('escapeXml', () => {
@@ -384,5 +384,77 @@ describe('buildRssXml date safety', () => {
     });
     expect(xml).not.toContain('Invalid Date');
     expect(xml).toContain('<pubDate>Wed, 01 Jul 2026 09:00:00 GMT</pubDate>');
+  });
+});
+
+describe('normalizeBlogHostname', () => {
+  it('accepts a bare hostname and lowercases it', () => {
+    expect(normalizeBlogHostname('Blog.Example.com')).toBe('blog.example.com');
+  });
+  it('strips scheme, trailing slash, and port', () => {
+    expect(normalizeBlogHostname('https://blog.example.com/')).toBe('blog.example.com');
+    expect(normalizeBlogHostname('blog.example.com:443')).toBe('blog.example.com');
+  });
+  it('rejects paths, single labels, bad chars, and empties', () => {
+    expect(normalizeBlogHostname('blog.example.com/path')).toBeNull();
+    expect(normalizeBlogHostname('localhost')).toBeNull();
+    expect(normalizeBlogHostname('blog')).toBeNull();
+    expect(normalizeBlogHostname('-bad.example.com')).toBeNull();
+    expect(normalizeBlogHostname('exa mple.com')).toBeNull();
+    expect(normalizeBlogHostname('under_score.example.com')).toBeNull();
+    expect(normalizeBlogHostname('')).toBeNull();
+    expect(normalizeBlogHostname(null)).toBeNull();
+    expect(normalizeBlogHostname(undefined)).toBeNull();
+  });
+});
+
+describe('canonicalBaseFor', () => {
+  it('is null with neither customer surface configured', () => {
+    expect(canonicalBaseFor(null)).toBeNull();
+    expect(canonicalBaseFor({})).toBeNull();
+    expect(canonicalBaseFor({ canonical_blog_base: null, custom_blog_hostname: null })).toBeNull();
+  });
+  it('uses the CNAME hostname when only it is set', () => {
+    expect(canonicalBaseFor({ custom_blog_hostname: 'blog.example.com' })).toBe('https://blog.example.com');
+  });
+  it('prefers a self-served canonical base over the CNAME hostname', () => {
+    expect(canonicalBaseFor({
+      canonical_blog_base: 'https://www.example.com/blog',
+      custom_blog_hostname: 'blog.example.com',
+    })).toBe('https://www.example.com/blog');
+  });
+  it('falls through to the hostname when the canonical base is garbage', () => {
+    expect(canonicalBaseFor({
+      canonical_blog_base: 'nope',
+      custom_blog_hostname: 'blog.example.com',
+    })).toBe('https://blog.example.com');
+  });
+  it('composes with the URL builders', () => {
+    const d = { custom_blog_hostname: 'blog.example.com' };
+    expect(blogPostUrl('slug-x', 'my-post', canonicalBaseFor(d))).toBe('https://blog.example.com/my-post');
+  });
+});
+
+describe('servedBlogBaseFor', () => {
+  it('only ever returns the CNAME hostname — never a customer-rendered base', () => {
+    expect(servedBlogBaseFor({ canonical_blog_base: 'https://www.example.com/blog' })).toBeNull();
+    expect(servedBlogBaseFor({
+      canonical_blog_base: 'https://www.example.com/blog',
+      custom_blog_hostname: 'blog.example.com',
+    })).toBe('https://blog.example.com');
+    expect(servedBlogBaseFor(null)).toBeNull();
+  });
+});
+
+describe('isCustomBlogHost', () => {
+  const domain = { custom_blog_hostname: 'blog.example.com' };
+  it('matches the Host header against the configured hostname', () => {
+    expect(isCustomBlogHost('blog.example.com', domain)).toBe(true);
+    expect(isCustomBlogHost('Blog.Example.com:443', domain)).toBe(true);
+  });
+  it('rejects other hosts and unconfigured domains', () => {
+    expect(isCustomBlogHost('www.example.com', domain)).toBe(false);
+    expect(isCustomBlogHost('blog.example.com', {})).toBe(false);
+    expect(isCustomBlogHost(null, domain)).toBe(false);
   });
 });

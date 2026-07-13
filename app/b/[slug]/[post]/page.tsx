@@ -1,7 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { mdToHtml, extractToc } from '@/lib/markdown';
 import { extractFaq } from '@/lib/faq';
-import { jsonLdScript, blogHomeUrl, blogPostUrl, subdomainSlugFromHost, buildArticleGraph } from '@/lib/seo';
+import { jsonLdScript, blogHomeUrl, blogPostUrl, subdomainSlugFromHost, isCustomBlogHost, canonicalBaseFor, servedBlogBaseFor, buildArticleGraph } from '@/lib/seo';
 import { pickRelated } from '@/lib/related-posts';
 import { injectInternalLinks } from '@/lib/internal-links';
 import { genreFor, authorFor } from '@/lib/blog-genre';
@@ -22,9 +22,10 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     .eq('domain_id', domain.id).eq('slug', post).eq('status', 'published').single();
   if (!p) return {};
 
-  // When the customer serves articles on their own domain, THAT page is the
-  // canonical and this hosted copy is a mirror — equity flows to them.
-  const url = blogPostUrl(slug, post, (domain as any).canonical_blog_base);
+  // When the customer owns a blog surface — a self-served article base or a
+  // CNAME'd hostname we serve for them — THAT page is the canonical and this
+  // hosted copy is a mirror; equity flows to them.
+  const url = blogPostUrl(slug, post, canonicalBaseFor(domain as any));
   const title = p.meta_title || p.title || undefined;
   const description = p.meta_description ?? undefined;
   // Real cover wins; otherwise a branded card generated at {post}/og so every
@@ -36,7 +37,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     description,
     alternates: {
       canonical: url,
-      types: { 'application/rss+xml': `${blogHomeUrl(slug)}/rss.xml` },
+      // feed alternate must resolve on an origin GROVE serves (hosted or the
+      // CNAME'd host) — a customer-rendered canonical base has no rss.xml.
+      types: { 'application/rss+xml': `${blogHomeUrl(slug, servedBlogBaseFor(domain as any))}/rss.xml` },
     },
     openGraph: {
       title,
@@ -71,10 +74,12 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   // The one honest writer of posts.reads is the client 'view' beacon, deduped
   // per session in lib/analytics/track.ts ingestEvent().
 
-  // On a blog subdomain the middleware strips the /b/{slug} prefix, so
-  // relative links must be root-relative there and prefixed on the app host.
-  const onSubdomain = !!subdomainSlugFromHost((await headers()).get('host'));
-  const prefix = onSubdomain ? '' : `/b/${slug}`;
+  // On a blog host (grove subdomain or the customer's CNAME'd hostname) the
+  // middleware strips the /b/{slug} prefix, so relative links must be
+  // root-relative there and prefixed on the app host.
+  const host = (await headers()).get('host');
+  const onBlogHost = !!subdomainSlugFromHost(host) || isCustomBlogHost(host, domain as any);
+  const prefix = onBlogHost ? '' : `/b/${slug}`;
 
   // Siblings power both retention features: contextual in-body links and the
   // "Keep reading" block. Injection happens at render time so every existing
@@ -105,9 +110,9 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   const branding = resolveBranding(domain);
   const themeStyle = blogThemeVars(branding) as React.CSSProperties | undefined;
 
-  // Canonical article URL — the customer's own page when canonical_blog_base
-  // is set. Share buttons and JSON-LD must spread THAT url, not the mirror's.
-  const pageUrl = blogPostUrl(slug, post, (domain as any).canonical_blog_base);
+  // Canonical article URL — the customer's own surface when one is configured.
+  // Share buttons and JSON-LD must spread THAT url, not the mirror's.
+  const pageUrl = blogPostUrl(slug, post, canonicalBaseFor(domain as any));
   const credit = (p as any).cover_image_credit as { name?: string; profile_url?: string } | null;
   const author = authorFor(profile, domain.hostname);
   const genre = genreFor((p as any).format, p.title);
@@ -133,7 +138,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
     genreLabel: genre.label,
     wordCount: (p.body_md ?? '').split(/\s+/).filter(Boolean).length,
     faqs,
-    canonicalBase: (domain as any).canonical_blog_base,
+    canonicalBase: canonicalBaseFor(domain as any),
   });
 
   return (

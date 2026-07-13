@@ -3,7 +3,7 @@
  * unit-testable and reused by both the publisher and the dry-run preview.
  */
 import type { Platform } from './providers';
-import { blogHomeUrl, blogPostUrl } from '../seo';
+import { blogHomeUrl, blogPostUrl, canonicalBaseFor } from '../seo';
 
 export type SocialCopy = { x?: string; linkedin?: string; instagram?: string } | null;
 
@@ -18,9 +18,10 @@ export type PostForShare = {
 
 export type DomainForShare = {
   blog_slug: string;
-  /** Customer-hosted article base (domains.canonical_blog_base) — when set,
-   *  social shares spread the customer's own URL, not the grove mirror. */
+  /** Customer-owned blog surfaces — when either is set, social shares spread
+   *  the customer's own URL, not the grove mirror. */
   canonical_blog_base?: string | null;
+  custom_blog_hostname?: string | null;
   social_webhook_url?: string | null;
   social_webhook_secret?: string | null;
 };
@@ -40,9 +41,10 @@ export function isDryRun(): boolean {
 // Delegates to lib/seo so social URLs can never diverge from the canonical
 // URLs the blog pages, sitemap, and RSS emit.
 export function blogUrlFor(domain: DomainForShare, slug: string | null): string {
+  const base = canonicalBaseFor(domain);
   return slug
-    ? blogPostUrl(domain.blog_slug, slug, domain.canonical_blog_base)
-    : blogHomeUrl(domain.blog_slug, domain.canonical_blog_base);
+    ? blogPostUrl(domain.blog_slug, slug, base)
+    : blogHomeUrl(domain.blog_slug, base);
 }
 
 export function firstTweet(thread?: string): string {
