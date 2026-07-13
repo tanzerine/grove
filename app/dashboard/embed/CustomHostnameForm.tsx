@@ -1,18 +1,26 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 /**
- * Sets domains.custom_blog_hostname — the customer-owned hostname (CNAME'd at
- * grove) the whole blog serves from. The zero-code counterpart to
- * CanonicalBaseForm: grove renders everything, the customer only adds DNS.
+ * Sets domains.custom_blog_hostname and then WATCHES the setup complete:
+ * after save the form polls /api/domains/hostname-status, whose three probes
+ * (Vercel attach, DNS record, HTTPS serving) render as a live checklist. The
+ * customer types one hostname, copies one DNS record, and sees it go green —
+ * no instruction paragraphs to follow blind.
  */
-type Attach = {
-  state: 'attached' | 'already_attached' | 'skipped' | 'error';
-  verified?: boolean;
-  message?: string;
-  cname?: { host: string; value: string };
+
+type Step = { id: 'attach' | 'dns' | 'live'; ok: boolean; label: string; hint?: string };
+type Status = {
+  configured: boolean;
+  hostname?: string;
+  record?: { type: string; host: string; value: string };
+  steps?: Step[];
+  allOk?: boolean;
 };
+
+const POLL_MS = 5000;
+const MAX_POLLS = 24; // ~2 minutes, then fall back to the manual re-check button
 
 export default function CustomHostnameForm({
   domainId, initial, hostname,
@@ -20,28 +28,81 @@ export default function CustomHostnameForm({
   const [value, setValue] = useState(initial ?? '');
   const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [error, setError] = useState('');
-  const [attach, setAttach] = useState<Attach | null>(null);
+  const [status, setStatus] = useState<Status | null>(null);
+  const [polling, setPolling] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const polls = useRef(0);
   const apex = hostname.replace(/^www\./, '');
+
+  const check = useCallback(async (): Promise<Status | null> => {
+    const res = await fetch(`/api/domains/hostname-status?domain_id=${domainId}`).catch(() => null);
+    if (!res?.ok) return null;
+    const body = (await res.json().catch(() => null)) as Status | null;
+    if (body) setStatus(body);
+    return body;
+  }, [domainId]);
+
+  const stopPolling = useCallback(() => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+    setPolling(false);
+  }, []);
+
+  const startPolling = useCallback(() => {
+    stopPolling();
+    polls.current = 0;
+    setPolling(true);
+    const tick = async () => {
+      polls.current += 1;
+      const s = await check();
+      if (s?.allOk || !s?.configured || polls.current >= MAX_POLLS) {
+        stopPolling();
+        return;
+      }
+      timer.current = setTimeout(tick, POLL_MS);
+    };
+    void tick();
+  }, [check, stopPolling]);
+
+  // A hostname saved in an earlier session should show its live status on
+  // arrival, not a stale instruction block.
+  useEffect(() => {
+    if (initial) startPolling();
+    return stopPolling;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function save() {
     setState('saving');
     setError('');
-    setAttach(null);
+    stopPolling();
     const res = await fetch('/api/domains/settings', {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ domain_id: domainId, custom_blog_hostname: value.trim() }),
     }).catch(() => null);
-    const body = await res?.json().catch(() => null);
     if (res?.ok) {
-      setAttach(body?.hostname_attach ?? null);
       setState('saved');
       setTimeout(() => setState('idle'), 2000);
+      if (value.trim()) startPolling();
+      else setStatus(null); // cleared — back to the grove-hosted URLs
     } else {
+      const body = await res?.json().catch(() => null);
       setError(body?.error ?? 'could not save — try again');
       setState('error');
     }
   }
+
+  function copyRecord() {
+    if (!navigator.clipboard) return;
+    void navigator.clipboard.writeText(status?.record?.value ?? 'cname.vercel-dns.com').then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    });
+  }
+
+  const configured = status?.configured && status.steps;
 
   return (
     <div>
@@ -74,36 +135,70 @@ export default function CustomHostnameForm({
         <p style={{ color: '#c04b3c', fontSize: 12.5, margin: '8px 0 0' }}>{error}</p>
       )}
 
-      {/* Auto-attach outcome. When grove attached the host to its Vercel project
-          the customer only needs the DNS record; otherwise fall back to the
-          manual instruction. */}
-      {attach && (attach.state === 'attached' || attach.state === 'already_attached') && (
-        <div style={{ margin: '10px 0 0', padding: '10px 12px', borderRadius: 10, background: 'var(--accent-soft, rgba(89,148,94,0.10))', border: '1px solid var(--moss)' }}>
-          <p style={{ color: 'var(--ink)', fontSize: 12.5, margin: 0, lineHeight: 1.55 }}>
-            ✓ Connected to grove automatically. Add one DNS record at your registrar and you&rsquo;re live:
-          </p>
-          <p className="mono" style={{ fontSize: 12.5, margin: '6px 0 0', color: 'var(--ink)' }}>
-            CNAME&nbsp;&nbsp;{attach.cname?.host ?? 'blog'}&nbsp;→&nbsp;{attach.cname?.value ?? 'cname.vercel-dns.com'}
-          </p>
-          <p style={{ color: 'var(--clay)', fontSize: 12, margin: '6px 0 0', lineHeight: 1.5 }}>
-            {attach.verified
-              ? 'DNS verified — TLS is provisioning now.'
-              : 'TLS provisions automatically once the record propagates (usually minutes).'}
-          </p>
+      {/* Live setup checklist — three real probes, polled until green. */}
+      {configured && (
+        <div style={{ margin: '12px 0 0', padding: '14px 16px', borderRadius: 12, border: '1px solid var(--line)', background: 'white' }}>
+          {status!.steps!.map((s) => (
+            <div key={s.id} style={{ display: 'flex', gap: 10, alignItems: 'baseline', padding: '4px 0' }}>
+              <span className="mono" aria-hidden style={{ fontSize: 13, color: s.ok ? 'var(--moss)' : 'var(--clay)' }}>
+                {s.ok ? '✓' : '○'}
+              </span>
+              <div style={{ minWidth: 0 }}>
+                <span style={{ fontSize: 13.5, color: s.ok ? 'var(--ink)' : 'var(--clay)' }}>{s.label}</span>
+                {!s.ok && s.hint && (
+                  <div style={{ fontSize: 12, color: 'var(--clay)', lineHeight: 1.5, marginTop: 2 }}>{s.hint}</div>
+                )}
+              </div>
+            </div>
+          ))}
+
+          {status!.allOk ? (
+            <p style={{ margin: '10px 0 0', fontSize: 12.5, lineHeight: 1.55, color: 'var(--ink)' }}>
+              Your blog is live at <a className="mono" href={`https://${status!.hostname}`} target="_blank" rel="noopener noreferrer">https://{status!.hostname}</a>.
+              Canonical URLs, sitemap, RSS, robots.txt, and JSON-LD all point here — search credit lands on your domain.
+            </p>
+          ) : (
+            <>
+              {/* The one DNS record, copy-ready. Trailing-dot note because some
+                  registrars require it and reject the bare value. */}
+              <div style={{ margin: '10px 0 0', padding: '10px 12px', borderRadius: 10, background: 'var(--paper)', border: '1px solid var(--line)', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                <span className="mono" style={{ fontSize: 12.5, color: 'var(--ink)' }}>
+                  CNAME&nbsp;&nbsp;{status!.record?.host ?? 'blog'}&nbsp;→&nbsp;{status!.record?.value ?? 'cname.vercel-dns.com'}
+                </span>
+                <button
+                  type="button"
+                  onClick={copyRecord}
+                  style={{ padding: '4px 10px', borderRadius: 8, border: '1px solid var(--line)', background: 'white', fontSize: 12, cursor: 'pointer', color: 'var(--ink)' }}
+                >
+                  {copied ? 'Copied ✓' : 'Copy value'}
+                </button>
+              </div>
+              <p style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--clay)', lineHeight: 1.5 }}>
+                If your registrar says the value must end with a dot, use{' '}
+                <span className="mono">cname.vercel-dns.com.</span> — same record.
+              </p>
+              <div style={{ marginTop: 10 }}>
+                {polling ? (
+                  <span className="mono" style={{ fontSize: 12, color: 'var(--clay)' }}>checking every few seconds…</span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={startPolling}
+                    style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--line)', background: 'white', fontSize: 12.5, cursor: 'pointer', color: 'var(--ink)' }}
+                  >
+                    Check again
+                  </button>
+                )}
+              </div>
+            </>
+          )}
         </div>
       )}
-      {attach && attach.state === 'error' && (
-        <p style={{ color: 'var(--clay)', fontSize: 12.5, margin: '10px 0 0', lineHeight: 1.55 }}>
-          Saved, but grove couldn&rsquo;t auto-connect the host ({attach.message}). Add{' '}
-          <span className="mono">{value.trim() || `blog.${apex}`}</span> under your Vercel project&rsquo;s Domains tab, then
-          add the <span className="mono">CNAME → cname.vercel-dns.com</span> record.
-        </p>
-      )}
 
-      {(!attach || attach.state === 'skipped') && (
+      {!configured && (
         <p style={{ color: 'var(--clay)', fontSize: 12.5, margin: '8px 0 0', lineHeight: 1.55 }}>
-          Then add one DNS record at your registrar: <span className="mono">CNAME blog → cname.vercel-dns.com</span>.
-          TLS is provisioned automatically once the record propagates. Leave empty to keep the grove-hosted URLs.
+          Save a hostname and grove connects it automatically — you&rsquo;ll get the one DNS record to add,
+          and this card checks itself off as it goes live. Leave empty to keep the grove-hosted URLs.
         </p>
       )}
     </div>
