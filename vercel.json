@@ -1,6 +1,7 @@
 {
   "crons": [
     { "path": "/api/cron/scheduler", "schedule": "0 9 * * *" },
+    { "path": "/api/cron/domains", "schedule": "0 2 * * *" },
     { "path": "/api/cron/images", "schedule": "0 3 * * *" },
     { "path": "/api/cron/monthly-strategy", "schedule": "0 6 1 * *" },
     { "path": "/api/cron/weekly-digest", "schedule": "0 8 * * 1" },
