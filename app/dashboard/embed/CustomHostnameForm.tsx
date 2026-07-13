@@ -104,14 +104,32 @@ export default function CustomHostnameForm({
 
   const configured = status?.configured && status.steps;
 
+  // The field's grey placeholder ("blog.acme.com") reads as pre-filled, so an
+  // empty Save used to silently clear the setting and still flash "Saved ✓".
+  // Two guards: an empty field with nothing saved yet can't be submitted
+  // (button disabled + "Save" is greyed), and clearing an existing hostname is
+  // an explicit, differently-labelled action.
+  const trimmed = value.trim();
+  const isEmpty = trimmed === '';
+  const isClear = isEmpty && !!initial;                 // remove a saved host
+  const cannotSubmit = isEmpty && !initial;             // nothing to do
+  const saveDisabled = state === 'saving' || cannotSubmit;
+  const saveLabel =
+    state === 'saving' ? 'Saving…'
+    : state === 'saved' ? 'Saved ✓'
+    : isClear ? 'Remove'
+    : 'Save';
+
   return (
     <div>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <input
           value={value}
           onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && !saveDisabled) save(); }}
           placeholder={`blog.${apex}`}
           spellCheck={false}
+          autoComplete="off"
           className="mono"
           style={{
             flex: '1 1 280px', fontSize: 13, padding: '9px 12px', borderRadius: 10,
@@ -121,18 +139,27 @@ export default function CustomHostnameForm({
         <button
           type="button"
           onClick={save}
-          disabled={state === 'saving'}
+          disabled={saveDisabled}
+          title={cannotSubmit ? 'Enter a hostname first' : undefined}
           style={{
-            padding: '9px 16px', borderRadius: 10, border: '1px solid var(--moss)',
-            background: 'var(--moss)', color: 'white', fontSize: 13, cursor: 'pointer',
-            opacity: state === 'saving' ? 0.6 : 1,
+            padding: '9px 16px', borderRadius: 10,
+            border: `1px solid ${isClear ? 'var(--line)' : 'var(--moss)'}`,
+            background: isClear ? 'white' : 'var(--moss)',
+            color: isClear ? 'var(--ink)' : 'white',
+            fontSize: 13, cursor: saveDisabled ? 'not-allowed' : 'pointer',
+            opacity: saveDisabled ? 0.5 : 1,
           }}
         >
-          {state === 'saving' ? 'Saving…' : state === 'saved' ? 'Saved ✓' : 'Save'}
+          {saveLabel}
         </button>
       </div>
       {state === 'error' && (
         <p style={{ color: '#c04b3c', fontSize: 12.5, margin: '8px 0 0' }}>{error}</p>
+      )}
+      {cannotSubmit && state !== 'error' && (
+        <p style={{ color: 'var(--clay)', fontSize: 12, margin: '6px 0 0' }}>
+          Type a subdomain like <span className="mono">blog.{apex}</span> — the grey text is just an example.
+        </p>
       )}
 
       {/* Live setup checklist — three real probes, polled until green. */}
