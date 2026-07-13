@@ -5,6 +5,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { isPublicHttpUrl } from '@/lib/net/ssrf';
 import { normalizeCanonicalBase, normalizeBlogHostname, appBase } from '@/lib/seo';
 import { deriveBrandColors } from '@/lib/blog-theme';
+import { attachProjectDomain, detachProjectDomain, cnameHint, type DomainAttachResult } from '@/lib/vercel/domains';
 
 const HEX = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
@@ -55,9 +56,19 @@ export async function PATCH(req: Request) {
   // CNAME'd blog hostname: normalize to a bare host and refuse footguns — the
   // app's own host (would shadow the product), any vercel.app host, and the
   // customer's site host itself (CNAME'ing that at grove takes their site down).
+  // Capture attach/detach intent so the Vercel project is synced AFTER the DB
+  // write commits (attach the new host, drop the old one on change/clear).
+  let hostnameSync: { attach?: string; detach?: string } | null = null;
   if (updates.custom_blog_hostname !== undefined) {
+    const { data: row } = await sb
+      .from('domains').select('hostname, custom_blog_hostname')
+      .eq('id', domain_id).eq('user_id', user.id).maybeSingle();
+    if (!row) return NextResponse.json({ error: 'not found' }, { status: 404 });
+    const prev = (row.custom_blog_hostname as string | null) || null;
+
     if (updates.custom_blog_hostname.trim() === '') {
       patch.custom_blog_hostname = null;
+      hostnameSync = prev ? { detach: prev } : null;
     } else {
       const host = normalizeBlogHostname(updates.custom_blog_hostname);
       if (!host) {
@@ -68,10 +79,6 @@ export async function PATCH(req: Request) {
       if (host === appHost || host === `www.${appHost}` || host.endsWith('.vercel.app')) {
         return NextResponse.json({ error: 'that hostname belongs to grove' }, { status: 400 });
       }
-      const { data: row } = await sb
-        .from('domains').select('hostname')
-        .eq('id', domain_id).eq('user_id', user.id).maybeSingle();
-      if (!row) return NextResponse.json({ error: 'not found' }, { status: 404 });
       const site = row.hostname.toLowerCase().replace(/^www\./, '');
       if (host === site || host === `www.${site}`) {
         return NextResponse.json(
@@ -80,6 +87,9 @@ export async function PATCH(req: Request) {
         );
       }
       patch.custom_blog_hostname = host;
+      // re-attaching the same host is a harmless no-op; only detach a *different*
+      // previous host so we don't yank one we're about to re-add.
+      hostnameSync = { attach: host, detach: prev && prev !== host ? prev : undefined };
     }
   }
 
@@ -131,5 +141,31 @@ export async function PATCH(req: Request) {
     }
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
-  return NextResponse.json({ ok: true });
+
+  // ── Vercel sync (post-commit, best-effort) ────────────────────────────────
+  // The row is saved; a Vercel outage must not fail the request. The client
+  // never throws and returns {state:'skipped'} when unconfigured, so this is a
+  // no-op in local/preview. We report the outcome so the UI can either confirm
+  // auto-attach or fall back to the manual "add it in Vercel" instruction.
+  let hostnameAttach: DomainAttachResult | undefined;
+  if (hostnameSync?.detach) {
+    await detachProjectDomain(hostnameSync.detach); // fire-and-forget cleanup
+  }
+  if (hostnameSync?.attach) {
+    hostnameAttach = await attachProjectDomain(hostnameSync.attach);
+  }
+
+  return NextResponse.json({
+    ok: true,
+    ...(hostnameAttach
+      ? {
+          hostname_attach: {
+            state: hostnameAttach.state, // attached | already_attached | skipped | error
+            verified: hostnameAttach.ok ? hostnameAttach.verified : false,
+            message: hostnameAttach.ok ? undefined : (hostnameAttach as any).message,
+            cname: hostnameAttach.ok ? cnameHint(hostnameAttach) : undefined,
+          },
+        }
+      : {}),
+  });
 }
