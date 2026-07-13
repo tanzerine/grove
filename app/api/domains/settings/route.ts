@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { randomBytes } from 'crypto';
 import { supabaseServer } from '@/lib/supabase/server';
 import { isPublicHttpUrl } from '@/lib/net/ssrf';
-import { normalizeCanonicalBase } from '@/lib/seo';
+import { normalizeCanonicalBase, normalizeBlogHostname, appBase } from '@/lib/seo';
 import { deriveBrandColors } from '@/lib/blog-theme';
 
 const HEX = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
@@ -19,6 +19,8 @@ const schema = z.object({
   social_webhook_url: z.string().url().startsWith('https://').or(z.literal('')).optional(),
   // customer-hosted article base for canonical URLs; empty string clears it.
   canonical_blog_base: z.string().max(300).optional(),
+  // customer-owned hostname CNAME'd at grove (blog.example.com); empty clears.
+  custom_blog_hostname: z.string().max(200).optional(),
   // where the article-bottom "Try {business}" banner links; empty string
   // clears it (banner falls back to the homepage).
   cta_url: z.string().url().startsWith('https://').max(300).or(z.literal('')).optional(),
@@ -48,6 +50,37 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'canonical base must be a valid URL like https://example.com/blog' }, { status: 400 });
     }
     patch.canonical_blog_base = normalized;
+  }
+
+  // CNAME'd blog hostname: normalize to a bare host and refuse footguns — the
+  // app's own host (would shadow the product), any vercel.app host, and the
+  // customer's site host itself (CNAME'ing that at grove takes their site down).
+  if (updates.custom_blog_hostname !== undefined) {
+    if (updates.custom_blog_hostname.trim() === '') {
+      patch.custom_blog_hostname = null;
+    } else {
+      const host = normalizeBlogHostname(updates.custom_blog_hostname);
+      if (!host) {
+        return NextResponse.json({ error: 'must be a bare hostname like blog.example.com' }, { status: 400 });
+      }
+      let appHost = '';
+      try { appHost = new URL(appBase()).hostname.toLowerCase(); } catch { /* keep '' */ }
+      if (host === appHost || host === `www.${appHost}` || host.endsWith('.vercel.app')) {
+        return NextResponse.json({ error: 'that hostname belongs to grove' }, { status: 400 });
+      }
+      const { data: row } = await sb
+        .from('domains').select('hostname')
+        .eq('id', domain_id).eq('user_id', user.id).maybeSingle();
+      if (!row) return NextResponse.json({ error: 'not found' }, { status: 404 });
+      const site = row.hostname.toLowerCase().replace(/^www\./, '');
+      if (host === site || host === `www.${site}`) {
+        return NextResponse.json(
+          { error: `that's your site itself — use a subdomain like blog.${site}` },
+          { status: 400 },
+        );
+      }
+      patch.custom_blog_hostname = host;
+    }
   }
 
   // Banner link is a plain reader-facing href (never fetched server-side, so
@@ -91,6 +124,12 @@ export async function PATCH(req: Request) {
   }
 
   const { error } = await sb.from('domains').update(patch).eq('id', domain_id).eq('user_id', user.id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  if (error) {
+    // unique index on custom_blog_hostname — surface it as a human sentence
+    if (error.code === '23505') {
+      return NextResponse.json({ error: 'that hostname is already connected to another blog' }, { status: 409 });
+    }
+    return NextResponse.json({ error: error.message }, { status: 400 });
+  }
   return NextResponse.json({ ok: true });
 }

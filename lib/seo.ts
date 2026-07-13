@@ -15,8 +15,11 @@ export function appBase(): string {
  *   1. domains.canonical_blog_base — the customer serves articles on their OWN
  *      domain (reverse proxy or server-rendered route consuming our API);
  *      search equity accrues to them and the grove-hosted copy is a mirror.
- *   2. GROVE_BLOG_ROOT_DOMAIN — {slug}.{root} subdomain (middleware rewrite).
- *   3. /b/{slug} on the app origin.
+ *   2. domains.custom_blog_hostname — a customer-owned hostname CNAME'd at
+ *      grove (blog.customer.com); GROVE serves everything there, so equity
+ *      lands on the customer's domain with zero code on their site.
+ *   3. GROVE_BLOG_ROOT_DOMAIN — {slug}.{root} subdomain (middleware rewrite).
+ *   4. /b/{slug} on the app origin.
  * EVERY absolute blog URL — canonical, OG, JSON-LD, sitemap, RSS, robots,
  * social copy, webhooks — must come from these builders so the shapes can
  * never diverge again. Callers that have the domain row pass its
@@ -70,6 +73,54 @@ export function subdomainSlugFromHost(host: string | null | undefined): string |
   if (h === root || h === `www.${root}` || !h.endsWith(`.${root}`)) return null;
   const sub = h.slice(0, -(root.length + 1));
   return /^[a-z0-9-]+$/.test(sub) && sub !== 'www' ? sub : null;
+}
+
+/** Validate + normalize a customer-owned blog hostname: bare lowercase host,
+ *  at least two labels, no scheme/path/port. Null = not usable. */
+export function normalizeBlogHostname(v: string | null | undefined): string | null {
+  if (!v) return null;
+  const s = String(v).trim().toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/+$/, '')
+    .split(':')[0];
+  if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(s)) return null;
+  return s;
+}
+
+type CanonicalFields = { canonical_blog_base?: string | null; custom_blog_hostname?: string | null };
+
+/**
+ * The base every customer-facing absolute blog URL builds on — canonical, OG,
+ * JSON-LD, sitemap <loc>, RSS items, llms.txt, social shares. Callers with a
+ * domain row pass it here instead of reading canonical_blog_base directly, so
+ * the two customer-owned modes (self-served base, CNAME'd hostname) can't
+ * fall out of sync across surfaces.
+ */
+export function canonicalBaseFor(domain: CanonicalFields | null | undefined): string | null {
+  if (!domain) return null;
+  const base = normalizeCanonicalBase(domain.canonical_blog_base);
+  if (base) return base;
+  const host = normalizeBlogHostname(domain.custom_blog_hostname);
+  return host ? `https://${host}` : null;
+}
+
+/**
+ * Like canonicalBaseFor, but only bases GROVE ITSELF serves (the CNAME'd
+ * hostname). For self-referential URLs that must resolve — robots.txt's
+ * sitemap pointer, the RSS alternate link — because a customer-rendered
+ * canonical_blog_base doesn't serve those files.
+ */
+export function servedBlogBaseFor(domain: CanonicalFields | null | undefined): string | null {
+  const host = normalizeBlogHostname(domain?.custom_blog_hostname);
+  return host ? `https://${host}` : null;
+}
+
+/** True when the request's Host header is this domain's CNAME'd blog hostname
+ *  (page is being served on the customer's own origin → root-relative links). */
+export function isCustomBlogHost(host: string | null | undefined, domain: CanonicalFields | null | undefined): boolean {
+  const h = normalizeBlogHostname(host);
+  const c = normalizeBlogHostname(domain?.custom_blog_hostname);
+  return !!h && !!c && h === c;
 }
 
 export function escapeXml(s: string): string {

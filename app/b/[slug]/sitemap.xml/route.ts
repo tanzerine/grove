@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { buildSitemapXml } from '@/lib/seo';
+import { buildSitemapXml, canonicalBaseFor } from '@/lib/seo';
 
 export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }> }) {
   const { slug } = await ctx.params;
@@ -11,13 +11,14 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
     .eq('domain_id', domain.id).eq('status', 'published')
     .order('published_at', { ascending: false });
 
-  // With a canonical base set, <loc> entries point at the customer's domain.
-  // Google honors cross-host entries when the customer references this sitemap
-  // from their own robots.txt (sitemap cross-submission) — documented on the
-  // dashboard embed page.
+  // With a customer-owned base set, <loc> entries point at their domain. On a
+  // CNAME'd hostname this sitemap is served from that same origin, so it's
+  // same-host; for a self-served canonical base, Google honors the cross-host
+  // entries when the customer references this sitemap from their own
+  // robots.txt (cross-submission) — documented on the dashboard embed page.
   const xml = buildSitemapXml({
     blogSlug: slug,
-    canonicalBase: (domain as any).canonical_blog_base,
+    canonicalBase: canonicalBaseFor(domain as any),
     posts: posts ?? [],
   });
   return new Response(xml, {
