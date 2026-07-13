@@ -27,27 +27,50 @@ export default async function Page() {
 
   return (
     <>
-      <DashHeader title="Embed" subtitle="one script, the whole blog on your own site" />
+      <DashHeader title="Your blog, everywhere" subtitle="your domain owns the search results — embeds handle the display" />
       <div className="gv-body">
       <p className="lede">
-        One script, zero backend. Drop a tag on <span className="mono">{domain?.hostname}</span> and grove renders
-        the whole thing — it auto-detects your domain, no slug or API key.
+        Two independent things, one page: put the blog on <em>your domain</em> (that&rsquo;s what Google credits —
+        step 1 is the only one that matters for SEO), and optionally show posts inside your existing site with a
+        copy-paste embed.
       </p>
+
+      {domain && (
+        <div style={{ marginTop: 26, border: '1px solid var(--moss)', borderRadius: 14, padding: '22px 24px', background: 'var(--paper)' }}>
+          <div className="mono" style={{ fontSize: 11, color: 'var(--moss)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            1 · Own the SEO — zero code
+          </div>
+          <div style={{ fontFamily: 'Clash Display', fontSize: 20, marginTop: 4 }}>
+            Serve the whole blog on your own subdomain
+          </div>
+          <p style={{ fontSize: 14, color: 'var(--clay)', margin: '8px 0 14px', lineHeight: 1.55 }}>
+            Pick a subdomain like <span className="mono">blog.{domain.hostname.replace(/^www\./, '')}</span>, save it,
+            add the one DNS record we give you — done. Grove serves everything there (pages, canonicals, JSON-LD,
+            sitemap, RSS, robots.txt, llms.txt, analytics), so search equity lands on{' '}
+            <span className="mono">{domain.hostname.replace(/^www\./, '')}</span> with nothing to build or maintain.
+          </p>
+          <CustomHostnameForm
+            domainId={domain.id}
+            initial={(domain as any).custom_blog_hostname ?? null}
+            hostname={domain.hostname}
+          />
+        </div>
+      )}
 
       {/* Full blog */}
       <SnippetCard
-        kicker="1 · Full blog page"
-        title="The entire blog, on your own URL"
-        desc="Put this on your /blog page. You get the featured card, search, genre filters, pagination, and in-page article reading — every feature, no code to write or maintain."
+        kicker="2 · Full blog embed"
+        title="The entire blog, inside your site"
+        desc="Put this on your /blog page. You get the featured card, search, genre filters, pagination, and in-page article reading — no code to write or maintain. For your visitors: the in-page reader isn't crawlable, so your search presence comes from step 1, not from this."
         snippet={blogSnippet}
         preview={<BlogPreview />}
       />
 
       {/* Widget */}
       <SnippetCard
-        kicker="2 · Homepage widget"
+        kicker="3 · Homepage widget"
         title="A teaser that drives traffic to the blog"
-        desc="Put this on your landing or home page. It shows your newest 3–4 posts and a “Read the blog →” link. Tune it with data-count and point data-blog-url at wherever you mounted the full blog."
+        desc="Put this on your landing or home page. It shows your newest 3–4 posts and a “Read the blog →” link. Tune it with data-count and point data-blog-url at your blog (from step 1, or wherever you mounted the full embed)."
         snippet={widgetSnippet}
         preview={<WidgetPreview />}
       />
@@ -70,62 +93,46 @@ export default async function Page() {
       </ul>
 
       {domain && (
-        <div style={{ marginTop: 40, border: '1px solid var(--moss)', borderRadius: 14, padding: '22px 24px', background: 'var(--paper)' }}>
-          <div className="mono" style={{ fontSize: 11, color: 'var(--moss)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-            3 · Own the SEO — zero code
+        <details style={{ marginTop: 26, border: '1px solid var(--line)', borderRadius: 14, background: 'var(--paper)' }}>
+          <summary style={{ padding: '18px 24px', cursor: 'pointer', listStyle: 'none' }}>
+            <span className="mono" style={{ fontSize: 11, color: 'var(--clay)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              Advanced · serve articles yourself
+            </span>
+            <span style={{ display: 'block', fontFamily: 'Clash Display', fontSize: 18, marginTop: 4 }}>
+              I already render articles on my own site — make those pages canonical
+            </span>
+            <span style={{ display: 'block', fontSize: 13, color: 'var(--clay)', marginTop: 4, lineHeight: 1.5 }}>
+              Only for sites with their own server-rendered <span className="mono">/blog/&lt;slug&gt;</span> route or reverse
+              proxy. If that&rsquo;s not you, step 1 above does everything with zero code.
+            </span>
+          </summary>
+          <div style={{ padding: '0 24px 22px' }}>
+            <p style={{ fontSize: 14, color: 'var(--clay)', margin: '8px 0 14px', lineHeight: 1.55 }}>
+              Set the base URL your articles live under. Every absolute URL grove emits (rel=canonical, Open Graph,
+              JSON-LD, sitemap, RSS, llms.txt, social shares, embed links) flips to{' '}
+              <span className="mono">{'{base}/{slug}'}</span>, so search equity compounds on{' '}
+              <span className="mono">{domain.hostname}</span>. The hosted copy at{' '}
+              <span className="mono">{groveBase}/b/{domain.blog_slug}</span> stays up as a non-canonical mirror.
+              This wins over step 1&rsquo;s subdomain if both are set.
+            </p>
+            <CanonicalBaseForm
+              domainId={domain.id}
+              initial={(domain as any).canonical_blog_base ?? null}
+              hostname={domain.hostname}
+            />
+            <p style={{ fontSize: 13, color: 'var(--clay)', margin: '14px 0 0', lineHeight: 1.6 }}>
+              Then add one line to <span className="mono">https://{domain.hostname.replace(/^www\./, '')}/robots.txt</span> so
+              Google accepts the cross-hosted sitemap for your URLs:{' '}
+              <span className="mono">Sitemap: {groveBase}/b/{domain.blog_slug}/sitemap.xml</span>
+            </p>
           </div>
-          <div style={{ fontFamily: 'Clash Display', fontSize: 20, marginTop: 4 }}>
-            Serve the whole blog on your own subdomain
-          </div>
-          <p style={{ fontSize: 14, color: 'var(--clay)', margin: '8px 0 14px', lineHeight: 1.55 }}>
-            Point a subdomain like <span className="mono">blog.{domain.hostname.replace(/^www\./, '')}</span> at grove
-            and we serve everything there — pages, <span className="mono">rel=canonical</span>, Open Graph, JSON-LD,
-            sitemap, RSS, robots.txt, llms.txt, internal links, analytics. Search equity lands on{' '}
-            <span className="mono">{domain.hostname.replace(/^www\./, '')}</span> with nothing to build or maintain on
-            your site. The hosted copy at <span className="mono">{groveBase}/b/{domain.blog_slug}</span> stays up and
-            canonicalizes to your subdomain, so the two never compete.
-          </p>
-          <CustomHostnameForm
-            domainId={domain.id}
-            initial={(domain as any).custom_blog_hostname ?? null}
-            hostname={domain.hostname}
-          />
-        </div>
+        </details>
       )}
 
       {domain && (
         <div style={{ marginTop: 26, border: '1px solid var(--line)', borderRadius: 14, padding: '22px 24px', background: 'var(--paper)' }}>
           <div className="mono" style={{ fontSize: 11, color: 'var(--moss)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-            4 · Advanced: serve articles yourself
-          </div>
-          <div style={{ fontFamily: 'Clash Display', fontSize: 20, marginTop: 4 }}>
-            Make your own pages the canonical home of every article
-          </div>
-          <p style={{ fontSize: 14, color: 'var(--clay)', margin: '8px 0 14px', lineHeight: 1.55 }}>
-            If you serve articles on your own site — a reverse proxy of the hosted blog, or a
-            server-rendered <span className="mono">/blog/&lt;slug&gt;</span> route that reads our API — set that base URL here.
-            Every absolute URL grove emits (rel=canonical, Open Graph, JSON-LD, sitemap, RSS, llms.txt,
-            social shares, embed links) flips to <span className="mono">{'{base}/{slug}'}</span>, so search
-            equity compounds on <span className="mono">{domain.hostname}</span> instead of grove. The hosted copy
-            at <span className="mono">{groveBase}/b/{domain.blog_slug}</span> stays up as a non-canonical mirror.
-          </p>
-          <CanonicalBaseForm
-            domainId={domain.id}
-            initial={(domain as any).canonical_blog_base ?? null}
-            hostname={domain.hostname}
-          />
-          <p style={{ fontSize: 13, color: 'var(--clay)', margin: '14px 0 0', lineHeight: 1.6 }}>
-            Then add one line to <span className="mono">https://{domain.hostname.replace(/^www\./, '')}/robots.txt</span> so
-            Google accepts the cross-hosted sitemap for your URLs:{' '}
-            <span className="mono">Sitemap: {groveBase}/b/{domain.blog_slug}/sitemap.xml</span>
-          </p>
-        </div>
-      )}
-
-      {domain && (
-        <div style={{ marginTop: 26, border: '1px solid var(--line)', borderRadius: 14, padding: '22px 24px', background: 'var(--paper)' }}>
-          <div className="mono" style={{ fontSize: 11, color: 'var(--moss)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-            5 · Theme colors
+            4 · Theme colors
           </div>
           <div style={{ fontFamily: 'Clash Display', fontSize: 20, marginTop: 4 }}>
             Set your blog&rsquo;s brand colors
@@ -149,7 +156,7 @@ export default async function Page() {
       {domain && (
         <div style={{ marginTop: 26, border: '1px solid var(--line)', borderRadius: 14, padding: '22px 24px', background: 'var(--paper)' }}>
           <div className="mono" style={{ fontSize: 11, color: 'var(--moss)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-            6 · Banner link
+            5 · Banner link
           </div>
           <div style={{ fontFamily: 'Clash Display', fontSize: 20, marginTop: 4 }}>
             Choose where the “Try {(domain as any).site_profile?.business?.name || domain.hostname.replace(/^www\./, '')}” banner sends readers
@@ -168,9 +175,9 @@ export default async function Page() {
       )}
 
       <p style={{ color: 'var(--clay)', fontSize: 13.5, marginTop: 24 }}>
-        No article route of your own yet? Grove hosts a fully-indexed copy at{' '}
-        <span className="mono">{groveBase}/b/{domain?.blog_slug}</span> (sitemap, RSS, JSON-LD), so search engines
-        find your content even with the in-page embed.
+        Haven&rsquo;t set up step 1 yet? Grove hosts your blog at{' '}
+        <span className="mono">{groveBase}/b/{domain?.blog_slug}</span> (sitemap, RSS, JSON-LD) in the meantime —
+        but that credit goes to grove&rsquo;s domain, not yours. Setting your subdomain moves it to you.
       </p>
       </div>
     </>

@@ -101,7 +101,10 @@ Other key surfaces:
   DNS + DB alone aren't enough. This attach is now **automated**: setting the
   hostname (settings API) attaches it to the Vercel project via
   `lib/vercel/domains.ts`, and `/api/cron/domains` (daily 02:00) re-attaches
-  idempotently to self-heal transient failures. Both no-op when
+  idempotently to self-heal transient failures. The dashboard embed page polls
+  `/api/domains/hostname-status` (attach + DNS + serving probes; pure
+  classification in `lib/hostname-status.ts`) so setup is a self-verifying
+  checklist. Both attach paths no-op when
   `VERCEL_API_TOKEN`/`VERCEL_PROJECT_ID` are unset (manual attach is the
   fallback), so the feature still serves once the host is added by hand.
 - `supabase/.temp/` is gitignored (CLI artifacts).
