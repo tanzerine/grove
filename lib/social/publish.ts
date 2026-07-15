@@ -10,7 +10,7 @@
  * eyeball real payloads before going live.
  */
 import { supabaseAdmin } from '../supabase/admin';
-import { getConnections, type Connection } from './oauth';
+import { getLiveConnections, type Connection } from './oauth';
 import {
   composeShare, blogUrlFor, isDryRun,
   type PostForShare, type DomainForShare, type ShareRequest,
@@ -27,7 +27,12 @@ async function postX(conn: Connection, req: ShareRequest): Promise<string> {
     headers: { authorization: `Bearer ${conn.access_token}`, 'content-type': 'application/json' },
     body: JSON.stringify({ text: req.text }),
   });
-  if (!r.ok) throw new Error(`X post failed: ${await r.text()}`);
+  if (!r.ok) {
+    // A 401 after the refresh attempt means the stored refresh token is dead
+    // (revoked, or app permissions changed) — the fix is a reconnect, not a retry.
+    if (r.status === 401) throw new Error('X authorization expired — reconnect X in Social settings.');
+    throw new Error(`X post failed: ${await r.text()}`);
+  }
   return (await r.json())?.data?.id ?? '';
 }
 
@@ -92,7 +97,7 @@ export async function publishToSocials(
   domainId: string, post: PostForShare, domain: DomainForShare,
   opts: { only?: string[] } = {},
 ): Promise<ShareResult> {
-  const all = await getConnections(domainId);
+  const all = await getLiveConnections(domainId);
   // Auto fan-out honors the post's per-channel opt-outs; an explicit `only`
   // (the owner pressed "Post now" on that channel) overrides them.
   const disabled = new Set(post.social?.disabled ?? []);
