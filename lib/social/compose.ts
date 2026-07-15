@@ -5,7 +5,9 @@
 import type { Platform } from './providers';
 import { blogHomeUrl, blogPostUrl, canonicalBaseFor } from '../seo';
 
-export type SocialCopy = { x?: string; linkedin?: string; instagram?: string } | null;
+// `disabled` lists channels the owner switched off for this post's
+// publish-time fan-out (an explicit per-channel "Post now" still works).
+export type SocialCopy = { x?: string; linkedin?: string; instagram?: string; disabled?: string[] } | null;
 
 export type PostForShare = {
   id: string;

@@ -23,7 +23,10 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   if (!profile?.business?.name) return NextResponse.json({ error: 'site profile missing — wait a moment' }, { status: 400 });
 
   try {
-    const social = await runSocialAdapter({ title: post.title, body_md: post.body_md }, profile);
+    const generated = await runSocialAdapter({ title: post.title, body_md: post.body_md }, profile);
+    // Regenerating copy must not reset the owner's per-channel opt-outs.
+    const prevDisabled = (post.social as { disabled?: string[] } | null)?.disabled;
+    const social = prevDisabled?.length ? { ...generated, disabled: prevDisabled } : generated;
     const admin = supabaseAdmin();
     await admin.from('posts').update({ social }).eq('id', id);
     return NextResponse.json({ ok: true, social });

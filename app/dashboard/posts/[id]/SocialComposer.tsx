@@ -23,11 +23,12 @@ const HINT: Record<ChannelKey, string> = {
 };
 
 export default function SocialComposer({
-  postId, published, social, socialPublished, platforms, autoShare, hasWebhook, postUrl,
+  postId, domainId, published, social, socialPublished, platforms, autoShare, hasWebhook, postUrl,
 }: {
   postId: string;
+  domainId: string;
   published: boolean;
-  social: Partial<Record<ChannelKey, string>>;
+  social: Partial<Record<ChannelKey, string>> & { disabled?: string[] };
   socialPublished: Record<string, PublishRecord>;
   platforms: ComposerPlatform[];
   autoShare: boolean;
@@ -38,8 +39,14 @@ export default function SocialComposer({
   const [drafts, setDrafts] = useState<Record<ChannelKey, string>>({
     x: social.x ?? '', linkedin: social.linkedin ?? '', instagram: social.instagram ?? '',
   });
+  const [auto, setAuto] = useState(autoShare);
+  const [off, setOff] = useState<Set<ChannelKey>>(
+    () => new Set((social.disabled ?? []) as ChannelKey[]),
+  );
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const outletCount = platforms.filter((p) => p.connected).length + (hasWebhook ? 1 : 0);
 
   // Drafts count too: right after generation the copy lives only in local
   // state until router.refresh() lands (and must survive it failing).
@@ -70,13 +77,47 @@ export default function SocialComposer({
     }
   }
 
+  async function toggleAutoShare() {
+    if (outletCount === 0) return;
+    const next = !auto;
+    setAuto(next); setNote(null);
+    const res = await fetch('/api/domains/settings', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ domain_id: domainId, auto_social: next }),
+    }).catch(() => null);
+    if (!res?.ok) {
+      setAuto(!next);
+      setNote({ ok: false, text: "Couldn't update auto-share — try again." });
+      return;
+    }
+    r.refresh();
+  }
+
+  async function toggleChannel(pf: ChannelKey) {
+    const next = new Set(off);
+    if (next.has(pf)) next.delete(pf); else next.add(pf);
+    setOff(next); setNote(null);
+    const res = await fetch(`/api/posts/${postId}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ social: { ...drafts, disabled: [...next] } }),
+    }).catch(() => null);
+    if (!res?.ok) {
+      setOff(new Set(off));
+      setNote({ ok: false, text: "Couldn't update the channel — try again." });
+      return;
+    }
+    r.refresh();
+  }
+
   async function save(): Promise<boolean> {
     setBusy('save'); setNote(null);
     try {
       const res = await fetch(`/api/posts/${postId}`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ social: drafts }),
+        body: JSON.stringify({ social: { ...drafts, disabled: [...off] } }),
       });
       if (!res.ok) { setNote({ ok: false, text: 'Saving the copy failed — try again.' }); return false; }
       setNote({ ok: true, text: 'Copy saved.' });
@@ -126,11 +167,18 @@ export default function SocialComposer({
     <div style={{ marginTop: 18, background: '#0e110d', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 28px 26px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <h3 style={{ fontFamily: "'Newsreader', Georgia, serif", fontWeight: 500, fontSize: 22, margin: '4px 0' }}>Social posts</h3>
-        <span style={{ fontSize: 11.5, color: autoShare ? 'var(--gv-accent)' : 'var(--gv-faint)' }}>
-          {autoShare
-            ? published ? 'Auto-share is on.' : 'Auto-share is on — these go out when the article publishes.'
-            : 'Auto-share is off — post each channel yourself, or turn it on in Social settings.'}
-          {' '}<a href="/dashboard/connections" style={{ color: 'var(--gv-dim)', textDecoration: 'underline' }}>Settings</a>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+          <ToggleSwitch on={auto && outletCount > 0} disabled={outletCount === 0} onClick={toggleAutoShare} />
+          <span style={{ fontSize: 11.5, color: auto && outletCount > 0 ? 'var(--gv-soft)' : 'var(--gv-faint)' }}>
+            Auto-share on publish
+          </span>
+        </span>
+        <span style={{ fontSize: 11, color: 'var(--gv-fainter)' }}>
+          {outletCount === 0
+            ? <><a href="/dashboard/connections" style={{ color: 'var(--gv-dim)', textDecoration: 'underline' }}>Connect an account</a> to enable.</>
+            : auto
+              ? published ? 'was applied at publish.' : 'each channel below can opt out.'
+              : 'off — post each channel yourself below.'}
         </span>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
           {hasCopy && dirty && (
@@ -168,6 +216,9 @@ export default function SocialComposer({
               busy={busy}
               postUrl={postUrl}
               onPost={() => postNow(pf.id)}
+              autoShare={auto}
+              autoOn={!off.has(pf.id)}
+              onToggleAuto={() => toggleChannel(pf.id)}
             />
           ))}
           {hasWebhook && (
@@ -176,6 +227,27 @@ export default function SocialComposer({
         </div>
       )}
     </div>
+  );
+}
+
+function ToggleSwitch({ on, disabled, onClick }: { on: boolean; disabled?: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      aria-pressed={on}
+      style={{
+        width: 34, height: 20, borderRadius: 999, border: 'none', position: 'relative', flexShrink: 0,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        background: on ? 'var(--gv-accent)' : 'rgba(255,255,255,0.14)',
+        transition: 'background .15s', opacity: disabled ? 0.5 : 1, padding: 0,
+      }}
+    >
+      <span style={{
+        position: 'absolute', top: 2.5, left: on ? 16.5 : 2.5, width: 15, height: 15,
+        borderRadius: '50%', background: 'white', transition: 'left .15s',
+      }} />
+    </button>
   );
 }
 
@@ -197,19 +269,20 @@ function StatusChip({ record, xId }: { record?: PublishRecord; xId?: string }) {
 }
 
 function Channel({
-  pf, value, onChange, record, published, busy, postUrl, onPost,
+  pf, value, onChange, record, published, busy, postUrl, onPost, autoShare, autoOn, onToggleAuto,
 }: {
   pf: ComposerPlatform; value: string; onChange: (v: string) => void;
   record?: PublishRecord; published: boolean; busy: string | null; postUrl: string; onPost: () => void;
+  autoShare: boolean; autoOn: boolean; onToggleAuto: () => void;
 }) {
   const posted = !!record?.id;
   // Mirror composeShare's X budget: first tweet + two newlines + URL ≤ 280.
   const tweetLen = pf.id === 'x' ? Math.min(firstTweet(value).length, 278 - postUrl.length - 2) + 2 + postUrl.length : null;
   const canPost = published && pf.connected && !posted;
-  const postHint = !pf.connected ? 'Not connected' : !published ? 'Publishes with the article' : posted ? 'Already posted' : null;
+  const postHint = !pf.connected ? 'Not connected' : null;
 
   return (
-    <div style={{ padding: '16px 18px', background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14 }}>
+    <div style={{ padding: '16px 18px', background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, opacity: pf.connected && !autoOn && !published ? 0.75 : 1 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 9 }}>
         <span style={{ fontSize: 11, color: 'var(--gv-accent)', fontWeight: 700, letterSpacing: '0.06em' }}>{LABEL[pf.id].toUpperCase()}</span>
         <span style={{ fontSize: 11, color: pf.connected ? 'var(--gv-dim)' : 'var(--gv-fainter)' }}>
@@ -222,7 +295,20 @@ function Channel({
               first tweet {tweetLen}/280
             </span>
           )}
-          {(canPost || record?.error) && (
+          {/* Pre-publish, each connected channel opts in/out of the auto fan-out. */}
+          {pf.connected && !published && !posted && (
+            autoShare ? (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <ToggleSwitch on={autoOn} disabled={!!busy} onClick={onToggleAuto} />
+                <span style={{ fontSize: 10.5, color: autoOn ? 'var(--gv-dim)' : 'var(--gv-fainter)' }}>
+                  {autoOn ? 'posts on publish' : 'skipped on publish'}
+                </span>
+              </span>
+            ) : (
+              <span style={{ fontSize: 10.5, color: 'var(--gv-fainter)' }}>post manually after publishing</span>
+            )
+          )}
+          {(canPost || (record?.error && published)) && (
             <button
               className="gv-ghost"
               onClick={onPost}
