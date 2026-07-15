@@ -93,7 +93,12 @@ export async function publishToSocials(
   opts: { only?: string[] } = {},
 ): Promise<ShareResult> {
   const all = await getConnections(domainId);
-  const conns = opts.only ? all.filter((c) => opts.only!.includes(c.platform)) : all;
+  // Auto fan-out honors the post's per-channel opt-outs; an explicit `only`
+  // (the owner pressed "Post now" on that channel) overrides them.
+  const disabled = new Set(post.social?.disabled ?? []);
+  const conns = opts.only
+    ? all.filter((c) => opts.only!.includes(c.platform))
+    : all.filter((c) => !disabled.has(c.platform));
   const hasWebhook = !!domain.social_webhook_url && (!opts.only || opts.only.includes('webhook'));
   if (!conns.length && !hasWebhook) return post.social_published ?? {};
 

@@ -104,6 +104,33 @@ describe('publishToSocials', () => {
     expect(updateEq).toHaveBeenCalled();
   });
 
+  it('auto fan-out skips channels the owner switched off for this post', async () => {
+    getConnections.mockResolvedValue([xConn, liConn]);
+    const fetchMock = vi.fn(async () => ({
+      ok: true, headers: { get: () => 'liPost1' }, json: async () => ({}),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const withOptOut = { ...post, social: { ...post.social, disabled: ['x'] } };
+    const res = await publishToSocials('d1', withOptOut, domain);
+
+    expect(fetchMock).toHaveBeenCalledOnce(); // LinkedIn only
+    expect(fetchMock).toHaveBeenCalledWith('https://api.linkedin.com/v2/ugcPosts', expect.anything());
+    expect(res.x).toBeUndefined();
+    expect(res.linkedin.id).toBe('liPost1');
+  });
+
+  it('an explicit only-filter overrides the per-post opt-out (owner pressed Post now)', async () => {
+    getConnections.mockResolvedValue([xConn]);
+    const fetchMock = vi.fn(async () => ({ ok: true, json: async () => ({ data: { id: 'tweet1' } }) }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const withOptOut = { ...post, social: { ...post.social, disabled: ['x'] } };
+    const res = await publishToSocials('d1', withOptOut, domain, { only: ['x'] });
+
+    expect(res.x.id).toBe('tweet1');
+  });
+
   it('only-filter shares just the requested platform', async () => {
     getConnections.mockResolvedValue([xConn, liConn]);
     const fetchMock = vi.fn(async () => ({ ok: true, json: async () => ({ data: { id: 'tweet1' } }) }));

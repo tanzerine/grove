@@ -42,7 +42,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
     .eq('post_id', id)
     .order('attempt', { ascending: true });
 
-  const social = (p.social ?? {}) as { x?: string; linkedin?: string; instagram?: string };
+  const social = (p.social ?? {}) as { x?: string; linkedin?: string; instagram?: string; disabled?: string[] };
   const validation = p.validation as { passed?: boolean; issues?: string[]; stats?: Record<string, number>; error?: string } | null;
   const bodyHtml = p.body_md ? mdToHtml(p.body_md) : '';
 
@@ -180,6 +180,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
 
             <SocialComposer
               postId={p.id}
+              domainId={domain?.id ?? ''}
               published={p.status === 'published'}
               social={social}
               socialPublished={(p.social_published ?? {}) as Record<string, any>}
