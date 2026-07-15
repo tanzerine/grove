@@ -157,7 +157,7 @@ export default function ConnectionsClient({
       )}
 
       {/* auto-share toggle */}
-      <div style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: 20, marginBottom: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: 20, marginBottom: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
         <div>
           <div style={{ fontSize: 15, fontWeight: 600 }}>Auto-share on publish</div>
           <div style={{ fontSize: 13, color: 'var(--clay)', marginTop: 2 }}>

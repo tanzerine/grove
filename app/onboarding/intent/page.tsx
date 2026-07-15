@@ -68,7 +68,7 @@ export default function IntentPage() {
         <div style={{ fontFamily: 'DM Mono, monospace', fontSize: 11, letterSpacing: '0.1em', color: DIM }}>
           STEP 5 OF 6 — INTENT
         </div>
-        <h1 className="gv-onb-title" style={{ fontSize: 38 }}>
+        <h1 className="gv-onb-title" style={{ fontSize: 'clamp(27px, 6.5vw, 38px)' }}>
           A few questions for {hostname || 'your blog'}.
         </h1>
         <p className="gv-onb-lede">

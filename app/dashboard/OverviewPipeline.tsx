@@ -40,9 +40,9 @@ export default function OverviewPipeline({ groups }: { groups: Record<string, Ov
   return (
     <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, overflow: 'hidden', marginBottom: 14 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, padding: '18px 22px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 15, fontWeight: 700 }}>Content pipeline</span>
-          <div style={{ display: 'flex', gap: 4 }}>
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
             {tabDef.map((t) => {
               const active = tab === t.label;
               return (
@@ -57,14 +57,14 @@ export default function OverviewPipeline({ groups }: { groups: Record<string, Ov
         <Link href="/dashboard/pipeline" style={{ fontSize: 12.5, color: 'var(--gv-dim)', textDecoration: 'none' }}>View all →</Link>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 0, padding: '11px 22px', fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-fainter)', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-        <span>Post</span><span>Target keyword</span><span>Words</span><span>Status</span><span style={{ textAlign: 'right' }}>Schedule</span>
+      <div className="gv-tbl" style={{ display: 'grid', gridTemplateColumns: cols, gap: 0, padding: '11px 22px', fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-fainter)', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+        <span>Post</span><span className="gv-cell-off">Target keyword</span><span className="gv-cell-off">Words</span><span>Status</span><span className="gv-cell-off" style={{ textAlign: 'right' }}>Schedule</span>
       </div>
 
       {rows.map((r) => {
         const st = ST[r.s];
         return (
-          <Link key={r.id} href={`/dashboard/posts/${r.id}`} className="gv-row"
+          <Link key={r.id} href={`/dashboard/posts/${r.id}`} className="gv-row gv-tbl"
             style={{ display: 'grid', gridTemplateColumns: cols, gap: 0, alignItems: 'center', padding: '15px 22px', borderBottom: '1px solid rgba(255,255,255,0.04)', transition: 'background .15s', cursor: 'pointer', textDecoration: 'none', color: 'inherit' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, paddingRight: 18 }}>
               <span style={{ width: 28, height: 28, borderRadius: 8, background: r.accentIcon ? 'rgba(99,194,129,0.1)' : 'rgba(255,255,255,0.04)', border: `1px solid ${r.accentIcon ? 'rgba(99,194,129,0.22)' : 'rgba(255,255,255,0.07)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: r.accentIcon ? ACCENT : 'var(--gv-dim)', flexShrink: 0 }}>
@@ -75,14 +75,14 @@ export default function OverviewPipeline({ groups }: { groups: Record<string, Ov
                 <span style={{ display: 'block', fontSize: 11.5, color: 'var(--gv-faint)' }}>{r.meta}</span>
               </span>
             </div>
-            <span style={{ fontSize: 12.5, color: 'var(--gv-dim)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', paddingRight: 12 }}>{r.keyword}</span>
-            <span style={{ fontSize: 12.5, color: 'var(--gv-soft)' }}>{r.words}</span>
+            <span className="gv-cell-off" style={{ fontSize: 12.5, color: 'var(--gv-dim)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', paddingRight: 12 }}>{r.keyword}</span>
+            <span className="gv-cell-off" style={{ fontSize: 12.5, color: 'var(--gv-soft)' }}>{r.words}</span>
             <span>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 600, color: st.color, background: st.bg, border: `1px solid ${st.border}`, padding: '4px 10px', borderRadius: 999 }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: st.dot }} />{st.status}
               </span>
             </span>
-            <span style={{ fontSize: 12.5, color: 'var(--gv-dim)', textAlign: 'right' }}>{r.schedule}</span>
+            <span className="gv-cell-off" style={{ fontSize: 12.5, color: 'var(--gv-dim)', textAlign: 'right' }}>{r.schedule}</span>
           </Link>
         );
       })}

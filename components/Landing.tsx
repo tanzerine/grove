@@ -46,6 +46,14 @@ const CSS = `
   .gv-land .gv-mock-grid { grid-template-columns: 1fr; }
   .gv-land .gv-mock-stats { grid-template-columns: repeat(2, 1fr) !important; }
 }
+@media (max-width: 720px) {
+  .gv-land .gv-navlinks { display: none !important; }
+  .gv-land .gv-navpill { gap: 14px !important; }
+}
+@media (max-width: 760px) {
+  .gv-land .gv-steps3 { grid-template-columns: 1fr !important; }
+  .gv-land .gv-statband { grid-template-columns: repeat(2, 1fr) !important; padding: 30px 22px !important; }
+}
 `;
 
 export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
@@ -280,12 +288,12 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
 
       {/* NAV */}
       <div style={{ position: 'fixed', top: 16, left: 0, right: 0, zIndex: 50, display: 'flex', justifyContent: 'center', padding: '0 20px', pointerEvents: 'none' }}>
-        <div style={{ pointerEvents: 'auto', display: 'flex', alignItems: 'center', gap: 28, background: 'rgba(16,18,16,0.72)', backdropFilter: 'blur(18px)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 999, padding: '9px 9px 9px 22px', boxShadow: '0 12px 40px rgba(0,0,0,0.45)' }}>
+        <div className="gv-navpill" style={{ pointerEvents: 'auto', display: 'flex', alignItems: 'center', gap: 28, background: 'rgba(16,18,16,0.72)', backdropFilter: 'blur(18px)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 999, padding: '9px 9px 9px 22px', boxShadow: '0 12px 40px rgba(0,0,0,0.45)' }}>
           <a href="#hero" style={{ display: 'flex', alignItems: 'center', gap: 9, textDecoration: 'none', color: '#eef1ea' }}>
             <span style={{ width: 16, height: 16, borderRadius: '50%', background: 'radial-gradient(circle at 35% 30%, #9ff0bb, var(--accent,#63c281))', boxShadow: '0 0 12px rgba(99,194,129,0.7)' }} />
             <span style={{ fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em' }}>grove</span>
           </a>
-          <div style={{ display: 'flex', gap: 24, fontSize: 14, fontWeight: 500 }}>
+          <div className="gv-navlinks" style={{ display: 'flex', gap: 24, fontSize: 14, fontWeight: 500 }}>
             <a className="gv-link" href="#features" style={{ color: '#9aa096', textDecoration: 'none', transition: 'color .2s' }}>Features</a>
             <a className="gv-link" href="#showcase" style={{ color: '#9aa096', textDecoration: 'none', transition: 'color .2s' }}>Showcase</a>
             <a className="gv-link" href="#pricing" style={{ color: '#9aa096', textDecoration: 'none', transition: 'color .2s' }}>Pricing</a>
@@ -410,7 +418,7 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
         </div>
 
         {/* 3 STEPS */}
-        <div className="gv-r" style={{ position: 'relative', maxWidth: 920, margin: '22px auto 0', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+        <div className="gv-r gv-steps3" style={{ position: 'relative', maxWidth: 920, margin: '22px auto 0', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
           {steps.map((s, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, background: 'rgba(255,255,255,0.015)', textAlign: 'left' }}>
               <span style={{ fontSize: 12, color: 'var(--accent,#63c281)', border: '1px solid rgba(99,194,129,0.3)', borderRadius: 7, padding: '4px 8px' }}>{s.n}</span>
@@ -435,7 +443,7 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
 
       {/* STATS */}
       <section style={{ padding: '0 24px 80px' }}>
-        <div className="gv-r" style={{ maxWidth: 1120, margin: '0 auto', background: 'linear-gradient(135deg, #0b130e, #080d0a)', border: '1px solid rgba(99,194,129,0.14)', borderRadius: 20, padding: '38px 28px', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20 }}>
+        <div className="gv-r gv-statband" style={{ maxWidth: 1120, margin: '0 auto', background: 'linear-gradient(135deg, #0b130e, #080d0a)', border: '1px solid rgba(99,194,129,0.14)', borderRadius: 20, padding: '38px 28px', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20 }}>
           {stats.map((st) => (
             <div key={st.label} style={{ textAlign: 'center' }}>
               <div style={{ fontSize: 'clamp(30px, 4vw, 44px)', fontWeight: 700, letterSpacing: '-0.03em', color: '#eef1ea' }}>{st.big}</div>

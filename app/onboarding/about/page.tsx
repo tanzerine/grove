@@ -113,7 +113,7 @@ function AboutInner() {
       </div>
       <div className="gv-onb-in" style={{ maxWidth: 560 }}>
         <span className="gv-onb-eyebrow">Welcome — a couple of quick things</span>
-        <h1 className="gv-onb-title" style={{ fontSize: 40 }}>Tell us about you</h1>
+        <h1 className="gv-onb-title" style={{ fontSize: 'clamp(28px, 7vw, 40px)' }}>Tell us about you</h1>
         <p className="gv-onb-lede">
           This tailors your strategy and helps us understand who Grove is writing for. Takes ten seconds.
         </p>

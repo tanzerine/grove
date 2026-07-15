@@ -47,7 +47,7 @@ function VerifyInner() {
       <div className="gv-auth-glow" aria-hidden><span className="b1" /><span className="b2" /></div>
       <div className="gv-onb-in" style={{ maxWidth: 780 }}>
         <span className="gv-onb-eyebrow">Step 2 of 2</span>
-        <h1 className="gv-onb-title" style={{ fontSize: 36 }}>
+        <h1 className="gv-onb-title" style={{ fontSize: 'clamp(26px, 6.5vw, 36px)' }}>
           Verify ownership of <span style={{ fontFamily: MONO, color: 'var(--gv-accent)' }}>{d.hostname}</span>
         </h1>
         <p className="gv-onb-lede">

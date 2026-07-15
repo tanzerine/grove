@@ -240,7 +240,7 @@ export default async function OverviewPage() {
     <>
       <DashHeader title="Overview" subtitle={`${domain?.hostname ?? 'grove.ai'} · ${domain?.auto_publish ? 'autopilot active' : 'manual mode'}`} />
 
-      <div className="gv-body" style={{ maxWidth: 1680, padding: '28px 36px 48px' }}>
+      <div className="gv-body" style={{ maxWidth: 1680 }}>
         {/* search — relocated out of the nav bar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 240, maxWidth: 420, display: 'flex', alignItems: 'center', gap: 9, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '9px 13px' }}>
