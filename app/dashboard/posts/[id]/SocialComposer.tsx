@@ -41,7 +41,10 @@ export default function SocialComposer({
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
 
-  const hasCopy = !!(social.x || social.linkedin || social.instagram);
+  // Drafts count too: right after generation the copy lives only in local
+  // state until router.refresh() lands (and must survive it failing).
+  const hasCopy = !!(social.x || social.linkedin || social.instagram)
+    || !!(drafts.x || drafts.linkedin || drafts.instagram);
   const dirty = useMemo(
     () => (['x', 'linkedin', 'instagram'] as ChannelKey[]).some((k) => drafts[k] !== (social[k] ?? '')),
     [drafts, social],
@@ -50,55 +53,70 @@ export default function SocialComposer({
   async function generate() {
     if (hasCopy && dirty && !confirm('Regenerating replaces your edits. Continue?')) return;
     setBusy('generate'); setNote(null);
-    const res = await fetch(`/api/posts/${postId}/social`, { method: 'POST' });
-    setBusy(null);
-    if (!res.ok) {
+    try {
+      const res = await fetch(`/api/posts/${postId}/social`, { method: 'POST' });
       const j = await res.json().catch(() => ({}));
-      setNote({ ok: false, text: `Couldn't write social posts: ${j.error ?? 'unknown error'}` });
-      return;
+      if (!res.ok) {
+        setNote({ ok: false, text: `Couldn't write social posts: ${j.error ?? 'unknown error'}` });
+        return;
+      }
+      // Pull the fresh copy straight into the textareas; refresh syncs the rest.
+      if (j.social) setDrafts({ x: j.social.x ?? '', linkedin: j.social.linkedin ?? '', instagram: j.social.instagram ?? '' });
+      r.refresh();
+    } catch {
+      setNote({ ok: false, text: "Couldn't write social posts: the request didn't complete — try again." });
+    } finally {
+      setBusy(null);
     }
-    // Pull the fresh copy straight into the textareas; refresh syncs the rest.
-    const j = await res.json().catch(() => ({}));
-    if (j.social) setDrafts({ x: j.social.x ?? '', linkedin: j.social.linkedin ?? '', instagram: j.social.instagram ?? '' });
-    r.refresh();
   }
 
   async function save(): Promise<boolean> {
     setBusy('save'); setNote(null);
-    const res = await fetch(`/api/posts/${postId}`, {
-      method: 'PATCH',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ social: drafts }),
-    });
-    setBusy(null);
-    if (!res.ok) { setNote({ ok: false, text: 'Saving the copy failed — try again.' }); return false; }
-    setNote({ ok: true, text: 'Copy saved.' });
-    r.refresh();
-    return true;
+    try {
+      const res = await fetch(`/api/posts/${postId}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ social: drafts }),
+      });
+      if (!res.ok) { setNote({ ok: false, text: 'Saving the copy failed — try again.' }); return false; }
+      setNote({ ok: true, text: 'Copy saved.' });
+      r.refresh();
+      return true;
+    } catch {
+      setNote({ ok: false, text: 'Saving the copy failed — try again.' });
+      return false;
+    } finally {
+      setBusy(null);
+    }
   }
 
   async function postNow(channel: ChannelKey | 'webhook') {
     if (dirty && !(await save())) return;
     setBusy(channel); setNote(null);
-    const res = await fetch(`/api/posts/${postId}/share`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ platforms: [channel] }),
-    });
-    const j = await res.json().catch(() => ({}));
-    setBusy(null);
-    if (!res.ok) {
-      setNote({ ok: false, text: `Sharing failed: ${j.error ?? 'unknown error'}` });
-    } else {
-      const rec: PublishRecord | undefined = j.result?.[channel];
-      const label = channel === 'webhook' ? 'Webhook' : LABEL[channel];
-      setNote(rec?.error
-        ? { ok: false, text: `${label}: ${rec.error}` }
-        : rec?.dry_run
-          ? { ok: true, text: `${label}: dry run — nothing was posted (SOCIAL_DRY_RUN is on).` }
-          : { ok: true, text: `${label}: posted.` });
+    try {
+      const res = await fetch(`/api/posts/${postId}/share`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ platforms: [channel] }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setNote({ ok: false, text: `Sharing failed: ${j.error ?? 'unknown error'}` });
+      } else {
+        const rec: PublishRecord | undefined = j.result?.[channel];
+        const label = channel === 'webhook' ? 'Webhook' : LABEL[channel];
+        setNote(rec?.error
+          ? { ok: false, text: `${label}: ${rec.error}` }
+          : rec?.dry_run
+            ? { ok: true, text: `${label}: dry run — nothing was posted (SOCIAL_DRY_RUN is on).` }
+            : { ok: true, text: `${label}: posted.` });
+      }
+      r.refresh();
+    } catch {
+      setNote({ ok: false, text: 'Sharing failed: the request didn’t complete — try again.' });
+    } finally {
+      setBusy(null);
     }
-    r.refresh();
   }
 
   const ghost: React.CSSProperties = { border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.02)', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '8px 14px', borderRadius: 9, cursor: 'pointer' };
