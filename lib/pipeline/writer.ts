@@ -3,7 +3,7 @@
  * produces the body + meta. The brief has already chosen the angle, title,
  * format, and first-person opener. The writer's job is to execute on it.
  */
-import { llmCall } from '../llm';
+import { llmCall, extractJson } from '../llm';
 import { deriveMetaDescription, capTitle } from '../meta';
 import { qualityRulesPrompt } from './quality-rules';
 import {
@@ -360,6 +360,42 @@ function parseSections(text: string) {
 
 export type SocialOutput = { x: string; linkedin: string; instagram: string };
 
+/**
+ * Parse the social adapter's LLM output. Primary format is JSON (via the
+ * same fence-tolerant extractJson every other pipeline step uses); the legacy
+ * ---X--- delimiter format stays as a fallback. Throws when every channel
+ * comes out empty — silently persisting blanks is how "Write social posts"
+ * once returned ok:true while writing nothing.
+ */
+export function parseSocialOutput(text: string): SocialOutput {
+  let out: Partial<Record<keyof SocialOutput, unknown>> = {};
+  try {
+    out = extractJson<Partial<SocialOutput>>(text);
+  } catch {
+    // Legacy delimiters, parsed leniently: any case, 2+ dashes, optional
+    // **bold**/backtick/heading decoration around ---x--- etc.
+    const parsed: Record<string, string> = {};
+    let cur: string | null = null;
+    const buf: string[] = [];
+    for (const line of text.split('\n')) {
+      const m = line.match(/^[\s*_`>#]*-{2,}\s*(x|linkedin|instagram)\s*-{2,}[\s*_`]*$/i);
+      if (m) {
+        if (cur) parsed[cur] = buf.join('\n').trim();
+        cur = m[1].toLowerCase();
+        buf.length = 0;
+      } else buf.push(line);
+    }
+    if (cur) parsed[cur] = buf.join('\n').trim();
+    out = parsed;
+  }
+  const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
+  const result = { x: str(out.x), linkedin: str(out.linkedin), instagram: str(out.instagram) };
+  if (!result.x && !result.linkedin && !result.instagram) {
+    throw new Error(`social adapter returned no channel copy. First 200 chars: ${text.slice(0, 200)}`);
+  }
+  return result;
+}
+
 export async function runSocialAdapter(
   article: { title: string; body_md: string },
   profile: SiteProfile,
@@ -369,33 +405,14 @@ export async function runSocialAdapter(
 Each platform gets its own treatment — no copy-paste. Voice: ${voice.persona}. ${voice.tone}.
 Write for ${business.name}'s audience: ${business.target_audience}.
 
-OUTPUT FORMAT — exact delimiters, nothing else:
-
----X---
-[6–10 numbered tweets, hook first, threaded narrative]
----LINKEDIN---
-[1500–2200 chars, story-led, line breaks every 1–2 sentences, no hashtag spam, end with a question]
----INSTAGRAM---
-[Under 2200 chars, hook-driven, 3–5 hashtags at the end]`;
+Return JSON only — no prose around it:
+{
+  "x": "6–10 numbered tweets, hook first, threaded narrative, separated by newlines",
+  "linkedin": "1500–2200 chars, story-led, line breaks every 1–2 sentences, no hashtag spam, end with a question",
+  "instagram": "under 2200 chars, hook-driven, 3–5 hashtags at the end"
+}`;
 
   const user = `ARTICLE TITLE: ${article.title}\n\nARTICLE BODY:\n${article.body_md.slice(0, 8000)}`;
-  const { text } = await llmCall({ system, user, maxTokens: 3000 });
-
-  const out: Record<string, string> = {};
-  let cur: string | null = null;
-  const buf: string[] = [];
-  for (const line of text.split('\n')) {
-    const m = line.match(/^---(\w+)---\s*$/);
-    if (m) {
-      if (cur) out[cur.toLowerCase()] = buf.join('\n').trim();
-      cur = m[1];
-      buf.length = 0;
-    } else buf.push(line);
-  }
-  if (cur) out[cur.toLowerCase()] = buf.join('\n').trim();
-  return {
-    x: out['x'] ?? '',
-    linkedin: out['linkedin'] ?? '',
-    instagram: out['instagram'] ?? '',
-  };
+  const { text } = await llmCall({ system, user, json: true, maxTokens: 3000 });
+  return parseSocialOutput(text);
 }
