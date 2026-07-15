@@ -3,21 +3,10 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 export default function PostActions({
-  id, status, published, publicUrl, hasSocial, hasCover, hasInlineImages,
-}: { id: string; status: string; published: boolean; publicUrl: string | null; hasSocial: boolean; hasCover: boolean; hasInlineImages: boolean }) {
+  id, status, published, publicUrl, hasCover, hasInlineImages,
+}: { id: string; status: string; published: boolean; publicUrl: string | null; hasCover: boolean; hasInlineImages: boolean }) {
   const r = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
-
-  async function genSocial() {
-    setBusy('social');
-    const res = await fetch(`/api/posts/${id}/social`, { method: 'POST' });
-    setBusy(null);
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      alert(`Social generation failed: ${j.error ?? 'unknown'}`);
-    }
-    r.refresh();
-  }
 
   async function approve() {
     setBusy('approve');
@@ -57,21 +46,6 @@ export default function PostActions({
     r.refresh();
   }
 
-  async function shareNow() {
-    setBusy('share');
-    const res = await fetch(`/api/posts/${id}/share`, { method: 'POST' });
-    const j = await res.json().catch(() => ({}));
-    setBusy(null);
-    if (!res.ok) {
-      alert(`Share failed: ${j.error ?? 'unknown'}`);
-    } else {
-      const lines = Object.entries(j.result ?? {}).map(([ch, r]: [string, any]) =>
-        r?.error ? `${ch}: failed — ${r.error}` : r?.dry_run ? `${ch}: dry run` : `${ch}: shared ✓`);
-      alert(lines.length ? lines.join('\n') : 'Nothing to share yet.');
-    }
-    r.refresh();
-  }
-
   async function del() {
     if (!confirm('Delete this post?')) return;
     setBusy('delete');
@@ -90,11 +64,6 @@ export default function PostActions({
           {busy === 'approve' ? 'Publishing…' : 'Approve & publish'}
         </button>
       )}
-      {(status === 'review' || status === 'published') && (
-        <button className="gv-ghost" style={ghost} onClick={genSocial} disabled={!!busy}>
-          {busy === 'social' ? 'Adapting…' : hasSocial ? 'Regenerate social posts' : 'Generate social posts'}
-        </button>
-      )}
       {(status === 'failed' || status === 'review' || status === 'scheduled' || status === 'published') && (
         <button className="gv-ghost" style={ghost} onClick={retry} disabled={!!busy}>
           {busy === 'retry' ? 'Regenerating…' : 'Regenerate'}
@@ -108,11 +77,6 @@ export default function PostActions({
       {hasCover && !hasInlineImages && (status === 'review' || status === 'published' || status === 'scheduled') && (
         <button className="gv-ghost" style={ghost} onClick={genInlineImages} disabled={!!busy}>
           {busy === 'inline' ? 'Generating images…' : 'Add inline images'}
-        </button>
-      )}
-      {published && (
-        <button className="gv-ghost" style={ghost} onClick={shareNow} disabled={!!busy}>
-          {busy === 'share' ? 'Sharing…' : 'Share to socials'}
         </button>
       )}
       {published && publicUrl && (

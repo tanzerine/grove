@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import PostActions from './PostActions';
 import PipelineTimeline from './PipelineTimeline';
 import RichEditor from './RichEditor';
+import SocialComposer, { type ComposerPlatform } from './SocialComposer';
 import ProcessDrawer from './ProcessDrawer';
 import LocalTime from '../../LocalTime';
 import Link from 'next/link';
@@ -13,15 +14,27 @@ import { coverageGap } from '@/lib/pipeline/serp';
 import { summarizeReadiness, type Readiness } from '@/lib/readiness';
 import Icon from '../../gv-icons';
 import { DashHeader } from '../../gv-chrome';
+import { blogUrlFor } from '@/lib/social/compose';
+import { PLATFORMS } from '@/lib/social/providers';
 
 const ACCENT = 'var(--gv-accent)';
 
 export default async function PostPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const sb = await supabaseServer();
-  const { data: p } = await sb.from('posts').select('*, domains(blog_slug,hostname)').eq('id', id).single();
+  const { data: p } = await sb.from('posts').select('*, domains(id,blog_slug,hostname,auto_social,social_webhook_url,canonical_blog_base,custom_blog_hostname)').eq('id', id).single();
   if (!p) notFound();
   const domain = (p as any).domains;
+
+  const { data: conns } = domain
+    ? await sb.from('social_connections').select('platform, account_handle').eq('domain_id', domain.id)
+    : { data: [] };
+  const connByPlatform = new Map((conns ?? []).map((c: any) => [c.platform, c]));
+  const composerPlatforms: ComposerPlatform[] = PLATFORMS.map((pf) => ({
+    id: pf,
+    handle: connByPlatform.get(pf)?.account_handle ?? null,
+    connected: connByPlatform.has(pf),
+  }));
 
   const { data: evals } = await sb
     .from('post_evaluations')
@@ -125,7 +138,6 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
             status={p.status}
             published={p.status === 'published'}
             publicUrl={p.status === 'published' ? `/b/${domain?.blog_slug}/${p.slug}` : null}
-            hasSocial={!!(social.x || social.linkedin || social.instagram)}
             hasCover={!!p.cover_image_url}
             hasInlineImages={hasInlineImages}
           />
@@ -166,14 +178,16 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
               />
             </div>
 
-            {(social.x || social.linkedin || social.instagram) && (
-              <div style={{ marginTop: 18, background: '#0e110d', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 28px 28px' }}>
-                <h3 style={{ fontFamily: "'Newsreader', Georgia, serif", fontWeight: 500, fontSize: 22, margin: '4px 0 4px' }}>Social variants</h3>
-                {social.x && <SocialBlock label="X thread" body={social.x} />}
-                {social.linkedin && <SocialBlock label="LinkedIn" body={social.linkedin} />}
-                {social.instagram && <SocialBlock label="Instagram" body={social.instagram} />}
-              </div>
-            )}
+            <SocialComposer
+              postId={p.id}
+              published={p.status === 'published'}
+              social={social}
+              socialPublished={(p.social_published ?? {}) as Record<string, any>}
+              platforms={composerPlatforms}
+              autoShare={!!domain?.auto_social}
+              hasWebhook={!!domain?.social_webhook_url}
+              postUrl={domain ? blogUrlFor(domain, p.slug) : ''}
+            />
           </>
         ) : (
           /* ===== not yet editable: reading surface + review rail ===== */
@@ -331,15 +345,6 @@ function SourcesCard({ sources }: { sources: { name: string; host: string; icon:
           </div>
         ))}
       </div>
-    </div>
-  );
-}
-
-function SocialBlock({ label, body }: { label: string; body: string }) {
-  return (
-    <div style={{ marginTop: 14, padding: '18px 20px', background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14 }}>
-      <div style={{ fontSize: 11, color: ACCENT, marginBottom: 8, fontWeight: 700, letterSpacing: '0.06em' }}>{label.toUpperCase()}</div>
-      <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: 14, margin: 0, lineHeight: 1.55, color: '#c4cabb' }}>{body}</pre>
     </div>
   );
 }

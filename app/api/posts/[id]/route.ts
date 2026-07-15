@@ -20,6 +20,12 @@ const patchSchema = z.object({
   meta_description: z.string().max(160).optional(),
   scheduled_at: z.string().nullable().optional(),
   status: z.enum(['review', 'scheduled', 'published']).optional(),
+  // Owner-edited channel copy (X thread / LinkedIn post / IG caption).
+  social: z.object({
+    x: z.string().max(4000).optional(),
+    linkedin: z.string().max(3000).optional(),
+    instagram: z.string().max(2200).optional(),
+  }).optional(),
 });
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -34,6 +40,16 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const updates: Record<string, unknown> = { ...parsed.data };
   if (parsed.data.status === 'published' && !parsed.data.scheduled_at) {
     updates.published_at = new Date().toISOString();
+  }
+  if (parsed.data.social) {
+    // Blank a channel by sending '' — stored as absent so composeShare falls
+    // back to the title instead of posting an empty string.
+    const cleaned = Object.fromEntries(
+      Object.entries(parsed.data.social)
+        .map(([k, v]) => [k, typeof v === 'string' ? v.trim() : v])
+        .filter(([, v]) => !!v),
+    );
+    updates.social = Object.keys(cleaned).length ? cleaned : null;
   }
 
   const { error } = await sb.from('posts').update(updates).eq('id', id);

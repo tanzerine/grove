@@ -8,6 +8,7 @@
  * are skipped, so mashing the button never double-posts.
  */
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { supabaseServer } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { publishToSocials } from '@/lib/social/publish';
@@ -15,10 +16,22 @@ import { runSocialAdapter } from '@/lib/pipeline/writer';
 
 export const maxDuration = 120;
 
-export async function POST(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+// Optional body: { platforms: ['x'] } shares only those channels ('webhook'
+// included). No body (or empty list) keeps the fan-out-everywhere behavior.
+const bodySchema = z.object({
+  platforms: z.array(z.enum(['x', 'linkedin', 'instagram', 'webhook'])).min(1).optional(),
+});
+
+export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const sb = await supabaseServer();
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+
+  let body: unknown = {};
+  try { const raw = await req.text(); body = raw ? JSON.parse(raw) : {}; } catch { /* treat as empty */ }
+  const parsed = bodySchema.safeParse(body);
+  if (!parsed.success) return NextResponse.json({ error: 'invalid platforms' }, { status: 400 });
+  const only = parsed.data.platforms;
 
   const { id } = await ctx.params;
   // RLS scopes this to the owner's posts.
@@ -56,9 +69,12 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
     },
     {
       blog_slug: domain.blog_slug,
+      canonical_blog_base: domain.canonical_blog_base,
+      custom_blog_hostname: domain.custom_blog_hostname,
       social_webhook_url: domain.social_webhook_url,
       social_webhook_secret: domain.social_webhook_secret,
     },
+    { only },
   );
 
   return NextResponse.json({ ok: true, result });

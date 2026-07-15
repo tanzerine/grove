@@ -90,9 +90,11 @@ export type ShareResult = Record<string, { id?: string; at: string; status?: num
 // can safely re-run without double-posting.
 export async function publishToSocials(
   domainId: string, post: PostForShare, domain: DomainForShare,
+  opts: { only?: string[] } = {},
 ): Promise<ShareResult> {
-  const conns = await getConnections(domainId);
-  const hasWebhook = !!domain.social_webhook_url;
+  const all = await getConnections(domainId);
+  const conns = opts.only ? all.filter((c) => opts.only!.includes(c.platform)) : all;
+  const hasWebhook = !!domain.social_webhook_url && (!opts.only || opts.only.includes('webhook'));
   if (!conns.length && !hasWebhook) return post.social_published ?? {};
 
   const url = blogUrlFor(domain, post.slug);
