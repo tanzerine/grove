@@ -38,23 +38,23 @@ export default function PipelineActions({ domainId }: { domainId?: string }) {
     setSuggesting(false);
   }
 
-  const ghost: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 6, border: '1px solid rgba(99,194,129,0.25)', background: 'rgba(99,194,129,0.06)', color: ACCENT, fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '0 15px', borderRadius: 10, cursor: 'pointer', whiteSpace: 'nowrap' };
+  const ghost: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 6, border: '1px solid rgba(99,194,129,0.25)', background: 'rgba(99,194,129,0.06)', color: ACCENT, fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '11px 15px', borderRadius: 10, cursor: 'pointer', whiteSpace: 'nowrap' };
 
   return (
     <div style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 13, padding: '16px 18px', marginBottom: 12 }}>
-      <div style={{ display: 'flex', gap: 8 }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <input
           value={topic}
           onChange={(e) => setTopic(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && enqueue()}
           placeholder="Add a topic… e.g. 'reduce churn with onboarding nudges'"
-          style={{ flex: 1, minWidth: 0, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 10, padding: '11px 14px', color: 'var(--gv-ink)', fontSize: 13.5, fontFamily: 'inherit', outline: 'none' }}
+          style={{ flex: '1 1 220px', minWidth: 0, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 10, padding: '11px 14px', color: 'var(--gv-ink)', fontSize: 13.5, fontFamily: 'inherit', outline: 'none' }}
         />
         <button onClick={suggest} disabled={suggesting || !domainId} className="gv-ghost" style={ghost}>
           <Icon name="sparkle" size={13} />{suggesting ? 'Thinking…' : 'Suggest'}
         </button>
         <button onClick={enqueue} disabled={busy || !topic.trim()} className="gv-btn"
-          style={{ border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '0 18px', borderRadius: 10, cursor: 'pointer', whiteSpace: 'nowrap', opacity: busy || !topic.trim() ? 0.6 : 1 }}>
+          style={{ border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '11px 18px', borderRadius: 10, cursor: 'pointer', whiteSpace: 'nowrap', opacity: busy || !topic.trim() ? 0.6 : 1 }}>
           {busy ? '…' : 'Queue topic'}
         </button>
       </div>

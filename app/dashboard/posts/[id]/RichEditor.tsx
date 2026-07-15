@@ -284,7 +284,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
       )}
 
       {/* canvas + assist rail */}
-      <div style={{ display: 'grid', gridTemplateColumns: showRail ? 'minmax(0,1fr) 360px' : '1fr', gap: 22, alignItems: 'start' }}>
+      <div className="gv-2col-rail" style={{ display: 'grid', gridTemplateColumns: showRail ? 'minmax(0,1fr) 360px' : '1fr', gap: 22, alignItems: 'start' }}>
 
         {/* ── editor column ── */}
         <div style={{ minWidth: 0 }}>
@@ -295,13 +295,13 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
                 value={title}
                 onChange={(e) => { setTitle(e.target.value); if (!editing) setEditing(true); }}
                 placeholder="Untitled draft"
-                style={{ width: '100%', background: 'transparent', border: 'none', fontFamily: "'Newsreader', Georgia, serif", fontWeight: 500, fontSize: 38, lineHeight: 1.14, letterSpacing: '-0.01em', color: 'var(--gv-ink)', padding: 0, margin: '0 0 18px' }}
+                style={{ width: '100%', background: 'transparent', border: 'none', fontFamily: "'Newsreader', Georgia, serif", fontWeight: 500, fontSize: 'clamp(26px, 5.5vw, 38px)', lineHeight: 1.14, letterSpacing: '-0.01em', color: 'var(--gv-ink)', padding: 0, margin: '0 0 18px' }}
               />
             )}
 
             {/* persistent formatting toolbar */}
             {canEdit && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px', marginBottom: 18, border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, background: 'rgba(255,255,255,0.015)', position: 'sticky', top: 64, zIndex: 10, backdropFilter: 'blur(10px)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', padding: '8px 10px', marginBottom: 18, border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, background: 'rgba(255,255,255,0.015)', position: 'sticky', top: 64, zIndex: 10, backdropFilter: 'blur(10px)' }}>
                 <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--gv-dim)', padding: '0 8px' }}>Paragraph</span>
                 <span style={tbDivider} />
                 <ToolBtn on={editor?.isActive('bold')} onClick={() => editor?.chain().focus().toggleBold().run()} serif>B</ToolBtn>
@@ -355,7 +355,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
 
         {/* ── grove assist rail ── */}
         {showRail && (
-          <aside style={{ position: 'sticky', top: 78, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <aside className="gv-rail" style={{ position: 'sticky', top: 78, display: 'flex', flexDirection: 'column', gap: 14 }}>
             {railExtra}
             <div style={{ background: 'var(--gv-card-grad)', border: '1px solid rgba(99,194,129,0.2)', borderRadius: 18, padding: '18px 18px 16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 13 }}>

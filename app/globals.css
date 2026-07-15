@@ -1105,3 +1105,51 @@ html { scroll-behavior: smooth; }
 .gv-onb-tab { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); color: var(--gv-dim); border-radius: 10px; padding: 10px 14px; font-size: 13.5px; font-weight: 600; cursor: pointer; font-family: inherit; transition: .18s; }
 .gv-onb-tab:hover { border-color: rgba(99,194,129,0.4); color: var(--gv-ink); }
 .gv-onb-tab.on { background: rgba(99,194,129,0.1); border-color: rgba(99,194,129,0.5); color: var(--gv-ink); }
+
+/* ═══════════════════════ mobile pass 2 ═══════════════════════
+   Makes the *content* of every page usable on a phone. The shell drawer
+   (.gv-mtop / .gv-side) already handles the chrome at ≤860px; these rules
+   handle what's inside: sticky headers that truncate instead of overflowing,
+   grid "tables" that drop secondary columns, action rows that wrap, and the
+   public blog article column. Mobile doesn't need to mirror desktop — it
+   needs to stay legible. */
+
+/* sticky page header: title truncates, cluster stays on one line */
+@media (max-width: 640px) {
+  .gv-header { gap: 10px; padding: 12px 14px; }
+  .gv-header > div:first-child { overflow: hidden; }
+  .gv-header > div:first-child > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}
+
+/* Grid-styled data tables (overview pipeline, analytics pages/articles).
+   The desktop column template is inline on the element; on phones the row
+   becomes a flex line — primary cell grows, key metric stays, and cells
+   marked .gv-cell-off disappear. Works for any column count. */
+@media (max-width: 760px) {
+  .gv-tbl { display: flex !important; align-items: center; gap: 10px; }
+  .gv-tbl > * { flex: 0 0 auto; }
+  .gv-tbl > :first-child { flex: 1 1 auto; min-width: 0; }
+  .gv-tbl .gv-cell-off, .gv-tbl > .gv-cell-off { display: none !important; }
+}
+
+/* Pipeline post rows: keep title + score on the first line, wrap the whole
+   action cluster (Approve / Regenerate / Delete / View) onto its own line. */
+@media (max-width: 640px) {
+  .gv-prow > div:first-child { flex-wrap: wrap; }
+  .gv-prow .pactions { flex-basis: 100%; justify-content: flex-start; flex-wrap: wrap; }
+}
+
+/* Writing canvas: the desktop 48/56px inset squeezes prose into a sliver. */
+@media (max-width: 640px) {
+  .gv-editor-canvas { padding: 26px 18px 30px !important; }
+}
+
+/* ── public blog on phones ── */
+@media (max-width: 640px) {
+  .post-shell { padding: 30px 16px 56px; }
+  .cta-banner { padding: 26px 20px; }
+}
+@media (max-width: 760px) {
+  /* featured card text block: desktop padding is set inline (32/34) */
+  .feat-card > div:first-child { padding: 20px 18px !important; }
+}

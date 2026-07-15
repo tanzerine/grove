@@ -127,7 +127,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
           )}
         </div>
         {!editable && (
-          <h1 style={{ fontFamily: "'Newsreader', Georgia, serif", fontWeight: 500, fontSize: 38, lineHeight: 1.12, letterSpacing: '-0.01em', margin: '8px 0 0', maxWidth: 880 }}>
+          <h1 style={{ fontFamily: "'Newsreader', Georgia, serif", fontWeight: 500, fontSize: 'clamp(26px, 5.5vw, 38px)', lineHeight: 1.12, letterSpacing: '-0.01em', margin: '8px 0 0', maxWidth: 880 }}>
             {p.title ?? p.topic ?? '(no title)'}
           </h1>
         )}
@@ -195,9 +195,9 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
           <div className="gv-2col-rail" style={{ display: 'grid', gridTemplateColumns: '1fr 372px', gap: 22, alignItems: 'start', marginTop: 22 }}>
             <div style={{ background: '#0e110d', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, overflow: 'hidden' }}>
               {p.body_md && bodyHtml ? (
-                <article className="prose article-surface" style={{ maxWidth: 'none', color: 'var(--gv-soft)', padding: '40px 44px' }} dangerouslySetInnerHTML={{ __html: bodyHtml }} />
+                <article className="prose article-surface" style={{ maxWidth: 'none', color: 'var(--gv-soft)' }} dangerouslySetInnerHTML={{ __html: bodyHtml }} />
               ) : (
-                <div style={{ padding: '40px 44px', color: 'var(--gv-faint)' }}>
+                <div className="article-surface" style={{ color: 'var(--gv-faint)' }}>
                   <PipelineTimeline log={(p.generation_log ?? []) as any} status={p.status} />
                 </div>
               )}

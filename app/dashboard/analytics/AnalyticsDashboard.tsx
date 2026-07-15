@@ -263,7 +263,7 @@ export default function AnalyticsDashboard({
       <DashHeader title="Analytics" subtitle={`${hostname} · how the blog is compounding`} />
 
       {/* ============ BODY ============ */}
-      <div style={{ position: 'relative', padding: '28px 36px 48px', maxWidth: 1680, margin: '0 auto' }}>
+      <div className="gv-body" style={{ maxWidth: 1680 }}>
 
         {/* report controls — relocated out of the nav bar */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 14, marginBottom: 18, flexWrap: 'wrap' }}>
@@ -310,7 +310,7 @@ export default function AnalyticsDashboard({
               <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em' }}>Whole-site traffic</span>
               <span style={{ fontSize: 11.5, color: 'var(--gv-faint)' }}>Google Analytics · every page, not just the blog · {curP.short}</span>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 14 }}>
+            <div className="gv-grid4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 14 }}>
               {[
                 { icon: 'eye', label: 'Page views', value: fmtCompact(ga.totals.views) },
                 { icon: 'rankings', label: 'Active users', value: fmtCompact(ga.totals.activeUsers) },
@@ -334,20 +334,20 @@ export default function AnalyticsDashboard({
                   <span style={{ fontSize: 14, fontWeight: 700 }}>Pages by traffic</span>
                   <span style={{ fontSize: 12, color: 'var(--gv-dim)' }}>{ga.pages.length} page{ga.pages.length === 1 ? '' : 's'}</span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 90px 110px 80px', padding: '11px 22px', fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-fainter)', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                <div className="gv-tbl" style={{ display: 'grid', gridTemplateColumns: '1fr 90px 90px 110px 80px', padding: '11px 22px', fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-fainter)', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                   <span>Page</span>
                   <span style={{ textAlign: 'right' }}>Views</span>
-                  <span style={{ textAlign: 'right' }}>Users</span>
-                  <span style={{ textAlign: 'right' }}>Avg. time</span>
-                  <span style={{ textAlign: 'right' }}>Events</span>
+                  <span className="gv-cell-off" style={{ textAlign: 'right' }}>Users</span>
+                  <span className="gv-cell-off" style={{ textAlign: 'right' }}>Avg. time</span>
+                  <span className="gv-cell-off" style={{ textAlign: 'right' }}>Events</span>
                 </div>
                 {ga.pages.slice(0, 15).map((p, i) => (
-                  <div key={p.title + i} className="gv-row" style={{ display: 'grid', gridTemplateColumns: '1fr 90px 90px 110px 80px', alignItems: 'center', padding: '13px 22px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                  <div key={p.title + i} className="gv-row gv-tbl" style={{ display: 'grid', gridTemplateColumns: '1fr 90px 90px 110px 80px', alignItems: 'center', padding: '13px 22px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                     <span style={{ minWidth: 0, fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', paddingRight: 16 }}>{p.title}</span>
                     <span style={{ fontSize: 13, fontWeight: 700, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmtCompact(p.views)}</span>
-                    <span style={{ fontSize: 12.5, color: 'var(--gv-dim)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmtCompact(p.activeUsers)}</span>
-                    <span style={{ fontSize: 12.5, color: 'var(--gv-soft)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{formatDuration(p.avgEngagementSec)}</span>
-                    <span style={{ fontSize: 12.5, color: 'var(--gv-dim)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmtCompact(p.events)}</span>
+                    <span className="gv-cell-off" style={{ fontSize: 12.5, color: 'var(--gv-dim)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmtCompact(p.activeUsers)}</span>
+                    <span className="gv-cell-off" style={{ fontSize: 12.5, color: 'var(--gv-soft)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{formatDuration(p.avgEngagementSec)}</span>
+                    <span className="gv-cell-off" style={{ fontSize: 12.5, color: 'var(--gv-dim)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmtCompact(p.events)}</span>
                   </div>
                 ))}
               </div>
@@ -358,7 +358,7 @@ export default function AnalyticsDashboard({
         {/* First-party engagement — shown when GA isn't connected but the blog
             beacon has data, so dwell time + event count still surface. */}
         {!ga && eng && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 14 }}>
+          <div className="gv-grid3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 14 }}>
             {[
               { icon: 'eye', label: 'Blog views', value: fmtCompact(eng.views), sub: `${eng.sessions.toLocaleString()} sessions` },
               { icon: 'cursor', label: 'Avg. time on page', value: formatDuration(eng.avgDwellSec), sub: 'first-party, cookieless' },
@@ -376,7 +376,7 @@ export default function AnalyticsDashboard({
         )}
 
         {/* KPI ROW */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14, marginBottom: 14 }}>
+        <div className="gv-grid5" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14, marginBottom: 14 }}>
           {kpiDef.map((k) => {
             const sp = k.spark && k.spark.length >= 2 ? buildPaths(k.spark, 120, 34, 4) : null;
             return (
@@ -400,7 +400,7 @@ export default function AnalyticsDashboard({
         </div>
 
         {/* MAIN CHART + TRAFFIC SOURCES */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1.85fr 1fr', gap: 14, marginBottom: 14 }}>
+        <div className="gv-2col-wide" style={{ display: 'grid', gridTemplateColumns: '1.85fr 1fr', gap: 14, marginBottom: 14 }}>
 
           {/* chart */}
           <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '22px 24px' }}>
@@ -415,7 +415,7 @@ export default function AnalyticsDashboard({
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 28, margin: '18px 0 6px' }}>
+            <div style={{ display: 'flex', gap: 28, margin: '18px 0 6px', flexWrap: 'wrap' }}>
               <div>
                 <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em' }}>{kpiClicks}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: 'var(--gv-dim)', marginTop: 3 }}>Clicks <span style={{ color: ACCENT, fontWeight: 600 }}>{clicksDelta}</span></div>
@@ -454,7 +454,7 @@ export default function AnalyticsDashboard({
           <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '22px 24px', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 700 }}>Traffic sources {sampleTag(!data.traffic)}</div>
             <div style={{ fontSize: 12, color: 'var(--gv-faint)', margin: '3px 0 16px' }}>Where the clicks came from</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 22 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 22, flexWrap: 'wrap' }}>
               <div style={{ position: 'relative', width: 132, height: 132, flexShrink: 0, borderRadius: '50%', background: donutGradient }}>
                 <div style={{ position: 'absolute', inset: 19, borderRadius: '50%', background: 'var(--gv-card)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                   <span style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1 }}>{data.traffic ? fmtCompact(data.traffic.total) : (liveOn ? fmtCompact(live!.clicks) : cur.c)}</span>
@@ -480,9 +480,9 @@ export default function AnalyticsDashboard({
         {/* ARTICLES TABLE — every published article when live, sample otherwise */}
         <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, overflow: 'hidden', marginBottom: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, padding: '18px 22px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 15, fontWeight: 700 }}>{articlesLive ? 'Article performance' : 'Top performing content'}</span>
-              <div style={{ display: 'flex', gap: 4 }}>
+              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                 {(articlesLive ? ['Views', 'Clicks', 'Impressions', 'CTR'] as const : ['Clicks', 'Impressions', 'CTR'] as const).map((t) => {
                   const on = sort === t;
                   return (
@@ -493,16 +493,16 @@ export default function AnalyticsDashboard({
             </div>
             <span style={{ fontSize: 12.5, color: 'var(--gv-dim)' }}>{articlesLive ? `${postDef.length} published article${postDef.length === 1 ? '' : 's'}` : 'Sample data'}</span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: tableCols, padding: '11px 22px', fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-fainter)', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+          <div className="gv-tbl" style={{ display: 'grid', gridTemplateColumns: tableCols, padding: '11px 22px', fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-fainter)', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
             <span>Post</span>
             {articlesLive && <span style={{ textAlign: 'right' }}>Views</span>}
-            <span style={{ textAlign: 'right' }}>Clicks</span><span style={{ textAlign: 'right' }}>Impressions</span><span style={{ textAlign: 'right' }}>CTR</span><span style={{ textAlign: 'right' }}>Avg. pos</span>
-            {!articlesLive && <span style={{ textAlign: 'right' }}>30-day trend</span>}
+            <span style={{ textAlign: 'right' }}>Clicks</span><span className="gv-cell-off" style={{ textAlign: 'right' }}>Impressions</span><span className="gv-cell-off" style={{ textAlign: 'right' }}>CTR</span><span className="gv-cell-off" style={{ textAlign: 'right' }}>Avg. pos</span>
+            {!articlesLive && <span className="gv-cell-off" style={{ textAlign: 'right' }}>30-day trend</span>}
           </div>
           {postDef.map((p) => {
             const sp = p.spark ? buildPaths(p.spark, 96, 28, 3) : null;
             return (
-              <div key={p.title} className="gv-row" style={{ display: 'grid', gridTemplateColumns: tableCols, alignItems: 'center', padding: '14px 22px', borderBottom: '1px solid rgba(255,255,255,0.04)', cursor: 'pointer' }}>
+              <div key={p.title} className="gv-row gv-tbl" style={{ display: 'grid', gridTemplateColumns: tableCols, alignItems: 'center', padding: '14px 22px', borderBottom: '1px solid rgba(255,255,255,0.04)', cursor: 'pointer' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, paddingRight: 18 }}>
                   <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(99,194,129,0.1)', border: '1px solid rgba(99,194,129,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: ACCENT, flexShrink: 0 }}><Icon name="doc" /></span>
                   <span style={{ minWidth: 0 }}>
@@ -512,11 +512,11 @@ export default function AnalyticsDashboard({
                 </div>
                 {articlesLive && <span style={{ fontSize: 13, fontWeight: 700, textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: 'var(--gv-ink)' }}>{p.views}</span>}
                 <span style={{ fontSize: 13, fontWeight: 600, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{p.clicks}</span>
-                <span style={{ fontSize: 12.5, color: 'var(--gv-dim)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{p.impr}</span>
-                <span style={{ fontSize: 12.5, color: 'var(--gv-soft)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{p.ctr}</span>
-                <span style={{ textAlign: 'right' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12.5, color: 'var(--gv-soft)', fontVariantNumeric: 'tabular-nums' }}>{p.pos === '—' ? '—' : `#${p.pos}`}<span style={{ fontSize: 11, fontWeight: 600, color: p.up ? ACCENT : 'var(--gv-red)' }}>{p.posChange}</span></span></span>
+                <span className="gv-cell-off" style={{ fontSize: 12.5, color: 'var(--gv-dim)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{p.impr}</span>
+                <span className="gv-cell-off" style={{ fontSize: 12.5, color: 'var(--gv-soft)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{p.ctr}</span>
+                <span className="gv-cell-off" style={{ textAlign: 'right' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12.5, color: 'var(--gv-soft)', fontVariantNumeric: 'tabular-nums' }}>{p.pos === '—' ? '—' : `#${p.pos}`}<span style={{ fontSize: 11, fontWeight: 600, color: p.up ? ACCENT : 'var(--gv-red)' }}>{p.posChange}</span></span></span>
                 {!articlesLive && (
-                  <span style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <span className="gv-cell-off" style={{ display: 'flex', justifyContent: 'flex-end' }}>
                     {sp
                       ? <svg viewBox="0 0 96 28" preserveAspectRatio="none" style={{ width: 92, height: 26, overflow: 'visible' }}>
                           <path d={sp.line} fill="none" stroke={p.up ? ACCENT : 'var(--gv-red)'} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
@@ -535,7 +535,7 @@ export default function AnalyticsDashboard({
         </div>
 
         {/* BOTTOM ROW */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
+        <div className="gv-grid3" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
 
           {/* rank distribution */}
           <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 22px' }}>

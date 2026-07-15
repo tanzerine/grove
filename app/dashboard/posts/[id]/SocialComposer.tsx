@@ -283,7 +283,7 @@ function Channel({
 
   return (
     <div style={{ padding: '16px 18px', background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, opacity: pf.connected && !autoOn && !published ? 0.75 : 1 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 9 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 9, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 11, color: 'var(--gv-accent)', fontWeight: 700, letterSpacing: '0.06em' }}>{LABEL[pf.id].toUpperCase()}</span>
         <span style={{ fontSize: 11, color: pf.connected ? 'var(--gv-dim)' : 'var(--gv-fainter)' }}>
           {pf.connected ? (pf.handle ? `as ${pf.handle}` : 'connected') : <a href="/dashboard/connections" style={{ color: 'var(--gv-fainter)', textDecoration: 'underline' }}>not connected</a>}

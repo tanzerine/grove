@@ -148,7 +148,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
 
       <div className="post-grid" style={{ marginTop: 18 }}>
         <div className="post-main">
-          <h1 className="display" style={{ fontSize: 46 }}>{p.title}</h1>
+          <h1 className="display" style={{ fontSize: 'clamp(29px, 6.5vw, 46px)' }}>{p.title}</h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <span className="mono" style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--moss)', background: 'var(--accent-soft, rgba(89,148,94,0.10))', borderRadius: 999, padding: '3px 10px' }}>
               {genre.label}
@@ -177,7 +177,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
 
           <article
             className="prose"
-            style={{ marginTop: 30, padding: '44px 40px', background: 'white', border: '1px solid var(--line)', borderRadius: 18, boxShadow: 'var(--sh-md)', maxWidth: 'none' }}
+            style={{ marginTop: 30, padding: 'clamp(22px, 5vw, 44px) clamp(16px, 4.5vw, 40px)', background: 'white', border: '1px solid var(--line)', borderRadius: 18, boxShadow: 'var(--sh-md)', maxWidth: 'none' }}
             dangerouslySetInnerHTML={{ __html: html }}
           />
 
@@ -203,7 +203,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
               <div className="mono" style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--clay)', marginBottom: 12 }}>
                 Keep reading
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(related.length, 3)}, 1fr)`, gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
                 {related.map((rp) => (
                   <a key={rp.slug} href={`${prefix}/${rp.slug}`} className="bi-card">
                     {rp.cover_image_url && (

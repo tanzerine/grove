@@ -160,11 +160,11 @@ export default async function BlogIndex({
   };
 
   return (
-    <main className="wrap" style={{ maxWidth: 1080, padding: '54px 28px 80px', ...themeStyle }}>
+    <main className="wrap" style={{ maxWidth: 1080, padding: 'clamp(28px, 6vw, 54px) clamp(16px, 3vw, 28px) 80px', ...themeStyle }}>
       {/* header: title left, search top-right */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 24, flexWrap: 'wrap' }}>
         <div>
-          <h1 className="display" style={{ fontSize: 48, margin: 0 }}>The {domain.hostname} blog</h1>
+          <h1 className="display" style={{ fontSize: 'clamp(30px, 6.5vw, 48px)', margin: 0, overflowWrap: 'anywhere' }}>The {domain.hostname} blog</h1>
           <p className="lede" style={{ marginTop: 8 }}>Grown by grove. Updated on autopilot.</p>
         </div>
         <form method="GET" action={prefix || '/'} style={{ display: 'flex', gap: 8 }}>
