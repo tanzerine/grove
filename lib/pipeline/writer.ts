@@ -401,18 +401,26 @@ export async function runSocialAdapter(
   profile: SiteProfile,
 ): Promise<SocialOutput> {
   const { business, voice } = profile;
-  const system = `You adapt one article into native posts for X, LinkedIn, and Instagram.
-Each platform gets its own treatment — no copy-paste. Voice: ${voice.persona}. ${voice.tone}.
+  const system = `You adapt articles into native social posts. Voice: ${voice.persona}. ${voice.tone}.`;
+
+  // Task + format spec live in the USER prompt (the manager's proven pattern):
+  // the Replicate workhorse model has been observed ignoring system_prompt and
+  // "reviewing" a bare article conversationally instead of adapting it.
+  const user = `ARTICLE TITLE: ${article.title}
+
+ARTICLE BODY:
+${article.body_md.slice(0, 8000)}
+
+TASK: Adapt the article above into native posts for X, LinkedIn, and Instagram.
+Each platform gets its own treatment — no copy-paste between them.
 Write for ${business.name}'s audience: ${business.target_audience}.
 
-Return JSON only — no prose around it:
+Return JSON only — no prose before or after it:
 {
   "x": "6–10 numbered tweets, hook first, threaded narrative, separated by newlines",
   "linkedin": "1500–2200 chars, story-led, line breaks every 1–2 sentences, no hashtag spam, end with a question",
   "instagram": "under 2200 chars, hook-driven, 3–5 hashtags at the end"
 }`;
-
-  const user = `ARTICLE TITLE: ${article.title}\n\nARTICLE BODY:\n${article.body_md.slice(0, 8000)}`;
   const { text } = await llmCall({ system, user, json: true, maxTokens: 3000 });
   return parseSocialOutput(text);
 }
