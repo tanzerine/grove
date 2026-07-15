@@ -6,7 +6,10 @@ const { getConnections, updateEq } = vi.hoisted(() => ({
   getConnections: vi.fn(),
   updateEq: vi.fn(async () => ({})),
 }));
-vi.mock('../lib/social/oauth', () => ({ getConnections }));
+// publishToSocials reads via getLiveConnections (getConnections + token
+// refresh). These orchestration tests pass already-fresh tokens, so map the
+// live reader straight to the mock.
+vi.mock('../lib/social/oauth', () => ({ getLiveConnections: getConnections }));
 vi.mock('../lib/supabase/admin', () => ({
   supabaseAdmin: () => ({ from: () => ({ update: () => ({ eq: updateEq }) }) }),
 }));

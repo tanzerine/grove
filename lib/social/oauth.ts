@@ -88,6 +88,73 @@ export async function exchangeCode(platform: Platform, code: string, verifier?: 
   return (await r.json()) as TokenResponse;
 }
 
+/* ──────────────────────── token refresh ───────────────────── */
+// Trade a stored refresh token for a fresh access token. Same OAuth2
+// refresh_token grant as exchangeCode, minus PKCE. X requires the token
+// endpoint basic-authed (tokenBasicAuth) and rotates the refresh token on
+// every use, so callers MUST persist the returned refresh_token.
+export async function refreshAccessToken(platform: Platform, refreshToken: string): Promise<TokenResponse> {
+  const p = getProvider(platform);
+  const body = new URLSearchParams({
+    grant_type: 'refresh_token',
+    refresh_token: refreshToken,
+    client_id: p.clientId ?? '',
+  });
+  if (!p.tokenBasicAuth) body.set('client_secret', p.clientSecret ?? '');
+
+  const headers: Record<string, string> = { 'content-type': 'application/x-www-form-urlencoded' };
+  if (p.tokenBasicAuth) {
+    headers.authorization = 'Basic ' + Buffer.from(`${p.clientId}:${p.clientSecret}`).toString('base64');
+  }
+
+  const r = await fetch(p.tokenUrl, { method: 'POST', headers, body });
+  if (!r.ok) throw new Error(`token refresh failed (${platform}): ${await r.text()}`);
+  const tok = (await r.json()) as TokenResponse;
+  if (!tok.access_token) throw new Error(`token refresh (${platform}) returned no access_token`);
+  return tok;
+}
+
+// Refresh a bit ahead of the real expiry so a token can't lapse mid-request.
+export const TOKEN_SKEW_MS = 120_000;
+export function tokenExpired(expires_at: string | null, now = Date.now()): boolean {
+  if (!expires_at) return false; // null = long-lived (LinkedIn 60d / IG), never auto-refreshed
+  return new Date(expires_at).getTime() - TOKEN_SKEW_MS <= now;
+}
+
+// Refresh + persist rotated tokens for one connection. Only meaningful when it
+// carries a refresh token (X does; LinkedIn/IG here don't).
+export async function refreshConnection(domainId: string, conn: Connection): Promise<Connection> {
+  if (!conn.refresh_token) return conn;
+  const tok = await refreshAccessToken(conn.platform, conn.refresh_token);
+  const expires_at = tok.expires_in ? new Date(Date.now() + tok.expires_in * 1000).toISOString() : null;
+  const refresh_token = tok.refresh_token ?? conn.refresh_token; // keep old if not rotated
+  await supabaseAdmin().from('social_connections').update({
+    access_token: encryptToken(tok.access_token),
+    refresh_token: encryptToken(refresh_token),
+    expires_at,
+    scopes: tok.scope ?? conn.scopes,
+  }).eq('domain_id', domainId).eq('platform', conn.platform);
+  return { ...conn, access_token: tok.access_token, refresh_token, expires_at, scopes: tok.scope ?? conn.scopes };
+}
+
+// getConnections with expired-and-refreshable tokens refreshed first. This is
+// what the publisher uses — X access tokens live ~2h, so without it every
+// share more than two hours after connecting 401s. Best-effort per channel: a
+// failed refresh keeps the stale connection so the caller still attempts and
+// records a per-channel error (rather than silently dropping the channel).
+export async function getLiveConnections(domainId: string): Promise<Connection[]> {
+  const conns = await getConnections(domainId);
+  return Promise.all(conns.map(async (c) => {
+    if (!c.refresh_token || !tokenExpired(c.expires_at)) return c;
+    try {
+      return await refreshConnection(domainId, c);
+    } catch (e) {
+      console.error('[social token refresh]', c.platform, e);
+      return c;
+    }
+  }));
+}
+
 /* ──────────────────────── account lookup ──────────────────── */
 export async function fetchAccount(platform: Platform, accessToken: string): Promise<Account> {
   try {
