@@ -10,6 +10,7 @@ import {
   postProcess, capCitations, ensureHomepageCta, forceCanonicalH1,
   ensureTakeaways, ensureFaqSection,
 } from './post-process';
+import { normalizeXCopy } from '../social/compose';
 import type { SiteProfile } from './site-profile';
 import type { ResearchContext } from './research-context';
 import { flatSources } from './research-context';
@@ -417,10 +418,13 @@ Write for ${business.name}'s audience: ${business.target_audience}.
 
 Return JSON only — no prose before or after it:
 {
-  "x": "6–10 numbered tweets, hook first, threaded narrative, separated by newlines. HARD LIMIT: every tweet under 240 characters, and the FIRST tweet under 180 — the article link is appended to it and X counts links as 23 chars",
+  "x": "ONE single tweet — NOT a thread. A sharp hook plus the article's core insight, on one line. HARD LIMIT: under 200 characters (under 100 if writing in Korean/CJK — X counts those double). No numbering, no thread emoji, no URL — the article link is appended automatically",
   "linkedin": "1500–2200 chars, story-led, line breaks every 1–2 sentences, no hashtag spam, end with a question",
   "instagram": "under 2200 chars, hook-driven, 3–5 hashtags at the end"
 }`;
   const { text } = await llmCall({ system, user, json: true, maxTokens: 3000 });
-  return parseSocialOutput(text);
+  const out = parseSocialOutput(text);
+  // Belt-and-braces: models drift back into threads, and their character
+  // counting is unreliable — reduce to the one tweet X will actually see.
+  return { ...out, x: normalizeXCopy(out.x) };
 }
