@@ -57,6 +57,9 @@ const DEFS: Record<string, string[]> = {
   overview: ['rect:3,3,7,7', 'rect:14,3,7,7', 'rect:14,14,7,7', 'rect:3,14,7,7'],
   settings: ['M4 7h11', 'M19 7h1', 'M4 17h5', 'M13 17h7', 'circle:17,7,2', 'circle:11,17,2'],
   gauge: ['M12 13l4-4', 'M5.5 18a8 8 0 1113 0z'],
+  trash: ['M4 7h16', 'M6 7l1 13a2 2 0 002 2h6a2 2 0 002-2l1-13', 'M9 7V4h6v3'],
+  chevron: ['M6 9l6 6 6-6'],
+  view: ['M14 5h5v5', 'M19 5l-8 8', 'M9 5H5v14h14v-4'],
 };
 
 export default function Icon({ name, size = 17 }: { name: string; size?: number }) {

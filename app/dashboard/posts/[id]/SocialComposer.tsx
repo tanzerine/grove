@@ -9,6 +9,7 @@
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { firstTweet, xLen, X_MAX, X_URL_WEIGHT } from '@/lib/social/compose';
+import Icon from '../../gv-icons';
 
 type ChannelKey = 'x' | 'linkedin' | 'instagram';
 type PublishRecord = { id?: string; at?: string; status?: number; error?: string; dry_run?: boolean };
@@ -44,6 +45,7 @@ export default function SocialComposer({
   );
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
+  const [tab, setTab] = useState<ChannelKey | 'webhook'>('x');
 
   const outletCount = platforms.filter((p) => p.connected).length + (hasWebhook ? 1 : 0);
 
@@ -159,70 +161,108 @@ export default function SocialComposer({
     }
   }
 
-  const ghost: React.CSSProperties = { border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.02)', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '8px 14px', borderRadius: 9, cursor: 'pointer' };
+  const ghost: React.CSSProperties = { border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.02)', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '7px 13px', borderRadius: 8, cursor: 'pointer' };
   const primary: React.CSSProperties = { ...ghost, border: 'none', background: 'var(--gv-accent)', color: 'var(--gv-on-accent)', fontWeight: 700 };
 
+  const draftedCount = (['x', 'linkedin', 'instagram'] as ChannelKey[]).filter((k) => (drafts[k] ?? '').trim()).length;
+  const activePf = platforms.find((pf) => pf.id === tab);
+  const tabDot = (key: ChannelKey | 'webhook'): string | null => {
+    const rec = socialPublished[key];
+    if (!rec) return null;
+    if (rec.error) return 'var(--gv-red)';
+    if (rec.id || rec.status) return 'var(--gv-accent)';
+    return null;
+  };
+
   return (
-    <div style={{ marginTop: 18, background: '#0e110d', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 28px 26px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <h3 style={{ fontFamily: "'Newsreader', Georgia, serif", fontWeight: 500, fontSize: 22, margin: '4px 0' }}>Social posts</h3>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+    <div style={{ marginTop: 34 }}>
+      {/* header row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
+        <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--gv-ink)' }}>Social posts</span>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, color: auto && outletCount > 0 ? 'var(--gv-dim)' : 'var(--gv-faint)' }}>
           <ToggleSwitch on={auto && outletCount > 0} disabled={outletCount === 0} onClick={toggleAutoShare} />
-          <span style={{ fontSize: 11.5, color: auto && outletCount > 0 ? 'var(--gv-soft)' : 'var(--gv-faint)' }}>
-            Auto-share on publish
-          </span>
-        </span>
+          Auto-share on publish
+        </label>
         <span style={{ fontSize: 11, color: 'var(--gv-fainter)' }}>
           {outletCount === 0
             ? <><a href="/dashboard/connections" style={{ color: 'var(--gv-dim)', textDecoration: 'underline' }}>Connect an account</a> to enable.</>
             : auto
-              ? published ? 'was applied at publish.' : 'each channel below can opt out.'
-              : 'off — post each channel yourself below.'}
+              ? published ? 'was applied at publish.' : 'each channel can opt out below.'
+              : 'off — post each channel yourself.'}
         </span>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+          {hasCopy && <span style={{ fontSize: 12, color: 'var(--gv-faint)' }}>{draftedCount} drafted post{draftedCount === 1 ? '' : 's'}</span>}
           {hasCopy && dirty && (
             <button className="gv-btn" style={primary} onClick={save} disabled={!!busy}>
               {busy === 'save' ? 'Saving…' : 'Save copy'}
             </button>
           )}
-          <button className="gv-ghost" style={ghost} onClick={generate} disabled={!!busy}>
-            {busy === 'generate' ? 'Writing…' : hasCopy ? 'Regenerate all' : 'Write social posts'}
+          <button className="gv-tool" style={{ ...ghost, display: 'inline-flex', alignItems: 'center', gap: 7 }} onClick={generate} disabled={!!busy}>
+            <Icon name="refresh" size={13} /> {busy === 'generate' ? 'Writing…' : hasCopy ? 'Regenerate all' : 'Write social posts'}
           </button>
         </div>
       </div>
 
       {note && (
-        <div style={{ marginTop: 12, fontSize: 12.5, borderRadius: 10, padding: '9px 13px', background: note.ok ? 'rgba(99,194,129,0.08)' : 'rgba(201,127,127,0.08)', border: `1px solid ${note.ok ? 'rgba(99,194,129,0.24)' : 'rgba(201,127,127,0.3)'}`, color: note.ok ? 'var(--gv-accent)' : 'var(--gv-red-soft)' }}>
+        <div style={{ marginBottom: 12, fontSize: 12.5, borderRadius: 10, padding: '9px 13px', background: note.ok ? 'rgba(99,194,129,0.08)' : 'rgba(201,127,127,0.08)', border: `1px solid ${note.ok ? 'rgba(99,194,129,0.24)' : 'rgba(201,127,127,0.3)'}`, color: note.ok ? 'var(--gv-accent)' : 'var(--gv-red-soft)' }}>
           {note.text}
         </div>
       )}
 
       {!hasCopy ? (
-        <p style={{ fontSize: 13, color: 'var(--gv-dim)', margin: '14px 0 4px', lineHeight: 1.6 }}>
+        <p style={{ fontSize: 13, color: 'var(--gv-dim)', margin: '4px 0', lineHeight: 1.6 }}>
           No channel copy yet. Grove writes a native post for each platform from this article —
           an X hook, a LinkedIn post, and an Instagram caption — which you can edit before anything goes out.
         </p>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 14 }}>
-          {platforms.map((pf) => (
+        <>
+          {/* channel tabs */}
+          <div style={{ display: 'flex', gap: 4, padding: 3, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, marginBottom: 14, width: 'fit-content', maxWidth: '100%', flexWrap: 'wrap' }}>
+            {platforms.map((pf) => {
+              const on = tab === pf.id;
+              const dot = tabDot(pf.id);
+              return (
+                <button
+                  key={pf.id}
+                  className="gv-tab"
+                  onClick={() => setTab(pf.id)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 7, border: 'none', background: on ? 'var(--gv-accent)' : 'transparent', color: on ? 'var(--gv-on-accent)' : 'var(--gv-dim)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '7px 16px', borderRadius: 8, cursor: 'pointer' }}
+                >
+                  {LABEL[pf.id]}
+                  {dot && !on && <span style={{ width: 6, height: 6, borderRadius: '50%', background: dot }} />}
+                </button>
+              );
+            })}
+            {hasWebhook && (
+              <button
+                className="gv-tab"
+                onClick={() => setTab('webhook')}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 7, border: 'none', background: tab === 'webhook' ? 'var(--gv-accent)' : 'transparent', color: tab === 'webhook' ? 'var(--gv-on-accent)' : 'var(--gv-dim)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '7px 16px', borderRadius: 8, cursor: 'pointer' }}
+              >
+                Webhook
+                {tabDot('webhook') && tab !== 'webhook' && <span style={{ width: 6, height: 6, borderRadius: '50%', background: tabDot('webhook')! }} />}
+              </button>
+            )}
+          </div>
+
+          {/* active channel */}
+          {tab === 'webhook' && hasWebhook ? (
+            <WebhookPanel record={socialPublished.webhook} published={published} busy={busy} onSend={() => postNow('webhook')} />
+          ) : activePf ? (
             <Channel
-              key={pf.id}
-              pf={pf}
-              value={drafts[pf.id]}
-              onChange={(v) => setDrafts((d) => ({ ...d, [pf.id]: v }))}
-              record={socialPublished[pf.id]}
+              pf={activePf}
+              value={drafts[activePf.id]}
+              onChange={(v) => setDrafts((d) => ({ ...d, [activePf.id]: v }))}
+              record={socialPublished[activePf.id]}
               published={published}
               busy={busy}
-              onPost={() => postNow(pf.id)}
+              onPost={() => postNow(activePf.id)}
               autoShare={auto}
-              autoOn={!off.has(pf.id)}
-              onToggleAuto={() => toggleChannel(pf.id)}
+              autoOn={!off.has(activePf.id)}
+              onToggleAuto={() => toggleChannel(activePf.id)}
             />
-          ))}
-          {hasWebhook && (
-            <WebhookRow record={socialPublished.webhook} published={published} busy={busy} onSend={() => postNow('webhook')} />
-          )}
-        </div>
+          ) : null}
+        </>
       )}
     </div>
   );
@@ -281,68 +321,72 @@ function Channel({
   const postHint = !pf.connected ? 'Not connected' : null;
 
   return (
-    <div style={{ padding: '16px 18px', background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, opacity: pf.connected && !autoOn && !published ? 0.75 : 1 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 9, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 11, color: 'var(--gv-accent)', fontWeight: 700, letterSpacing: '0.06em' }}>{LABEL[pf.id].toUpperCase()}</span>
-        <span style={{ fontSize: 11, color: pf.connected ? 'var(--gv-dim)' : 'var(--gv-fainter)' }}>
-          {pf.connected ? (pf.handle ? `as ${pf.handle}` : 'connected') : <a href="/dashboard/connections" style={{ color: 'var(--gv-fainter)', textDecoration: 'underline' }}>not connected</a>}
+    <div style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '18px 22px 16px', opacity: pf.connected && !autoOn && !published ? 0.75 : 1 }}>
+      {/* meta line */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap', fontSize: 11.5, color: 'var(--gv-faint)' }}>
+        <span>
+          {pf.connected
+            ? <>{pf.handle ? `as ${pf.handle}` : 'connected'} · {posted ? 'posted' : 'draft'}</>
+            : <a href="/dashboard/connections" style={{ color: 'var(--gv-fainter)', textDecoration: 'underline' }}>not connected</a>}
         </span>
         <StatusChip record={record} xId={pf.id === 'x' ? record?.id : undefined} />
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
-          {pf.id === 'x' && tweetLen !== null && (
-            <span
-              title={tweetLen > X_MAX ? 'Over X’s limit — the tweet will be trimmed at a word break. Shorten the first line to control the cut.' : undefined}
-              style={{ fontSize: 10.5, fontFamily: 'ui-monospace, monospace', color: tweetLen > X_MAX ? 'var(--gv-red-soft)' : 'var(--gv-fainter)' }}
-            >
-              first tweet {tweetLen}/{X_MAX}{tweetLen > X_MAX ? ' — will trim' : ''}
-            </span>
-          )}
-          {/* Pre-publish, each connected channel opts in/out of the auto fan-out. */}
-          {pf.connected && !published && !posted && (
-            autoShare ? (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <ToggleSwitch on={autoOn} disabled={!!busy} onClick={onToggleAuto} />
-                <span style={{ fontSize: 10.5, color: autoOn ? 'var(--gv-dim)' : 'var(--gv-fainter)' }}>
-                  {autoOn ? 'posts on publish' : 'skipped on publish'}
-                </span>
-              </span>
-            ) : (
-              <span style={{ fontSize: 10.5, color: 'var(--gv-fainter)' }}>post manually after publishing</span>
-            )
-          )}
-          {(canPost || (record?.error && published)) && (
-            <button
-              className="gv-ghost"
-              onClick={onPost}
-              disabled={!!busy}
-              style={{ border: '1px solid rgba(99,194,129,0.3)', background: 'rgba(99,194,129,0.08)', color: 'var(--gv-accent)', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, padding: '6px 12px', borderRadius: 8, cursor: 'pointer' }}
-            >
-              {busy === pf.id ? 'Posting…' : record?.error ? 'Retry' : 'Post now'}
-            </button>
-          )}
-          {!canPost && !record?.error && postHint && (
-            <span style={{ fontSize: 10.5, color: 'var(--gv-fainter)' }}>{postHint}</span>
-          )}
-        </div>
+        {pf.id === 'x' && tweetLen !== null && (
+          <span
+            title={tweetLen > X_MAX ? 'Over X’s limit — the tweet will be trimmed at a word break. Shorten the first line to control the cut.' : undefined}
+            style={{ marginLeft: 'auto', fontSize: 10.5, fontFamily: 'ui-monospace, monospace', color: tweetLen > X_MAX ? 'var(--gv-red-soft)' : 'var(--gv-fainter)' }}
+          >
+            first tweet {tweetLen}/{X_MAX}{tweetLen > X_MAX ? ' — will trim' : ''}
+          </span>
+        )}
       </div>
+
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        rows={Math.min(10, Math.max(3, value.split('\n').length + 1))}
+        rows={Math.min(12, Math.max(4, value.split('\n').length + 1))}
         spellCheck={false}
-        style={{ width: '100%', resize: 'vertical', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '12px 14px', fontFamily: 'inherit', fontSize: 13.5, lineHeight: 1.55, color: '#c4cabb' }}
+        style={{ width: '100%', resize: 'vertical', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '12px 14px', fontFamily: 'inherit', fontSize: 13.5, lineHeight: 1.7, color: '#dfe4da' }}
       />
-      <div style={{ fontSize: 11, color: 'var(--gv-fainter)', marginTop: 6 }}>{HINT[pf.id]}</div>
+
+      {/* footer: hint + channel controls */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 9, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 11, color: 'var(--gv-fainter)', flex: 1, minWidth: 180 }}>{HINT[pf.id]}</span>
+        {/* Pre-publish, each connected channel opts in/out of the auto fan-out. */}
+        {pf.connected && !published && !posted && (
+          autoShare ? (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <ToggleSwitch on={autoOn} disabled={!!busy} onClick={onToggleAuto} />
+              <span style={{ fontSize: 10.5, color: autoOn ? 'var(--gv-dim)' : 'var(--gv-fainter)' }}>
+                {autoOn ? 'posts on publish' : 'skipped on publish'}
+              </span>
+            </span>
+          ) : (
+            <span style={{ fontSize: 10.5, color: 'var(--gv-fainter)' }}>post manually after publishing</span>
+          )
+        )}
+        {(canPost || (record?.error && published)) && (
+          <button
+            className="gv-ghost"
+            onClick={onPost}
+            disabled={!!busy}
+            style={{ border: '1px solid rgba(99,194,129,0.3)', background: 'rgba(99,194,129,0.08)', color: 'var(--gv-accent)', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, padding: '6px 12px', borderRadius: 8, cursor: 'pointer' }}
+          >
+            {busy === pf.id ? 'Posting…' : record?.error ? 'Retry' : 'Post now'}
+          </button>
+        )}
+        {!canPost && !record?.error && postHint && (
+          <span style={{ fontSize: 10.5, color: 'var(--gv-fainter)' }}>{postHint}</span>
+        )}
+      </div>
     </div>
   );
 }
 
-function WebhookRow({ record, published, busy, onSend }: { record?: PublishRecord; published: boolean; busy: string | null; onSend: () => void }) {
+function WebhookPanel({ record, published, busy, onSend }: { record?: PublishRecord; published: boolean; busy: string | null; onSend: () => void }) {
   const delivered = !!record?.status && !record.error;
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 18px', background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14 }}>
-      <span style={{ fontSize: 11, color: 'var(--gv-accent)', fontWeight: 700, letterSpacing: '0.06em' }}>WEBHOOK</span>
-      <span style={{ fontSize: 11.5, color: 'var(--gv-dim)' }}>Sends URL, cover, and every channel’s copy to your endpoint.</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '18px 22px' }}>
+      <span style={{ fontSize: 12.5, color: 'var(--gv-dim)' }}>Sends URL, cover, and every channel’s copy to your endpoint.</span>
       <StatusChip record={record} />
       <div style={{ marginLeft: 'auto' }}>
         {published && !delivered ? (

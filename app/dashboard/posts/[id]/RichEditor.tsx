@@ -24,6 +24,7 @@ type Props = {
   canEdit: boolean;
   autoEdit?: boolean;             // open straight into edit mode (fresh manual drafts)
   railExtra?: React.ReactNode;   // extra card pinned to the top of the assist rail
+  belowCanvas?: React.ReactNode; // rendered under the SEO panel, inside the article column
 };
 
 // A grove-assist request + its result, rendered in the right rail feed.
@@ -44,7 +45,7 @@ function getMd(editor: any): string {
   return editor?.storage?.markdown?.getMarkdown?.() ?? '';
 }
 
-export default function RichEditor({ postId, domainId, initialBody, initialTitle, initialMetaTitle, initialMetaDesc, canEdit, autoEdit, railExtra }: Props) {
+export default function RichEditor({ postId, domainId, initialBody, initialTitle, initialMetaTitle, initialMetaDesc, canEdit, autoEdit, railExtra, belowCanvas }: Props) {
   const r = useRouter();
   const [editing, setEditing] = useState(!!autoEdit);
   const [dirty, setDirty] = useState(false);
@@ -60,6 +61,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
   const baseline = useRef<string>(initialBody);
   const lastInitialBody = useRef<string>(initialBody);
   const promptRef = useRef<HTMLInputElement>(null);
+  const titleRef = useRef<HTMLTextAreaElement>(null);
   const cid = useRef(1);
 
   const editor = useEditor({
@@ -98,11 +100,28 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
     setDirty(false);
   }, [initialBody, editor, editing, dirty]);
 
-  // Fresh manual drafts land in edit mode — drop the cursor into the body so
-  // the author can start typing without hunting for where to click.
+  // Fresh manual drafts land in edit mode — drop the cursor where writing
+  // starts: the title if it's still blank, otherwise the end of the body.
   useEffect(() => {
-    if (autoEdit && editor) setTimeout(() => editor.commands.focus('end'), 0);
-  }, [autoEdit, editor]);
+    if (!autoEdit || !editor) return;
+    setTimeout(() => {
+      if (!initialTitle && titleRef.current) titleRef.current.focus();
+      else editor.commands.focus('end');
+    }, 0);
+  }, [autoEdit, editor, initialTitle]);
+
+  // The in-canvas title is a textarea so long titles wrap like the rendered
+  // article; keep its height matched to its content. Re-measure once webfonts
+  // land and on resize — both change how many lines the title wraps to.
+  useEffect(() => {
+    const el = titleRef.current;
+    if (!el) return;
+    const fit = () => { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; };
+    fit();
+    document.fonts?.ready.then(fit);
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
+  }, [title]);
 
   const metaDirty = title !== initialTitle || metaTitle !== initialMetaTitle || metaDesc !== initialMetaDesc;
 
@@ -246,7 +265,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
             {saved && <span style={{ fontSize: 11, color: ACCENT }}>✓ saved</span>}
           </>
         )}
-        <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--gv-faint)', fontVariantNumeric: 'tabular-nums' }}>{wordCount.toLocaleString()} words</span>
+        <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--gv-faint)', fontVariantNumeric: 'tabular-nums' }}>{wordCount.toLocaleString()} words · {Math.max(1, Math.round(wordCount / 230))} min read</span>
         {canEdit && (
           <button onClick={() => setFocusMode((f) => !f)} className="gv-ghost" style={ghostBtn}>
             {focusMode ? 'Exit focus' : 'Focus'}
@@ -289,16 +308,6 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
         {/* ── editor column ── */}
         <div style={{ minWidth: 0 }}>
           <div style={{ maxWidth: 820, margin: '0 auto' }}>
-            {canEdit && (
-              <input
-                className="gv-title"
-                value={title}
-                onChange={(e) => { setTitle(e.target.value); if (!editing) setEditing(true); }}
-                placeholder="Untitled draft"
-                style={{ width: '100%', background: 'transparent', border: 'none', fontFamily: "'Newsreader', Georgia, serif", fontWeight: 500, fontSize: 'clamp(26px, 5.5vw, 38px)', lineHeight: 1.14, letterSpacing: '-0.01em', color: 'var(--gv-ink)', padding: 0, margin: '0 0 18px' }}
-              />
-            )}
-
             {/* persistent formatting toolbar */}
             {canEdit && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', padding: '8px 10px', marginBottom: 18, border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, background: 'rgba(255,255,255,0.015)', position: 'sticky', top: 64, zIndex: 10, backdropFilter: 'blur(10px)' }}>
@@ -317,9 +326,9 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
               </div>
             )}
 
-            {/* writing canvas */}
+            {/* writing canvas — the title is the article's first line, like the rendered post */}
             <div
-              className="gv-editor-canvas"
+              className="gv-editor-canvas gv-canvas-prose"
               onClick={enterEdit}
               style={{
                 background: '#0d100c',
@@ -328,17 +337,39 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
                 cursor: canEdit && !editing ? 'text' : 'default',
               }}
             >
+              {canEdit ? (
+                <textarea
+                  ref={titleRef}
+                  className="gv-title gv-canvas-title"
+                  value={title}
+                  rows={1}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={(e) => { setTitle(e.target.value); if (!editing) setEditing(true); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterEdit(); editor?.commands.focus('start'); } }}
+                  placeholder="Untitled draft"
+                  spellCheck={false}
+                  style={{ display: 'block', width: '100%', background: 'transparent', border: 'none', outline: 'none', resize: 'none', overflow: 'hidden', padding: 0 }}
+                />
+              ) : (
+                <h1 className="gv-canvas-title">{title || 'Untitled draft'}</h1>
+              )}
               <EditorContent editor={editor} />
             </div>
 
             {/* compact SEO panel */}
             {canEdit && (
-              <div style={{ marginTop: 14, border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, background: 'var(--gv-card)', overflow: 'hidden' }}>
-                <button onClick={() => setSeoOpen((o) => !o)} className="gv-tool" style={{ ...hintBtn, width: '100%', padding: '12px 18px', justifyContent: 'flex-start', gap: 8, display: 'flex' }}>
-                  <span>{seoOpen ? '▾' : '▸'}</span> Title &amp; SEO {metaDirty && <span style={{ color: 'var(--gv-amber)', fontSize: 11 }}>● unsaved</span>}
+              <>
+                <button
+                  onClick={() => setSeoOpen((o) => !o)}
+                  className="gv-tool"
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', marginTop: 14, border: '1px solid rgba(255,255,255,0.07)', background: 'var(--gv-card)', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '13px 18px', borderRadius: seoOpen ? '12px 12px 0 0' : 12, cursor: 'pointer', textAlign: 'left' }}
+                >
+                  <span style={{ display: 'flex', transform: seoOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform .2s' }}><Icon name="chevron" size={14} /></span>
+                  Title &amp; SEO
+                  {metaDirty && <span style={{ color: 'var(--gv-amber)', fontSize: 11, fontWeight: 500 }}>● unsaved</span>}
                 </button>
                 {seoOpen && (
-                  <div style={{ padding: 18, borderTop: '1px solid rgba(255,255,255,0.07)', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div style={{ border: '1px solid rgba(255,255,255,0.07)', borderTop: 'none', borderRadius: '0 0 12px 12px', background: '#0d100c', padding: 18, display: 'flex', flexDirection: 'column', gap: 14 }}>
                     <label style={lbl}>Meta title <span style={{ color: metaTitle.length > 60 ? 'var(--gv-red)' : 'var(--gv-dim)' }}>({metaTitle.length}/60)</span></label>
                     <input value={metaTitle} onChange={(e) => setMetaTitle(e.target.value)} maxLength={80} className="gv-prompt" style={inp} />
                     <label style={lbl}>Meta description <span style={{ color: metaDesc.length > 155 ? 'var(--gv-red)' : 'var(--gv-dim)' }}>({metaDesc.length}/155)</span></label>
@@ -348,8 +379,10 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
                     </button>
                   </div>
                 )}
-              </div>
+              </>
             )}
+
+            {belowCanvas}
           </div>
         </div>
 

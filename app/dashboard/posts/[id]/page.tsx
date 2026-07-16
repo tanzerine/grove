@@ -110,6 +110,12 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: sm.color, background: sm.bg, border: `1px solid ${sm.border}`, padding: '5px 12px', borderRadius: 999 }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: sm.color, animation: 'gvPulse 2.2s ease-in-out infinite' }} />{sm.label}
           </span>
+          {managerOverall !== null && (
+            <span title="Manager quality score" style={{ display: 'inline-flex', alignItems: 'baseline', gap: 4, fontVariantNumeric: 'tabular-nums', border: `1px solid color-mix(in srgb, ${bandColor(Number(managerOverall))} 30%, transparent)`, borderRadius: 999, padding: '4px 11px' }}>
+              <span style={{ fontSize: 12.5, fontWeight: 700, color: bandColor(Number(managerOverall)) }}>{managerOverall}</span>
+              <span style={{ fontSize: 9.5, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--gv-faint)' }}>score</span>
+            </span>
+          )}
           {p.topic && (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--gv-dim)' }}>
               <span style={{ display: 'flex', color: 'var(--gv-faint)' }}><Icon name="target" size={13} /></span> Target · <span style={{ color: 'var(--gv-soft)', fontWeight: 600 }}>{p.topic}</span>
@@ -125,21 +131,14 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
             </div>
           )}
         </div>
-        {!editable && (
-          <h1 style={{ fontFamily: "'Newsreader', Georgia, serif", fontWeight: 500, fontSize: 'clamp(26px, 5.5vw, 38px)', lineHeight: 1.12, letterSpacing: '-0.01em', margin: '8px 0 0', maxWidth: 880 }}>
-            {p.title ?? p.topic ?? '(no title)'}
-          </h1>
-        )}
-
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-          <PostActions
-            id={p.id}
-            status={p.status}
-            published={p.status === 'published'}
-            publicUrl={p.status === 'published' ? `/b/${domain?.blog_slug}/${p.slug}` : null}
-            hasCover={!!p.cover_image_url}
-            hasInlineImages={hasInlineImages}
-          />
+        <PostActions
+          id={p.id}
+          status={p.status}
+          published={p.status === 'published'}
+          publicUrl={p.status === 'published' ? `/b/${domain?.blog_slug}/${p.slug}` : null}
+          hasCover={!!p.cover_image_url}
+          hasInlineImages={hasInlineImages}
+        >
           {editable && (
             <ProcessDrawer unusual={unusual}>
               {readiness && <ReadinessCard r={readiness} />}
@@ -153,7 +152,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
               </div>
             </ProcessDrawer>
           )}
-        </div>
+        </PostActions>
 
         {p.status === 'failed' && (
           <div style={{ background: 'rgba(201,127,127,0.08)', border: '1px solid rgba(201,127,127,0.3)', color: 'var(--gv-red-soft)', padding: 18, borderRadius: 12, marginTop: 20 }}>
@@ -174,28 +173,33 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
                 initialMetaDesc={p.meta_description ?? ''}
                 canEdit
                 autoEdit={!p.body_md}
+                belowCanvas={
+                  <SocialComposer
+                    postId={p.id}
+                    domainId={domain?.id ?? ''}
+                    published={p.status === 'published'}
+                    social={social}
+                    socialPublished={(p.social_published ?? {}) as Record<string, any>}
+                    platforms={composerPlatforms}
+                    autoShare={!!domain?.auto_social}
+                    hasWebhook={!!domain?.social_webhook_url}
+                  />
+                }
               />
             </div>
-
-            <SocialComposer
-              postId={p.id}
-              domainId={domain?.id ?? ''}
-              published={p.status === 'published'}
-              social={social}
-              socialPublished={(p.social_published ?? {}) as Record<string, any>}
-              platforms={composerPlatforms}
-              autoShare={!!domain?.auto_social}
-              hasWebhook={!!domain?.social_webhook_url}
-            />
           </>
         ) : (
           /* ===== not yet editable: reading surface + review rail ===== */
           <div className="gv-2col-rail" style={{ display: 'grid', gridTemplateColumns: '1fr 372px', gap: 22, alignItems: 'start', marginTop: 22 }}>
-            <div style={{ background: '#0e110d', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, overflow: 'hidden' }}>
+            <div className="gv-canvas-prose" style={{ background: '#0e110d', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, overflow: 'hidden' }}>
               {p.body_md && bodyHtml ? (
-                <article className="prose article-surface" style={{ maxWidth: 'none', color: 'var(--gv-soft)' }} dangerouslySetInnerHTML={{ __html: bodyHtml }} />
+                <div className="article-surface">
+                  <h1 className="gv-canvas-title">{p.title ?? p.topic ?? '(no title)'}</h1>
+                  <article className="prose" style={{ maxWidth: 'none' }} dangerouslySetInnerHTML={{ __html: bodyHtml }} />
+                </div>
               ) : (
                 <div className="article-surface" style={{ color: 'var(--gv-faint)' }}>
+                  <h1 className="gv-canvas-title" style={{ fontSize: 27 }}>{p.title ?? p.topic ?? 'Writing…'}</h1>
                   <PipelineTimeline log={(p.generation_log ?? []) as any} status={p.status} />
                 </div>
               )}
