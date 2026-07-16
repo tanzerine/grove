@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { buildRssXml, canonicalBaseFor } from '@/lib/seo';
 import { mdToHtml } from '@/lib/markdown';
+import { stripLeadingH1 } from '@/lib/article-body';
 import { genreFor, authorFor } from '@/lib/blog-genre';
 
 export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }> }) {
@@ -23,7 +24,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
     description: p.meta_description,
     publishedAt: p.published_at,
     coverUrl: p.cover_image_url,
-    contentHtml: p.body_md ? mdToHtml(p.body_md) : null,
+    // Readers show the item <title> themselves — the body's own H1 would
+    // print the title twice.
+    contentHtml: p.body_md ? mdToHtml(stripLeadingH1(p.body_md)) : null,
     category: genreFor((p as any).format, p.title).label,
     author,
   }));

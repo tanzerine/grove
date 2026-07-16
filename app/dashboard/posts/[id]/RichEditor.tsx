@@ -10,6 +10,7 @@ import TableCell from '@tiptap/extension-table-cell';
 import { Markdown } from 'tiptap-markdown';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { stripLeadingH1, withTitleH1 } from '@/lib/article-body';
 import Icon from '../../gv-icons';
 
 const ACCENT = 'var(--gv-accent)';
@@ -75,7 +76,9 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
       TableRow, TableHeader, TableCell,
       Markdown.configure({ html: false, transformPastedText: true, transformCopiedText: true }),
     ],
-    content: initialBody,                 // tiptap-markdown parses markdown content
+    // The title renders as the canvas's own first line, so the body's stored
+    // leading `# Title` is stripped here and re-attached on save.
+    content: stripLeadingH1(initialBody), // tiptap-markdown parses markdown content
     onCreate: ({ editor }) => { baseline.current = getMd(editor); },
     onUpdate: ({ editor }) => { setDirty(getMd(editor) !== baseline.current); },
     editorProps: {
@@ -95,7 +98,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
     if (initialBody === lastInitialBody.current) return;
     lastInitialBody.current = initialBody;
     if (editing || dirty) return;
-    editor.commands.setContent(initialBody);
+    editor.commands.setContent(stripLeadingH1(initialBody));
     baseline.current = getMd(editor);
     setDirty(false);
   }, [initialBody, editor, editing, dirty]);
@@ -129,11 +132,15 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
     if (!editor) return;
     setSaving(true);
     const md = getMd(editor);
+    // Stored bodies keep the title as their leading H1 (validator, manager
+    // rubric and cover injection all anchor on it) — re-attach it here so the
+    // H1 also follows title edits instead of drifting.
+    const storedMd = withTitleH1(title, md);
     // Brand-new blank draft: create it now, then continue in the editor route.
     if (postId == null) {
       const res = await fetch('/api/posts/manual', {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ domain_id: domainId, title: title.trim() || undefined, body_md: md }),
+        body: JSON.stringify({ domain_id: domainId, title: title.trim() || undefined, body_md: storedMd }),
       });
       const j = await res.json().catch(() => ({}));
       setSaving(false);
@@ -143,7 +150,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
     const res = await fetch(`/api/posts/${postId}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ title, body_md: md, meta_title: metaTitle, meta_description: metaDesc }),
+      body: JSON.stringify({ title, body_md: storedMd, meta_title: metaTitle, meta_description: metaDesc }),
     });
     setSaving(false);
     if (res.ok) {

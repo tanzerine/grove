@@ -1,5 +1,6 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import { mdToHtml } from '@/lib/markdown';
+import { stripLeadingH1 } from '@/lib/article-body';
 import { notFound } from 'next/navigation';
 import PostActions from './PostActions';
 import PipelineTimeline from './PipelineTimeline';
@@ -43,7 +44,8 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
 
   const social = (p.social ?? {}) as { x?: string; linkedin?: string; instagram?: string; disabled?: string[] };
   const validation = p.validation as { passed?: boolean; issues?: string[]; stats?: Record<string, number>; error?: string } | null;
-  const bodyHtml = p.body_md ? mdToHtml(p.body_md) : '';
+  // The canvas renders the title itself, so drop the body's own leading H1.
+  const bodyHtml = p.body_md ? mdToHtml(stripLeadingH1(p.body_md)) : '';
 
   const hasInlineImages = (() => {
     if (!p.body_md) return false;
