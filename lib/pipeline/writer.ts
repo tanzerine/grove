@@ -417,7 +417,7 @@ Write for ${business.name}'s audience: ${business.target_audience}.
 
 Return JSON only — no prose before or after it:
 {
-  "x": "6–10 numbered tweets, hook first, threaded narrative, separated by newlines",
+  "x": "6–10 numbered tweets, hook first, threaded narrative, separated by newlines. HARD LIMIT: every tweet under 240 characters, and the FIRST tweet under 180 — the article link is appended to it and X counts links as 23 chars",
   "linkedin": "1500–2200 chars, story-led, line breaks every 1–2 sentences, no hashtag spam, end with a question",
   "instagram": "under 2200 chars, hook-driven, 3–5 hashtags at the end"
 }`;

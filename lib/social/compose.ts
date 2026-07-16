@@ -51,7 +51,8 @@ export function blogUrlFor(domain: DomainForShare, slug: string | null): string 
 
 export function firstTweet(thread?: string): string {
   if (!thread) return '';
-  const line = thread.split('\n').map((l) => l.trim()).find((l) => l && /[a-z]/i.test(l)) ?? '';
+  // Any letter or digit in any script — /[a-z]/ used to skip Korean-only lines.
+  const line = thread.split('\n').map((l) => l.trim()).find((l) => /[\p{L}\p{N}]/u.test(l)) ?? '';
   return line.replace(/^\d+[).\/]\s*/, '').trim();
 }
 
@@ -59,10 +60,56 @@ export function clamp(s: string, n: number): string {
   return s.length <= n ? s : s.slice(0, n - 1).trimEnd() + '…';
 }
 
+/* ───────────── X character accounting ─────────────
+ * X does NOT count plain string length: every URL costs a flat 23 (t.co),
+ * and code points are weighted — the Latin-ish ranges below count 1, all
+ * else (CJK, emoji, '…' itself) counts 2. Budgeting with url.length and
+ * String.length over-cut some tweets and let others through too long.
+ * Ranges follow twitter-text v3's config (complex emoji sequences overcount
+ * slightly here, which errs on the safe side). */
+export const X_MAX = 280;
+export const X_URL_WEIGHT = 23;
+
+function xWeight(cp: number): 1 | 2 {
+  return cp <= 0x10ff ||
+    (cp >= 0x2000 && cp <= 0x200d) ||
+    (cp >= 0x2010 && cp <= 0x201f) ||
+    (cp >= 0x2032 && cp <= 0x2037)
+    ? 1 : 2;
+}
+
+/** Weighted tweet length of plain text (no URLs), the way X counts it. */
+export function xLen(s: string): number {
+  let n = 0;
+  for (const ch of s.normalize('NFC')) n += xWeight(ch.codePointAt(0)!);
+  return n;
+}
+
+/** Trim to an X weighted budget at a word boundary, appending '…' (weight 2). */
+export function clampX(s: string, budget: number): string {
+  const text = s.normalize('NFC');
+  if (xLen(text) <= budget) return text;
+  let used = 0;
+  let cut = 0;          // code-unit index where the budget runs out
+  let lastSpace = -1;   // code-unit index just past the last whitespace kept
+  for (const ch of text) {
+    const w = xWeight(ch.codePointAt(0)!);
+    if (used + w > budget - 2) break; // reserve 2 for the ellipsis
+    used += w;
+    cut += ch.length;
+    if (/\s/.test(ch)) lastSpace = cut;
+  }
+  // Prefer the word boundary unless it throws away a suspicious amount
+  // (unspaced CJK or one giant token → hard cut is the right fallback).
+  const head = lastSpace !== -1 && cut - lastSpace <= 30 ? text.slice(0, lastSpace) : text.slice(0, cut);
+  return head.trimEnd() + '…';
+}
+
 export function composeShare(platform: Platform, post: PostForShare, url: string): ShareRequest {
   if (platform === 'x') {
     const base = firstTweet(post.social?.x) || post.title || '';
-    return { platform, url, text: `${clamp(base, 278 - url.length - 2)}\n\n${url}` };
+    // The URL costs X_URL_WEIGHT no matter how long it prints; '\n\n' costs 2.
+    return { platform, url, text: `${clampX(base, X_MAX - X_URL_WEIGHT - 2)}\n\n${url}` };
   }
   if (platform === 'linkedin') {
     const base = post.social?.linkedin || post.title || '';

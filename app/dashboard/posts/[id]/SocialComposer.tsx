@@ -8,7 +8,7 @@
  */
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
-import { firstTweet } from '@/lib/social/compose';
+import { firstTweet, xLen, X_MAX, X_URL_WEIGHT } from '@/lib/social/compose';
 
 type ChannelKey = 'x' | 'linkedin' | 'instagram';
 type PublishRecord = { id?: string; at?: string; status?: number; error?: string; dry_run?: boolean };
@@ -17,13 +17,13 @@ export type ComposerPlatform = { id: ChannelKey; handle: string | null; connecte
 
 const LABEL: Record<ChannelKey, string> = { x: 'X', linkedin: 'LinkedIn', instagram: 'Instagram' };
 const HINT: Record<ChannelKey, string> = {
-  x: 'First line becomes the tweet; the article link is appended automatically.',
+  x: 'First line becomes the tweet; the link (23 chars on X) is appended. Over 280 is trimmed at a word break.',
   linkedin: 'Posted as-is with the article attached as a link card.',
   instagram: 'Caption for the cover image. “Link in bio” + URL are appended.',
 };
 
 export default function SocialComposer({
-  postId, domainId, published, social, socialPublished, platforms, autoShare, hasWebhook, postUrl,
+  postId, domainId, published, social, socialPublished, platforms, autoShare, hasWebhook,
 }: {
   postId: string;
   domainId: string;
@@ -33,7 +33,6 @@ export default function SocialComposer({
   platforms: ComposerPlatform[];
   autoShare: boolean;
   hasWebhook: boolean;
-  postUrl: string;
 }) {
   const r = useRouter();
   const [drafts, setDrafts] = useState<Record<ChannelKey, string>>({
@@ -214,7 +213,6 @@ export default function SocialComposer({
               record={socialPublished[pf.id]}
               published={published}
               busy={busy}
-              postUrl={postUrl}
               onPost={() => postNow(pf.id)}
               autoShare={auto}
               autoOn={!off.has(pf.id)}
@@ -269,15 +267,16 @@ function StatusChip({ record, xId }: { record?: PublishRecord; xId?: string }) {
 }
 
 function Channel({
-  pf, value, onChange, record, published, busy, postUrl, onPost, autoShare, autoOn, onToggleAuto,
+  pf, value, onChange, record, published, busy, onPost, autoShare, autoOn, onToggleAuto,
 }: {
   pf: ComposerPlatform; value: string; onChange: (v: string) => void;
-  record?: PublishRecord; published: boolean; busy: string | null; postUrl: string; onPost: () => void;
+  record?: PublishRecord; published: boolean; busy: string | null; onPost: () => void;
   autoShare: boolean; autoOn: boolean; onToggleAuto: () => void;
 }) {
   const posted = !!record?.id;
-  // Mirror composeShare's X budget: first tweet + two newlines + URL ≤ 280.
-  const tweetLen = pf.id === 'x' ? Math.min(firstTweet(value).length, 278 - postUrl.length - 2) + 2 + postUrl.length : null;
+  // The REAL weighted length X will see: first tweet + '\n\n' (2) + link (23).
+  // Uncapped on purpose — over 280 must show red, that's the whole warning.
+  const tweetLen = pf.id === 'x' ? xLen(firstTweet(value)) + 2 + X_URL_WEIGHT : null;
   const canPost = published && pf.connected && !posted;
   const postHint = !pf.connected ? 'Not connected' : null;
 
@@ -291,8 +290,11 @@ function Channel({
         <StatusChip record={record} xId={pf.id === 'x' ? record?.id : undefined} />
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
           {pf.id === 'x' && tweetLen !== null && (
-            <span style={{ fontSize: 10.5, fontFamily: 'ui-monospace, monospace', color: tweetLen > 280 ? 'var(--gv-red-soft)' : 'var(--gv-fainter)' }}>
-              first tweet {tweetLen}/280
+            <span
+              title={tweetLen > X_MAX ? 'Over X’s limit — the tweet will be trimmed at a word break. Shorten the first line to control the cut.' : undefined}
+              style={{ fontSize: 10.5, fontFamily: 'ui-monospace, monospace', color: tweetLen > X_MAX ? 'var(--gv-red-soft)' : 'var(--gv-fainter)' }}
+            >
+              first tweet {tweetLen}/{X_MAX}{tweetLen > X_MAX ? ' — will trim' : ''}
             </span>
           )}
           {/* Pre-publish, each connected channel opts in/out of the auto fan-out. */}
