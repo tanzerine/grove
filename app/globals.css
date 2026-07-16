@@ -735,6 +735,7 @@ html { scroll-behavior: smooth; }
   .qbtn { padding: 7px 11px; font-size: 12px; }   /* larger tap targets */
 
   .article-surface { padding: 22px 18px; }
+  .gv-editor-canvas { padding: 26px 20px 34px !important; }
 
   /* Data tables (analytics / reviews / strategy): shrink the chrome so
      every column fits without a hidden horizontal scroll. */
@@ -954,9 +955,49 @@ html { scroll-behavior: smooth; }
 /* ── Writing editor (Grove Write comp port) — serif canvas + helpers ── */
 .gv-tool { transition: background .15s, color .15s, border-color .15s; }
 .gv-tool:hover { background: rgba(255,255,255,0.05) !important; color: var(--gv-soft) !important; }
+.gv-danger:hover { background: rgba(201,127,127,0.1) !important; color: #e6b8b8 !important; border-color: rgba(201,127,127,0.3) !important; }
 .gv-tdot { width: 5px; height: 5px; border-radius: 50%; background: var(--gv-accent); display: inline-block; animation: gvThink 1.2s ease-in-out infinite; }
 .gv-prompt::placeholder { color: var(--gv-fainter); }
 .gv-title::placeholder { color: #3f4a40; }
+
+/* ── Article canvas typography (Grove Review comp port) — the post editor and
+   the review reading surface share one serif editorial voice. Scoped to
+   .gv-canvas-prose so the public /b/[slug] article keeps its own styles. ── */
+.gv-canvas-title {
+  font-family: 'Newsreader', Georgia, serif; font-weight: 500;
+  font-size: clamp(27px, 4vw, 36px); line-height: 1.16; letter-spacing: -0.01em;
+  color: var(--gv-ink); margin: 0 0 26px;
+}
+.gv-canvas-prose .prose {
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 18.5px; line-height: 1.8; color: var(--gv-soft); max-width: 70ch;
+}
+.gv-canvas-prose .prose p { margin: 0 0 24px; }
+/* uniform paragraphs — the comp has no oversized lead */
+.gv-canvas-prose .prose > p:first-of-type { font-size: 1em; line-height: 1.8; color: var(--gv-soft); margin-bottom: 24px; }
+.gv-canvas-prose .prose h1, .gv-canvas-prose .prose h2, .gv-canvas-prose .prose h3 {
+  font-family: 'Newsreader', Georgia, serif; letter-spacing: -0.01em; color: var(--gv-ink);
+}
+.gv-canvas-prose .prose h2 { font-weight: 600; font-size: 25px; line-height: 1.25; margin: 40px 0 18px; padding-bottom: 0; border-bottom: none; }
+.gv-canvas-prose .prose h2::before { display: none; }
+.gv-canvas-prose .prose h3 { font-weight: 600; font-size: 21px; line-height: 1.3; margin: 32px 0 14px; }
+.gv-canvas-prose .prose a {
+  color: #8fd3a6; border-bottom: none; text-decoration: underline;
+  text-decoration-color: rgba(143,211,166,0.45); text-underline-offset: 3px;
+}
+.gv-canvas-prose .prose a:hover { color: var(--gv-accent); text-decoration-color: var(--gv-accent); }
+.gv-canvas-prose .prose strong {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-weight: 700; font-size: 0.86em;
+  color: var(--gv-ink); background: none; padding: 0;
+}
+.gv-canvas-prose .prose blockquote {
+  margin: 32px 0; padding: 4px 0 4px 22px; border-left: 3px solid var(--gv-accent);
+  background: transparent; border-radius: 0; font-family: 'Newsreader', Georgia, serif;
+  font-style: italic; font-size: 21px; line-height: 1.5; color: #e7ecdf;
+}
+.gv-canvas-prose .prose blockquote p::before, .gv-canvas-prose .prose blockquote p::after { content: none; }
+.gv-canvas-prose .prose ul li, .gv-canvas-prose .prose ol li { margin: 0.45em 0; }
+.gv-canvas-prose .prose img { border-radius: 14px; margin: 1.6em 0; }
 .gv-title:focus, .gv-prompt:focus { outline: none; }
 
 /* serif writing canvas — scoped to the editor, never the public article */
