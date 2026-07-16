@@ -56,6 +56,19 @@ export function firstTweet(thread?: string): string {
   return line.replace(/^\d+[).\/]\s*/, '').trim();
 }
 
+/**
+ * Normalize LLM-written X copy into the ONE tweet grove actually posts.
+ * The publisher has never threaded — composeShare sends the first line plus
+ * the article link — so a model that writes "1/ … 2/ … 🧵" is producing copy
+ * the owner reviews but X never sees. Reduce to the first tweet at generation
+ * time (numbering/thread-emoji stripped, weighted-clamped to the real
+ * first-tweet budget) so the composer previews exactly what will be posted.
+ */
+export function normalizeXCopy(raw?: string): string {
+  const tweet = firstTweet(raw).replace(/\s*🧵\s*$/u, '').trim();
+  return clampX(tweet, X_MAX - X_URL_WEIGHT - 2);
+}
+
 export function clamp(s: string, n: number): string {
   return s.length <= n ? s : s.slice(0, n - 1).trimEnd() + '…';
 }

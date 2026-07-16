@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  composeShare, firstTweet, blogUrlFor, xLen, clampX, X_MAX, X_URL_WEIGHT,
+  composeShare, firstTweet, normalizeXCopy, blogUrlFor, xLen, clampX, X_MAX, X_URL_WEIGHT,
   type PostForShare,
 } from '../lib/social/compose';
 
@@ -26,6 +26,33 @@ describe('firstTweet', () => {
 
   it('accepts a Korean-only hook (no Latin letters)', () => {
     expect(firstTweet('1. 배경 제거는 이제 원탭\n2. 다음')).toBe('배경 제거는 이제 원탭');
+  });
+});
+
+describe('normalizeXCopy — generated copy becomes the one tweet X sees', () => {
+  it('reduces an LLM thread to its first tweet', () => {
+    const thread = '1/ Flat logos are out. Here is the modern way. 🧵\n\n2/ Start with a clean 2D foundation.\n\n3/ Next, add dimension.';
+    expect(normalizeXCopy(thread)).toBe('Flat logos are out. Here is the modern way.');
+  });
+
+  it('strips a trailing thread emoji', () => {
+    expect(normalizeXCopy('One sharp hook 🧵')).toBe('One sharp hook');
+  });
+
+  it('clamps an over-budget tweet to the first-tweet budget (280 − 23 link − 2 newlines)', () => {
+    const long = 'word '.repeat(80).trim();
+    const out = normalizeXCopy(long);
+    expect(xLen(out)).toBeLessThanOrEqual(X_MAX - X_URL_WEIGHT - 2);
+    expect(out.endsWith('…')).toBe(true);
+  });
+
+  it('passes a well-formed single tweet through untouched', () => {
+    expect(normalizeXCopy('Ship 3D icons in 6 seconds, not 6 hours.')).toBe('Ship 3D icons in 6 seconds, not 6 hours.');
+  });
+
+  it('handles empty input', () => {
+    expect(normalizeXCopy(undefined)).toBe('');
+    expect(normalizeXCopy('')).toBe('');
   });
 });
 
