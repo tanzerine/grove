@@ -14,7 +14,6 @@ import { coverageGap } from '@/lib/pipeline/serp';
 import { summarizeReadiness, type Readiness } from '@/lib/readiness';
 import Icon from '../../gv-icons';
 import { DashHeader } from '../../gv-chrome';
-import { blogUrlFor } from '@/lib/social/compose';
 import { PLATFORMS } from '@/lib/social/providers';
 
 const ACCENT = 'var(--gv-accent)';
@@ -187,7 +186,6 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
               platforms={composerPlatforms}
               autoShare={!!domain?.auto_social}
               hasWebhook={!!domain?.social_webhook_url}
-              postUrl={domain ? blogUrlFor(domain, p.slug) : ''}
             />
           </>
         ) : (
