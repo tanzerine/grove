@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { mdToHtml, extractToc } from '@/lib/markdown';
+import { stripLeadingH1 } from '@/lib/article-body';
 import { extractFaq } from '@/lib/faq';
 import { jsonLdScript, blogHomeUrl, blogPostUrl, subdomainSlugFromHost, isCustomBlogHost, canonicalBaseFor, servedBlogBaseFor, buildArticleGraph } from '@/lib/seo';
 import { pickRelated } from '@/lib/related-posts';
@@ -90,9 +91,13 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
     .order('published_at', { ascending: false }).limit(24);
   const related = pickRelated({ slug: post, title: p.title }, siblings ?? [], 3);
 
-  const { body: linkedMd } = injectInternalLinks(p.body_md ?? '', siblings ?? [], prefix);
+  // The page renders p.title in its own <h1>, so the body's leading H1 is
+  // dropped (or the title prints twice). ToC ids come from the same stripped
+  // body so anchors line up with the rendered html.
+  const bodyMd = stripLeadingH1(p.body_md ?? '');
+  const { body: linkedMd } = injectInternalLinks(bodyMd, siblings ?? [], prefix);
   const html = mdToHtml(linkedMd);
-  const toc = extractToc(p.body_md ?? '');
+  const toc = extractToc(bodyMd);
 
   // CTA banner: "Try {business}" → the owner's chosen page (domains.cta_url,
   // e.g. a signup or pricing page), defaulting to their homepage. Counts as a

@@ -6,6 +6,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { mdToHtml, extractToc } from '@/lib/markdown';
+import { stripLeadingH1 } from '@/lib/article-body';
 import { genreFor, authorFor } from '@/lib/blog-genre';
 import { pickRelated } from '@/lib/related-posts';
 import { sanitizeEmbedHost } from '@/lib/seo';
@@ -79,7 +80,11 @@ export async function GET(_req: Request, ctx: { params: Promise<{ hostname: stri
   const branding = resolveBranding(domain);
   const theme = embedTheme(branding);
 
-  const rawBody = post.body_md ?? '';
+  // The response carries `title` separately and every consumer renders it in
+  // its own chrome, so the body's leading `# Title` is dropped once here —
+  // otherwise raw-markdown consumers print the title twice. TOC ids are
+  // computed from the same stripped body so anchors match the rendered html.
+  const rawBody = stripLeadingH1(post.body_md ?? '');
   const toc = extractToc(rawBody);
   const cta = { headline: `Try ${businessName}`, subline, url: ctaUrl };
 
@@ -171,17 +176,10 @@ function ctaHtml(cta: Cta, name: string, theme: EmbedTheme): string {
  * <style> block so it needs ZERO CSS on the customer's page. They just render
  * this string. Collapses to one column under 820px.
  */
-function stripLeadingH1(md: string): string {
-  const lines = md.split('\n');
-  const i = lines.findIndex((l) => l.trim() !== '');
-  if (i >= 0 && /^#\s+/.test(lines[i].trim())) lines.splice(i, 1);
-  return lines.join('\n');
-}
-
 function buildHtmlField(rawBody: string, toc: Toc[], cta: Cta, name: string, theme: EmbedTheme): string {
-  // Drop the article's own H1 — the customer's page already renders the title,
-  // so keeping it here would print the title twice.
-  const article = mdToHtml(stripLeadingH1(rawBody));
+  // rawBody already has its leading H1 stripped — the customer's page renders
+  // the title from the `title` field.
+  const article = mdToHtml(rawBody);
   const hasToc = toc.length >= 2;
   const tocAside = hasToc
     ? `<aside class="grv-toc"><div class="grv-toc-t">On this page</div><ol>` +
