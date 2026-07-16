@@ -31,6 +31,10 @@ async function postX(conn: Connection, req: ShareRequest): Promise<string> {
     // A 401 after the refresh attempt means the stored refresh token is dead
     // (revoked, or app permissions changed) — the fix is a reconnect, not a retry.
     if (r.status === 401) throw new Error('X authorization expired — reconnect X in Social settings.');
+    // 402 = the X developer app is out of write quota/credits. Not an auth or
+    // grove problem; the fix is on the X API plan, so say so plainly.
+    if (r.status === 402) throw new Error('X posting quota reached — your X API plan is out of write credits. Check your X developer account.');
+    if (r.status === 429) throw new Error('X rate limit hit — wait a bit and retry.');
     throw new Error(`X post failed: ${await r.text()}`);
   }
   return (await r.json())?.data?.id ?? '';
