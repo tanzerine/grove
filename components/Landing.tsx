@@ -304,7 +304,7 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
       </div>
 
       {/* HERO */}
-      <section id="hero" style={{ position: 'relative', padding: '184px 24px 72px', textAlign: 'center', overflow: 'hidden' }}>
+      <section id="hero" style={{ position: 'relative', padding: '196px 24px 104px', textAlign: 'center', overflow: 'hidden' }}>
         <div ref={refractRef} style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden', opacity: 'var(--glow,0.6)', transition: 'filter .6s ease-out', willChange: 'filter' }}>
           <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(130% 82% at 50% 2%, rgba(99,194,129,0.24), rgba(10,11,10,0) 56%)' }} />
           <div style={{ position: 'absolute', top: '-24%', left: '26%', width: '46%', height: '90%', background: 'radial-gradient(ellipse at center, rgba(99,194,129,0.45), rgba(99,194,129,0) 60%)', filter: 'blur(90px)', animation: 'gvBlobdrift 18s ease-in-out infinite' }} />
@@ -326,14 +326,14 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
         </div>
 
         <div className="gv-r" style={{ position: 'relative', maxWidth: 880, margin: '0 auto' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9, background: 'rgba(255,255,255,0.045)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 999, padding: '7px 15px', fontSize: 11.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#b6bcb1', marginBottom: 30 }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9, background: 'rgba(255,255,255,0.045)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 999, padding: '7px 15px', fontSize: 11.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#b6bcb1', marginBottom: 36 }}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent,#63c281)', boxShadow: '0 0 8px var(--accent,#63c281)' }} />
             AI marketing agent · now live
           </div>
-          <h1 style={{ fontSize: 'clamp(40px, 6.4vw, 76px)', lineHeight: 1.04, fontWeight: 700, letterSpacing: '-0.03em', margin: '0 0 24px', color: 'rgba(241,248,243,0.95)', textShadow: '0 2px 50px rgba(99,194,129,0.28)' }}>
+          <h1 style={{ fontSize: 'clamp(40px, 6.4vw, 76px)', lineHeight: 1.08, fontWeight: 700, letterSpacing: '-0.03em', margin: '0 0 30px', color: 'rgba(241,248,243,0.95)', textShadow: '0 2px 50px rgba(99,194,129,0.28)' }}>
             Plant your domain.<br />The blog <span style={{ color: 'var(--accent,#63c281)', fontStyle: 'italic', fontWeight: 600 }}>grows itself.</span>
           </h1>
-          <p style={{ fontSize: 18, lineHeight: 1.6, color: '#9aa096', maxWidth: 600, margin: '0 auto 34px' }}>
+          <p style={{ fontSize: 18, lineHeight: 1.7, color: '#9aa096', maxWidth: 600, margin: '0 auto 40px' }}>
             Your marketing agent reads what&apos;s actually ranking, writes in your voice, and publishes to your site — holding anything weak for your review. Built for Google, written to be quoted by ChatGPT &amp; AI Overviews.
           </p>
           {domainForm('1')}
@@ -344,7 +344,7 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
         </div>
 
         {/* PRODUCT MOCK */}
-        <div className="gv-rf" style={{ position: 'relative', maxWidth: 920, margin: '56px auto 0', animation: 'gvFloaty 7s ease-in-out infinite' }}>
+        <div className="gv-rf" style={{ position: 'relative', maxWidth: 920, margin: '76px auto 0', animation: 'gvFloaty 7s ease-in-out infinite' }}>
           <div style={{ position: 'absolute', inset: '12px 60px auto', height: 60, background: 'var(--accent,#63c281)', filter: 'blur(60px)', opacity: 0.3, borderRadius: '50%' }} />
           <div style={{ position: 'relative', background: 'linear-gradient(180deg, #14171400, #101310)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 18, overflow: 'hidden', boxShadow: '0 40px 100px rgba(0,0,0,0.6)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.015)' }}>
@@ -418,7 +418,7 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
         </div>
 
         {/* 3 STEPS */}
-        <div className="gv-r gv-steps3" style={{ position: 'relative', maxWidth: 920, margin: '22px auto 0', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+        <div className="gv-r gv-steps3" style={{ position: 'relative', maxWidth: 920, margin: '32px auto 0', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
           {steps.map((s, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, background: 'rgba(255,255,255,0.015)', textAlign: 'left' }}>
               <span style={{ fontSize: 12, color: 'var(--accent,#63c281)', border: '1px solid rgba(99,194,129,0.3)', borderRadius: 7, padding: '4px 8px' }}>{s.n}</span>
@@ -432,9 +432,9 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
       </section>
 
       {/* LOGO ROW */}
-      <section style={{ padding: '40px 24px 56px', textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
-        <div style={{ fontSize: 11, letterSpacing: '0.16em', color: '#565a53', textTransform: 'uppercase', marginBottom: 26 }}>Works with any stack</div>
-        <div className="gv-r" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '40px 56px', opacity: 0.62 }}>
+      <section style={{ padding: '64px 24px 80px', textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+        <div style={{ fontSize: 11, letterSpacing: '0.16em', color: '#565a53', textTransform: 'uppercase', marginBottom: 34 }}>Works with any stack</div>
+        <div className="gv-r" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '44px 64px', opacity: 0.62 }}>
           {platforms.map((p) => (
             <span key={p} style={{ fontSize: 21, fontWeight: 700, letterSpacing: '-0.02em', color: '#cdd2c9' }}>{p}</span>
           ))}
@@ -442,8 +442,8 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
       </section>
 
       {/* STATS */}
-      <section style={{ padding: '0 24px 80px' }}>
-        <div className="gv-r gv-statband" style={{ maxWidth: 1120, margin: '0 auto', background: 'linear-gradient(135deg, #0b130e, #080d0a)', border: '1px solid rgba(99,194,129,0.14)', borderRadius: 20, padding: '38px 28px', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20 }}>
+      <section style={{ padding: '0 24px 104px' }}>
+        <div className="gv-r gv-statband" style={{ maxWidth: 1120, margin: '0 auto', background: 'linear-gradient(135deg, #0b130e, #080d0a)', border: '1px solid rgba(99,194,129,0.14)', borderRadius: 20, padding: '52px 36px', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 28 }}>
           {stats.map((st) => (
             <div key={st.label} style={{ textAlign: 'center' }}>
               <div style={{ fontSize: 'clamp(30px, 4vw, 44px)', fontWeight: 700, letterSpacing: '-0.03em', color: '#eef1ea' }}>{st.big}</div>
@@ -454,16 +454,16 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
       </section>
 
       {/* FEATURES */}
-      <section id="features" style={{ padding: '30px 24px 90px', maxWidth: 1120, margin: '0 auto' }}>
-        <div className="gv-r" style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 50px' }}>
+      <section id="features" style={{ padding: '48px 24px 120px', maxWidth: 1120, margin: '0 auto' }}>
+        <div className="gv-r" style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 72px' }}>
           <div style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--accent,#63c281)', textTransform: 'uppercase', marginBottom: 16 }}>Under the hood</div>
           <h2 style={{ fontSize: 'clamp(30px, 4.6vw, 50px)', fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.08, margin: '0 0 16px' }}>A whole content team,<br /><span style={{ fontStyle: 'italic', color: 'var(--accent,#63c281)', fontWeight: 600 }}>working invisibly.</span></h2>
           <p style={{ fontSize: 16.5, color: '#9aa096', lineHeight: 1.6, margin: 0 }}>Every job a real SEO and content team would own — research, voice, optimization, distribution, measurement — running on its own.</p>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 22 }}>
           {features.map((f) => (
-            <div key={f.n} className="gv-card" style={{ background: '#111311', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: 26, transition: 'border-color .25s, transform .25s' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+            <div key={f.n} className="gv-card" style={{ background: '#111311', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: 34, transition: 'border-color .25s, transform .25s' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
                 <span style={{ fontSize: 13, color: 'var(--accent,#63c281)', width: 34, height: 34, borderRadius: 9, background: 'rgba(99,194,129,0.1)', border: '1px solid rgba(99,194,129,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{f.n}</span>
                 <h3 style={{ fontSize: 17, fontWeight: 600, margin: 0, letterSpacing: '-0.01em' }}>{f.title}</h3>
               </div>
@@ -474,15 +474,15 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
       </section>
 
       {/* SHOWCASE */}
-      <section id="showcase" style={{ padding: '40px 24px 90px', maxWidth: 1120, margin: '0 auto' }}>
-        <div className="gv-r" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 20, marginBottom: 36 }}>
+      <section id="showcase" style={{ padding: '56px 24px 120px', maxWidth: 1120, margin: '0 auto' }}>
+        <div className="gv-r" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 24, marginBottom: 52 }}>
           <div>
             <div style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--accent,#63c281)', textTransform: 'uppercase', marginBottom: 14 }}>Inside the product</div>
             <h2 style={{ fontSize: 'clamp(30px, 4.6vw, 50px)', fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.08, margin: 0 }}>See it <span style={{ fontStyle: 'italic', color: 'var(--accent,#63c281)', fontWeight: 600 }}>actually work.</span></h2>
           </div>
           <p style={{ fontSize: 15.5, color: '#9aa096', maxWidth: 360, lineHeight: 1.6, margin: 0 }}>From SERP gap to published post — every surface of the engine, monochrome and out of your way.</p>
         </div>
-        <div className="gv-bento" style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 14 }}>
+        <div className="gv-bento" style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 20 }}>
           <div className="gv-tile" style={{ gridColumn: 'span 4', position: 'relative', borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', background: 'linear-gradient(160deg, #14171400, #0e110e)', minHeight: 300, padding: 26 }}>
             <div style={{ fontSize: 11, color: '#6b6f67', letterSpacing: '0.1em' }}>SERP GAP ANALYSIS · "ai onboarding checklist"</div>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, height: 170, marginTop: 28 }}>
@@ -538,8 +538,8 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
       </section>
 
       {/* PRICING */}
-      <section id="pricing" style={{ padding: '40px 24px 90px', maxWidth: 1120, margin: '0 auto' }}>
-        <div className="gv-r" style={{ textAlign: 'center', maxWidth: 600, margin: '0 auto 36px' }}>
+      <section id="pricing" style={{ padding: '56px 24px 120px', maxWidth: 1120, margin: '0 auto' }}>
+        <div className="gv-r" style={{ textAlign: 'center', maxWidth: 600, margin: '0 auto 52px' }}>
           <div style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--accent,#63c281)', textTransform: 'uppercase', marginBottom: 14 }}>Plans</div>
           <h2 style={{ fontSize: 'clamp(30px, 4.6vw, 50px)', fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.08, margin: '0 0 24px' }}>Cheaper than <span style={{ fontStyle: 'italic', color: 'var(--accent,#63c281)', fontWeight: 600 }}>one freelance post.</span></h2>
           <div style={{ display: 'inline-flex', padding: 5, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 999, gap: 4 }}>
@@ -547,9 +547,9 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
             <button onClick={() => setBilling('annual')} style={{ border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, padding: '8px 20px', borderRadius: 999, transition: '.2s', background: !isMonthly ? 'var(--accent,#63c281)' : 'transparent', color: !isMonthly ? '#06120b' : '#9aa096' }}>Annual <span style={{ fontSize: 11, opacity: 0.8 }}>−20%</span></button>
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 22, alignItems: 'start' }}>
           {tierBase.map((t) => (
-            <div key={t.name} className="gv-pcard" style={{ position: 'relative', background: t.popular ? 'linear-gradient(180deg, #0c130e, #090e0b)' : '#0f110f', border: `1px solid ${t.popular ? 'rgba(99,194,129,0.32)' : 'rgba(255,255,255,0.08)'}`, borderRadius: 18, padding: '30px 26px' }}>
+            <div key={t.name} className="gv-pcard" style={{ position: 'relative', background: t.popular ? 'linear-gradient(180deg, #0c130e, #090e0b)' : '#0f110f', border: `1px solid ${t.popular ? 'rgba(99,194,129,0.32)' : 'rgba(255,255,255,0.08)'}`, borderRadius: 18, padding: '38px 32px' }}>
               {t.popular && <span style={{ position: 'absolute', top: 20, right: 22, fontSize: 10.5, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#06120b', background: 'var(--accent,#63c281)', padding: '4px 10px', borderRadius: 999, fontWeight: 600 }}>Most popular</span>}
               <div style={{ fontSize: 15, fontWeight: 600, color: '#cdd2c9' }}>{t.name}</div>
               <div style={{ fontSize: 13, color: '#6b6f67', margin: '4px 0 20px', minHeight: 36 }}>{t.blurb}</div>
@@ -559,9 +559,9 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
               </div>
               <div style={{ fontSize: 11, color: '#565a53', marginBottom: 22, minHeight: 14 }}>{isMonthly ? 'billed monthly' : 'billed annually'}</div>
               <a className="gv-btn" href={`/signup?plan=${t.plan}`} style={{ display: 'block', textAlign: 'center', textDecoration: 'none', border: `1px solid ${t.popular ? 'var(--accent,#63c281)' : 'rgba(255,255,255,0.18)'}`, background: t.popular ? 'var(--accent,#63c281)' : 'transparent', color: t.popular ? '#06120b' : '#eef1ea', fontFamily: 'inherit', fontWeight: 700, fontSize: 14.5, padding: 13, borderRadius: 11, cursor: 'pointer', marginBottom: 24, transition: 'transform .2s, box-shadow .2s' }}>{t.cta}</a>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 {t.feats.map((ft, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 10, fontSize: 13.5, color: '#b6bcb1', lineHeight: 1.4 }}><span style={{ color: 'var(--accent,#63c281)', flexShrink: 0 }}>✓</span>{ft}</div>
+                  <div key={i} style={{ display: 'flex', gap: 10, fontSize: 13.5, color: '#b6bcb1', lineHeight: 1.5 }}><span style={{ color: 'var(--accent,#63c281)', flexShrink: 0 }}>✓</span>{ft}</div>
                 ))}
               </div>
             </div>
@@ -570,15 +570,15 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
       </section>
 
       {/* FAQ */}
-      <section id="faq" style={{ padding: '40px 24px 90px', maxWidth: 1120, margin: '0 auto' }}>
-        <div className="gv-faqgrid" style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 40, alignItems: 'start' }}>
+      <section id="faq" style={{ padding: '56px 24px 120px', maxWidth: 1120, margin: '0 auto' }}>
+        <div className="gv-faqgrid" style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 56, alignItems: 'start' }}>
           <div className="gv-r">
             <div style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--accent,#63c281)', textTransform: 'uppercase', marginBottom: 14 }}>FAQ</div>
             <h2 style={{ fontSize: 'clamp(30px, 4.4vw, 46px)', fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.08, margin: '0 0 16px' }}>The honest <span style={{ fontStyle: 'italic', color: 'var(--accent,#63c281)', fontWeight: 600 }}>FAQ.</span></h2>
             <p style={{ fontSize: 15, color: '#9aa096', lineHeight: 1.6, margin: '0 0 22px' }}>The questions skeptical founders actually ask before handing over their blog.</p>
             <a className="gv-btn" href={startHref} style={{ display: 'inline-block', background: 'var(--accent,#63c281)', color: '#06120b', fontWeight: 700, fontSize: 14, padding: '12px 22px', borderRadius: 999, textDecoration: 'none', transition: 'transform .2s, box-shadow .2s' }}>Start free →</a>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {faqs.map((f, i) => {
               const open = faqOpen === i;
               return (
@@ -596,14 +596,14 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
       </section>
 
       {/* FINAL CTA */}
-      <section style={{ position: 'relative', padding: '110px 24px 120px', textAlign: 'center', overflow: 'hidden', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+      <section style={{ position: 'relative', padding: '140px 24px 150px', textAlign: 'center', overflow: 'hidden', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
         <div style={{ position: 'absolute', inset: 'auto -20% -30% -20%', height: 460, pointerEvents: 'none', opacity: 'var(--glow,0.5)' }}>
           <div style={{ position: 'absolute', bottom: 0, left: '16%', width: '60%', height: 340, background: 'radial-gradient(ellipse at center, rgba(99,194,129,0.45), rgba(99,194,129,0) 62%)', filter: 'blur(70px)', animation: 'gvDrift2 18s ease-in-out infinite' }} />
           <div style={{ position: 'absolute', bottom: '4%', right: '8%', width: '46%', height: 280, background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.14), rgba(255,255,255,0) 60%)', filter: 'blur(70px)', animation: 'gvDrift1 24s ease-in-out infinite' }} />
         </div>
         <div className="gv-r" style={{ position: 'relative', maxWidth: 720, margin: '0 auto' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 11.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--accent,#63c281)', marginBottom: 24 }}><span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent,#63c281)', boxShadow: '0 0 8px var(--accent,#63c281)' }} /> Available for new domains</div>
-          <h2 style={{ fontSize: 'clamp(38px, 6vw, 68px)', fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.04, margin: '0 0 22px' }}>Your blog is one<br /><span style={{ fontStyle: 'italic', color: 'var(--accent,#63c281)', fontWeight: 600 }}>field away.</span></h2>
+          <h2 style={{ fontSize: 'clamp(38px, 6vw, 68px)', fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.08, margin: '0 0 26px' }}>Your blog is one<br /><span style={{ fontStyle: 'italic', color: 'var(--accent,#63c281)', fontWeight: 600 }}>field away.</span></h2>
           <p style={{ fontSize: 17, color: '#9aa096', margin: '0 0 32px' }}>Plant your domain tonight. Wake up to a researched draft in your queue — approve it, and it&apos;s live.</p>
           {domainForm('2')}
         </div>
