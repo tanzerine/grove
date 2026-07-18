@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import SideNav from './SideNav';
 import SiteSwitcher from './SiteSwitcher';
+import AssistantPanel from './AssistantPanel';
 import { ChromeProvider, type Chrome } from './chrome-context';
 
 const ACCENT = 'var(--gv-accent)';
@@ -56,6 +57,9 @@ export default function DashShell({
           <div className="gv-glow"><div className="b1" /><div className="b2" /><div className="b3" /></div>
           {children}
         </main>
+
+        {/* agent chat — right sidebar */}
+        <AssistantPanel />
       </div>
     </ChromeProvider>
   );
