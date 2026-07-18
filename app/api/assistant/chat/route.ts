@@ -21,6 +21,8 @@ import { getAgentContext } from '@/lib/strategy/context-store';
 import { contextForPrompt } from '@/lib/strategy/context';
 import { classifyIntent, parseSlash, writeTopicFrom, type AssistantIntent } from '@/lib/assistant/triage';
 import { answerAssistant } from '@/lib/assistant/chat';
+import { PLAN_CHAT_LIMITS } from '@/lib/strategy/plan-chat';
+import { planChatBudget, applyPlanRevision } from '@/lib/strategy/apply-revision';
 import { gatherSignals, signalsBlock } from '@/lib/assistant/context';
 import { relevantKnowledge } from '@/lib/assistant/knowledge';
 
@@ -67,7 +69,7 @@ export async function POST(req: Request) {
 
   // RLS scopes this select to the owner — a foreign domain_id reads as absent.
   const { data: domain } = await sb
-    .from('domains').select('id, hostname')
+    .from('domains').select('id, hostname, posts_per_week')
     .eq('id', domain_id).eq('user_id', user.id).maybeSingle();
   if (!domain) return NextResponse.json({ error: 'not found' }, { status: 404 });
 
@@ -121,6 +123,78 @@ export async function POST(req: Request) {
       reply: `On it — I've queued an article on "${topic}". It's going through research, drafting and the quality gate now; you can watch it live in the pipeline.`,
       changes: [{ label: 'Pipeline', detail: '1 queued', href: '/dashboard/pipeline' }],
     });
+  }
+
+  /* ── revise: steer the active monthly plan, same caps as the plan chat ─ */
+  if (intent === 'revise') {
+    if (!entitled) {
+      return ok({
+        intent, thought: 'Plan changes are a paid feature.',
+        reply: 'Changing the plan needs an active subscription — once you subscribe, tell me the change ("add two more conversion posts") and it applies instantly.',
+        links: [{ label: 'Billing', href: '/dashboard/billing' }],
+      });
+    }
+
+    const admin = supabaseAdmin();
+    const { data: strategyRow } = await admin
+      .from('strategies').select('*')
+      .eq('domain_id', domain_id).eq('active', true)
+      .order('month', { ascending: false }).limit(1).maybeSingle();
+    if (!strategyRow) {
+      return ok({
+        intent, thought: 'No active plan to revise.',
+        reply: 'There\'s no active monthly plan yet — build one from the Strategy page first, then I can revise it from here.',
+        links: [{ label: 'Strategy', href: '/dashboard/strategy' }],
+      });
+    }
+
+    // Shared budget with the strategy-page chat: both surfaces count the same
+    // persisted rows, so the monthly caps can't be doubled by switching UIs.
+    const budget = await planChatBudget(domain_id);
+    if (budget.messagesLeft <= 0) {
+      return ok({
+        intent, thought: 'Monthly plan-chat message cap reached.',
+        reply: 'The plan chat has hit this month\'s message limit. It resets on the 1st — the monthly re-plan will also fold in everything we\'ve discussed.',
+      });
+    }
+    if (budget.revisionsLeft <= 0) {
+      return ok({
+        intent, thought: 'Monthly revision budget used up.',
+        reply: `This month's plan-revision budget is used up (${PLAN_CHAT_LIMITS.revisionsPerMonth} revisions). I can still answer questions about the plan, and the monthly re-plan on the 1st takes your notes into account.`,
+        links: [{ label: 'Strategy', href: '/dashboard/strategy' }],
+      });
+    }
+
+    const instruction = parseSlash(message)?.rest || message;
+    await admin.from('plan_chat_messages').insert({
+      domain_id, strategy_id: strategyRow.id, role: 'user', content: instruction,
+    });
+
+    try {
+      const { reply } = await applyPlanRevision({
+        domainId: domain_id,
+        hostname: domain.hostname,
+        postsPerWeek: (domain as any).posts_per_week ?? 4,
+        strategyRow,
+        instruction,
+      });
+      await admin.from('plan_chat_messages').insert({
+        domain_id, strategy_id: strategyRow.id, role: 'agent', content: reply, revised: true,
+      });
+      return ok({
+        intent,
+        thought: 'Applied the change to the active plan.',
+        reply,
+        changes: [{ label: 'Strategy', detail: `plan revised · ${budget.revisionsLeft - 1} left this month`, href: '/dashboard/strategy' }],
+      });
+    } catch (err) {
+      console.error('[assistant-chat] revise', err);
+      const reply = 'I hit a snag applying that — the plan is unchanged. Try again in a moment.';
+      await admin.from('plan_chat_messages').insert({
+        domain_id, strategy_id: strategyRow.id, role: 'agent', content: reply, revised: false,
+      });
+      return ok({ intent, thought: '', reply });
+    }
   }
 
   /* ── everything else: one LLM answer over real signals ──────────────── */

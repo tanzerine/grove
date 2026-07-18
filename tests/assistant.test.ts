@@ -40,6 +40,24 @@ describe('classifyIntent', () => {
     expect(classifyIntent('what should we publish next month? any plan?')).toBe('strategy');
   });
 
+  it('routes plan changes to revise', () => {
+    expect(classifyIntent('add two more conversion posts')).toBe('revise');
+    expect(classifyIntent('drop the pricing pillar')).toBe('revise');
+    expect(classifyIntent('can you focus the plan more on comparisons')).toBe('revise');
+    expect(classifyIntent('/strategy add two more conversion posts')).toBe('revise');
+  });
+
+  it('question-phrased plan talk stays a question, not a revision', () => {
+    expect(classifyIntent('why did you add so many conversion posts?')).not.toBe('revise');
+    expect(classifyIntent('/strategy why are there so many pillar posts?')).toBe('strategy');
+    // steering verb without a plan noun is not a revision either
+    expect(classifyIntent('I need more clicks')).not.toBe('revise');
+  });
+
+  it('an explicit write ask still beats revise', () => {
+    expect(classifyIntent('add a post about cold brew')).toBe('write');
+  });
+
   it('falls back to general', () => {
     expect(classifyIntent('good morning!')).toBe('general');
   });

@@ -39,7 +39,9 @@ lacking new viewers?"), reason from what's there: publish count, impressions
 vs clicks (CTR), organic share, and how young the blog is — then give 1-2
 specific next moves. For setup questions, answer strictly from the GUIDES
 section and point at the dashboard page. If the owner wants a new article,
-tell them to say "write an article about <topic>" and you'll queue it.
+tell them to say "write an article about <topic>" and you'll queue it; if
+they want the monthly plan changed, tell them to state the change directly
+(e.g. "add two more conversion posts") and you'll apply it.
 
 SIGNALS for ${opts.hostname}
 ${opts.signalsMd || '(no data yet)'}

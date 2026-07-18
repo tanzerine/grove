@@ -4,12 +4,12 @@
  * nothing in this file may touch the LLM client or any server dep).
  */
 
-export type AssistantIntent = 'write' | 'analytics' | 'strategy' | 'help' | 'general';
+export type AssistantIntent = 'write' | 'analytics' | 'strategy' | 'revise' | 'help' | 'general';
 
 export const SLASH_COMMANDS: Array<{ command: string; intent: AssistantIntent; hint: string }> = [
   { command: 'analytics', intent: 'analytics', hint: 'Ask about traffic, clicks, readers' },
   { command: 'write', intent: 'write', hint: 'Queue a new article about…' },
-  { command: 'strategy', intent: 'strategy', hint: 'Ask about the monthly plan' },
+  { command: 'strategy', intent: 'strategy', hint: 'Ask about — or change — the monthly plan' },
   { command: 'help', intent: 'help', hint: 'How do I set up…' },
 ];
 
@@ -47,6 +47,30 @@ const HELP_HINTS = new RegExp(
   ].join('|'), 'i',
 );
 
+// Revision = steering verb + a plan-shaped noun, and not question-phrased.
+// Mirrors lib/strategy/plan-chat.ts REVISION_HINTS but demands the noun so
+// "get more clicks" (analytics) can't read as a plan change.
+const REVISE_VERBS = new RegExp(
+  [
+    '\\badd\\b', 'remove', '\\bdrop\\b', 'delete', 'replace', 'swap', 'change', '\\bmove\\b',
+    'reschedule', 'cancel', 'focus', 'shift', 'increase', 'decrease', 'fewer', '\\bmore\\b',
+    '\\bless\\b', 'prioriti[sz]e', 'instead', 'stop writing', "don'?t write",
+    '바꿔', '바꾸', '변경', '추가', '빼', '삭제', '제거', '줄여', '줄이', '늘려', '늘리', '대신', '집중', '그만',
+  ].join('|'), 'i',
+);
+const PLAN_NOUNS = new RegExp(
+  [
+    '\\bplan\\b', 'strategy', 'pillars?', 'slots?', 'topics?', 'posts?', 'articles?',
+    'keywords?', 'schedule', 'calendar', '\\bmonth\\b',
+    '글', '주제', '계획', '전략', '일정', '포스트', '필러',
+  ].join('|'), 'i',
+);
+const QUESTION_OPENERS = /^(why|what|how|when|who|where|which|is|are|do|does|did|explain|왜|뭐|무엇|어떻게|언제|누가|어디)\b/i;
+
+function isRevision(m: string): boolean {
+  return !QUESTION_OPENERS.test(m) && REVISE_VERBS.test(m) && PLAN_NOUNS.test(m);
+}
+
 const STRATEGY_HINTS = new RegExp(
   [
     '\\bplan\\b', 'strategy', 'pillars?', 'calendar', 'schedule', 'topics?',
@@ -64,9 +88,15 @@ const STRATEGY_HINTS = new RegExp(
  */
 export function classifyIntent(message: string): AssistantIntent {
   const slash = parseSlash(message);
-  if (slash) return slash.intent;
+  if (slash) {
+    // "/strategy add two more conversion posts" is a change request, not a
+    // question — sub-triage the remainder so the plan actually gets revised.
+    if (slash.intent === 'strategy' && isRevision(slash.rest)) return 'revise';
+    return slash.intent;
+  }
   const m = message.trim();
   if (WRITE_HINTS.test(m)) return 'write';
+  if (isRevision(m)) return 'revise';
   if (HELP_HINTS.test(m) && !ANALYTICS_HINTS.test(m)) return 'help';
   if (ANALYTICS_HINTS.test(m)) return 'analytics';
   if (STRATEGY_HINTS.test(m)) return 'strategy';
