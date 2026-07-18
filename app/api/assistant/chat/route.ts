@@ -23,6 +23,9 @@ import { classifyIntent, parseSlash, writeTopicFrom, type AssistantIntent } from
 import { answerAssistant } from '@/lib/assistant/chat';
 import { PLAN_CHAT_LIMITS } from '@/lib/strategy/plan-chat';
 import { planChatBudget, applyPlanRevision } from '@/lib/strategy/apply-revision';
+import { latestSnapshot } from '@/lib/search-console/sync';
+import { articleRows, type ArticleInfo, type MetricRow } from '@/lib/search-console/insights';
+import { pickTitleCandidates, rewriteTitles, TITLE_LIMITS, type TitleRewrite } from '@/lib/assistant/titles';
 import { gatherSignals, signalsBlock } from '@/lib/assistant/context';
 import { relevantKnowledge } from '@/lib/assistant/knowledge';
 
@@ -47,6 +50,8 @@ const ok = (body: {
   reply: string;
   changes?: Change[];
   links?: Array<{ label: string; href: string }>;
+  /** revert payload for actions the panel can undo (title rewrites) */
+  undo?: TitleRewrite[];
 }) => NextResponse.json({ changes: [], links: [], ...body });
 
 /** Related-page chips for answer intents — small nav help, not "changes". */
@@ -123,6 +128,77 @@ export async function POST(req: Request) {
       reply: `On it — I've queued an article on "${topic}". It's going through research, drafting and the quality gate now; you can watch it live in the pipeline.`,
       changes: [{ label: 'Pipeline', detail: '1 queued', href: '/dashboard/pipeline' }],
     });
+  }
+
+  /* ── titles: rewrite low-CTR titles Google shows but nobody clicks ───── */
+  if (intent === 'titles') {
+    if (!entitled) {
+      return ok({
+        intent, thought: 'Title rewrites are a paid feature.',
+        reply: 'Rewriting titles needs an active subscription — then I find the articles Google shows but nobody clicks and repackage them.',
+        links: [{ label: 'Billing', href: '/dashboard/billing' }],
+      });
+    }
+
+    const admin = supabaseAdmin();
+    const { data: domainRow } = await admin
+      .from('domains').select('gsc_site_url').eq('id', domain_id).maybeSingle();
+    if (!domainRow?.gsc_site_url) {
+      return ok({
+        intent, thought: 'No Search Console data to find low-CTR titles.',
+        reply: 'I need Google Search Console for this — it tells me which articles get impressions but no clicks. Connect it on the Analytics page and ask me again once a sync has run.',
+        links: [{ label: 'Connecting Google Search Console', href: '/dashboard/analytics' }],
+      });
+    }
+
+    try {
+      const [snap, { data: posts }] = await Promise.all([
+        latestSnapshot(domain_id),
+        admin.from('posts').select('id, title, slug, reads')
+          .eq('domain_id', domain_id).eq('status', 'published'),
+      ]);
+      const pages: MetricRow[] = snap.pages.map((r: any) => ({
+        key: r.key, clicks: r.clicks, impressions: r.impressions,
+        position: r.position, post_id: r.post_id ?? null,
+      }));
+      const rows = articleRows(pages, (posts ?? []) as ArticleInfo[]);
+      const candidates = pickTitleCandidates(rows);
+      if (!candidates.length) {
+        return ok({
+          intent, thought: 'No title is underperforming enough to touch.',
+          reply: `Good news: no article clears my rewrite bar right now (${TITLE_LIMITS.minImpressions}+ impressions with CTR under ${TITLE_LIMITS.maxCtr * 100}%). As impressions grow I'll have more signal — ask me again in a week or two.`,
+          links: [{ label: 'Analytics', href: '/dashboard/analytics' }],
+        });
+      }
+
+      const rewrites = await rewriteTitles({ hostname: domain.hostname, candidates });
+      if (!rewrites.length) {
+        return ok({
+          intent, thought: 'The rewrites did not beat the originals.',
+          reply: 'I looked at the low-CTR candidates but couldn\'t produce titles I\'m confident beat the originals — nothing was changed.',
+        });
+      }
+
+      for (const r of rewrites) {
+        await admin.from('posts').update({ title: r.to })
+          .eq('id', r.post_id).eq('domain_id', domain_id);
+      }
+
+      const lines = rewrites.map((r) => `• "${r.from}" → "${r.to}"`).join('\n');
+      return ok({
+        intent,
+        thought: `Impressions are there, clicks aren't — repackaged ${rewrites.length} title${rewrites.length === 1 ? '' : 's'}.`,
+        reply: `These articles rank but don't get picked, so I rewrote their titles:\n${lines}\n\nRankings keep their URLs and content — only the packaging changed. Use Undo if you prefer the originals.`,
+        changes: [{ label: 'Titles', detail: `${rewrites.length} rewritten`, href: '/dashboard/published' }],
+        undo: rewrites,
+      });
+    } catch (err) {
+      console.error('[assistant-chat] titles', err);
+      return ok({
+        intent, thought: '',
+        reply: 'I hit a snag rewriting titles — nothing was changed. Try again in a moment.',
+      });
+    }
   }
 
   /* ── revise: steer the active monthly plan, same caps as the plan chat ─ */

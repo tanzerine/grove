@@ -22,9 +22,10 @@ const ACCENT = 'var(--gv-accent)';
 
 type Change = { label: string; detail: string; href: string };
 type LinkChip = { label: string; href: string };
+type UndoItem = { post_id: string; from: string; to: string };
 type Msg =
   | { role: 'user'; content: string }
-  | { role: 'agent'; content: string; thought?: string; thoughtSec?: number; changes?: Change[]; links?: LinkChip[] };
+  | { role: 'agent'; content: string; thought?: string; thoughtSec?: number; changes?: Change[]; links?: LinkChip[]; undo?: UndoItem[]; undone?: boolean };
 
 const SUGGESTIONS = [
   '/analytics What’s actually driving clicks this month?',
@@ -33,7 +34,7 @@ const SUGGESTIONS = [
 ];
 
 const iconFor = (label: string) =>
-  ({ Pipeline: 'pipeline', Analytics: 'analytics', Strategy: 'strategy', Billing: 'billing' } as Record<string, string>)[label] ?? 'link';
+  ({ Pipeline: 'pipeline', Analytics: 'analytics', Strategy: 'strategy', Billing: 'billing', Titles: 'pen' } as Record<string, string>)[label] ?? 'link';
 
 export default function AssistantPanel() {
   const { activeId, activeHostname } = useChrome();
@@ -67,6 +68,20 @@ export default function AssistantPanel() {
     try { localStorage.setItem('gv-assist-open', v ? '1' : '0'); } catch { /* ignore */ }
   };
 
+  // "Ask the agent" buttons anywhere in the dashboard open the panel with a
+  // prefilled prompt (not auto-sent — the owner stays in control).
+  useEffect(() => {
+    const onAsk = (e: Event) => {
+      const prompt = (e as CustomEvent<{ prompt?: string }>).detail?.prompt ?? '';
+      toggle(true);
+      if (prompt) setInput(prompt);
+      setTimeout(() => inputRef.current?.focus(), 60);
+    };
+    window.addEventListener('gv:assistant', onAsk);
+    return () => window.removeEventListener('gv:assistant', onAsk);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Slash menu: typing "/" (before the first space completes a command) shows
   // the matching commands.
   const slashPrefix = /^\/([a-z]*)$/i.exec(input.trim());
@@ -96,12 +111,33 @@ export default function AssistantPanel() {
         thoughtSec: Math.max(1, Math.round((Date.now() - started) / 1000)),
         changes: d.changes?.length ? d.changes : undefined,
         links: d.links?.length ? d.links : undefined,
+        undo: d.undo?.length ? d.undo : undefined,
       }]);
       if (d.changes?.length) router.refresh();   // e.g. pipeline badge just grew
     } catch {
       setMessages((m) => [...m, { role: 'agent', content: 'Something went wrong — nothing was changed. Try again in a moment.' }]);
     } finally {
       setSending(false);
+    }
+  };
+
+  // Revert an action (title rewrites): restore the old titles, mark the
+  // message so the button reads "Undone" and can't fire twice.
+  const undoAction = async (index: number) => {
+    const msg = messages[index];
+    if (!msg || msg.role !== 'agent' || !msg.undo || msg.undone || !activeId) return;
+    const revert = msg.undo.map((u) => ({ post_id: u.post_id, title: u.from }));
+    try {
+      const res = await fetch('/api/assistant/undo', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ domain_id: activeId, revert }),
+      });
+      if (!res.ok) throw new Error('undo failed');
+      setMessages((m) => m.map((x, i) => (i === index ? { ...x, undone: true } : x)));
+      router.refresh();
+    } catch {
+      setMessages((m) => [...m, { role: 'agent', content: 'Undo failed — you can still restore titles by hand in the editor.' }]);
     }
   };
 
@@ -180,7 +216,19 @@ export default function AssistantPanel() {
 
               {m.changes && (
                 <div style={{ marginTop: 12, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 10 }}>
-                  <div style={{ fontSize: 11.5, fontWeight: 700, marginBottom: 8 }}>Changes</div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <div style={{ fontSize: 11.5, fontWeight: 700 }}>Changes</div>
+                    {m.undo && (
+                      <button
+                        type="button"
+                        onClick={() => undoAction(i)}
+                        disabled={m.undone}
+                        style={{ background: 'transparent', border: 'none', padding: 0, fontFamily: 'inherit', fontSize: 11.5, color: m.undone ? 'var(--gv-fainter)' : 'var(--gv-dim)', cursor: m.undone ? 'default' : 'pointer', textDecoration: m.undone ? 'none' : 'underline', textUnderlineOffset: 3 }}
+                      >
+                        {m.undone ? 'Undone ✓' : 'Undo'}
+                      </button>
+                    )}
+                  </div>
                   {m.changes.map((c) => (
                     <Link key={c.href + c.label} href={c.href} className="gv-prow" style={{ display: 'flex', alignItems: 'center', gap: 10, border: '1px solid rgba(255,255,255,0.08)', borderRadius: 11, padding: '10px 12px', marginBottom: 6, textDecoration: 'none' }}>
                       <span style={{ width: 28, height: 28, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(99,194,129,0.1)', color: ACCENT }}>

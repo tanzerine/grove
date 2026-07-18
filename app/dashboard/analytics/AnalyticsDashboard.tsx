@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Icon from '../gv-icons';
 import { DashHeader } from '../gv-chrome';
 import GoogleConnect from './GoogleConnect';
+import AskAgent from '../AskAgent';
 import type { AnalyticsData } from '@/lib/analytics/dashboard';
 import { formatDuration } from '@/lib/ga4/insights';
 
@@ -276,6 +277,7 @@ export default function AnalyticsDashboard({
             })}
           </div>
           <GoogleConnect configured={configured} connected={connected} verified={verified} />
+          <AskAgent prompt="/analytics What's actually driving clicks this month?" />
           <button className="gv-ghost" style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '8px 14px', borderRadius: 10, cursor: 'pointer' }}>
             <Icon name="download" /> Export
           </button>

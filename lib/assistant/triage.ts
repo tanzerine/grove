@@ -4,7 +4,7 @@
  * nothing in this file may touch the LLM client or any server dep).
  */
 
-export type AssistantIntent = 'write' | 'analytics' | 'strategy' | 'revise' | 'help' | 'general';
+export type AssistantIntent = 'write' | 'analytics' | 'strategy' | 'revise' | 'titles' | 'help' | 'general';
 
 export const SLASH_COMMANDS: Array<{ command: string; intent: AssistantIntent; hint: string }> = [
   { command: 'analytics', intent: 'analytics', hint: 'Ask about traffic, clicks, readers' },
@@ -46,6 +46,15 @@ const HELP_HINTS = new RegExp(
     '어떻게', '설정', '연결', '방법',
   ].join('|'), 'i',
 );
+
+// Titles action = the word "title" + an improvement verb (or CTR talk).
+// Checked before WRITE so "rewrite my titles" can't read as an article ask.
+const TITLE_NOUN = /titles?|headlines?|제목/i;
+const TITLE_VERBS = /improve|rewrite|optimi[sz]e|\bfix\b|better|boost|punch|\bctr\b|click|개선|수정|바꿔|바꾸/i;
+
+function isTitlesAction(m: string): boolean {
+  return !QUESTION_OPENERS.test(m) && TITLE_NOUN.test(m) && TITLE_VERBS.test(m);
+}
 
 // Revision = steering verb + a plan-shaped noun, and not question-phrased.
 // Mirrors lib/strategy/plan-chat.ts REVISION_HINTS but demands the noun so
@@ -89,12 +98,15 @@ const STRATEGY_HINTS = new RegExp(
 export function classifyIntent(message: string): AssistantIntent {
   const slash = parseSlash(message);
   if (slash) {
-    // "/strategy add two more conversion posts" is a change request, not a
-    // question — sub-triage the remainder so the plan actually gets revised.
+    // Sub-triage action-shaped remainders: "/strategy add two more conversion
+    // posts" is a change request, "/analytics improve my titles" is the
+    // title-optimizer action — not questions.
     if (slash.intent === 'strategy' && isRevision(slash.rest)) return 'revise';
+    if (slash.intent === 'analytics' && isTitlesAction(slash.rest)) return 'titles';
     return slash.intent;
   }
   const m = message.trim();
+  if (isTitlesAction(m)) return 'titles';
   if (WRITE_HINTS.test(m)) return 'write';
   if (isRevision(m)) return 'revise';
   if (HELP_HINTS.test(m) && !ANALYTICS_HINTS.test(m)) return 'help';

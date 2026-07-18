@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parseSlash, classifyIntent, writeTopicFrom } from '../lib/assistant/triage';
+import { pickTitleCandidates, sanitizeRewrites, TITLE_LIMITS } from '../lib/assistant/titles';
+import type { ContentRow } from '../lib/search-console/insights';
 import { relevantKnowledge } from '../lib/assistant/knowledge';
 import { signalsBlock, type AssistantSignals } from '../lib/assistant/context';
 import { buildAnswerPrompt } from '../lib/assistant/chat';
@@ -58,6 +60,19 @@ describe('classifyIntent', () => {
     expect(classifyIntent('add a post about cold brew')).toBe('write');
   });
 
+  it('routes title-improvement asks to the titles action', () => {
+    expect(classifyIntent('improve my low-CTR titles')).toBe('titles');
+    expect(classifyIntent('rewrite the titles that get no clicks')).toBe('titles');
+    expect(classifyIntent('/analytics improve titles')).toBe('titles');
+    expect(classifyIntent('제목 좀 개선해줘')).toBe('titles');
+  });
+
+  it('title questions are answered, not acted on', () => {
+    expect(classifyIntent('why are my titles not getting clicks?')).not.toBe('titles');
+    // and an article about titles is still a write ask
+    expect(classifyIntent('write an article about page titles')).toBe('write');
+  });
+
   it('falls back to general', () => {
     expect(classifyIntent('good morning!')).toBe('general');
   });
@@ -104,6 +119,54 @@ describe('relevantKnowledge', () => {
   it('returns at most two sections, empty when nothing matches', () => {
     expect(relevantKnowledge('embed the widget with canonical sitemap dns cname').length).toBeLessThanOrEqual(2);
     expect(relevantKnowledge('good morning')).toEqual([]);
+  });
+});
+
+const row = (over: Partial<ContentRow>): ContentRow => ({
+  postId: 'p1', title: 'A title', path: '/a', views: 0,
+  clicks: 1, impressions: 200, ctr: 0.005, position: 12,
+  ...over,
+});
+
+describe('pickTitleCandidates', () => {
+  it('keeps only high-impression low-CTR articles, biggest pools first', () => {
+    const picked = pickTitleCandidates([
+      row({ postId: 'small', impressions: 20 }),                    // too little signal
+      row({ postId: 'fine', impressions: 900, clicks: 90, ctr: 0.1 }), // already clicked
+      row({ postId: 'worst', impressions: 800 }),
+      row({ postId: 'bad', impressions: 300 }),
+      row({ postId: null, impressions: 999 }),                      // no post to edit
+    ]);
+    expect(picked.map((c) => c.postId)).toEqual(['worst', 'bad']);
+  });
+
+  it('caps the batch at maxRewrites', () => {
+    const many = ['a', 'b', 'c', 'd', 'e'].map((id) => row({ postId: id }));
+    expect(pickTitleCandidates(many)).toHaveLength(TITLE_LIMITS.maxRewrites);
+  });
+});
+
+describe('sanitizeRewrites', () => {
+  const candidates = pickTitleCandidates([
+    row({ postId: 'p1', title: 'Old title one' }),
+    row({ postId: 'p2', title: 'Old title two' }),
+  ]);
+
+  it('applies valid rewrites and preserves the old title for undo', () => {
+    const out = sanitizeRewrites([{ post_id: 'p1', title: '  New   sharper title ' }], candidates);
+    expect(out).toEqual([{ post_id: 'p1', from: 'Old title one', to: 'New sharper title' }]);
+  });
+
+  it('drops unknown posts, unchanged titles, junk lengths and duplicates', () => {
+    const out = sanitizeRewrites([
+      { post_id: 'ghost', title: 'A perfectly fine title' },
+      { post_id: 'p1', title: 'old title ONE' },          // same title, case aside
+      { post_id: 'p2', title: 'short' },                  // < 8 chars
+      { post_id: 'p2', title: 'x'.repeat(91) },           // > 90 chars
+      { post_id: 'p2', title: 'A good replacement title' },
+      { post_id: 'p2', title: 'A second replacement' },   // duplicate post
+    ], candidates);
+    expect(out).toEqual([{ post_id: 'p2', from: 'Old title two', to: 'A good replacement title' }]);
   });
 });
 
