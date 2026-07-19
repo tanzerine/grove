@@ -37,7 +37,9 @@ const ANALYTICS_HINTS = new RegExp(
     'views?', 'viewers?', 'readers?', 'reads', 'clicks?', 'impressions?', 'traffic',
     '\\bctr\\b', 'conversions?', 'analytics', 'performance', 'performing', 'ranking',
     'visitors?', 'sessions?', 'organic', 'search console', 'bounce',
-    '조회', '트래픽', '방문자', '유입', '전환',
+    // acquisition phrasing — "am I getting new users with this strategy?"
+    '\\busers?\\b', 'sign-?ups?', 'subscribers?', 'customers?', 'acquisition', 'growth',
+    '조회', '트래픽', '방문자', '유입', '전환', '가입', '신규',
   ].join('|'), 'i',
 );
 

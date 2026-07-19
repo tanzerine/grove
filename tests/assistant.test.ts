@@ -37,6 +37,11 @@ describe('classifyIntent', () => {
     expect(classifyIntent('can you tell me how to setup canonical url')).toBe('help');
   });
 
+  it('acquisition phrasing is an analytics question', () => {
+    expect(classifyIntent('Am I getting new users with this current strategy?')).toBe('analytics');
+    expect(classifyIntent('how many signups came from the blog?')).toBe('analytics');
+  });
+
   it('how-to phrasing beats the strategy word-net, analytics terms beat help', () => {
     expect(classifyIntent('how do I set up the publishing schedule?')).toBe('help');
     expect(classifyIntent('how do I get more clicks?')).toBe('analytics');
@@ -285,12 +290,23 @@ const SIGNALS: AssistantSignals = {
     topPost: { title: 'Hello', views: 40 },
   },
   month: {
-    views: 300, prevViews: 500, conversions: 9, organicShare: 0.35,
-    topPosts: [{ title: 'Best post', views: 80 }],
+    views: 300, prevViews: 500, uniqueSessions: 210,
+    conversions: 9, prevConversions: 4, organicShare: 0.35,
+    medianDwellSec: 74, outboundRate: 0.08,
+    topPosts: [{ title: 'Best post', views: 80, conversions: 3 }],
   },
+  articles: [
+    { title: 'Best post', reads: 80, clicks: 30, impressions: 1500, ctr: 0.02, position: 9.2 },
+    { title: 'Quiet post', reads: 4, clicks: 0, impressions: 0, ctr: 0, position: 0 },
+  ],
+  articlesTotal: 14,
+  funnel: { clicks: 210, read50: 120, converted: 9 },
+  traffic: { total: 210, sources: [{ key: 'search', name: 'Search', clicks: 120, pct: 57 }, { key: 'direct', name: 'Direct', clicks: 90, pct: 43 }] },
+  engagement: { views: 300, events: 900, sessions: 210, avgDwellSec: 81 },
   gsc: { clicks: 42, impressions: 2100, ctr: 0.02, avgPosition: 18.4 },
+  ga: { views: 4200, activeUsers: 1900, avgEngagementSec: 62 },
   setup: {
-    gscConnected: true, ga4Connected: false, canonicalBase: null,
+    gscConnected: true, ga4Connected: true, canonicalBase: null,
     customHostname: null, autoPublish: true, postsPerWeek: 4,
   },
 };
@@ -299,19 +315,40 @@ describe('signalsBlock', () => {
   it('renders every section with the real numbers', () => {
     const md = signalsBlock(SIGNALS);
     expect(md).toContain('14 total');
-    expect(md).toContain('300 reads (previous month total 500)');
+    expect(md).toContain('300 article reads across 210 unique readers (previous month total 500)');
+    expect(md).toContain('9 conversions (previous month 4)');
     expect(md).toContain('42 clicks from 2100 impressions (CTR 2%)');
     expect(md).toContain('Next scheduled publish: 2026-07-20');
     expect(md).toContain('canonical base not set');
     expect(md).toContain('autopilot ON');
   });
 
-  it('says GSC is missing instead of inventing zeros', () => {
+  it('answers the new-users question directly via the funnel line', () => {
+    const md = signalsBlock(SIGNALS);
+    expect(md).toContain('210 opened an article → 120 read past halfway → 9 converted');
+    expect(md).toContain('New users FROM THE BLOG = that last number');
+  });
+
+  it('lists per-article live numbers, flagging pre-search articles honestly', () => {
+    const md = signalsBlock(SIGNALS);
+    expect(md).toContain('"Best post" — 80 reads, 30 clicks / 1500 impressions (CTR 2%), avg position 9.2');
+    expect(md).toContain('"Quiet post" — 4 reads, no search impressions yet');
+    expect(md).toContain('and 12 more articles');
+  });
+
+  it('includes traffic sources and whole-site GA', () => {
+    const md = signalsBlock(SIGNALS);
+    expect(md).toContain('Search 57%, Direct 43% of 210 arrivals');
+    expect(md).toContain('4200 pageviews, 1900 active users');
+  });
+
+  it('says GSC/GA are missing instead of inventing zeros', () => {
     const md = signalsBlock({
-      ...SIGNALS, gsc: null,
-      setup: { ...SIGNALS.setup, gscConnected: false },
+      ...SIGNALS, gsc: null, ga: null,
+      setup: { ...SIGNALS.setup, gscConnected: false, ga4Connected: false },
     });
     expect(md).toContain('NOT connected');
+    expect(md).toContain('Google Analytics: not connected');
   });
 });
 
