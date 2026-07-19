@@ -98,11 +98,11 @@ describe('publishToSocials', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const res = await publishToSocials('d1', { ...post }, {
-      blog_slug: 'demo', social_webhook_url: 'https://hook.test/x', social_webhook_secret: 'whsec_1',
+      blog_slug: 'demo', social_webhook_url: 'https://93.184.216.34/x', social_webhook_secret: 'whsec_1',
     });
 
     expect(fetchMock).toHaveBeenCalledOnce();
-    expect(fetchMock).toHaveBeenCalledWith('https://hook.test/x', expect.anything());
+    expect(fetchMock).toHaveBeenCalledWith('https://93.184.216.34/x', expect.anything());
     expect(res.webhook.status).toBe(200);
     expect(updateEq).toHaveBeenCalled();
   });
@@ -152,7 +152,7 @@ describe('publishToSocials', () => {
     const fetchMock = vi.fn(async () => ({ ok: true, json: async () => ({ data: { id: 'tweet1' } }) }));
     vi.stubGlobal('fetch', fetchMock);
 
-    const withHook = { blog_slug: 'demo', social_webhook_url: 'https://hook.test/x', social_webhook_secret: 'whsec_1' };
+    const withHook = { blog_slug: 'demo', social_webhook_url: 'https://93.184.216.34/x', social_webhook_secret: 'whsec_1' };
     const res = await publishToSocials('d1', { ...post }, withHook, { only: ['x'] });
 
     expect(fetchMock).toHaveBeenCalledOnce(); // X only — no webhook delivery
@@ -164,11 +164,11 @@ describe('publishToSocials', () => {
     const fetchMock = vi.fn(async () => ({ ok: true, status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
 
-    const withHook = { blog_slug: 'demo', social_webhook_url: 'https://hook.test/x', social_webhook_secret: 'whsec_1' };
+    const withHook = { blog_slug: 'demo', social_webhook_url: 'https://93.184.216.34/x', social_webhook_secret: 'whsec_1' };
     const res = await publishToSocials('d1', { ...post }, withHook, { only: ['webhook'] });
 
     expect(fetchMock).toHaveBeenCalledOnce();
-    expect(fetchMock).toHaveBeenCalledWith('https://hook.test/x', expect.anything());
+    expect(fetchMock).toHaveBeenCalledWith('https://93.184.216.34/x', expect.anything());
     expect(res.webhook.status).toBe(200);
     expect(res.x).toBeUndefined();
   });
@@ -180,7 +180,7 @@ describe('publishToSocials', () => {
 
     const already = { ...post, social_published: { webhook: { status: 200, at: '2026-01-01' } } };
     const res = await publishToSocials('d1', already, {
-      blog_slug: 'demo', social_webhook_url: 'https://hook.test/x', social_webhook_secret: 'whsec_1',
+      blog_slug: 'demo', social_webhook_url: 'https://93.184.216.34/x', social_webhook_secret: 'whsec_1',
     });
 
     expect(fetchMock).not.toHaveBeenCalled();
