@@ -4,7 +4,10 @@
  * nothing in this file may touch the LLM client or any server dep).
  */
 
-export type AssistantIntent = 'write' | 'analytics' | 'strategy' | 'revise' | 'titles' | 'help' | 'general';
+export type AssistantIntent =
+  | 'write' | 'analytics' | 'strategy' | 'revise' | 'titles'
+  | 'approve' | 'retry' | 'reschedule'
+  | 'help' | 'general';
 
 export const SLASH_COMMANDS: Array<{ command: string; intent: AssistantIntent; hint: string }> = [
   { command: 'analytics', intent: 'analytics', hint: 'Ask about traffic, clicks, readers' },
@@ -54,6 +57,28 @@ const TITLE_VERBS = /improve|rewrite|optimi[sz]e|\bfix\b|better|boost|punch|\bct
 
 function isTitlesAction(m: string): boolean {
   return !QUESTION_OPENERS.test(m) && TITLE_NOUN.test(m) && TITLE_VERBS.test(m);
+}
+
+/* ── pipeline actions on existing posts (approve / retry / reschedule) ──── */
+// A near-term date word — distinguishes "move X to Friday" (reschedule) from
+// "move the pricing pillar" (plan revision). "month"/"week" stay OUT: those
+// are plan-horizon talk, not a specific publish date.
+const DATE_WORD = /\btoday\b|\btonight\b|\btomorrow\b|\bin\s+\d+\s+days?\b|\b(next\s+)?(sun|mon|tue|tues|wed|thu|thur|thurs|fri|sat)(day|nesday|rsday|urday)?\b/i;
+
+const APPROVE_VERBS = /\b(approve|publish|ship( it)?|go live|sign off)\b|승인|발행/i;
+const RETRY_VERBS = /\b(retry|regenerate|re-?run|re-?generate|try again)\b|재시도|다시\s*(생성|시도|만들)/i;
+const RESCHEDULE_VERBS = /\b(reschedule|re-?schedule|move|push back|push|delay|postpone|bring forward)\b|미뤄|당겨|옮겨|일정\s*변경/i;
+
+function isReschedule(m: string): boolean {
+  return !QUESTION_OPENERS.test(m) && RESCHEDULE_VERBS.test(m) && DATE_WORD.test(m);
+}
+function isRetry(m: string): boolean {
+  return !QUESTION_OPENERS.test(m) && RETRY_VERBS.test(m);
+}
+function isApprove(m: string): boolean {
+  // "publish" needs a post-ish object so it doesn't swallow "publish more on X"
+  return !QUESTION_OPENERS.test(m) && APPROVE_VERBS.test(m) &&
+    /\b(draft|drafts|post|posts|article|articles|it|review|them|this)\b|승인|발행/i.test(m);
 }
 
 // Revision = steering verb + a plan-shaped noun, and not question-phrased.
@@ -107,7 +132,16 @@ export function classifyIntent(message: string): AssistantIntent {
   }
   const m = message.trim();
   if (isTitlesAction(m)) return 'titles';
-  if (WRITE_HINTS.test(m)) return 'write';
+  // Actions on EXISTING posts come before write: "approve the onboarding
+  // draft" mentions "draft" but isn't a new-article request, and "push the
+  // launch post to Friday" isn't either. Each is already guarded against
+  // question phrasing ("how do I approve a draft?" stays help).
+  if (isReschedule(m)) return 'reschedule';
+  if (isRetry(m)) return 'retry';
+  if (isApprove(m)) return 'approve';
+  // Write is imperative — a leading question opener ("how do I write…") is a
+  // help question, not a command to draft.
+  if (!QUESTION_OPENERS.test(m) && WRITE_HINTS.test(m)) return 'write';
   if (isRevision(m)) return 'revise';
   if (HELP_HINTS.test(m) && !ANALYTICS_HINTS.test(m)) return 'help';
   if (ANALYTICS_HINTS.test(m)) return 'analytics';

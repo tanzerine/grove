@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parseSlash, classifyIntent, writeTopicFrom } from '../lib/assistant/triage';
 import { pickTitleCandidates, sanitizeRewrites, TITLE_LIMITS } from '../lib/assistant/titles';
+import { resolvePost, parseWhen, extractReschedule, type PostRef } from '../lib/assistant/pipeline';
 import type { ContentRow } from '../lib/search-console/insights';
 import { relevantKnowledge } from '../lib/assistant/knowledge';
 import { signalsBlock, type AssistantSignals } from '../lib/assistant/context';
@@ -71,6 +72,24 @@ describe('classifyIntent', () => {
     expect(classifyIntent('why are my titles not getting clicks?')).not.toBe('titles');
     // and an article about titles is still a write ask
     expect(classifyIntent('write an article about page titles')).toBe('write');
+  });
+
+  it('routes pipeline actions on existing posts', () => {
+    expect(classifyIntent('approve the onboarding draft')).toBe('approve');
+    expect(classifyIntent('publish the draft in review')).toBe('approve');
+    expect(classifyIntent('retry the failed post')).toBe('retry');
+    expect(classifyIntent('regenerate it')).toBe('retry');
+    expect(classifyIntent('move the launch post to Friday')).toBe('reschedule');
+    expect(classifyIntent('reschedule the pricing article to tomorrow')).toBe('reschedule');
+  });
+
+  it('separates reschedule from plan revision and from write', () => {
+    // "move" + plan noun (no date) is a revision, not a reschedule
+    expect(classifyIntent('move the pricing pillar out of the plan')).toBe('revise');
+    // reschedule with a date beats the write "post" noun
+    expect(classifyIntent('push the launch post to next Monday')).toBe('reschedule');
+    // asking how to approve is help, not an approve action
+    expect(classifyIntent('how do I approve a draft?')).toBe('help');
   });
 
   it('falls back to general', () => {
@@ -167,6 +186,93 @@ describe('sanitizeRewrites', () => {
       { post_id: 'p2', title: 'A second replacement' },   // duplicate post
     ], candidates);
     expect(out).toEqual([{ post_id: 'p2', from: 'Old title two', to: 'A good replacement title' }]);
+  });
+});
+
+describe('resolvePost', () => {
+  const posts: PostRef[] = [
+    { id: 'a', title: 'Onboarding tips for new teams', status: 'review', scheduled_at: null },
+    { id: 'b', title: 'Cold brew ratios explained', status: 'review', scheduled_at: null },
+  ];
+
+  it('matches by a title word', () => {
+    expect(resolvePost('approve the onboarding draft', posts)).toEqual({ kind: 'one', post: posts[0] });
+    expect(resolvePost('publish cold brew', posts)).toEqual({ kind: 'one', post: posts[1] });
+  });
+
+  it('uses the single candidate when no selector is given', () => {
+    expect(resolvePost('approve it', [posts[0]])).toEqual({ kind: 'one', post: posts[0] });
+  });
+
+  it('is ambiguous when no selector and several candidates', () => {
+    const r = resolvePost('approve the draft', posts);
+    expect(r.kind).toBe('many');
+  });
+
+  it('reports none when there are no candidates', () => {
+    expect(resolvePost('approve it', [])).toEqual({ kind: 'none' });
+  });
+
+  it('matches a weekday selector against the scheduled day', () => {
+    // 2026-07-23 is a Thursday, 2026-07-20 a Monday.
+    const scheduled: PostRef[] = [
+      { id: 'thu', title: 'Launch recap', status: 'scheduled', scheduled_at: '2026-07-23T09:00:00Z' },
+      { id: 'mon', title: 'Weekly digest', status: 'scheduled', scheduled_at: '2026-07-20T09:00:00Z' },
+    ];
+    expect(resolvePost('move thursday post', scheduled)).toEqual({ kind: 'one', post: scheduled[0] });
+  });
+});
+
+describe('parseWhen', () => {
+  // A Wednesday, so weekday math is easy to reason about.
+  const now = new Date('2026-07-15T12:00:00Z');
+
+  it('parses tomorrow at the default hour', () => {
+    expect(parseWhen('tomorrow', now)?.at).toBe('2026-07-16T09:00:00.000Z');
+  });
+
+  it('parses a weekday as the next occurrence', () => {
+    // next Friday from Wed 15th is the 17th
+    expect(parseWhen('friday', now)?.at).toBe('2026-07-17T09:00:00.000Z');
+    // "monday" → the 20th
+    expect(parseWhen('monday', now)?.at).toBe('2026-07-20T09:00:00.000Z');
+  });
+
+  it('"next <weekday>" jumps a further week', () => {
+    expect(parseWhen('next friday', now)?.at).toBe('2026-07-24T09:00:00.000Z');
+  });
+
+  it('honours an explicit time', () => {
+    expect(parseWhen('tomorrow at 3pm', now)?.at).toBe('2026-07-16T15:00:00.000Z');
+    expect(parseWhen('monday at 14:30', now)?.at).toBe('2026-07-20T14:30:00.000Z');
+  });
+
+  it('parses in N days, and returns null for unparseable text', () => {
+    expect(parseWhen('in 3 days', now)?.at).toBe('2026-07-18T09:00:00.000Z');
+    expect(parseWhen('sometime soon', now)).toBeNull();
+    // "next month" is plan talk, not a date this parser handles
+    expect(parseWhen('next month', now)).toBeNull();
+  });
+});
+
+describe('extractReschedule', () => {
+  const now = new Date('2026-07-15T12:00:00Z');
+
+  it('splits target after "to" from the selector', () => {
+    const r = extractReschedule('move the launch post to Friday', now);
+    expect(r.when?.at).toBe('2026-07-17T09:00:00.000Z');
+    expect(r.selector).toBe('move the launch post');
+  });
+
+  it('keeps a selector weekday out of the target', () => {
+    const r = extractReschedule('move Thursday post to Monday', now);
+    expect(r.when?.at).toBe('2026-07-20T09:00:00.000Z');   // Monday the 20th
+    expect(r.selector).toBe('move Thursday post');           // Thursday stays as the selector
+  });
+
+  it('falls back to scanning the whole string when there is no preposition', () => {
+    const r = extractReschedule('publish the pricing draft tomorrow', now);
+    expect(r.when?.at).toBe('2026-07-16T09:00:00.000Z');
   });
 });
 

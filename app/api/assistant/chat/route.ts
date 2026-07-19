@@ -26,6 +26,8 @@ import { planChatBudget, applyPlanRevision } from '@/lib/strategy/apply-revision
 import { latestSnapshot } from '@/lib/search-console/sync';
 import { articleRows, type ArticleInfo, type MetricRow } from '@/lib/search-console/insights';
 import { pickTitleCandidates, rewriteTitles, TITLE_LIMITS, type TitleRewrite } from '@/lib/assistant/titles';
+import { resolvePost, extractReschedule, type PostRef } from '@/lib/assistant/pipeline';
+import { approveAndPublish } from '@/lib/pipeline/approve';
 import { gatherSignals, signalsBlock } from '@/lib/assistant/context';
 import { relevantKnowledge } from '@/lib/assistant/knowledge';
 
@@ -53,6 +55,26 @@ const ok = (body: {
   /** revert payload for actions the panel can undo (title rewrites) */
   undo?: TitleRewrite[];
 }) => NextResponse.json({ changes: [], links: [], ...body });
+
+async function loadPosts(domainId: string, statuses: string[]): Promise<PostRef[]> {
+  const { data } = await supabaseAdmin()
+    .from('posts').select('id, title, topic, status, scheduled_at')
+    .eq('domain_id', domainId).in('status', statuses)
+    .order('scheduled_at', { ascending: true, nullsFirst: false });
+  return (data ?? []).map((p: any) => ({
+    id: p.id, title: p.title || p.topic || 'Untitled draft',
+    status: p.status, scheduled_at: p.scheduled_at,
+  }));
+}
+
+/** The "which one?" reply when a reference matches several posts. */
+function ambiguous(intent: AssistantIntent, verb: string, posts: PostRef[]) {
+  const list = posts.slice(0, 6).map((p) => `• ${p.title}`).join('\n');
+  return ok({
+    intent, thought: `${posts.length} posts match — need one.`,
+    reply: `A few posts fit that — which should I ${verb}?\n${list}\n\nName the one (a word from its title is enough).`,
+  });
+}
 
 /** Related-page chips for answer intents — small nav help, not "changes". */
 function linksFor(intent: AssistantIntent, message: string) {
@@ -199,6 +221,91 @@ export async function POST(req: Request) {
         reply: 'I hit a snag rewriting titles — nothing was changed. Try again in a moment.',
       });
     }
+  }
+
+  /* ── approve: publish a draft that's waiting in review ──────────────── */
+  if (intent === 'approve') {
+    const instruction = parseSlash(message)?.rest || message;
+    const candidates = await loadPosts(domain_id, ['review']);
+    const r = resolvePost(instruction, candidates);
+    if (r.kind === 'none') {
+      return ok({ intent, thought: 'Nothing is waiting for review.', reply: 'There are no drafts waiting for your review right now — nothing to approve.', links: [{ label: 'Pipeline', href: '/dashboard/pipeline' }] });
+    }
+    if (r.kind === 'many') return ambiguous(intent, 'approve', r.posts);
+
+    const result = await approveAndPublish(sb, r.post.id);
+    if (!result.ok) return ok({ intent, thought: '', reply: 'I couldn\'t publish that one — it\'s unchanged. Try again in a moment.' });
+    const shared = result.social_result && Object.keys(result.social_result).length
+      ? ' It\'s also being shared to your connected channels.' : '';
+    return ok({
+      intent, thought: `Approved and published "${r.post.title}".`,
+      reply: `Published "${r.post.title}" — it's live on your blog now.${shared}`,
+      changes: [{ label: 'Published', detail: 'now live', href: '/dashboard/published' }],
+    });
+  }
+
+  /* ── retry: re-run generation for a failed post ─────────────────────── */
+  if (intent === 'retry') {
+    if (!entitled) {
+      return ok({ intent, thought: 'Generation is a paid feature.', reply: 'Retrying generation needs an active subscription.', links: [{ label: 'Billing', href: '/dashboard/billing' }] });
+    }
+    const instruction = parseSlash(message)?.rest || message;
+    const candidates = await loadPosts(domain_id, ['failed']);
+    const r = resolvePost(instruction, candidates);
+    if (r.kind === 'none') {
+      return ok({ intent, thought: 'No failed posts to retry.', reply: 'Nothing has failed — there\'s no post to retry right now.', links: [{ label: 'Pipeline', href: '/dashboard/pipeline' }] });
+    }
+    if (r.kind === 'many') return ambiguous(intent, 'retry', r.posts);
+
+    const genLimited = await enforceRateLimit(`gen:${user.id}`, LIMITS.generate);
+    if (genLimited) return genLimited;
+
+    // RLS-scoped reset; select back so a non-owned id can't trigger generation.
+    const { data: reset } = await sb.from('posts')
+      .update({ status: 'queued', validation: null })
+      .eq('id', r.post.id).select('id');
+    if (!reset?.length) return ok({ intent, thought: '', reply: 'I couldn\'t reset that post — it\'s unchanged.' });
+
+    after(async () => {
+      try {
+        await generatePost(r.post.id);
+        await runCoverForPost(r.post.id);
+      } catch (e: any) {
+        await supabaseAdmin().from('posts').update({
+          status: 'failed', validation: { error: String(e?.message ?? e) },
+        }).eq('id', r.post.id);
+      }
+    });
+    return ok({
+      intent, thought: `Re-queued "${r.post.title}" for another run.`,
+      reply: `On it — I've re-queued "${r.post.title}" and it's going back through research, drafting and the quality gate. Watch it in the pipeline.`,
+      changes: [{ label: 'Pipeline', detail: 'retrying', href: '/dashboard/pipeline' }],
+    });
+  }
+
+  /* ── reschedule: move a scheduled/review post to a new publish date ──── */
+  if (intent === 'reschedule') {
+    const instruction = parseSlash(message)?.rest || message;
+    const { when, selector } = extractReschedule(instruction);
+    if (!when) {
+      return ok({ intent, thought: 'No date I could parse.', reply: 'When should it go out? Try a specific day — "move it to Monday", "reschedule to tomorrow at 9am", or "in 3 days".' });
+    }
+    const candidates = await loadPosts(domain_id, ['scheduled', 'review']);
+    const r = resolvePost(selector, candidates);
+    if (r.kind === 'none') {
+      return ok({ intent, thought: 'No scheduled drafts to move.', reply: 'There are no scheduled or in-review posts to reschedule right now.', links: [{ label: 'Calendar', href: '/dashboard/calendar' }] });
+    }
+    if (r.kind === 'many') return ambiguous(intent, 'reschedule', r.posts);
+
+    const { data: moved } = await sb.from('posts')
+      .update({ scheduled_at: when.at, status: 'scheduled' })
+      .eq('id', r.post.id).select('id');
+    if (!moved?.length) return ok({ intent, thought: '', reply: 'I couldn\'t move that one — it\'s unchanged.' });
+    return ok({
+      intent, thought: `Moved "${r.post.title}" to ${when.label}.`,
+      reply: `Done — "${r.post.title}" is now scheduled to publish ${when.label}.`,
+      changes: [{ label: 'Calendar', detail: when.label.slice(0, 10), href: '/dashboard/calendar' }],
+    });
   }
 
   /* ── revise: steer the active monthly plan, same caps as the plan chat ─ */

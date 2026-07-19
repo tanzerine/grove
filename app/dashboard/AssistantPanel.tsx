@@ -34,7 +34,7 @@ const SUGGESTIONS = [
 ];
 
 const iconFor = (label: string) =>
-  ({ Pipeline: 'pipeline', Analytics: 'analytics', Strategy: 'strategy', Billing: 'billing', Titles: 'pen' } as Record<string, string>)[label] ?? 'link';
+  ({ Pipeline: 'pipeline', Analytics: 'analytics', Strategy: 'strategy', Billing: 'billing', Titles: 'pen', Published: 'published', Calendar: 'calendar' } as Record<string, string>)[label] ?? 'link';
 
 export default function AssistantPanel() {
   const { activeId, activeHostname } = useChrome();
