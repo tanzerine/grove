@@ -1,6 +1,6 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { PLANS, PLAN_IDS, isPlanId } from '@/lib/plans';
+import { PLANS, PLAN_IDS, isPlanId, resolvePriceId } from '@/lib/plans';
 import BillingClient from './BillingClient';
 import { DashHeader } from '../gv-chrome';
 
@@ -20,12 +20,13 @@ export default async function BillingPage() {
     plan?: string | null;
     stripe_status?: string | null;
     stripe_customer_id?: string | null;
+    stripe_price_id?: string | null;
     current_period_end?: string | null;
   } | null = null;
   try {
     const { data } = await sb
       .from('subscriptions')
-      .select('plan, stripe_status, stripe_customer_id, current_period_end')
+      .select('plan, stripe_status, stripe_customer_id, stripe_price_id, current_period_end')
       .eq('user_id', user.id)
       .maybeSingle();
     sub = data;
@@ -34,6 +35,10 @@ export default async function BillingPage() {
   const status = (sub?.stripe_status as string | null) ?? null;
   const isActive = !!status && ACTIVE_STATUSES.includes(status);
   const currentPlan = isActive && isPlanId(sub?.plan) ? sub!.plan : null;
+  // The price id is the only record of which interval they bought.
+  const currentInterval = currentPlan
+    ? resolvePriceId(sub?.stripe_price_id)?.interval ?? null
+    : null;
 
   return (
     <>
@@ -42,6 +47,7 @@ export default async function BillingPage() {
         <BillingClient
           plans={PLAN_IDS.map((id) => PLANS[id])}
           currentPlan={currentPlan}
+          currentInterval={currentInterval}
           status={status}
           hasCustomer={!!sub?.stripe_customer_id}
           currentPeriodEnd={(sub?.current_period_end as string | null) ?? null}

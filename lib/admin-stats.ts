@@ -10,7 +10,7 @@
  */
 import { supabaseAdmin } from './supabase/admin';
 import { getStripe, stripeConfigured } from './stripe';
-import { PLANS, isPlanId } from './plans';
+import { isPlanId, monthlyPriceUsd, resolvePriceId } from './plans';
 
 const ACTIVE = ['active', 'trialing', 'past_due'];
 
@@ -58,16 +58,21 @@ export async function getAdminStats(): Promise<AdminStats> {
   try {
     const { data } = await admin
       .from('subscriptions')
-      .select('user_id, plan, stripe_status');
+      .select('user_id, plan, stripe_status, stripe_price_id');
     for (const s of data ?? []) {
       const status = (s as any).stripe_status as string | null;
       const plan = (s as any).plan as string | null;
+      const priceId = (s as any).stripe_price_id as string | null;
       subByUser.set((s as any).user_id, { plan, status });
       if (status && ACTIVE.includes(status)) {
         stats.subs.active++;
         if (plan && isPlanId(plan)) {
           stats.subs.byPlan[plan] = (stats.subs.byPlan[plan] ?? 0) + 1;
-          stats.subs.mrrUsd += PLANS[plan].priceUsd;
+          // Annual subs are recognized off their price id; a yearly sub
+          // contributes its discounted monthly-equivalent to MRR, not the
+          // full monthly list price.
+          const interval = resolvePriceId(priceId)?.interval ?? 'month';
+          stats.subs.mrrUsd += monthlyPriceUsd(plan, interval);
         }
       }
     }
