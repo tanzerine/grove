@@ -1,6 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: { serverActions: { bodySizeLimit: '2mb' } },
+  // Covers + inline images live in Supabase Storage. Serving them through
+  // next/image (and lib/image-cdn.ts for markdown-rendered bodies) puts them
+  // behind Vercel's image CDN, so blog traffic stops draining Supabase egress
+  // (free tier: 5 GB/mo — a few thousand pageviews).
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: '*.supabase.co', pathname: '/storage/v1/object/public/**' },
+    ],
+  },
   // Type errors now fail the build (the codebase type-checks clean as of the
   // calendar work). This stops latent bugs like the manager-gate body_md
   // mismatch from silently shipping again. ESLint stays non-blocking.

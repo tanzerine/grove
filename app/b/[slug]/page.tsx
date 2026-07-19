@@ -3,6 +3,7 @@ import { jsonLdScript, blogHomeUrl, blogPostUrl, subdomainSlugFromHost, isCustom
 import { genreFor, authorFor, type Genre } from '@/lib/blog-genre';
 import { blogThemeVars, fallbackPalette, resolveBranding } from '@/lib/blog-theme';
 import Link from 'next/link';
+import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
 
@@ -206,7 +207,7 @@ export default async function BlogIndex({
             <Byline author={author} date={featured.published_at} reads={featured.reads} />
           </div>
           {featured.cover_image_url
-            ? <img src={featured.cover_image_url} alt="" className="feat-media" />
+            ? <Image src={featured.cover_image_url} alt="" width={750} height={500} sizes="(max-width: 700px) 100vw, 45vw" priority className="feat-media" />
             : <div className="feat-fallback" aria-hidden style={{ background: fallbackColor(featured.title, covers) }}>{initialOf(featured.title)}</div>}
         </Link>
       )}
@@ -223,7 +224,7 @@ export default async function BlogIndex({
             return (
               <Link key={p.slug} href={`${prefix}/${p.slug}`} className="bi-card">
                 {p.cover_image_url
-                  ? <img src={p.cover_image_url} alt="" loading="lazy" className="bi-cover" />
+                  ? <Image src={p.cover_image_url} alt="" width={640} height={427} sizes="(max-width: 640px) 100vw, 340px" className="bi-cover" />
                   : <div className="bi-fallback" aria-hidden style={{ background: fallbackColor(p.title, covers) }}>{initialOf(p.title)}</div>}
                 <div style={{ padding: '16px 18px 18px', display: 'flex', flexDirection: 'column', flex: 1 }}>
                   <div><GenreTag genre={g} /></div>

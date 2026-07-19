@@ -1,5 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { mdToHtml, extractToc } from '@/lib/markdown';
+import { rewriteImgsToCdn } from '@/lib/image-cdn';
+import Image from 'next/image';
 import { stripLeadingH1 } from '@/lib/article-body';
 import { extractFaq } from '@/lib/faq';
 import { jsonLdScript, blogHomeUrl, blogPostUrl, subdomainSlugFromHost, isCustomBlogHost, canonicalBaseFor, servedBlogBaseFor, buildArticleGraph } from '@/lib/seo';
@@ -96,7 +98,10 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   // body so anchors line up with the rendered html.
   const bodyMd = stripLeadingH1(p.body_md ?? '');
   const { body: linkedMd } = injectInternalLinks(bodyMd, siblings ?? [], prefix);
-  const html = mdToHtml(linkedMd);
+  // Body images (injected cover + inline illustrations) are Supabase Storage
+  // URLs; rewrite them through Vercel's image CDN so pageviews don't drain
+  // Supabase egress. Runs AFTER sanitization (mdToHtml) on our own origin only.
+  const html = rewriteImgsToCdn(mdToHtml(linkedMd));
   const toc = extractToc(bodyMd);
 
   // CTA banner: "Try {business}" → the owner's chosen page (domains.cta_url,
@@ -165,10 +170,14 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
 
           {p.cover_image_url && (
             <figure style={{ margin: '26px 0 0' }}>
-              <img
+              <Image
                 src={p.cover_image_url}
                 alt={p.title ?? ''}
-                style={{ display: 'block', width: '100%', borderRadius: 14, border: '1px solid var(--line)' }}
+                width={1200}
+                height={800}
+                sizes="(max-width: 860px) 100vw, 760px"
+                priority
+                style={{ display: 'block', width: '100%', height: 'auto', borderRadius: 14, border: '1px solid var(--line)' }}
               />
               {credit?.name && (
                 <figcaption className="mono" style={{ fontSize: 11, color: 'var(--clay)', marginTop: 6 }}>
@@ -212,7 +221,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
                 {related.map((rp) => (
                   <a key={rp.slug} href={`${prefix}/${rp.slug}`} className="bi-card">
                     {rp.cover_image_url && (
-                      <img src={rp.cover_image_url} alt="" loading="lazy" className="bi-cover" style={{ height: 110 }} />
+                      <Image src={rp.cover_image_url} alt="" width={640} height={427} sizes="(max-width: 640px) 100vw, 300px" className="bi-cover" style={{ height: 110 }} />
                     )}
                     <div style={{ padding: '12px 14px 14px' }}>
                       <div style={{ fontFamily: 'Clash Display', fontSize: 16, lineHeight: 1.3 }}>{rp.title}</div>

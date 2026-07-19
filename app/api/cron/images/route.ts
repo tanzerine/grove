@@ -21,7 +21,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { isCronAuthorized } from '@/lib/cron-auth';
-import { runCoverForPost } from '@/lib/pipeline/cover-image';
+import { runCoverForPost, MAX_COVER_ATTEMPTS } from '@/lib/pipeline/cover-image';
 import { runInlineImagesForPost } from '@/lib/pipeline/inline-images';
 
 export const maxDuration = 300;
@@ -39,14 +39,31 @@ export async function GET(req: Request) {
   const sb = supabaseAdmin();
 
   // 1) covers — posts live enough to show but missing a cover, newest first.
-  const { data: needCover } = await sb
+  //    Posts that exhausted their retry budget are excluded HERE, not just
+  //    guarded inside runCoverForPost — otherwise the same N permanently-
+  //    failing posts would fill the whole batch every day and posts behind
+  //    them would never get a cover.
+  let { data: needCover, error: coverQueryErr } = await sb
     .from('posts')
     .select('id')
     .not('status', 'eq', 'failed')
     .not('status', 'eq', 'queued')
     .is('cover_image_url', null)
+    .lt('cover_attempts', MAX_COVER_ATTEMPTS)
     .order('created_at', { ascending: false })
     .limit(COVER_LIMIT);
+  if (coverQueryErr) {
+    // Pre-migration fallback (0027 not applied → unknown column). The
+    // per-post guard is also inert then, so behavior matches today's.
+    ({ data: needCover } = await sb
+      .from('posts')
+      .select('id')
+      .not('status', 'eq', 'failed')
+      .not('status', 'eq', 'queued')
+      .is('cover_image_url', null)
+      .order('created_at', { ascending: false })
+      .limit(COVER_LIMIT));
+  }
 
   let covers = 0;
   for (const p of needCover ?? []) {

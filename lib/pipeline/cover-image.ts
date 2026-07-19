@@ -33,6 +33,12 @@ const IMAGE_QUALITY = (process.env.COVER_IMAGE_QUALITY ?? 'medium') as 'low' | '
 const IMAGE_ASPECT = '3:2';   // gpt-image-2 supports 1:1, 3:2, 2:3
 const BUCKET = process.env.COVER_BUCKET ?? 'post-covers';
 
+// Retry budget across cron runs. The images cron re-selects any post with a
+// NULL cover, so a persistently-failing cover (e.g. the prompt trips the image
+// model's content filter) would otherwise be re-billed daily forever. Tracked
+// in posts.cover_attempts (migration 0027).
+export const MAX_COVER_ATTEMPTS = 5;
+
 export type Cover = {
   url: string;
   credit: { name: string; source: string; model: string };
@@ -144,6 +150,22 @@ export async function runCoverForPost(postId: string, opts: { force?: boolean } 
     return;
   }
 
+  // Retry budget: queried separately (not in the select above) so the whole
+  // function keeps working if migration 0027 hasn't landed yet — the read just
+  // fails silently and the guard stays inert. force (manual regenerate) skips
+  // the cap: an owner clicking the button is explicit intent, not a loop.
+  const { data: attemptRow } = await sb
+    .from('posts').select('cover_attempts').eq('id', postId).maybeSingle();
+  const attempts = Number((attemptRow as any)?.cover_attempts ?? 0);
+  if (!opts.force && attempts >= MAX_COVER_ATTEMPTS) {
+    await appendLog(postId, 'cover_image', 'fail', `retry budget exhausted (${attempts} attempts) — not retrying`);
+    return;
+  }
+  // Best-effort; a failed update (pre-migration) must never block the pipeline.
+  const bumpAttempts = async () => {
+    await sb.from('posts').update({ cover_attempts: attempts + 1 }).eq('id', postId);
+  };
+
   await appendLog(postId, 'cover_image', 'start');
 
   const title = (post as any).meta_title || (post as any).title || '';
@@ -161,7 +183,8 @@ export async function runCoverForPost(postId: string, opts: { force?: boolean } 
       bodyMd,
     });
     if (!cover) {
-      await appendLog(postId, 'cover_image', 'done', 'no image generated');
+      await bumpAttempts();
+      await appendLog(postId, 'cover_image', 'done', `no image generated (attempt ${attempts + 1}/${MAX_COVER_ATTEMPTS})`);
       return;
     }
 
@@ -176,6 +199,7 @@ export async function runCoverForPost(postId: string, opts: { force?: boolean } 
     }).eq('id', postId);
     await appendLog(postId, 'cover_image', 'done', cover.credit.name);
   } catch (err: any) {
+    await bumpAttempts();
     await appendLog(postId, 'cover_image', 'fail', String(err?.message ?? err));
   }
 }
