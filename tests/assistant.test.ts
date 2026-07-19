@@ -5,7 +5,7 @@ import { resolvePost, parseWhen, extractReschedule, type PostRef } from '../lib/
 import type { ContentRow } from '../lib/search-console/insights';
 import { relevantKnowledge } from '../lib/assistant/knowledge';
 import { signalsBlock, type AssistantSignals } from '../lib/assistant/context';
-import { buildAnswerPrompt } from '../lib/assistant/chat';
+import { buildAnswerPrompt, NO_ACCESS_RX, sanitizeHistory, guardReply } from '../lib/assistant/chat';
 
 describe('parseSlash', () => {
   it('parses a known command and its remainder', () => {
@@ -353,7 +353,7 @@ describe('signalsBlock', () => {
 });
 
 describe('buildAnswerPrompt', () => {
-  it('embeds signals, plan memo, matching guides and the transcript', () => {
+  it('carries the data in the USER prompt: signals, plan memo, guides, transcript', () => {
     const { system, user } = buildAnswerPrompt({
       hostname: 'acme.com',
       intent: 'help',
@@ -366,20 +366,73 @@ describe('buildAnswerPrompt', () => {
       ],
     });
     expect(system).toContain('acme.com');
-    expect(system).toContain('42 clicks');
-    expect(system).toContain('PLAN MEMO CONTENT');
-    expect(system).toContain('Canonical URL setup');
+    // the data must ride in the user prompt so a dropped system_prompt can't blind the model
+    expect(user).toContain('LIVE DATA for acme.com');
+    expect(user).toContain('42 clicks');
+    expect(user).toContain('PLAN MEMO CONTENT');
+    expect(user).toContain('Canonical URL setup');
     expect(user).toContain('OWNER: how do I set up the canonical url?');
     expect(user).toContain('YOU: hello — what do you need?');
+    expect(user).toContain('never claim you lack access');
   });
 
   it('omits empty sections', () => {
-    const { system } = buildAnswerPrompt({
+    const { user } = buildAnswerPrompt({
       hostname: 'acme.com', intent: 'general', message: 'good morning',
       signalsMd: '', planMd: '', history: [],
     });
-    expect(system).toContain('(no data yet)');
-    expect(system).not.toContain('CURRENT PLAN MEMO');
-    expect(system).not.toContain('\nGUIDES\n');
+    expect(user).toContain('brand-new blog');
+    expect(user).not.toContain('CURRENT PLAN MEMO');
+    expect(user).not.toContain('\nGUIDES\n');
+  });
+
+  it('strips old disclaimer turns from the transcript', () => {
+    const { user } = buildAnswerPrompt({
+      hostname: 'acme.com', intent: 'analytics', message: 'am I getting new users?',
+      signalsMd: signalsBlock(SIGNALS), planMd: '',
+      history: [
+        { role: 'user', content: 'am i getting new users?' },
+        { role: 'agent', content: "I don't have direct access to your live analytics dashboard or user database." },
+      ],
+    });
+    expect(user).not.toContain('user database');
+    expect(user).toContain('OWNER: am i getting new users?');
+  });
+});
+
+describe('NO_ACCESS_RX / sanitizeHistory / guardReply', () => {
+  const badReplies = [
+    "To give you a completely direct answer: I don't know, because I cannot see your data.",
+    "Because I am an AI, I don't have access to your website's analytics, Stripe account, or user database.",
+    'you will need to check your own analytics dashboard (like Google Analytics, PostHog, or your database)',
+    'If you want to look at your numbers and paste them here, I would be happy to help you analyze them!',
+  ];
+
+  it('catches every shape of the disclaimer from the real transcript', () => {
+    for (const r of badReplies) expect(NO_ACCESS_RX.test(r)).toBe(true);
+  });
+
+  it('does not flag honest replies about missing connections', () => {
+    expect(NO_ACCESS_RX.test('Google Search Console is NOT connected — connect it on the Analytics page.')).toBe(false);
+    expect(NO_ACCESS_RX.test('Yes — 9 readers converted this month, up from 4. Connect GA4 from Dashboard → Analytics for whole-site user counts.')).toBe(false);
+  });
+
+  it('sanitizeHistory drops poisoned agent turns, keeps everything else', () => {
+    const cleaned = sanitizeHistory([
+      { role: 'user', content: 'am i getting new users?' },
+      { role: 'agent', content: badReplies[1] },
+      { role: 'agent', content: 'You had 9 conversions this month.' },
+    ]);
+    expect(cleaned).toHaveLength(2);
+    expect(cleaned[1].content).toContain('9 conversions');
+  });
+
+  it('guardReply swaps a disclaimer for the live data and passes good replies through', () => {
+    const good = { thought: 't', reply: 'Yes — 9 conversions this month, up from 4.' };
+    expect(guardReply(good, 'DATA')).toBe(good);
+    const guarded = guardReply({ thought: '', reply: badReplies[0] }, 'FUNNEL: 210 → 120 → 9');
+    expect(guarded.reply).toContain('I do have your live data');
+    expect(guarded.reply).toContain('FUNNEL: 210 → 120 → 9');
+    expect(NO_ACCESS_RX.test(guarded.reply)).toBe(false);
   });
 });

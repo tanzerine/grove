@@ -164,12 +164,27 @@ export default function AssistantPanel() {
             <div style={{ fontSize: 13.5, fontWeight: 700 }}>Agent</div>
             <div style={{ fontSize: 10.5, color: 'var(--gv-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeHostname}</div>
           </div>
+          {messages.length > 0 && (
+            <button
+              type="button"
+              className="gv-iconbtn"
+              aria-label="Start a new chat"
+              title="New chat"
+              onClick={() => {
+                setMessages([]);
+                try { sessionStorage.removeItem(storeKey); } catch { /* ignore */ }
+              }}
+              style={{ marginLeft: 'auto', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'var(--gv-dim)', cursor: 'pointer' }}
+            >
+              <Icon name="refresh" size={13} />
+            </button>
+          )}
           <button
             type="button"
             className="gv-iconbtn"
             aria-label="Close agent chat"
             onClick={() => toggle(false)}
-            style={{ marginLeft: 'auto', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'var(--gv-dim)', cursor: 'pointer' }}
+            style={{ marginLeft: messages.length > 0 ? 0 : 'auto', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'var(--gv-dim)', cursor: 'pointer' }}
           >
             <Icon name="x" size={13} />
           </button>
