@@ -31,6 +31,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
 
   return (
     <>
+      {/* Preload so GT Walsheim (the hero/heading font) is ready before first
+          paint — pairs with font-display:block in Landing.tsx to avoid any
+          visible fallback-font flash. */}
+      <link rel="preload" href="/fonts/GTWalsheim-Medium.otf" as="font" type="font/otf" crossOrigin="anonymous" />
       <StructuredData />
       <Landing loggedIn={loggedIn} />
     </>
