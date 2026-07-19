@@ -7,6 +7,7 @@ import { summarize as gscSummarize } from '@/lib/search-console/insights';
 import Icon from './gv-icons';
 import { DashHeader } from './gv-chrome';
 import OverviewPipeline, { type OvRow } from './OverviewPipeline';
+import AskAgent from './AskAgent';
 
 const ACCENT = 'var(--gv-accent)';
 const SAGE = '#9aa79e';
@@ -361,6 +362,11 @@ export default async function OverviewPage() {
                   </div>
                 </div>
               )}
+
+              <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
+                <AskAgent prompt="Why is this month lacking new viewers?" label="Ask about my numbers" />
+                <AskAgent prompt="Improve my low-CTR titles" label="Fix weak titles" />
+              </div>
             </div>
           </div>
         </div>

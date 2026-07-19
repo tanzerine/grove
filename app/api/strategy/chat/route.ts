@@ -4,8 +4,9 @@
  * The cost breaker between conversation and the agent loop (see
  * lib/strategy/plan-chat.ts): questions run on the fast model against the
  * ~500-token plan memo; revisions are one strategist call that edits the plan
- * in place. Monthly caps are enforced here by counting persisted rows, so
- * they hold across serverless instances and can't be bypassed client-side.
+ * in place. Monthly caps are enforced by counting persisted rows (shared with
+ * the sidebar assistant via lib/strategy/apply-revision.ts), so they hold
+ * across serverless instances and can't be bypassed client-side.
  */
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -13,14 +14,13 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
 import { contextForPrompt } from '@/lib/strategy/context';
-import { getAgentContext, savePlanContext } from '@/lib/strategy/context-store';
+import { getAgentContext } from '@/lib/strategy/context-store';
 import {
   PLAN_CHAT_LIMITS,
   classifyPlanMessage,
   answerPlanQuestion,
-  reviseStrategy,
 } from '@/lib/strategy/plan-chat';
-import type { Strategy } from '@/lib/strategy/build';
+import { planChatBudget, applyPlanRevision } from '@/lib/strategy/apply-revision';
 import { canGenerateForUser } from '@/lib/billing';
 
 export const runtime = 'nodejs';
@@ -31,26 +31,6 @@ const postBody = z.object({
   domain_id: z.string().uuid(),
   message: z.string().trim().min(1).max(2000),
 });
-
-type Budget = { messagesLeft: number; revisionsLeft: number };
-
-async function monthlyBudget(domainId: string): Promise<Budget> {
-  const sb = supabaseAdmin();
-  const monthStart = new Date();
-  monthStart.setUTCDate(1); monthStart.setUTCHours(0, 0, 0, 0);
-  const since = monthStart.toISOString();
-
-  const [{ count: msgs }, { count: revs }] = await Promise.all([
-    sb.from('plan_chat_messages').select('id', { count: 'exact', head: true })
-      .eq('domain_id', domainId).eq('role', 'user').gte('created_at', since),
-    sb.from('plan_chat_messages').select('id', { count: 'exact', head: true })
-      .eq('domain_id', domainId).eq('role', 'agent').eq('revised', true).gte('created_at', since),
-  ]);
-  return {
-    messagesLeft: Math.max(0, PLAN_CHAT_LIMITS.messagesPerMonth - (msgs ?? 0)),
-    revisionsLeft: Math.max(0, PLAN_CHAT_LIMITS.revisionsPerMonth - (revs ?? 0)),
-  };
-}
 
 async function ownedDomain(domainId: string) {
   const sb = await supabaseServer();
@@ -82,7 +62,7 @@ export async function GET(req: Request) {
     .order('created_at', { ascending: true })
     .limit(50);
 
-  return NextResponse.json({ messages: messages ?? [], budget: await monthlyBudget(domainId) });
+  return NextResponse.json({ messages: messages ?? [], budget: await planChatBudget(domainId) });
 }
 
 export async function POST(req: Request) {
@@ -105,7 +85,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const budget = await monthlyBudget(domain_id);
+  const budget = await planChatBudget(domain_id);
   if (budget.messagesLeft <= 0) {
     return NextResponse.json({
       reply: 'The plan chat has hit this month\'s message limit. It resets on the 1st — the monthly re-plan will also fold in everything we\'ve discussed.',
@@ -127,17 +107,6 @@ export async function POST(req: Request) {
   });
   budget.messagesLeft -= 1;
 
-  const strategy: Strategy = {
-    month: String(strategyRow.month).slice(0, 7),
-    source: strategyRow.source,
-    goals: strategyRow.goals ?? [],
-    kpis: strategyRow.kpis ?? [],
-    pillars: strategyRow.pillars ?? [],
-    publishing_plan: strategyRow.publishing_plan ?? [],
-    direction: strategyRow.direction ?? undefined,
-    notes: strategyRow.notes ?? '',
-  };
-
   const kind = classifyPlanMessage(message);
   let reply: string;
   let revised = false;
@@ -146,48 +115,13 @@ export async function POST(req: Request) {
     if (kind === 'revision' && budget.revisionsLeft <= 0) {
       reply = `This month's plan-revision budget is used up (${PLAN_CHAT_LIMITS.revisionsPerMonth} revisions). I can still answer questions about the plan, and the monthly re-plan on the 1st takes your notes into account.`;
     } else if (kind === 'revision') {
-      // Slots with a post already drafted or live must survive the revision.
-      const { data: linkedPosts } = await admin
-        .from('posts').select('slot_id, status')
-        .eq('strategy_id', strategyRow.id).not('slot_id', 'is', null);
-      const lockedSlotIds = (linkedPosts ?? [])
-        .filter((p: any) => p.status !== 'failed')
-        .map((p: any) => p.slot_id as string);
-
-      const outcome = await reviseStrategy({
-        current: strategy,
-        instruction: message,
+      const outcome = await applyPlanRevision({
+        domainId: domain_id,
         hostname: domain.hostname,
         postsPerWeek: (domain as any).posts_per_week ?? 4,
-        lockedSlotIds,
+        strategyRow,
+        instruction: message,
       });
-
-      // Swap the active strategy row: deactivate old, insert revised.
-      await admin.from('strategies').update({ active: false })
-        .eq('domain_id', domain_id).eq('active', true);
-      const { data: inserted } = await admin.from('strategies').insert({
-        domain_id,
-        month: strategyRow.month,
-        source: 'revised',
-        goals: outcome.strategy.goals,
-        kpis: outcome.strategy.kpis,
-        pillars: outcome.strategy.pillars,
-        publishing_plan: outcome.strategy.publishing_plan,
-        direction: outcome.strategy.direction ?? null,
-        interview: strategyRow.interview ?? null,
-        prev_review: strategyRow.prev_review ?? null,
-        notes: outcome.strategy.notes,
-        active: true,
-      }).select('id').single();
-
-      // Re-link existing posts to the new row so the scheduler doesn't
-      // re-materialize slots that already have a post.
-      if (inserted?.id) {
-        await admin.from('posts').update({ strategy_id: inserted.id })
-          .eq('strategy_id', strategyRow.id);
-      }
-
-      await savePlanContext(domain_id, outcome.strategy, domain.hostname);
       reply = outcome.reply;
       revised = true;
       budget.revisionsLeft -= 1;
