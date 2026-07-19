@@ -16,9 +16,12 @@ import { PLANS } from '@/lib/plans';
 const ACCENT = '#A2FF01';
 
 const CSS = `
-@font-face { font-family: 'GT Walsheim'; src: url('/fonts/GTWalsheim-Regular.otf') format('opentype'); font-weight: 400; font-style: normal; font-display: swap; }
-@font-face { font-family: 'GT Walsheim'; src: url('/fonts/GTWalsheim-Medium.otf') format('opentype'); font-weight: 500; font-style: normal; font-display: swap; }
-@font-face { font-family: 'GT Walsheim'; src: url('/fonts/GTWalsheim-Bold.otf') format('opentype'); font-weight: 700; font-style: normal; font-display: swap; }
+/* Only weight 500 is used on this page (h1 + h2Style) — declared once, at
+   the exact weight requested, so the browser never needs to synthesize or
+   fall back mid-session. font-display:block + the <link rel="preload"> in
+   app/page.tsx keep the swap-to-fallback window imperceptibly short and
+   permanent (no reverting after it lands). */
+@font-face { font-family: 'GT Walsheim'; src: url('/fonts/GTWalsheim-Medium.otf') format('opentype'); font-weight: 500; font-style: normal; font-display: block; }
 
 .gv-land { --accent: ${ACCENT}; color: #f4f4f2; font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif; min-height: 100vh; overflow-x: hidden; position: relative; -webkit-font-smoothing: antialiased; background-color: #000; }
 .gv-land ::selection { background: rgba(162,255,1,0.28); color: #0a0a08; }
