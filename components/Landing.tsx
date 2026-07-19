@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { PLANS } from '@/lib/plans';
+import { ANNUAL_DISCOUNT, PLANS, formatUsd, monthlyPriceUsd, yearlyPriceUsd } from '@/lib/plans';
 
 /* Faithful port of the "Grove Landing" design comp (dark / accent #A2FF01,
    GT Walsheim display + Inter body). Structure, spacing and every animation
@@ -240,8 +240,8 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
     popular: id === 'growth',
     cta: 'Start free',
     feats: PLANS[id].features,
-    price: isMonthly ? PLANS[id].priceUsd : Math.round(PLANS[id].priceUsd * 0.8),
-    note: isMonthly ? 'billed monthly' : 'billed annually',
+    price: monthlyPriceUsd(id, isMonthly ? 'month' : 'year'),
+    note: isMonthly ? 'billed monthly' : `/mo — $${formatUsd(yearlyPriceUsd(id))} billed annually`,
   }));
 
   const faqs = [
@@ -1100,7 +1100,7 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
           <h2 style={{ ...h2Style, margin: '0 0 24px' }}>Cheaper than one freelance post.</h2>
           <div style={{ display: 'inline-flex', padding: 5, background: '#111110', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 999, gap: 4 }}>
             <button onClick={() => setBilling('monthly')} style={{ ...ctaBtn, border: 'none', cursor: 'pointer', padding: '0 20px', borderRadius: 999, background: isMonthly ? '#f4f4f2' : 'transparent', color: isMonthly ? '#0a0a08' : '#9a9d97' }}>Monthly</button>
-            <button onClick={() => setBilling('annual')} style={{ ...ctaBtn, border: 'none', cursor: 'pointer', padding: '0 20px', borderRadius: 999, background: isMonthly ? 'transparent' : '#f4f4f2', color: isMonthly ? '#9a9d97' : '#0a0a08' }}>Annual <span style={{ fontSize: 11, opacity: 0.85, color: ACCENT }}>−20%</span></button>
+            <button onClick={() => setBilling('annual')} style={{ ...ctaBtn, border: 'none', cursor: 'pointer', padding: '0 20px', borderRadius: 999, background: isMonthly ? 'transparent' : '#f4f4f2', color: isMonthly ? '#9a9d97' : '#0a0a08' }}>Annual <span style={{ fontSize: 11, opacity: 0.85, color: ACCENT }}>−{Math.round(ANNUAL_DISCOUNT * 100)}%</span></button>
           </div>
         </div>
         <div className="gv-pricegrid" style={{ display: 'grid', gridTemplateColumns: `repeat(${tiers.length}, 1fr)`, background: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 18 }}>

@@ -3,14 +3,15 @@ import { z } from 'zod';
 import { supabaseServer } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { getStripe, stripeConfigured } from '@/lib/stripe';
-import { isPlanId, priceIdForPlan } from '@/lib/plans';
+import { isBillingInterval, isPlanId, priceIdFor } from '@/lib/plans';
 import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
 
 // Stripe's SDK needs the Node runtime (not edge).
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const body = z.object({ plan: z.string() });
+// interval is optional so older clients keep getting the monthly price.
+const body = z.object({ plan: z.string(), interval: z.string().optional() });
 
 function appOrigin(req: Request): string {
   return process.env.NEXT_PUBLIC_APP_URL || new URL(req.url).origin;
@@ -30,14 +31,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Billing is not configured yet.' }, { status: 503 });
   }
 
-  // 3) Validate the plan and resolve the price id SERVER-SIDE. The client
-  //    only sends a plan name; it can never dictate the amount charged.
+  // 3) Validate the plan/interval and resolve the price id SERVER-SIDE. The
+  //    client only sends names from a fixed set; it can never dictate the
+  //    amount charged — the discount lives in Stripe, not in the request.
   const parsed = body.safeParse(await req.json().catch(() => null));
   if (!parsed.success || !isPlanId(parsed.data.plan)) {
     return NextResponse.json({ error: 'invalid plan' }, { status: 400 });
   }
+  const rawInterval = parsed.data.interval ?? 'month';
+  if (!isBillingInterval(rawInterval)) {
+    return NextResponse.json({ error: 'invalid interval' }, { status: 400 });
+  }
   const plan = parsed.data.plan;
-  const priceId = priceIdForPlan(plan);
+  const interval = rawInterval;
+  const priceId = priceIdFor(plan, interval);
   if (!priceId) {
     return NextResponse.json({ error: 'plan price not configured' }, { status: 503 });
   }
@@ -80,7 +87,7 @@ export async function POST(req: Request) {
       success_url: `${origin}/dashboard/billing?status=success`,
       cancel_url: `${origin}/dashboard/billing?status=cancel`,
       // Echoed back on webhook events so we can resolve the user robustly.
-      metadata: { userId: user.id, plan },
+      metadata: { userId: user.id, plan, interval },
       subscription_data: { metadata: { userId: user.id, plan } },
     });
 
