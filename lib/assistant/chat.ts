@@ -59,6 +59,47 @@ export function guardReply(answer: AssistantAnswer, signalsMd: string): Assistan
   };
 }
 
+/**
+ * Turn whatever the model produced into {thought, reply} without EVER
+ * leaking raw JSON to the owner. Models drift on the output contract —
+ * {"message": "..."} instead of {"reply": "..."} was seen in production —
+ * so: known alternate keys are accepted, an unknown object shape falls back
+ * to its longest string value, and non-JSON text (fences stripped) is
+ * treated as the reply itself. Pure.
+ */
+const REPLY_KEYS = ['reply', 'message', 'answer', 'response', 'content', 'text'];
+const THOUGHT_KEYS = ['thought', 'reasoning', 'thinking'];
+
+export function normalizeAnswer(raw: string): AssistantAnswer {
+  let parsed: unknown = null;
+  try { parsed = extractJson(raw); } catch { /* not JSON — treated as text below */ }
+
+  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+    const obj = parsed as Record<string, unknown>;
+    const pick = (keys: string[]) => {
+      for (const k of keys) {
+        const v = obj[k];
+        if (typeof v === 'string' && v.trim()) return v.trim();
+      }
+      return '';
+    };
+    let reply = pick(REPLY_KEYS);
+    if (!reply) {
+      const strings = Object.values(obj)
+        .filter((v): v is string => typeof v === 'string' && !!v.trim())
+        .sort((a, b) => b.length - a.length);
+      reply = strings[0]?.trim() ?? '';
+    }
+    if (reply) return { thought: pick(THOUGHT_KEYS), reply };
+  }
+
+  const cleaned = raw.trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/```\s*$/, '')
+    .trim();
+  return { thought: '', reply: cleaned };
+}
+
 export function buildAnswerPrompt(opts: {
   hostname: string;
   intent: AssistantIntent;
@@ -98,8 +139,8 @@ review, retry a failed post, reschedule a post ("move the launch post to
 Friday"). If the owner seems to want one of these, tell them the exact
 phrase to say.
 
-OUTPUT: ONE raw JSON object, no markdown fences:
-{"thought":"one short sentence — your reasoning headline","reply":"the answer, plain text"}`;
+OUTPUT: ONE raw JSON object, no markdown fences, EXACTLY these two keys:
+{"thought":"one short sentence — your reasoning headline","reply":"the message shown to the owner ('-' bullets, numbered lists and **bold** allowed; no headers, no tables)"}`;
 
   const transcript = sanitizeHistory(opts.history)
     .slice(-8)
@@ -130,15 +171,5 @@ export async function answerAssistant(opts: {
 }): Promise<AssistantAnswer> {
   const { system, user } = buildAnswerPrompt(opts);
   const { text } = await llmCall({ system, user, maxTokens: 900 });
-  let answer: AssistantAnswer;
-  try {
-    const parsed = extractJson<{ thought?: string; reply?: string }>(text);
-    answer = parsed.reply
-      ? { thought: (parsed.thought ?? '').trim(), reply: parsed.reply.trim() }
-      : { thought: '', reply: text.trim() };
-  } catch {
-    // Treat raw text as the reply — the guard below still applies to it.
-    answer = { thought: '', reply: text.trim() };
-  }
-  return guardReply(answer, opts.signalsMd || '(no data recorded yet)');
+  return guardReply(normalizeAnswer(text), opts.signalsMd || '(no data recorded yet)');
 }

@@ -23,6 +23,7 @@ import { SLASH_COMMANDS } from '@/lib/assistant/triage';
 import {
   createChat, upsertChat, removeChat, parseChats, chatTitle, relativeTime, type Chat,
 } from '@/lib/assistant/chat-store';
+import { parseChatText, type ChatSpan } from '@/lib/assistant/chat-format';
 
 const ACCENT = 'var(--gv-accent)';
 
@@ -41,6 +42,41 @@ const SUGGESTIONS = [
 
 const iconFor = (label: string) =>
   ({ Pipeline: 'pipeline', Analytics: 'analytics', Strategy: 'strategy', Billing: 'billing', Titles: 'pen', Published: 'published', Calendar: 'calendar' } as Record<string, string>)[label] ?? 'link';
+
+/** Agent replies come as markdown-lite (**bold**, `code`, lists) — render
+ *  them as real elements instead of literal asterisks. Parsing is pure
+ *  (lib/assistant/chat-format.ts); this just maps blocks to React nodes. */
+function ChatText({ text }: { text: string }) {
+  const spansOf = (spans: ChatSpan[]) => spans.map((s, j) => s.code
+    ? <code key={j} className="mono" style={{ fontSize: 11.5, background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: 5 }}>{s.text}</code>
+    : s.bold
+      ? <b key={j} style={{ color: 'var(--gv-ink)' }}>{s.text}</b>
+      : <span key={j}>{s.text}</span>);
+  return (
+    <>
+      {parseChatText(text).map((b, i) => {
+        if (b.kind === 'p' && b.spans.length === 0) return <div key={i} style={{ height: 7 }} />;
+        if (b.kind === 'bullet') {
+          return (
+            <div key={i} style={{ display: 'flex', gap: 8, margin: '3px 0' }}>
+              <span style={{ color: ACCENT, flexShrink: 0 }}>•</span>
+              <span style={{ flex: 1, minWidth: 0 }}>{spansOf(b.spans)}</span>
+            </div>
+          );
+        }
+        if (b.kind === 'num') {
+          return (
+            <div key={i} style={{ display: 'flex', gap: 8, margin: '3px 0' }}>
+              <span style={{ color: ACCENT, flexShrink: 0, minWidth: 15, textAlign: 'right' }}>{b.num}.</span>
+              <span style={{ flex: 1, minWidth: 0 }}>{spansOf(b.spans)}</span>
+            </div>
+          );
+        }
+        return <div key={i} style={{ margin: '2px 0' }}>{spansOf(b.spans)}</div>;
+      })}
+    </>
+  );
+}
 
 const iconBtnStyle: React.CSSProperties = {
   width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -332,7 +368,7 @@ export default function AssistantPanel() {
                     <div style={{ fontSize: 12, color: 'var(--gv-faint)', lineHeight: 1.55, marginTop: 4 }}>{m.thought}</div>
                   </div>
                 )}
-                <div style={{ fontSize: 12.5, color: 'var(--gv-soft)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{m.content}</div>
+                <div style={{ fontSize: 12.5, color: 'var(--gv-soft)', lineHeight: 1.6 }}><ChatText text={m.content} /></div>
 
                 {m.changes && (
                   <div style={{ marginTop: 12, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 10 }}>
