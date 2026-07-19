@@ -14,6 +14,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { isCronAuthorized } from '@/lib/cron-auth';
 import { generatePost } from '@/lib/pipeline/generate';
+import { pickQueuedFairly } from '@/lib/pipeline/drain-order';
 import { runSocialAdapter } from '@/lib/pipeline/writer';
 import { materializeDuePlanSlots } from '@/lib/strategy/materialize';
 import { ensureMonthlyStrategy, monthBounds, type EnsureDomain } from '@/lib/strategy/ensure';
@@ -118,9 +119,14 @@ export async function GET(req: Request) {
   //    Posts whose owner isn't paying stay queued untouched — they resume if
   //    the account upgrades, and they never starve paying accounts (we scan
   //    past them rather than counting them against the limit).
+  //    pickQueuedFairly round-robins the slots across domains (one each,
+  //    oldest-waiting domain first, leftovers top up) so one customer's deep
+  //    backlog can't monopolize the daily budget.
   const { data: queuedAll } = await sb
-    .from('posts').select('id, domain_id').eq('status', 'queued').limit(30);
-  const queued = (queuedAll ?? []).filter((p: any) => entitledDomainIds.has(p.domain_id)).slice(0, 3);
+    .from('posts').select('id, domain_id, created_at').eq('status', 'queued')
+    .order('created_at', { ascending: true }).limit(100);
+  const entitledQueued = (queuedAll ?? []).filter((p: any) => entitledDomainIds.has(p.domain_id));
+  const queued = pickQueuedFairly(entitledQueued as any[], 3);
 
   for (const p of queued ?? []) {
     try {
