@@ -1,58 +1,67 @@
 'use client';
 
-import { useState, useRef, useEffect, type CSSProperties } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { PLANS } from '@/lib/plans';
 
-/* Faithful port of the "Grove Landing" design comp:
-   centered refraction-beam hero, floating product mock, stat band, bento
-   features, showcase tiles, testimonials, pricing, FAQ, dark CTA + footer.
-   Self-contained dark skin (Plus Jakarta Sans loaded in app/layout.tsx).
-   Includes the comp's scroll-reveal entrance animation + mouse-reactive beams. */
+/* Faithful port of the "Grove Landing" design comp (dark / accent #A2FF01,
+   GT Walsheim display + Inter body). Structure, spacing and every animation
+   follow the comp:
+     · gvRise / gvRiseLeft / gvFade  — IntersectionObserver scroll reveal
+     · gvScanMove + gvPulse          — the cycling "agent working" glow sweep
+     · gvMarqueeL / gvMarqueeR       — the two embed card marquees
+   Data that makes public claims (pricing, platforms, stats) is sourced from
+   the app, not the comp — see the notes at each array. */
 
-const ACCENT = '#63c281';
-const GLOW = 0.6;
+const ACCENT = '#A2FF01';
 
 const CSS = `
-.gv-land { --accent: ${ACCENT}; --glow: ${GLOW}; }
-.gv-land ::selection { background: rgba(99,194,129,0.3); color: #fff; }
-@keyframes gvDrift1 { 0% { transform: translate3d(-6%,0,0) scale(1.1); } 50% { transform: translate3d(8%,-3%,0) scale(1.25); } 100% { transform: translate3d(-6%,0,0) scale(1.1); } }
-@keyframes gvDrift2 { 0% { transform: translate3d(5%,2%,0) scale(1.2); } 50% { transform: translate3d(-7%,-2%,0) scale(1.05); } 100% { transform: translate3d(5%,2%,0) scale(1.2); } }
-@keyframes gvFloaty { 0% { transform: translateY(0); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0); } }
-@keyframes gvBeam { 0%, 100% { opacity: 0.28; transform: scaleY(1); } 50% { opacity: 0.85; transform: scaleY(1.05); } }
-@keyframes gvShimmer { 0% { transform: translateX(0); } 100% { transform: translateX(26px); } }
-@keyframes gvBlobdrift { 0% { transform: translate3d(-4%, 2%, 0) scale(1.1); } 50% { transform: translate3d(6%, -3%, 0) scale(1.28); } 100% { transform: translate3d(-4%, 2%, 0) scale(1.1); } }
-@keyframes gvRise { from { opacity: 0; transform: translateY(26px); } to { opacity: 1; transform: translateY(0); } }
+@font-face { font-family: 'GT Walsheim'; src: url('/fonts/GTWalsheim-Regular.otf') format('opentype'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'GT Walsheim'; src: url('/fonts/GTWalsheim-Medium.otf') format('opentype'); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: 'GT Walsheim'; src: url('/fonts/GTWalsheim-Bold.otf') format('opentype'); font-weight: 700; font-style: normal; font-display: swap; }
+
+.gv-land { --accent: ${ACCENT}; color: #f4f4f2; font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif; min-height: 100vh; overflow-x: hidden; position: relative; -webkit-font-smoothing: antialiased; background-color: #000; }
+.gv-land ::selection { background: rgba(162,255,1,0.28); color: #0a0a08; }
+@keyframes gvPulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.8); } }
+@keyframes gvFocusFlash { 0%,100% { opacity: 1; } 50% { opacity: 0.15; } }
+@keyframes gvScanMove { from { transform: translateY(-130%); } to { transform: translateY(230%); } }
+@keyframes gvRise { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes gvRiseLeft { from { opacity: 0; transform: translateX(-32px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes gvFade { from { opacity: 0; } to { opacity: 1; } }
-.gv-land .gv-link:hover { color: #eef1ea !important; }
-.gv-land .gv-tile:hover .gv-tilecap { opacity: 1 !important; transform: translateY(0) !important; }
-.gv-land .gv-card:hover { border-color: rgba(99,194,129,0.35) !important; transform: translateY(-3px); }
-.gv-land .gv-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(99,194,129,0.25); }
+@keyframes gvMarqueeL { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes gvMarqueeR { from { transform: translateX(-50%); } to { transform: translateX(0); } }
+.gv-land .gv-link { transition: color .2s; }
+.gv-land .gv-link:hover { color: #f4f4f2 !important; }
+.gv-land .gv-accentlink:hover { color: var(--accent) !important; }
+.gv-land .gv-card { transition: border-color .25s, transform .25s; }
+.gv-land .gv-card:hover { border-color: rgba(255,255,255,0.22) !important; transform: translateY(-2px); }
+.gv-land .gv-btn { transition: transform .18s, box-shadow .18s, opacity .18s; }
+.gv-land .gv-btn:hover { transform: translateY(-2px); opacity: 0.92; }
 .gv-land .gv-ghost:hover { background: rgba(255,255,255,0.06) !important; }
-.gv-land .gv-scroll::-webkit-scrollbar { height: 6px; }
-.gv-land .gv-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 99px; }
-.gv-land input::placeholder { color: #565a53; }
-@media (max-width: 860px) {
-  .gv-land .gv-bento { grid-template-columns: 1fr !important; }
-  .gv-land .gv-bento > div { grid-column: auto !important; }
-}
-@media (max-width: 760px) {
+.gv-land .gv-row:hover { background: rgba(255,255,255,0.03) !important; }
+.gv-land input::placeholder { color: #55564f; }
+
+@media (max-width: 900px) {
+  .gv-land .gv-mockside { display: none !important; }
+  .gv-land .gv-dashstats { grid-template-columns: repeat(2, 1fr) !important; }
+  .gv-land .gv-dashsplit { grid-template-columns: 1fr !important; }
+  .gv-land .gv-chatpanel { display: none !important; }
+  .gv-land .gv-bento { grid-template-columns: 1fr !important; grid-template-rows: none !important; height: auto !important; }
+  .gv-land .gv-bento > div { grid-column: auto !important; grid-row: auto !important; }
+  .gv-land .gv-pricegrid { grid-template-columns: 1fr 1fr !important; }
   .gv-land .gv-faqgrid { grid-template-columns: 1fr !important; }
-  .gv-land .gv-footgrid { grid-template-columns: 1fr 1fr !important; }
+  .gv-land .gv-strategysplit { grid-template-columns: 1fr !important; }
 }
-.gv-land .gv-mock-grid { display: grid; grid-template-columns: 194px 1fr; }
-@media (max-width: 720px) {
-  .gv-land .gv-mock-side { display: none !important; }
-  .gv-land .gv-mock-grid { grid-template-columns: 1fr; }
-  .gv-land .gv-mock-stats { grid-template-columns: repeat(2, 1fr) !important; }
-}
-@media (max-width: 720px) {
+@media (max-width: 700px) {
   .gv-land .gv-navlinks { display: none !important; }
-  .gv-land .gv-navpill { gap: 14px !important; }
-}
-@media (max-width: 760px) {
   .gv-land .gv-steps3 { grid-template-columns: 1fr !important; }
-  .gv-land .gv-statband { grid-template-columns: repeat(2, 1fr) !important; padding: 30px 22px !important; }
+  .gv-land .gv-statstrip { grid-template-columns: repeat(2, 1fr) !important; }
+  .gv-land .gv-pricegrid { grid-template-columns: 1fr !important; }
+  .gv-land .gv-footgrid { grid-template-columns: 1fr 1fr !important; }
+  .gv-land .gv-dashstats { grid-template-columns: 1fr 1fr !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gv-land *, .gv-land *::before, .gv-land *::after { animation: none !important; }
 }
 `;
 
@@ -61,93 +70,71 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
   const [domain, setDomain] = useState('');
   const [billing, setBilling] = useState<'monthly' | 'annual'>('monthly');
   const [faqOpen, setFaqOpen] = useState<number>(0);
+  const [focusStep, setFocusStep] = useState<number>(0);
   const rootElRef = useRef<HTMLDivElement>(null);
-  const refractRef = useRef<HTMLDivElement>(null);
-  const beamsRef = useRef<HTMLDivElement>(null);
 
-  // mouse-reactive hue/parallax on the hero refraction (port of comp's _onMove)
+  // Comp's componentDidMount cycle: dwell 3200ms on a panel, 1500ms dark gap,
+  // then advance. Drives the scan-line glow on the three hero mock panels.
   useEffect(() => {
-    const el = refractRef.current;
-    if (!el) return;
-    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     if (reduce) return;
-    const onMove = (e: MouseEvent) => {
-      const x = e.clientX / window.innerWidth - 0.5;
-      const y = e.clientY / window.innerHeight - 0.5;
-      el.style.filter = `hue-rotate(${(x * 18).toFixed(1)}deg) saturate(${(1 + x * 0.12).toFixed(3)})`;
-      const beams = beamsRef.current;
-      if (beams) {
-        beams.style.transform = `scaleX(${(1 + x * 0.2).toFixed(3)})`;
-        beams.style.filter = `brightness(${(1.05 - y * 0.45).toFixed(3)})`;
-      }
+    const DWELL = 3200, GAP = 1500;
+    let idx = 0;
+    let timer: ReturnType<typeof setTimeout>;
+    const cycle = () => {
+      timer = setTimeout(() => {
+        setFocusStep(-1);
+        timer = setTimeout(() => {
+          idx = (idx + 1) % 3;
+          setFocusStep(idx);
+          cycle();
+        }, GAP);
+      }, DWELL);
     };
-    window.addEventListener('mousemove', onMove, { passive: true });
-    return () => window.removeEventListener('mousemove', onMove);
+    cycle();
+    return () => clearTimeout(timer);
   }, []);
 
-  // scroll-reveal: sections rise/fade in as they enter the viewport (port of
-  // the comp's componentDidMount). Fade-only for cards, rise for blocks.
+  // Comp's scroll-reveal: .gv-r rises, .gv-r-left slides in from the left,
+  // .gv-card fades. Siblings stagger 60ms up to 6 deep.
   useEffect(() => {
     const root = rootElRef.current;
     if (!root) return;
-    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const targets = Array.from(
-      root.querySelectorAll<HTMLElement>('.gv-r, .gv-rf, #features .gv-card, .gv-tile, .gv-tcard, .gv-pcard, .gv-faq')
-    );
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const targets = Array.from(root.querySelectorAll<HTMLElement>('.gv-r, .gv-card, .gv-r-left'));
     if (reduce || !targets.length) return;
+
     const seen = new Map<Element | null, number>();
+    const delays = new Map<HTMLElement, number>();
     targets.forEach((node) => {
-      const fadeOnly = node.classList.contains('gv-rf') || node.classList.contains('gv-card') || node.classList.contains('gv-tile');
-      (node as any)._fadeOnly = fadeOnly;
-      const parent = node.parentElement;
-      const c = seen.get(parent) || 0;
-      (node as any)._revDelay = Math.min(c, 6) * 70;
-      seen.set(parent, c + 1);
+      const p = node.parentElement;
+      const c = seen.get(p) || 0;
+      delays.set(node, Math.min(c, 6) * 60);
+      seen.set(p, c + 1);
       node.style.opacity = '0';
     });
+
+    const timeouts: ReturnType<typeof setTimeout>[] = [];
     const reveal = (node: HTMLElement) => {
-      if ((node as any)._revDone) return;
-      (node as any)._revDone = true;
-      const name = (node as any)._fadeOnly ? 'gvFade' : 'gvRise';
-      node.style.animation = `${name} .8s cubic-bezier(.22,.61,.36,1) ${(node as any)._revDelay}ms both`;
-      const dur = (node as any)._revDelay + 850;
-      window.setTimeout(() => {
-        node.style.animation = '';
-        node.style.opacity = '';
-      }, dur + 60);
+      const delay = delays.get(node) ?? 0;
+      const name = node.classList.contains('gv-card')
+        ? 'gvFade'
+        : node.classList.contains('gv-r-left') ? 'gvRiseLeft' : 'gvRise';
+      node.style.animation = `${name} .7s cubic-bezier(.22,.61,.36,1) ${delay}ms both`;
+      timeouts.push(setTimeout(() => { node.style.animation = ''; node.style.opacity = ''; }, delay + 800));
     };
-    let scrollFn: (() => void) | null = null;
-    const check = () => {
-      const vh = window.innerHeight || document.documentElement.clientHeight;
-      let remaining = 0;
-      targets.forEach((node) => {
-        if ((node as any)._revDone) return;
-        if (node.getBoundingClientRect().top < vh * 0.88) reveal(node);
-        else remaining++;
+
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          reveal(entry.target as HTMLElement);
+          io.unobserve(entry.target);
+        }
       });
-      if (!remaining && scrollFn) {
-        window.removeEventListener('scroll', scrollFn);
-        window.removeEventListener('resize', scrollFn);
-        scrollFn = null;
-      }
-    };
-    let ticking = false;
-    scrollFn = () => {
-      if (ticking) return;
-      ticking = true;
-      requestAnimationFrame(() => { ticking = false; check(); });
-    };
-    window.addEventListener('scroll', scrollFn, { passive: true });
-    window.addEventListener('resize', scrollFn, { passive: true });
-    requestAnimationFrame(check);
-    const failsafe = window.setTimeout(() => targets.forEach(reveal), 4000);
-    return () => {
-      if (scrollFn) {
-        window.removeEventListener('scroll', scrollFn);
-        window.removeEventListener('resize', scrollFn);
-      }
-      clearTimeout(failsafe);
-    };
+    }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
+    targets.forEach((node) => io.observe(node));
+
+    return () => { io.disconnect(); timeouts.forEach(clearTimeout); };
   }, []);
 
   const clean = (s: string) => s.replace(/^https?:\/\//, '').replace(/\/$/, '').trim().toLowerCase();
@@ -160,85 +147,100 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
   const startHref = loggedIn ? '/dashboard' : '/signup';
   const isMonthly = billing === 'monthly';
 
+  /* ── focus-glow tokens (comp renderVals) ── */
+  const normalBorder = '1px solid rgba(255,255,255,0.08)';
+  const normalBg = '#111110';
+  const glowBg = `${ACCENT}14`;
+  const spinAnim = 'gvScanMove 4s ease-in-out infinite';
+  const scanGradient = `linear-gradient(180deg, transparent, ${ACCENT}1a 35%, ${ACCENT}26 50%, ${ACCENT}1a 65%, transparent)`;
+  const glowBoxShadow = `0 0 0 1.5px ${ACCENT}99, 0 0 22px ${ACCENT}40`;
+  const bgTransition = 'background-color .6s ease';
+  const glowTransition = 'opacity 1.4s ease, background-color 1.4s ease';
+
+  const scanLayer = (on: boolean) => (
+    <div style={{ position: 'absolute', inset: 0, borderRadius: 12, overflow: 'hidden', pointerEvents: 'none', boxShadow: glowBoxShadow, opacity: on ? 1 : 0, transition: glowTransition }}>
+      <div style={{ position: 'absolute', left: 0, right: 0, height: '90%', background: scanGradient, filter: 'blur(10px)', animation: spinAnim }} />
+    </div>
+  );
+
+  /* ── hero dashboard mock data ── */
+  const dashStats = [
+    { label: 'Search clicks', big: '812', delta: '+460%', sub: '61 reads this week', pos: true },
+    { label: 'Posts published', big: '34', delta: '+6', sub: '3.7/week on autopilot', pos: true },
+    { label: 'In pipeline', big: '3', delta: '', sub: 'queue up topics to begin', pos: false },
+    { label: 'Awaiting review', big: '1', delta: '', sub: 'one draft needs a look', pos: false },
+  ];
+  const calDaysRaw: { d: number | ''; pad?: boolean; post?: boolean }[] = [
+    { d: '', pad: true }, { d: '', pad: true }, { d: '', pad: true },
+    { d: 1 }, { d: 2 }, { d: 3 }, { d: 4 },
+    { d: 5 }, { d: 6 }, { d: 7, post: true }, { d: 8, post: true }, { d: 9 }, { d: 10, post: true }, { d: 11 },
+    { d: 12 }, { d: 13 }, { d: 14, post: true }, { d: 15 }, { d: 16 }, { d: 17 }, { d: 18 },
+    { d: 19 }, { d: 20 }, { d: 21 }, { d: 22 }, { d: 23 }, { d: 24 }, { d: 25 },
+    { d: 26 }, { d: 27 }, { d: 28 }, { d: 29 }, { d: 30 }, { d: 31 }, { d: '', pad: true },
+  ];
   const pipeline = [
-    { title: '10 onboarding mistakes killing activation', meta: 'researched · 1,840 words · scheduled', status: 'publishing' },
-    { title: 'How we cut SaaS churn 18% in a quarter', meta: 'drafted · in your voice', status: 'in review' },
-    { title: 'A buyer’s guide to programmatic SEO', meta: 'ranking for 14 keywords', status: 'live' },
+    { title: 'The Complete Guide to AI Onboarding Checklists', keyword: 'ai onboarding checklist', status: 'Live', pos: true },
+    { title: '7 Content Brief Generators Compared for 2026', keyword: 'content brief generator', status: 'Live', pos: true },
+    { title: 'How Founders Are Automating Their Blog in 2026', keyword: 'automate blog content', status: 'Scheduled', pos: false },
   ];
-  const steps = [
-    { n: '01', title: 'Plant your domain', sub: 'One field. No plugins.' },
-    { n: '02', title: 'Verify ownership', sub: 'DNS or meta tag · 2 min' },
-    { n: '03', title: 'You approve, it ships', sub: 'Or flip to full auto' },
+  const embedPosts = [
+    { date: 'Jul 11, 2026', title: 'How to Make a 3D Logo in Illustrator (And the 6-Second Alternative)' },
+    { date: 'Jul 11, 2026', title: 'Venngage AI 3D Icon Generator vs Grove: Which Builds Better UI Assets?' },
+    { date: 'Jul 10, 2026', title: 'How to Make Drop-In Ready Assets in 60 Seconds With an AI 3D Icon Maker' },
   ];
+
   // Real publish surfaces only — grove has no WordPress/Webflow/Ghost plugin,
-  // and pretending otherwise is a bait-and-switch a customer discovers on day 1.
+  // and the comp's logo row listed CMSes we don't integrate with.
   const platforms = ['Hosted blog', 'One-line embed', 'Webhook', 'Zapier / n8n', 'RSS', 'JSON API'];
-  // Product facts, not invented social proof.
+  // Product facts, not invented social proof (the comp had "+312% growth",
+  // "2,400+ posts", "4.9★" — none of which we can stand behind).
   const stats = [
     { big: '1 editor', label: 'an agent scores every draft; weak ones never ship' },
     { big: '0–100', label: 'quality score on each post before it goes live' },
     { big: '1 line', label: 'of code to run the whole blog on your site' },
     { big: '0', label: 'third-party trackers — your analytics stay yours' },
   ];
-  const features = [
-    { n: '01', title: 'Live SERP analysis', body: 'grove reads what’s actually ranking for your keywords, then reverse-engineers the brief — gap, intent, structure and word count.' },
-    { n: '02', title: 'Written to be quoted', body: 'Structured for AI Overviews and ChatGPT — the answer engines where the next click now starts.' },
-    { n: '03', title: 'Writes in your voice', body: 'Trained on your site and past posts. Reads like your best writer — not a content mill.' },
-    { n: '04', title: 'Results in plain English', body: 'See exactly why each post moves — no Search Console spreadsheet required.' },
-    { n: '05', title: 'Cross-posts where it counts', body: 'One brief becomes a blog post, an X thread, a LinkedIn post, and an Instagram caption.' },
-    { n: '06', title: 'Publishes itself', body: 'Straight to your domain — URL, sitemap, internal links, metadata, schema. No copy-paste, no plugins.' },
-  ];
-  const wave = ['40%','70%','55%','85%','45%','95%','60%','75%','50%','88%','42%','66%','80%','52%','92%','58%','72%','48%','84%','62%','46%','78%'];
-  const channels = ['Blog post', 'X thread', 'LinkedIn', 'Instagram'];
 
-  // Hero product mock — mirrors the real dashboard "Overview": the SideNav
-  // sections/items (app/dashboard/SideNav.tsx) and the four stat cards
-  // (app/dashboard/page.tsx). Keep these in sync if the app shell changes.
-  const mockNav = [
-    { head: 'Create', items: [
-      { label: 'Home', icon: 'home', active: true },
-      { label: 'Strategy', icon: 'strategy' },
-      { label: 'Write', icon: 'write' },
-      { label: 'Pipeline', icon: 'pipeline', badge: 3 },
-    ] },
-    { head: 'Publish', items: [
-      { label: 'Calendar', icon: 'calendar' },
-      { label: 'Analytics', icon: 'analytics' },
-    ] },
+  const pillars = [
+    { name: 'AI 3D icon generation', pct: '46%', count: 6, color: '#d7d9d3' },
+    { name: 'Automatic background removal', pct: '38%', count: 5, color: '#7fb6e6' },
+    { name: 'Shipping brand-consistent assets', pct: '16%', count: 2, color: '#c9a3e6' },
   ];
-  const mockStats = [
-    { label: 'Reads', value: '3.2k', delta: '+18%', tone: 'accent', sub: '142 this week' },
-    { label: 'Published', value: '128', delta: '+6', tone: 'accent', sub: '4 / week' },
-    { label: 'In pipeline', value: '3', delta: 'live', tone: 'dim', sub: 'on schedule' },
-    { label: 'Review', value: '2', delta: 'action', tone: 'amber', sub: 'approve to publish' },
+  const weekRows = [
+    { tag: 'MOFU', tagColor: '#e0c878', tagBg: 'rgba(224,200,120,0.08)', tagBorder: 'rgba(224,200,120,0.28)', title: 'The 7 best AI 3D icon generators in 2026, tested honestly', status: 'Live' },
+    { tag: 'BOFU', tagColor: '#c9a3e6', tagBg: 'rgba(201,163,230,0.08)', tagBorder: 'rgba(201,163,230,0.28)', title: 'Pixelcut’s AI 3D icon generator vs grove: which ships to production', status: 'Live' },
+    { tag: 'MOFU', tagColor: '#e0c878', tagBg: 'rgba(224,200,120,0.08)', tagBorder: 'rgba(224,200,120,0.28)', title: 'Is there a truly free AI 3D icon generator? What you get at $0', status: 'Live' },
   ];
-  const navIcon = (name: string) => {
-    const paths: Record<string, string> = {
-      home: 'M3 9l7-6 7 6M5 8.5V17h10V8.5',
-      strategy: 'M10 3a7 7 0 100 14 7 7 0 000-14M10 7l2.2 4.5L8 10z',
-      write: 'M4 16l1.5-.4 8.6-8.6-1.1-1.1L4.4 14.5z',
-      pipeline: 'M4 6l6-2.5L16 6l-6 2.5zM4 10l6 2.5 6-2.5M4 14l6 2.5 6-2.5',
-      calendar: 'M4 5h12v11H4zM4 8.5h12M8 3.5v3M12 3.5v3',
-      analytics: 'M4 16V9M9.5 16V4M15 16v-6',
-    };
-    return (
-      <svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d={paths[name]} />
-      </svg>
-    );
-  };
+  const pipelineRows = [
+    { title: 'Finding the Best Auto Background Remover App: 7 Top Picks for 2026', date: 'Wed, Jul 15', reads: 4, score: '81', scoreColor: '#8fce9a' },
+    { title: 'The Best Automatic Background Remover in 2026: 8 Tools Tested', date: 'Tue, Jul 14', reads: 0, score: '65', scoreColor: '#e0c878' },
+    { title: 'Venngage AI 3D Icon Generator vs Grove: Which Builds Better Assets?', date: 'Sat, Jul 11', reads: 0, score: '84', scoreColor: '#8fce9a' },
+  ];
+  const analyticsNums = [
+    { big: '77', label: 'Organic clicks', delta: '-12%', deltaColor: '#c17b6b' },
+    { big: '1.6k', label: 'Impressions', delta: '+16%', deltaColor: ACCENT },
+    { big: '4.9%', label: 'Avg. CTR', delta: '-1.5pt', deltaColor: '#c17b6b' },
+    { big: '10.9', label: 'Avg. position', delta: '-1.0', deltaColor: '#c17b6b' },
+  ];
+  const trafficSources = [
+    { name: 'Google Search', pct: '76%', color: ACCENT },
+    { name: 'Answer engines', pct: '0%', color: '#7fb6e6' },
+    { name: 'Direct', pct: '16%', color: '#565952' },
+    { name: 'Social + referral', pct: '8%', color: '#3a3b36' },
+  ];
+
   // Pricing renders straight from the plan catalogue so this page can never
-  // disagree with /dashboard/billing again (it did: 4/16/unlimited vs 12/40/150).
-  const tierBase = (['starter', 'growth', 'agency'] as const).map((id) => ({
+  // disagree with /dashboard/billing.
+  const tiers = (['starter', 'growth', 'agency'] as const).map((id) => ({
     name: PLANS[id].name,
-    m: PLANS[id].priceUsd,
-    a: Math.round(PLANS[id].priceUsd * 0.8),
     blurb: PLANS[id].blurb,
     popular: id === 'growth',
     cta: 'Start free',
-    plan: id,
     feats: PLANS[id].features,
+    price: isMonthly ? PLANS[id].priceUsd : Math.round(PLANS[id].priceUsd * 0.8),
+    note: isMonthly ? 'billed monthly' : 'billed annually',
   }));
+
   const faqs = [
     { q: 'Do I need WordPress or any hosting?', a: 'No hosting needed. grove hosts the blog for you at no extra cost, or renders it inside any site that can take one script tag — WordPress, Webflow, Framer, Shopify, Next.js, anything — via the embed. A publish webhook can also push every post into Zapier, Make, or n8n.' },
     { q: 'Will the posts actually sound like me?', a: 'Yes. grove trains on your existing content and tone, and you can steer the voice anytime. The first few drafts calibrate fast and only get closer.' },
@@ -247,169 +249,177 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
     { q: 'What’s the catch with the subscription?', a: 'None. Cancel anytime and keep everything published. No long contracts, no per-seat surprises, no lock-in on your own content.' },
     { q: 'How fast is the first post?', a: 'Minutes. Enter your domain, verify ownership, and grove ships the first researched draft to your queue in the same session.' },
   ];
-  // Every link here must resolve — Privacy/Terms are real pages, and the dead
-  // Status/Blog/Contact entries (grove.so mail doesn't resolve) are gone.
-  const footcols: { head: string; links: [string, string][] }[] = [
-    { head: 'Product', links: [['Features', '#features'], ['Showcase', '#showcase'], ['Pricing', '#pricing'], ['FAQ', '#faq']] },
-    { head: 'Company', links: [['Get started', startHref], ['Sign in', '/login']] },
+
+  const footcols = [
+    { head: 'Product', links: [['Agents', '#agents'], ['Platform', '#platform'], ['Pricing', '#pricing'], ['FAQ', '#faq']] },
     { head: 'Legal', links: [['Privacy', '/privacy'], ['Terms', '/terms']] },
   ];
 
-  const beam = (left: string, w: string, color: string, blur: string, dur: string, delay = '0s'): CSSProperties => ({
-    position: 'absolute', top: '-8%', bottom: '-8%', left, width: w,
-    background: `linear-gradient(180deg, transparent, ${color}, transparent)`,
-    filter: `blur(${blur})`, animation: `gvBeam ${dur} ease-in-out infinite`, animationDelay: delay,
-  });
-
-  const domainForm = (idSuffix: string) => (
-    <form
-      onSubmit={onSubmit}
-      style={{ display: 'flex', gap: 8, maxWidth: 460, margin: idSuffix === '2' ? '0 auto' : '0 auto 16px', background: 'rgba(20,22,19,0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 999, padding: '7px 7px 7px 18px', boxShadow: '0 14px 44px rgba(0,0,0,0.5)' }}
-    >
-      <span style={{ display: 'flex', alignItems: 'center', color: '#6b6f67', fontSize: 15 }}>https://</span>
-      <input
-        value={domain}
-        onChange={(e) => setDomain(e.target.value)}
-        placeholder="yourdomain.com"
-        aria-label="Your domain"
-        style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#eef1ea', fontSize: 15, fontFamily: 'inherit', minWidth: 0 }}
-      />
-      <button className="gv-btn" type="submit" style={{ background: 'var(--accent,#63c281)', color: '#06120b', fontWeight: 700, fontSize: 15, padding: '11px 22px', borderRadius: 999, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'transform .2s, box-shadow .2s' }}>Plant →</button>
-    </form>
-  );
-
+  const eyebrow = { fontSize: 12, letterSpacing: '0.14em', color: '#7c7f77', textTransform: 'uppercase' as const, marginBottom: 16 };
+  const h2Style = { fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 500, letterSpacing: '-0.03em', lineHeight: 1.1, margin: '0 0 16px', color: '#f7f7f5', fontFamily: "'GT Walsheim', 'Inter', sans-serif" };
+  const leadStyle = { fontSize: 18, fontWeight: 400, color: '#9a9d97', lineHeight: 1.6, margin: 0 };
+  const cardBase = { background: '#0a0a09', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 18, padding: 26, boxSizing: 'border-box' as const, width: 278, flexShrink: 0, height: 340, display: 'flex', flexDirection: 'column' as const, justifyContent: 'space-between' };
+  // Shared sizing for every real CTA/UI button (nav, hero, pricing, FAQ, final
+  // form) — excludes controls inside the demo dashboard/agent-chat mockups,
+  // which mirror the product UI and keep their own sizing.
+  const ctaBtn = { height: 32, boxSizing: 'border-box' as const, display: 'inline-flex', alignItems: 'center' as const, justifyContent: 'center' as const, fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif", fontWeight: 500, fontSize: 14 };
   return (
-    <div
-      ref={rootElRef}
-      className="gv-land"
-      style={{ '--accent': ACCENT, '--glow': String(GLOW), background: '#0a0b0a', color: '#eef1ea', fontFamily: "'Plus Jakarta Sans', sans-serif", minHeight: '100vh', overflowX: 'hidden', position: 'relative', WebkitFontSmoothing: 'antialiased' } as CSSProperties}
-    >
+    <div className="gv-land" ref={rootElRef}>
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 
       {/* NAV */}
-      <div style={{ position: 'fixed', top: 16, left: 0, right: 0, zIndex: 50, display: 'flex', justifyContent: 'center', padding: '0 20px', pointerEvents: 'none' }}>
-        <div className="gv-navpill" style={{ pointerEvents: 'auto', display: 'flex', alignItems: 'center', gap: 28, background: 'rgba(16,18,16,0.72)', backdropFilter: 'blur(18px)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 999, padding: '9px 9px 9px 22px', boxShadow: '0 12px 40px rgba(0,0,0,0.45)' }}>
-          <a href="#hero" style={{ display: 'flex', alignItems: 'center', gap: 9, textDecoration: 'none', color: '#eef1ea' }}>
-            <span style={{ width: 16, height: 16, borderRadius: '50%', background: 'radial-gradient(circle at 35% 30%, #9ff0bb, var(--accent,#63c281))', boxShadow: '0 0 12px rgba(99,194,129,0.7)' }} />
-            <span style={{ fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em' }}>grove</span>
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50, backdropFilter: 'blur(16px)', backgroundColor: '#000000C7' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 28, padding: '16px 24px', width: '100%' }}>
+          <a href="#hero" style={{ display: 'flex', alignItems: 'center', gap: 5, textDecoration: 'none', color: '#f4f4f2' }}>
+            <span style={{ width: 28, height: 28, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0, backgroundColor: '#000' }}>
+              <img src="/landing/grove-mark.png" alt="Grove" style={{ width: 28, height: 28, objectFit: 'contain' }} />
+            </span>
+            <span style={{ fontWeight: 500, fontSize: 14, letterSpacing: '-0.02em' }}>Grove</span>
           </a>
-          <div className="gv-navlinks" style={{ display: 'flex', gap: 24, fontSize: 14, fontWeight: 500 }}>
-            <a className="gv-link" href="#features" style={{ color: '#9aa096', textDecoration: 'none', transition: 'color .2s' }}>Features</a>
-            <a className="gv-link" href="#showcase" style={{ color: '#9aa096', textDecoration: 'none', transition: 'color .2s' }}>Showcase</a>
-            <a className="gv-link" href="#pricing" style={{ color: '#9aa096', textDecoration: 'none', transition: 'color .2s' }}>Pricing</a>
-            <a className="gv-link" href="#faq" style={{ color: '#9aa096', textDecoration: 'none', transition: 'color .2s' }}>FAQ</a>
+          <div className="gv-navlinks" style={{ display: 'flex', gap: 26, fontSize: 14, fontWeight: 500, flex: 1 }}>
+            <a className="gv-link" href="#agents" style={{ color: '#9a9d97', textDecoration: 'none' }}>Agents</a>
+            <a className="gv-link" href="#platform" style={{ color: '#9a9d97', textDecoration: 'none' }}>Platform</a>
+            <a className="gv-link" href="#pricing" style={{ color: '#9a9d97', textDecoration: 'none' }}>Pricing</a>
+            <a className="gv-link" href="#faq" style={{ color: '#9a9d97', textDecoration: 'none' }}>FAQ</a>
           </div>
-          <a className="gv-btn" href={startHref} style={{ background: 'var(--accent,#63c281)', color: '#06120b', fontWeight: 700, fontSize: 14, padding: '10px 18px', borderRadius: 999, textDecoration: 'none', transition: 'transform .2s, box-shadow .2s' }}>{loggedIn ? 'Dashboard' : 'Get started'}</a>
+          <a className="gv-btn" href={startHref} style={{ ...ctaBtn, background: '#f4f4f2', color: '#0a0a0a', padding: '0 18px', borderRadius: 8, textDecoration: 'none' }}>{loggedIn ? 'Dashboard' : 'Get Started'}</a>
         </div>
       </div>
 
       {/* HERO */}
-      <section id="hero" style={{ position: 'relative', padding: '196px 24px 104px', textAlign: 'center', overflow: 'hidden' }}>
-        <div ref={refractRef} style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden', opacity: 'var(--glow,0.6)', transition: 'filter .6s ease-out', willChange: 'filter' }}>
-          <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(130% 82% at 50% 2%, rgba(99,194,129,0.24), rgba(10,11,10,0) 56%)' }} />
-          <div style={{ position: 'absolute', top: '-24%', left: '26%', width: '46%', height: '90%', background: 'radial-gradient(ellipse at center, rgba(99,194,129,0.45), rgba(99,194,129,0) 60%)', filter: 'blur(90px)', animation: 'gvBlobdrift 18s ease-in-out infinite' }} />
-          <div style={{ position: 'absolute', top: '-18%', left: '6%', width: '40%', height: '80%', background: 'radial-gradient(ellipse at center, rgba(150,230,185,0.3), rgba(150,230,185,0) 60%)', filter: 'blur(96px)', animation: 'gvBlobdrift 24s ease-in-out infinite reverse' }} />
-          <div style={{ position: 'absolute', top: '-14%', right: '8%', width: '38%', height: '78%', background: 'radial-gradient(ellipse at center, rgba(70,180,140,0.32), rgba(70,180,140,0) 60%)', filter: 'blur(86px)', animation: 'gvBlobdrift 21s ease-in-out infinite' }} />
-          <div ref={beamsRef} style={{ position: 'absolute', inset: 0, transformOrigin: '50% 45%', transition: 'transform .55s ease-out, filter .55s ease-out', willChange: 'transform, filter' }}>
-            <div style={beam('9%', '52px', 'rgba(160,235,190,0.22)', '16px', '8s', '-1s')} />
-            <div style={beam('21%', '70px', 'rgba(190,245,210,0.3)', '18px', '7s', '-3s')} />
-            <div style={beam('35%', '90px', 'rgba(210,250,225,0.4)', '20px', '6.5s', '-2s')} />
-            <div style={beam('49%', '110px', 'rgba(225,255,235,0.5)', '22px', '7.5s')} />
-            <div style={beam('63%', '84px', 'rgba(200,248,220,0.36)', '20px', '6.8s', '-1.5s')} />
-            <div style={beam('77%', '66px', 'rgba(170,238,198,0.28)', '18px', '8.2s', '-4s')} />
-            <div style={beam('89%', '50px', 'rgba(150,232,185,0.2)', '16px', '7.2s', '-2.5s')} />
-          </div>
-          <div style={{ position: 'absolute', inset: -30, background: 'repeating-linear-gradient(90deg, transparent 0, rgba(190,245,212,0.05) 1px, transparent 2px, transparent 24px)', mixBlendMode: 'screen', animation: 'gvShimmer 9s linear infinite' }} />
-          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, #0a0b0a 0%, rgba(10,11,10,0) 24%, rgba(10,11,10,0) 76%, #0a0b0a 100%)' }} />
-          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(10,11,10,0) 0%, rgba(10,11,10,0) 26%, rgba(10,11,10,0.78) 48%, #0a0b0a 62%)' }} />
-          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(10,11,10,0.72) 0%, rgba(10,11,10,0.28) 7%, rgba(10,11,10,0) 17%)' }} />
-        </div>
-
-        <div className="gv-r" style={{ position: 'relative', maxWidth: 880, margin: '0 auto' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9, background: 'rgba(255,255,255,0.045)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 999, padding: '7px 15px', fontSize: 11.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#b6bcb1', marginBottom: 36 }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent,#63c281)', boxShadow: '0 0 8px var(--accent,#63c281)' }} />
-            AI marketing agent · now live
-          </div>
-          <h1 style={{ fontSize: 'clamp(40px, 6.4vw, 76px)', lineHeight: 1.08, fontWeight: 700, letterSpacing: '-0.03em', margin: '0 0 30px', color: 'rgba(241,248,243,0.95)', textShadow: '0 2px 50px rgba(99,194,129,0.28)' }}>
-            Plant your domain.<br />The blog <span style={{ color: 'var(--accent,#63c281)', fontStyle: 'italic', fontWeight: 600 }}>grows itself.</span>
+      <section id="hero" style={{ padding: '152px 24px 0', maxWidth: 1200, margin: '0 auto', textAlign: 'left', width: '100%' }}>
+        <div className="gv-r">
+          <h1 style={{ fontSize: 'clamp(34px, 5.2vw, 54px)', lineHeight: 1.08, fontWeight: 500, letterSpacing: '-0.03em', margin: '0 0 20px', color: '#f7f7f5', display: 'inline-block', fontFamily: "'GT Walsheim', 'Inter', sans-serif" }}>
+            Grove is the fully autonomous<br />agent grows your search traffic
           </h1>
-          <p style={{ fontSize: 18, lineHeight: 1.7, color: '#9aa096', maxWidth: 600, margin: '0 auto 40px' }}>
-            Your marketing agent reads what&apos;s actually ranking, writes in your voice, and publishes to your site — holding anything weak for your review. Built for Google, written to be quoted by ChatGPT &amp; AI Overviews.
+          <p style={{ fontSize: 18, fontWeight: 400, lineHeight: 1.6, color: '#9a9d97', maxWidth: 540, margin: '0 0 30px' }}>
+            Research, writing, optimization and publishing for your blog — running on autopilot, one domain at a time.
           </p>
-          {domainForm('1')}
-          <div style={{ fontSize: 11.5, letterSpacing: '0.04em', color: '#6b6f67' }}>Free to start · First draft in minutes · No card required</div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 26, fontSize: 13.5, color: '#9aa096' }}>
-            An editor agent scores every draft 0–100 — weak ones never ship
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 56 }}>
+            <a className="gv-btn" href={startHref} style={{ ...ctaBtn, background: '#f4f4f2', color: '#0a0a0a', padding: '0 24px', borderRadius: 8, textDecoration: 'none' }}>{loggedIn ? 'Open dashboard' : 'Get started'}</a>
+            <a className="gv-btn gv-ghost" href="#agents" style={{ ...ctaBtn, border: '1px solid rgba(255,255,255,0.18)', color: '#f4f4f2', padding: '0 24px', borderRadius: 8, textDecoration: 'none', backgroundColor: '#111110' }}>how it works</a>
           </div>
         </div>
 
-        {/* PRODUCT MOCK */}
-        <div className="gv-rf" style={{ position: 'relative', maxWidth: 920, margin: '76px auto 0', animation: 'gvFloaty 7s ease-in-out infinite' }}>
-          <div style={{ position: 'absolute', inset: '12px 60px auto', height: 60, background: 'var(--accent,#63c281)', filter: 'blur(60px)', opacity: 0.3, borderRadius: '50%' }} />
-          <div style={{ position: 'relative', background: 'linear-gradient(180deg, #14171400, #101310)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 18, overflow: 'hidden', boxShadow: '0 40px 100px rgba(0,0,0,0.6)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.015)' }}>
-              <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#2a2d29' }} />
-              <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#2a2d29' }} />
-              <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#2a2d29' }} />
-              <span style={{ marginLeft: 14, fontSize: 12, color: '#6b6f67' }}>grove · dashboard</span>
-              <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--accent,#63c281)' }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent,#63c281)' }} /> autopilot on</span>
-            </div>
-            <div className="gv-mock-grid" style={{ minHeight: 300, textAlign: 'left' }}>
-              {/* left rail — mirrors the real SideNav */}
-              <div className="gv-mock-side" style={{ borderRight: '1px solid rgba(255,255,255,0.06)', padding: '15px 12px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '2px 8px 4px' }}>
-                  <span style={{ width: 20, height: 20, borderRadius: 6, background: 'var(--accent,#63c281)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#06120b', fontWeight: 800, fontSize: 13 }}>g</span>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: '#eef1ea' }}>grove</span>
+        {/* DASHBOARD MOCKUP */}
+        <div className="gv-r" style={{ width: '100%', margin: '0 auto', background: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 18, boxShadow: '0 50px 110px rgba(0,0,0,0.6)', overflow: 'hidden' }}>
+          <div style={{ display: 'flex', alignItems: 'stretch' }}>
+            {/* SIDEBAR */}
+            <div className="gv-mockside" style={{ flex: '0 0 190px', borderRight: '1px solid rgba(255,255,255,0.07)', padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: 20, backgroundColor: '#070707' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, fontWeight: 700, color: '#f4f4f2' }}>
+                  <span style={{ width: 16, height: 16, borderRadius: 5, background: '#111110', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                    <img src="/landing/grove-mark.png" alt="" style={{ width: 10, height: 10, objectFit: 'contain' }} />
+                  </span>grove
+                </span>
+                <span style={{ fontSize: 8.5, letterSpacing: '0.06em', color: ACCENT, border: '1px solid rgba(162,255,1,0.35)', borderRadius: 5, padding: '2px 6px' }}>STARTER</span>
+              </div>
+              {[
+                { head: 'Create', items: ['Home', 'Strategy', 'Write', 'Pipeline'] },
+                { head: 'Publish', items: ['Calendar', 'Analytics'] },
+                { head: 'Brand', items: ['Brand voice', 'Social', 'Embed'] },
+              ].map((sec) => (
+                <div key={sec.head}>
+                  <div style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#565952', margin: '0 6px 6px' }}>{sec.head}</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {sec.items.map((it) => {
+                      const active = it === 'Home';
+                      return (
+                        <div key={it} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11.5, fontWeight: active ? 600 : 400, color: active ? '#f4f4f2' : '#9a9d97', background: active ? 'rgba(162,255,1,0.1)' : undefined, borderRadius: active ? 7 : undefined, padding: '7px 8px' }}>{it}</div>
+                      );
+                    })}
+                  </div>
                 </div>
-                {mockNav.map((sec) => (
-                  <div key={sec.head} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <div style={{ fontSize: 9, letterSpacing: '0.13em', textTransform: 'uppercase', color: '#565a53', padding: '2px 10px 4px' }}>{sec.head}</div>
-                    {sec.items.map((it) => (
-                      <div key={it.label} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', borderRadius: 9, border: `1px solid ${it.active ? 'rgba(99,194,129,0.22)' : 'transparent'}`, background: it.active ? 'rgba(99,194,129,0.1)' : 'transparent', color: it.active ? '#eef1ea' : '#9aa096', fontSize: 12.5, fontWeight: 500 }}>
-                        <span style={{ color: it.active ? 'var(--accent,#63c281)' : '#6b6f67', display: 'flex', flexShrink: 0 }}>{navIcon(it.icon)}</span>
-                        <span style={{ flex: 1 }}>{it.label}</span>
-                        {it.badge ? <span style={{ fontSize: 9.5, fontWeight: 700, color: '#06120b', background: 'var(--accent,#63c281)', borderRadius: 999, padding: '0 6px' }}>{it.badge}</span> : null}
+              ))}
+              <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: 8, borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 12 }}>
+                <span style={{ width: 20, height: 20, borderRadius: 6, background: 'rgba(162,255,1,0.15)', color: ACCENT, fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>W</span>
+                <div>
+                  <div style={{ fontSize: 10.5, fontWeight: 600, color: '#f4f4f2' }}>www.oveners.com</div>
+                  <div style={{ fontSize: 9, color: '#6b6e68' }}>manage site</div>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ flex: 1, minWidth: 0, padding: 20, display: 'flex', flexDirection: 'column', gap: 14, backgroundColor: '#070707' }}>
+              {/* stat cards */}
+              <div className="gv-dashstats" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+                {dashStats.map((st, i) => {
+                  const active = i === 0 && focusStep === 0;
+                  return (
+                    <div key={st.label} style={{ position: 'relative', background: active ? glowBg : normalBg, border: normalBorder, transition: bgTransition, borderRadius: 12, padding: '13px 14px' }}>
+                      {scanLayer(active)}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#7c7f77', marginBottom: 10 }}>{st.label}</div>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 7 }}>
+                        <span style={{ fontSize: 21, fontWeight: 700, letterSpacing: '-0.02em', color: '#f4f4f2' }}>{st.big}</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: st.pos ? ACCENT : '#6b6e68' }}>{st.delta}</span>
+                      </div>
+                      <div style={{ fontSize: 10.5, color: '#5b5e56', marginTop: 4 }}>{st.sub}</div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* calendar + agent panel */}
+              <div className="gv-dashsplit" style={{ display: 'grid', gridTemplateColumns: '1.7fr 1fr', gap: 12, alignItems: 'start' }}>
+                <div style={{ background: '#111110', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f2' }}>Publishing calendar</div>
+                      <div style={{ fontSize: 10.5, color: '#6b6e68' }}>When each post goes live</div>
+                    </div>
+                    <div style={{ fontSize: 11, color: '#7c7f77', fontWeight: 600 }}>July 2026</div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '3px 4px', fontSize: 9.5, color: '#565952', textAlign: 'center', marginBottom: 4 }}>
+                    {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => <span key={i}>{d}</span>)}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+                    {calDaysRaw.map((cd, i) => (
+                      <div key={i} style={{ aspectRatio: '1', borderRadius: 7, background: cd.pad ? 'transparent' : '#0c0c0c', border: '1px solid transparent', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, fontSize: 10.5, color: cd.pad ? 'transparent' : '#c9cbc5' }}>
+                        {cd.d}
+                        {cd.post && <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#6b6e68' }} />}
                       </div>
                     ))}
                   </div>
-                ))}
+                </div>
+
+                <div style={{ position: 'relative', background: focusStep === 1 ? glowBg : normalBg, border: normalBorder, transition: bgTransition, borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div style={{ position: 'relative', zIndex: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: ACCENT, animation: 'gvPulse 1.8s ease-in-out infinite', flexShrink: 0 }} />
+                    <span style={{ fontSize: 12.5, fontWeight: 600, color: '#f4f4f2' }}>Your marketing agent</span>
+                  </div>
+                  <p style={{ position: 'relative', zIndex: 0, fontSize: 11.5, lineHeight: 1.5, color: '#9a9d97', margin: 0 }}>Published 4 new articles this week. Reads up 214% vs last month.</p>
+                  <div style={{ position: 'relative', zIndex: 0, fontSize: 9.5, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#565952', marginTop: 2 }}>Working on now</div>
+                  <div style={{ position: 'relative', zIndex: 0, display: 'flex', alignItems: 'center', gap: 8, fontSize: 11.5, color: '#c9cbc5', background: '#0c0c0c', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 8, padding: '9px 10px' }}>
+                    <span style={{ color: '#6b6e68' }}>✓</span> All caught up — no drafts to review
+                  </div>
+                  <div style={{ position: 'relative', zIndex: 0, fontSize: 11, lineHeight: 1.5, color: '#9a9d97', background: '#0c0c0c', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 8, padding: '10px 11px' }}>
+                    &ldquo;3D icon generator roundup&rdquo; is your top performer this month — grove can build a content cluster around it.
+                  </div>
+                  <button style={{ position: 'relative', zIndex: 0, alignSelf: 'flex-start', color: '#0a0a08', fontFamily: 'inherit', fontWeight: 700, fontSize: 11.5, padding: '8px 14px', border: 'none', borderRadius: 8, cursor: 'pointer', backgroundColor: ACCENT }}>Review plan</button>
+                  <div style={{ position: 'absolute', inset: 0, zIndex: 1, borderRadius: 12, overflow: 'hidden', pointerEvents: 'none', boxShadow: glowBoxShadow, opacity: focusStep === 1 ? 1 : 0, transition: glowTransition }}>
+                    <div style={{ position: 'absolute', left: 0, right: 0, height: '90%', background: scanGradient, filter: 'blur(10px)', animation: spinAnim }} />
+                  </div>
+                </div>
               </div>
 
-              {/* main — Overview header, stat cards, content pipeline */}
-              <div style={{ padding: 18, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
-                  <div>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: '#eef1ea', letterSpacing: '-0.02em' }}>Overview</div>
-                    <div style={{ fontSize: 11.5, color: '#6b6f67', marginTop: 3 }}>oveners.com · autopilot active</div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 7, flexShrink: 0 }}>
-                    <span style={{ fontSize: 11.5, color: '#b6bcb1', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)', borderRadius: 8, padding: '6px 11px', whiteSpace: 'nowrap' }}>Review · 2</span>
-                    <span style={{ fontSize: 11.5, fontWeight: 700, color: '#06120b', background: 'var(--accent,#63c281)', borderRadius: 8, padding: '6px 13px' }}>Write</span>
-                  </div>
+              {/* pipeline table */}
+              <div style={{ position: 'relative', background: focusStep === 2 ? glowBg : normalBg, border: normalBorder, transition: bgTransition, borderRadius: 12, padding: '14px 16px' }}>
+                {scanLayer(focusStep === 2)}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f2' }}>Content pipeline</div>
+                  <div style={{ fontSize: 10.5, color: '#6b6e68' }}>View all →</div>
                 </div>
-
-                <div className="gv-mock-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 9, marginBottom: 16 }}>
-                  {mockStats.map((s) => (
-                    <div key={s.label} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 11, padding: '12px 13px' }}>
-                      <div style={{ fontSize: 11, color: '#6b6f67' }}>{s.label}</div>
-                      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, marginTop: 8 }}>
-                        <span style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1, color: '#eef1ea' }}>{s.value}</span>
-                        <span style={{ fontSize: 10.5, fontWeight: 600, paddingBottom: 2, color: s.tone === 'amber' ? '#e0c878' : s.tone === 'accent' ? 'var(--accent,#63c281)' : '#6b6f67' }}>{s.delta}</span>
-                      </div>
-                      <div style={{ fontSize: 10, color: '#565a53', marginTop: 6 }}>{s.sub}</div>
-                    </div>
-                  ))}
+                <div style={{ display: 'grid', gridTemplateColumns: '2.4fr 1fr 0.6fr', gap: 8, fontSize: 9.5, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#565952', padding: '0 10px 8px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                  <span>Post</span><span>Target keyword</span><span>Status</span>
                 </div>
-
-                <div style={{ fontSize: 10.5, letterSpacing: '0.1em', color: '#6b6f67', marginBottom: 9 }}>CONTENT PIPELINE</div>
-                {pipeline.map((row, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', marginBottom: 7 }}>
-                    <span style={{ width: 24, height: 24, borderRadius: 7, background: 'rgba(99,194,129,0.12)', border: '1px solid rgba(99,194,129,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent,#63c281)', fontSize: 12, flexShrink: 0 }}>✓</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 12.5, fontWeight: 600, color: '#dfe4db', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.title}</div>
-                      <div style={{ fontSize: 11, color: '#6b6f67', marginTop: 2 }}>{row.meta}</div>
-                    </div>
-                    <span style={{ fontSize: 10, padding: '3px 8px', borderRadius: 999, background: 'rgba(255,255,255,0.04)', color: '#b6bcb1', whiteSpace: 'nowrap' }}>{row.status}</span>
+                {pipeline.map((row) => (
+                  <div className="gv-row" key={row.title} style={{ display: 'grid', gridTemplateColumns: '2.4fr 1fr 0.6fr', gap: 8, alignItems: 'center', padding: 10, borderRadius: 8, fontSize: 12 }}>
+                    <span style={{ color: '#d7d9d3' }}>{row.title}</span>
+                    <span style={{ color: '#7c7f77' }}>{row.keyword}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: '#9a9d97' }}>
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: row.pos ? '#7fd88a' : '#7c7f77' }} />{row.status}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -417,222 +427,763 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
           </div>
         </div>
 
-        {/* 3 STEPS */}
-        <div className="gv-r gv-steps3" style={{ position: 'relative', maxWidth: 920, margin: '32px auto 0', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
-          {steps.map((s, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, background: 'rgba(255,255,255,0.015)', textAlign: 'left' }}>
-              <span style={{ fontSize: 12, color: 'var(--accent,#63c281)', border: '1px solid rgba(99,194,129,0.3)', borderRadius: 7, padding: '4px 8px' }}>{s.n}</span>
+        {/* 3-step setup */}
+        <div className="gv-steps3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, padding: '16px 0 20px', maxWidth: 1200, margin: '0 auto', width: '100%' }}>
+          {[
+            { n: '01', t: 'Plant your domain', s: 'One field. No plugins.' },
+            { n: '02', t: 'Verify ownership', s: 'DNS or meta tag · 2 min' },
+            { n: '03', t: 'You approve, it ships', s: 'Or flip to full auto' },
+          ].map((st) => (
+            <div key={st.n} style={{ display: 'flex', alignItems: 'center', gap: 12, border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '14px 16px' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#FFFFFF', border: '1px solid #FFFFFF59', borderRadius: 6, padding: '3px 7px', flexShrink: 0 }}>{st.n}</span>
               <div>
-                <div style={{ fontSize: 13.5, fontWeight: 600 }}>{s.title}</div>
-                <div style={{ fontSize: 11.5, color: '#6b6f67' }}>{s.sub}</div>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: '#f4f4f2', marginBottom: 2 }}>{st.t}</div>
+                <div style={{ fontSize: 11, color: '#7c7f77' }}>{st.s}</div>
               </div>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* EMBED WIDGET */}
+      <section id="embed" style={{ padding: '220px 24px 90px', maxWidth: 1200, margin: '0 auto' }}>
+        <div className="gv-r" style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 44px' }}>
+          <div style={eyebrow}>Embed anywhere</div>
+          <h2 style={h2Style}>Plant the blog with embed,<br />Grow it with Social account</h2>
+          <p style={leadStyle}>One script tag drops your newest posts right on your homepage, always in sync with what grove just published — no rebuild, no CMS wiring.</p>
+        </div>
+
+        {/* marquee row 1 (left) */}
+        <div className="gv-r" style={{ width: '100%', overflow: 'hidden', borderRadius: 18, height: 340 }}>
+          <div style={{ display: 'flex', gap: 14, width: 'max-content', height: 340, animation: 'gvMarqueeL 70s linear infinite' }}>
+            {[0, 1].map((dup) => (
+              <div key={dup} style={{ display: 'flex', gap: 14 }}>
+                <div style={{ width: 590, flexShrink: 0, borderRadius: 18, overflow: 'hidden', background: 'url("/landing/blog-cards-hero.png") center / cover no-repeat', height: 340 }} />
+
+                <div style={{ ...cardBase, padding: 0, overflow: 'hidden', justifyContent: 'flex-start', gap: 29 }}>
+                  <div style={{ padding: 26, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#FFF', opacity: 0.6 }}>Embed snippet</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: '#f4f4f2', lineHeight: 1.3 }}>Grove AI&rsquo;s blog widget drives traffic to your blog</div>
+                  </div>
+                  <div style={{ position: 'relative', flex: 1, margin: '0 18px 18px', background: '#111110', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: '16px 0 0 18px', overflow: 'hidden' }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', paddingRight: 18, marginBottom: 12 }}>
+                      <span style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#7c7f77' }}>Blog</span>
+                      <span style={{ fontSize: 10.5, color: '#9a9d97' }}>Read the blog →</span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {embedPosts.map((ep) => (
+                        <div key={ep.title} style={{ display: 'flex', gap: 9, alignItems: 'center' }}>
+                          <div style={{ width: 42, height: 32, flexShrink: 0, border: '1px dashed rgba(255,255,255,0.28)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1.6"><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="8.5" cy="9.5" r="1.5" /><path d="M21 16l-5.5-5.5L9 17" /></svg>
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 9.5, color: '#6b6e68', marginBottom: 3 }}>{ep.date}</div>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: '#eef0ea', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 260 }}>{ep.title}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 70, background: 'linear-gradient(180deg, rgba(17,17,16,0), #111110d9, #111110)', pointerEvents: 'none' }} />
+                    <div style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: 70, background: 'linear-gradient(90deg, rgba(17,17,16,0), #111110)', pointerEvents: 'none' }} />
+                  </div>
+                </div>
+
+                <div style={{ ...cardBase, background: ACCENT, border: 'none', gap: 14 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#0a0a08', opacity: 0.6 }}>Embed snippet</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.01em', color: '#0a0a08', lineHeight: 1.3 }}>Plant one embed and <br />Get SEO directly</div>
+                  </div>
+                  <div style={{ background: 'rgba(10,10,8,0.9)', borderRadius: 12, padding: '14px 16px' }}>
+                    <div style={{ fontSize: 11.5, lineHeight: 1.7, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                      <span style={{ color: 'rgb(107,122,143)' }}>&lt;</span><span style={{ color: 'rgb(232,163,208)' }}>div</span> <span style={{ color: 'rgb(159,207,143)' }}>id</span><span style={{ color: 'rgb(107,122,143)' }}>=</span><span style={{ color: 'rgb(224,193,132)' }}>&quot;grove-widget&quot;</span> <span style={{ color: 'rgb(159,207,143)' }}>data-blog-url</span><span style={{ color: 'rgb(107,122,143)' }}>=</span><span style={{ color: 'rgb(224,193,132)' }}>&quot;/blog&quot;</span><span style={{ color: 'rgb(107,122,143)' }}>&gt;{'\n'}&lt;/</span><span style={{ color: 'rgb(232,163,208)' }}>div</span><span style={{ color: 'rgb(107,122,143)' }}>&gt;{'\n'}&lt;</span><span style={{ color: 'rgb(232,163,208)' }}>script</span> <span style={{ color: 'rgb(159,207,143)' }}>src</span><span style={{ color: 'rgb(107,122,143)' }}>=</span><span style={{ color: 'rgb(224,193,132)' }}>&quot;https://trygroveai.com/embed.js&quot;</span> <span style={{ color: 'rgb(159,207,143)' }}>async</span><span style={{ color: 'rgb(107,122,143)' }}>&gt;&lt;/</span><span style={{ color: 'rgb(232,163,208)' }}>script</span><span style={{ color: 'rgb(107,122,143)' }}>&gt;</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={cardBase}>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: ACCENT }}>Consistent voice</div>
+                  <div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: '#f4f4f2', marginBottom: 8, lineHeight: 1.3 }}>Sounds like you, everywhere</div>
+                    <div style={{ fontSize: 11.5, color: '#8a8d86', lineHeight: 1.55 }}>Crawls your website and finds out the design, tone, features and everything</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* marquee row 2 (right) */}
+        <div className="gv-r" style={{ width: '100%', overflow: 'hidden', borderRadius: 18, height: 340, marginTop: 14 }}>
+          <div style={{ display: 'flex', gap: 14, width: 'max-content', height: 340, animation: 'gvMarqueeR 78s linear infinite' }}>
+            {[0, 1].map((dup) => (
+              <div key={dup} style={{ display: 'flex', gap: 14 }}>
+                <div style={{ ...cardBase, justifyContent: 'flex-start', overflow: 'hidden' }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: ACCENT, marginBottom: 10 }}>Auto-posting</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.35, marginBottom: 8 }}>Auto - Posts to<br />X and LinkedIn</div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 60, position: 'relative' }}>
+                    <span style={{ width: 69, height: 69, borderRadius: 18, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: ACCENT }}>
+                      <img src="/landing/grove-glyph.svg" alt="" style={{ width: 53, height: 53, objectFit: 'contain' }} />
+                    </span>
+                    <span style={{ position: 'relative', width: 32, height: 42, flexShrink: 0 }} />
+                    <span style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <span style={{ width: 69, height: 69, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,0.14)', fontWeight: 700, fontSize: 24, color: '#f4f4f2' }}>X</span>
+                      <span style={{ width: 69, height: 69, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0A66C2', fontWeight: 700, fontSize: 24, color: '#fff' }}>in</span>
+                    </span>
+                    <svg viewBox="0 0 32 42" style={{ position: 'absolute', overflow: 'visible', width: 33, height: 107, left: 94, top: 20 }}>
+                      <path d="M0 21 C 14 21, 14 5, 27 5" fill="none" stroke="rgba(255,255,255,0.45)" strokeWidth="1.5" />
+                      <path d="M0 21 C 14 21, 14 37, 27 37" fill="none" stroke="rgba(255,255,255,0.45)" strokeWidth="1.5" />
+                      <path d="M22 1 L28 5 L22 9" fill="none" stroke="rgba(255,255,255,0.45)" strokeWidth="1.5" />
+                      <path d="M22 33 L28 37 L22 41" fill="none" stroke="rgba(255,255,255,0.45)" strokeWidth="1.5" />
+                    </svg>
+                  </div>
+                </div>
+
+                <div style={{ width: 278, flexShrink: 0, height: 340, borderRadius: 18, background: 'url("/landing/editor.png") center / cover no-repeat' }} />
+
+                <img src="/landing/blog-cards.png" alt="" style={{ width: 569, flexShrink: 0, objectFit: 'cover', borderRadius: 18, height: 340 }} />
+
+                <div style={cardBase}>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: ACCENT }}>Zero upkeep</div>
+                  <div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: '#f4f4f2', marginBottom: 8, lineHeight: 1.3 }}>Set it once, forget it</div>
+                    <div style={{ fontSize: 11.5, color: '#8a8d86', lineHeight: 1.55 }}>No dashboards to babysit — Grove keeps every surface current on its own, on autopilot.</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* LOGO ROW */}
-      <section style={{ padding: '64px 24px 80px', textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
-        <div style={{ fontSize: 11, letterSpacing: '0.16em', color: '#565a53', textTransform: 'uppercase', marginBottom: 34 }}>Works with any stack</div>
-        <div className="gv-r" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '44px 64px', opacity: 0.62 }}>
+      <section style={{ padding: '66px 24px 60px', textAlign: 'center', backgroundColor: '#000' }}>
+        <div style={{ fontSize: 12, letterSpacing: '0.14em', color: '#565952', textTransform: 'uppercase', marginBottom: 24 }}>Publishing natively to</div>
+        <div className="gv-r" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '36px 52px' }}>
           {platforms.map((p) => (
-            <span key={p} style={{ fontSize: 21, fontWeight: 700, letterSpacing: '-0.02em', color: '#cdd2c9' }}>{p}</span>
+            <span key={p} style={{ fontSize: 19, fontWeight: 700, letterSpacing: '-0.02em', color: '#565952' }}>{p}</span>
           ))}
         </div>
       </section>
 
-      {/* STATS */}
-      <section style={{ padding: '0 24px 104px' }}>
-        <div className="gv-r gv-statband" style={{ maxWidth: 1120, margin: '0 auto', background: 'linear-gradient(135deg, #0b130e, #080d0a)', border: '1px solid rgba(99,194,129,0.14)', borderRadius: 20, padding: '52px 36px', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 28 }}>
-          {stats.map((st) => (
-            <div key={st.label} style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 'clamp(30px, 4vw, 44px)', fontWeight: 700, letterSpacing: '-0.03em', color: '#eef1ea' }}>{st.big}</div>
-              <div style={{ fontSize: 13, color: '#9aa096', marginTop: 6 }}>{st.label}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* FEATURES */}
-      <section id="features" style={{ padding: '48px 24px 120px', maxWidth: 1120, margin: '0 auto' }}>
-        <div className="gv-r" style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 72px' }}>
-          <div style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--accent,#63c281)', textTransform: 'uppercase', marginBottom: 16 }}>Under the hood</div>
-          <h2 style={{ fontSize: 'clamp(30px, 4.6vw, 50px)', fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.08, margin: '0 0 16px' }}>A whole content team,<br /><span style={{ fontStyle: 'italic', color: 'var(--accent,#63c281)', fontWeight: 600 }}>working invisibly.</span></h2>
-          <p style={{ fontSize: 16.5, color: '#9aa096', lineHeight: 1.6, margin: 0 }}>Every job a real SEO and content team would own — research, voice, optimization, distribution, measurement — running on its own.</p>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 22 }}>
-          {features.map((f) => (
-            <div key={f.n} className="gv-card" style={{ background: '#111311', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: 34, transition: 'border-color .25s, transform .25s' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-                <span style={{ fontSize: 13, color: 'var(--accent,#63c281)', width: 34, height: 34, borderRadius: 9, background: 'rgba(99,194,129,0.1)', border: '1px solid rgba(99,194,129,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{f.n}</span>
-                <h3 style={{ fontSize: 17, fontWeight: 600, margin: 0, letterSpacing: '-0.01em' }}>{f.title}</h3>
-              </div>
-              <p style={{ fontSize: 14.5, color: '#9aa096', lineHeight: 1.6, margin: 0 }}>{f.body}</p>
+      {/* STATS STRIP */}
+      <section style={{ padding: '0 24px 120px', backgroundColor: '#000' }}>
+        <div className="gv-r gv-statstrip" style={{ maxWidth: 1120, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)' }}>
+          {stats.map((s) => (
+            <div key={s.big} style={{ textAlign: 'center', padding: '44px 16px' }}>
+              <div style={{ fontSize: 'clamp(26px, 3.4vw, 38px)', fontWeight: 500, letterSpacing: '-0.03em', color: '#f4f4f2' }}>{s.big}</div>
+              <div style={{ fontSize: 12, color: '#7c7f77', marginTop: 6 }}>{s.label}</div>
             </div>
           ))}
         </div>
       </section>
 
-      {/* SHOWCASE */}
-      <section id="showcase" style={{ padding: '56px 24px 120px', maxWidth: 1120, margin: '0 auto' }}>
-        <div className="gv-r" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 24, marginBottom: 52 }}>
-          <div>
-            <div style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--accent,#63c281)', textTransform: 'uppercase', marginBottom: 14 }}>Inside the product</div>
-            <h2 style={{ fontSize: 'clamp(30px, 4.6vw, 50px)', fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.08, margin: 0 }}>See it <span style={{ fontStyle: 'italic', color: 'var(--accent,#63c281)', fontWeight: 600 }}>actually work.</span></h2>
-          </div>
-          <p style={{ fontSize: 15.5, color: '#9aa096', maxWidth: 360, lineHeight: 1.6, margin: 0 }}>From SERP gap to published post — every surface of the engine, monochrome and out of your way.</p>
+      {/* AGENTS */}
+      <section id="agents" style={{ padding: '30px 24px 120px', maxWidth: 1120, margin: '0 auto', backgroundColor: '#000' }}>
+        <div className="gv-r-left" style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 60px' }}>
+          <div style={eyebrow}>Meet the agents</div>
+          <h2 style={h2Style}>Three agents.<br />One growing blog.</h2>
+          <p style={leadStyle}>Each one owns a real job on your marketing team, and hands off to the next automatically.</p>
         </div>
-        <div className="gv-bento" style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 20 }}>
-          <div className="gv-tile" style={{ gridColumn: 'span 4', position: 'relative', borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', background: 'linear-gradient(160deg, #14171400, #0e110e)', minHeight: 300, padding: 26 }}>
-            <div style={{ fontSize: 11, color: '#6b6f67', letterSpacing: '0.1em' }}>SERP GAP ANALYSIS · "ai onboarding checklist"</div>
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, height: 170, marginTop: 28 }}>
-              {['38%','56%','47%','92%','64%','50%','72%'].map((h, i) => (
-                <div key={i} style={{ flex: 1, background: i === 3 ? 'linear-gradient(180deg, var(--accent,#63c281), rgba(99,194,129,0.3))' : 'linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.04))', borderRadius: '8px 8px 0 0', height: h, boxShadow: i === 3 ? '0 0 24px rgba(99,194,129,0.4)' : 'none' }} />
-              ))}
-            </div>
-            <div className="gv-tilecap" style={{ position: 'absolute', left: 26, bottom: 22, opacity: 0, transform: 'translateY(8px)', transition: '.3s', fontSize: 13.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 8 }}><span style={{ color: 'var(--accent,#63c281)' }}>●</span> Your opening — the gap nobody filled</div>
-          </div>
 
-          <div className="gv-tile" style={{ gridColumn: 'span 2', position: 'relative', borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', background: '#0e110e', minHeight: 300, padding: 24 }}>
-            <div style={{ fontSize: 11, color: '#6b6f67', letterSpacing: '0.1em' }}>VOICE TRAINED</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, height: 56, marginTop: 30 }}>
-              {wave.map((h, i) => (
-                <span key={i} style={{ flex: 1, borderRadius: 99, background: 'var(--accent,#63c281)', height: h, opacity: 0.85 }} />
-              ))}
-            </div>
-            <p style={{ fontSize: 13.5, color: '#9aa096', lineHeight: 1.55, margin: '26px 0 0' }}>Trained on 128 of your posts. Reads like your best writer — never a content mill.</p>
-            <div className="gv-tilecap" style={{ position: 'absolute', left: 24, bottom: 22, opacity: 0, transform: 'translateY(8px)', transition: '.3s', fontSize: 13, fontWeight: 600, color: 'var(--accent,#63c281)' }}>Tone match · 97%</div>
-          </div>
-
-          <div className="gv-tile" style={{ gridColumn: 'span 2', position: 'relative', borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', background: '#0e110e', minHeight: 230, padding: 24 }}>
-            <div style={{ fontSize: 11, color: '#6b6f67', letterSpacing: '0.1em' }}>CROSS-POST COMPOSER</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginTop: 22 }}>
-              {channels.map((c) => (
-                <div key={c} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 9, background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.05)', fontSize: 13 }}>
-                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent,#63c281)' }} />{c}<span style={{ marginLeft: 'auto', fontSize: 10.5, color: '#6b6f67' }}>queued</span>
+        {/* STRATEGY */}
+        <div className="gv-r-left" style={{ marginBottom: 26, borderRadius: 20, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.09)', padding: 26, backgroundColor: '#000' }}>
+          <div style={{ position: 'relative' }}>
+            <div style={{ display: 'flex', gap: 14, alignItems: 'stretch' }}>
+              <div style={{ flex: '1 1 auto', minWidth: 0, position: 'relative', background: '#0a0b0a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '22px 0 0 24px', minHeight: 540, overflow: 'hidden' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, paddingRight: 24 }}>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 500, color: '#f4f4f2' }}>Strategy</div>
+                    <div style={{ fontSize: 11.5, color: '#565952', marginTop: 1 }}>www.oveners.com · the monthly plan your agent works from</div>
+                  </div>
+                  <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 11.5, fontWeight: 600, color: '#d7d9d3', border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.03)', padding: '6px 12px', borderRadius: 999, whiteSpace: 'nowrap' }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#d7d9d3' }} />Autopilot on
+                  </span>
+                  <span style={{ width: 30, height: 30, borderRadius: '50%', background: '#1a1a18', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10.5, fontWeight: 700, color: '#d7d9d3', flexShrink: 0 }}>TY</span>
                 </div>
-              ))}
+
+                <div className="gv-strategysplit" style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 14, margin: '0 24px 14px 0' }}>
+                  <div style={{ background: '#111110', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: '16px 18px' }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 500, color: '#eef0ea' }}>Topical authority map</div>
+                    <div style={{ fontSize: 10.5, color: '#6b6e68', margin: '2px 0 12px' }}>Hub-and-spoke clusters — own a topic, not just a keyword</div>
+                    <div style={{ display: 'flex', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
+                      {[['Published', '#d7d9d3'], ['Planned', '#7fb6e6'], ['Gap', '#565952']].map(([n, c]) => (
+                        <span key={n} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#9a9d97' }}>
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: c }} />{n}
+                        </span>
+                      ))}
+                    </div>
+                    <svg viewBox="0 0 220 168" style={{ width: '100%', height: 148, display: 'block' }}>
+                      <g stroke="rgba(255,255,255,0.14)" strokeWidth="1">
+                        <line x1="110" y1="84" x2="110" y2="20" /><line x1="110" y1="84" x2="168" y2="52" /><line x1="110" y1="84" x2="168" y2="116" />
+                        <line x1="110" y1="84" x2="110" y2="150" /><line x1="110" y1="84" x2="52" y2="116" /><line x1="110" y1="84" x2="52" y2="52" />
+                      </g>
+                      <circle cx="110" cy="84" r="21" fill="#111110" stroke="rgba(255,255,255,0.18)" />
+                      <text x="110" y="87" textAnchor="middle" fill="#c9cbc5" fontSize="8" fontWeight="700">HUB</text>
+                      <circle cx="110" cy="20" r="6" fill="#d7d9d3" /><circle cx="168" cy="52" r="6" fill="#d7d9d3" />
+                      <circle cx="168" cy="116" r="6" fill="#7fb6e6" /><circle cx="110" cy="150" r="6" fill="#d7d9d3" />
+                      <circle cx="52" cy="116" r="6" fill="#d7d9d3" /><circle cx="52" cy="52" r="6" fill="#565952" stroke="#7c7f77" strokeDasharray="2 2" />
+                    </svg>
+                    <div style={{ fontSize: 10.5, color: '#6b6e68', marginTop: 10 }}>6 of 6 spokes covered · 0 gaps worth filling</div>
+                  </div>
+
+                  <div style={{ background: '#111110', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: '16px 18px' }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 500, color: '#eef0ea' }}>Content pillars</div>
+                    <div style={{ fontSize: 10.5, color: '#6b6e68', margin: '2px 0 12px' }}>How July&rsquo;s effort is allocated</div>
+                    <div style={{ display: 'flex', height: 7, borderRadius: 99, overflow: 'hidden', marginBottom: 14 }}>
+                      {pillars.map((pl) => <div key={pl.name} style={{ height: '100%', width: pl.pct, background: pl.color }} />)}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {pillars.map((pl) => (
+                        <div key={pl.name} style={{ display: 'flex', alignItems: 'flex-start', gap: 9 }}>
+                          <span style={{ width: 8, height: 8, borderRadius: 2, background: pl.color, marginTop: 4, flexShrink: 0 }} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: '#d7d9d3', lineHeight: 1.3 }}>{pl.name}</div>
+                            <div style={{ fontSize: 10.5, color: '#6b6e68', marginTop: 2 }}>{pl.count} posts planned</div>
+                          </div>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: '#eef0ea', whiteSpace: 'nowrap' }}>{pl.pct}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ background: '#111110', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: '16px 18px', margin: '0 24px 0 0' }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 12 }}>
+                    <span style={{ fontSize: 12.5, fontWeight: 700, color: '#eef0ea' }}>The month, week by week</span>
+                    <span style={{ marginLeft: 'auto', fontSize: 10.5, color: '#6b6e68' }}>13 posts · July 2026</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {weekRows.map((wk) => (
+                      <div key={wk.title} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <span style={{ fontSize: 9.5, fontWeight: 700, color: wk.tagColor, background: wk.tagBg, border: `1px solid ${wk.tagBorder}`, borderRadius: 6, padding: '3px 8px', flexShrink: 0 }}>{wk.tag}</span>
+                        <span style={{ fontSize: 12.5, color: '#c9cbc5', flex: 1, minWidth: 0 }}>{wk.title}</span>
+                        <span style={{ fontSize: 10.5, fontWeight: 600, color: '#9a9d97', flexShrink: 0 }}>{wk.status}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 100, background: 'linear-gradient(to bottom, rgba(10,11,10,0), #0a0b0a 88%)', pointerEvents: 'none' }} />
+              </div>
+
+              <div className="gv-chatpanel" style={{ flex: '0 0 240px', background: '#0c0c0c', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: 16, display: 'flex', flexDirection: 'column', gap: 14, minHeight: 540 }}>
+                <div style={{ background: '#141412', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '11px 12px' }}>
+                  <div style={{ fontSize: 11, lineHeight: 1.5, color: '#c9cbc5' }}><span style={{ color: '#f4f4f2', fontWeight: 700 }}>/strategy</span> Build my July plan around AI 3D icon tools.</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10.5, color: '#6b6e68', marginBottom: 6 }}>Thought · 6s</div>
+                  <p style={{ fontSize: 11.5, lineHeight: 1.55, color: '#9a9d97', margin: 0 }}>I&rsquo;ll map topical authority, allocate the content pillars, and lay out the month week by week.</p>
+                </div>
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 14 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#f4f4f2' }}>Changes</span>
+                    <span style={{ marginLeft: 'auto', fontSize: 11, color: '#6b6e68' }}>Undo</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#111110', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 8, padding: '9px 10px' }}>
+                    <span style={{ width: 20, height: 20, borderRadius: 5, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#d7d9d3', flexShrink: 0 }}>◎</span>
+                    <span style={{ fontSize: 11.5, color: '#d7d9d3', flex: 1 }}>Strategy</span>
+                    <span style={{ fontSize: 10.5, color: '#6b6e68' }}>13 posts</span>
+                  </div>
+                </div>
+                <div style={{ marginTop: 'auto', fontSize: 11, color: '#55564f', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 999, padding: '9px 13px' }}>Add follow up…</div>
+              </div>
             </div>
+            <div style={{ position: 'absolute', left: 0, right: 0, bottom: -26, height: 300, background: 'linear-gradient(180deg, #07070700, #000000B3, #000000)', pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', top: -26, bottom: -26, right: -26, width: 300, background: 'linear-gradient(90deg, rgba(11,11,11,0), #000000)', pointerEvents: 'none' }} />
           </div>
-
-          <div className="gv-tile" style={{ gridColumn: 'span 2', position: 'relative', borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', background: 'linear-gradient(160deg, #16191600, #0e110e)', minHeight: 230, padding: 24 }}>
-            <div style={{ fontSize: 11, color: '#6b6f67', letterSpacing: '0.1em' }}>RANK MOVEMENT · ILLUSTRATIVE</div>
-            <svg viewBox="0 0 240 110" preserveAspectRatio="none" style={{ width: '100%', height: 120, marginTop: 18 }}>
-              <polyline points="0,95 40,86 80,72 120,60 160,38 200,24 240,10" fill="none" stroke="var(--accent,#63c281)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-              <circle cx="240" cy="10" r="4" fill="var(--accent,#63c281)" />
-            </svg>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#9aa096', marginTop: 14 }}><span>Position 18 → 3</span><span style={{ color: 'var(--accent,#63c281)', fontWeight: 600 }}>sample data</span></div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, paddingTop: 24 }}>
+            <div style={{ maxWidth: 480 }}>
+              <div style={{ fontSize: 12, color: '#7c7f77', textTransform: 'uppercase', marginBottom: 10 }}>Strategy agent</div>
+              <div style={{ fontSize: 18, fontWeight: 500, letterSpacing: '-0.02em', lineHeight: 1.1, color: '#f4f4f2', marginBottom: 12 }}>Finds what to write next</div>
+              <p style={leadStyle}>Grove reads live SERPs against your own content to find the exact gap worth filling, then turns it into a dated plan.</p>
+            </div>
+            <a className="gv-link gv-accentlink" href={startHref} style={{ color: '#d7d9d3', textDecoration: 'none', fontSize: 14, whiteSpace: 'nowrap' }}>Explore the Strategy agent →</a>
           </div>
+        </div>
 
-          <div className="gv-tile" style={{ gridColumn: 'span 2', position: 'relative', borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', background: '#0e110e', minHeight: 230, padding: 24 }}>
-            <div style={{ fontSize: 11, color: '#6b6f67', letterSpacing: '0.1em' }}>AUTO-PUBLISH</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 22, fontSize: 11.5, color: '#9aa096' }}>
-              <div style={{ color: 'var(--accent,#63c281)' }}>✓ slug + canonical URL</div>
-              <div style={{ color: 'var(--accent,#63c281)' }}>✓ sitemap + schema</div>
-              <div style={{ color: 'var(--accent,#63c281)' }}>✓ internal links woven</div>
-              <div style={{ color: 'var(--accent,#63c281)' }}>✓ metadata + OG image</div>
-              <div style={{ color: '#6b6f67' }}>→ pushed to /blog · live</div>
+        {/* WRITE */}
+        <div className="gv-r-left" style={{ marginBottom: 26, borderRadius: 20, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.09)', padding: 26, backgroundColor: '#000' }}>
+          <div style={{ position: 'relative' }}>
+            <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+              <div style={{ flex: '1 1 auto', minWidth: 0, position: 'relative', background: '#0a0b0a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '22px 0 0 24px', minHeight: 440, overflow: 'hidden' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18, paddingRight: 24 }}>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 500, color: '#f4f4f2' }}>Content pipeline</div>
+                    <div style={{ fontSize: 11.5, color: '#565952', marginTop: 1 }}>www.oveners.com · the agent loop, running live</div>
+                  </div>
+                  <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 11.5, fontWeight: 600, color: '#d7d9d3', border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.03)', padding: '6px 12px', borderRadius: 999, whiteSpace: 'nowrap' }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#d7d9d3' }} />Autopilot on
+                  </span>
+                  <span style={{ width: 30, height: 30, borderRadius: '50%', background: '#1a1a18', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10.5, fontWeight: 700, color: '#d7d9d3', flexShrink: 0 }}>TY</span>
+                </div>
+
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', background: '#111110', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: 12, margin: '0 24px 12px 0' }}>
+                  <span style={{ flex: 1, fontSize: 12, color: '#55564f' }}>Add a topic… e.g. &ldquo;reduce churn with onboarding nudges&rdquo;</span>
+                  <span style={{ fontSize: 11.5, fontWeight: 600, color: '#d7d9d3', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 8, padding: '7px 12px', whiteSpace: 'nowrap' }}>✦ Suggest</span>
+                  <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0a0a08', background: ACCENT, borderRadius: 8, padding: '7px 12px', whiteSpace: 'nowrap' }}>Queue topic</span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, background: '#111110', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: '12px 16px', margin: '0 24px 16px 0' }}>
+                  <span style={{ fontSize: 10, letterSpacing: '0.08em', color: '#7c7f77' }}>PUBLISHING</span>
+                  <span style={{ fontSize: 11.5, fontWeight: 600, color: '#6b6e68' }}>Manual</span>
+                  <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0a0a08', background: '#d7d9d3', borderRadius: 999, padding: '5px 12px' }}>Auto</span>
+                  <span style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.08)' }} />
+                  <span style={{ fontSize: 10, letterSpacing: '0.08em', color: '#7c7f77' }}>CADENCE</span>
+                  <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0a0a08', background: '#d7d9d3', borderRadius: 6, padding: '4px 9px' }}>3</span>
+                  <span style={{ fontSize: 11, color: '#6b6e68' }}>/ week</span>
+                  <span style={{ marginLeft: 'auto', fontSize: 10.5, color: '#6b6e68', whiteSpace: 'nowrap' }}>Posts publish automatically on schedule</span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 24px 10px 0' }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#d7d9d3' }} />
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', color: '#d7d9d3' }}>PUBLISHED</span>
+                  <span style={{ fontSize: 11, color: '#6b6e68' }}>30</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, margin: '0 24px 0 0' }}>
+                  {pipelineRows.map((pr) => (
+                    <div key={pr.title} style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#111110', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '12px 14px' }}>
+                      <span style={{ width: 26, height: 26, borderRadius: 6, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#9a9d97', flexShrink: 0 }}>◐</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12.5, fontWeight: 600, color: '#eef0ea', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pr.title}</div>
+                        <div style={{ fontSize: 10.5, color: '#6b6e68', marginTop: 2 }}>Live · {pr.date} · {pr.reads} reads</div>
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: pr.scoreColor, whiteSpace: 'nowrap' }}>{pr.score} <span style={{ fontSize: 9, color: '#565952', fontWeight: 600 }}>SCORE</span></span>
+                      <span style={{ fontSize: 10.5, fontWeight: 600, color: '#9a9d97', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 7, padding: '6px 10px', whiteSpace: 'nowrap' }}>Regenerate</span>
+                      <span style={{ fontSize: 10.5, fontWeight: 600, color: '#9a9d97', whiteSpace: 'nowrap' }}>View ↗</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 100, background: 'linear-gradient(to bottom, rgba(10,11,10,0), #0a0b0a 88%)', pointerEvents: 'none' }} />
+              </div>
+
+              <div className="gv-chatpanel" style={{ flex: '0 0 240px', background: '#0c0c0c', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ background: '#141412', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '11px 12px' }}>
+                  <div style={{ fontSize: 11, lineHeight: 1.5, color: '#c9cbc5' }}><span style={{ color: '#f4f4f2', fontWeight: 700 }}>/write</span> Queue this week&rsquo;s onboarding post and publish it on schedule.</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10.5, color: '#6b6e68', marginBottom: 6 }}>Thought · 4s</div>
+                  <p style={{ fontSize: 11.5, lineHeight: 1.55, color: '#9a9d97', margin: 0 }}>I&rsquo;ll draft the post in your voice, score it against the publish bar, and schedule it with the rest of the queue.</p>
+                </div>
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 14 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#f4f4f2' }}>Changes</span>
+                    <span style={{ marginLeft: 'auto', fontSize: 11, color: '#6b6e68' }}>Undo</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#111110', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 8, padding: '9px 10px' }}>
+                    <span style={{ width: 20, height: 20, borderRadius: 5, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#d7d9d3', flexShrink: 0 }}>◐</span>
+                    <span style={{ fontSize: 11.5, color: '#d7d9d3', flex: 1 }}>Pipeline</span>
+                    <span style={{ fontSize: 10.5, color: '#6b6e68' }}>1 queued</span>
+                  </div>
+                </div>
+                <div style={{ fontSize: 11, color: '#55564f', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 999, padding: '9px 13px' }}>Add follow up…</div>
+              </div>
+            </div>
+            <div style={{ position: 'absolute', left: 0, right: 0, bottom: -26, height: 300, background: 'linear-gradient(180deg, rgba(11,11,11,0), #000000B3, #000000)', pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', top: -26, bottom: -26, right: -26, width: 300, background: 'linear-gradient(90deg, #00000000, #000000)', pointerEvents: 'none' }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, paddingTop: 24 }}>
+            <div style={{ maxWidth: 480 }}>
+              <div style={{ fontSize: 12, letterSpacing: '0.1em', color: '#7c7f77', textTransform: 'uppercase', marginBottom: 10 }}>Write agent</div>
+              <div style={{ fontSize: 18, fontWeight: 500, letterSpacing: '-0.02em', lineHeight: 1.1, color: '#f4f4f2', marginBottom: 12 }}>Writes full drafts in your voice</div>
+              <p style={leadStyle}>Trained on your past posts, grove drafts complete, cited articles and shows exactly where it matched your tone.</p>
+            </div>
+            <a className="gv-link gv-accentlink" href={startHref} style={{ color: '#d7d9d3', textDecoration: 'none', fontSize: 14, whiteSpace: 'nowrap' }}>Explore the Write agent →</a>
+          </div>
+        </div>
+
+        {/* ANALYTICS */}
+        <div className="gv-r-left" style={{ borderRadius: 20, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.09)', padding: 26, backgroundColor: '#000' }}>
+          <div style={{ position: 'relative' }}>
+            <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+              <div style={{ flex: '1 1 auto', minWidth: 0, position: 'relative', background: '#0a0b0a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '22px 0 0 24px', minHeight: 440, overflow: 'hidden' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18, paddingRight: 24 }}>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 500, color: '#f4f4f2' }}>Analytics</div>
+                    <div style={{ fontSize: 11.5, color: '#565952', marginTop: 1 }}>www.oveners.com · how the blog is compounding</div>
+                  </div>
+                  <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 11.5, fontWeight: 500, color: '#d7d9d3', border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.03)', padding: '6px 12px', borderRadius: 999, whiteSpace: 'nowrap' }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#d7d9d3' }} />Autopilot on
+                  </span>
+                  <span style={{ width: 30, height: 30, borderRadius: '50%', background: '#1a1a18', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10.5, fontWeight: 700, color: '#d7d9d3', flexShrink: 0 }}>TY</span>
+                </div>
+
+                <div style={{ fontSize: 20, fontWeight: 500, color: '#f4f4f2', letterSpacing: '-0.01em', margin: '0 24px 4px 0' }}>Performance report</div>
+                <div style={{ fontSize: 12.5, color: '#9a9d97', margin: '0 24px 16px 0' }}>Over the past 30 days, your content earned <span style={{ color: '#eef0ea', fontWeight: 600 }}>77 clicks</span>.</div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, margin: '0 24px 14px 0' }}>
+                  {analyticsNums.map((an) => (
+                    <div key={an.label} style={{ background: '#111110', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: 14 }}>
+                      <div style={{ fontSize: 10.5, color: '#7c7f77', marginBottom: 10 }}>{an.label}</div>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                        <span style={{ fontSize: 19, fontWeight: 500, color: '#f4f4f2' }}>{an.big}</span>
+                        <span style={{ fontSize: 10.5, fontWeight: 700, color: an.deltaColor }}>{an.delta}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="gv-strategysplit" style={{ display: 'grid', gridTemplateColumns: '1.7fr 1fr', gap: 12, margin: '0 24px 0 0' }}>
+                  <div style={{ background: '#111110', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: '16px 18px' }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 700, color: '#eef0ea' }}>Organic performance</div>
+                    <div style={{ fontSize: 10.5, color: '#6b6e68', margin: '2px 0 12px' }}>Clicks &amp; impressions from Google + answer engines</div>
+                    <svg viewBox="0 0 400 110" preserveAspectRatio="none" style={{ width: '100%', height: 100, display: 'block' }}>
+                      <polyline points="0,70 30,30 55,55 80,20 110,60 140,35 170,65 200,25 230,55 260,30 290,68 320,20 350,50 380,15 400,45" fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="1.5" strokeDasharray="3 3" />
+                      <polyline points="0,85 25,50 50,90 75,45 105,75 135,40 165,80 195,50 225,85 255,42 285,78 315,48 345,88 375,55 400,20" fill="none" stroke={ACCENT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      <circle cx="400" cy="20" r="3.5" fill={ACCENT} />
+                    </svg>
+                  </div>
+                  <div style={{ background: '#111110', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: '16px 18px' }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 700, color: '#eef0ea', marginBottom: 2 }}>Traffic sources</div>
+                    <div style={{ fontSize: 10.5, color: '#6b6e68', marginBottom: 14 }}>Where the clicks came from</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                      {trafficSources.map((ts) => (
+                        <div key={ts.name} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11.5, color: '#9a9d97' }}>
+                          <span style={{ width: 7, height: 7, borderRadius: 2, background: ts.color, flexShrink: 0 }} />
+                          <span style={{ flex: 1 }}>{ts.name}</span>
+                          <span style={{ fontWeight: 600, color: '#d7d9d3' }}>{ts.pct}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 100, background: 'linear-gradient(to bottom, rgba(10,11,10,0), #0a0b0a 88%)', pointerEvents: 'none' }} />
+              </div>
+
+              <div className="gv-chatpanel" style={{ flex: '0 0 240px', background: '#0c0c0c', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ background: '#141412', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '11px 12px' }}>
+                  <div style={{ fontSize: 11, lineHeight: 1.5, color: '#c9cbc5' }}><span style={{ color: '#f4f4f2', fontWeight: 700 }}>/analytics</span> What&rsquo;s actually driving clicks this month?</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10.5, color: '#6b6e68', marginBottom: 6 }}>Thought · 5s</div>
+                  <p style={{ fontSize: 11.5, lineHeight: 1.55, color: '#9a9d97', margin: 0 }}>Google Search still drives the vast majority of visits. Impressions are climbing faster than clicks — a CTR opportunity.</p>
+                </div>
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 14 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#f4f4f2' }}>Changes</span>
+                    <span style={{ marginLeft: 'auto', fontSize: 11, color: '#6b6e68' }}>Undo</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#111110', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 8, padding: '9px 10px' }}>
+                    <span style={{ width: 20, height: 20, borderRadius: 5, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#d7d9d3', flexShrink: 0 }}>◑</span>
+                    <span style={{ fontSize: 11.5, color: '#d7d9d3', flex: 1 }}>Titles</span>
+                    <span style={{ fontSize: 10.5, color: '#6b6e68' }}>3 rewritten</span>
+                  </div>
+                </div>
+                <div style={{ fontSize: 11, color: '#55564f', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 999, padding: '9px 13px' }}>Add follow up…</div>
+              </div>
+            </div>
+            <div style={{ position: 'absolute', left: 0, right: 0, bottom: -10, height: 300, background: 'linear-gradient(180deg, rgba(11,11,11,0), #000000B3, #000000)', pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', top: -26, bottom: -26, right: -26, width: 300, background: 'linear-gradient(90deg, rgba(11,11,11,0), #000000)', pointerEvents: 'none' }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, paddingTop: 24 }}>
+            <div style={{ maxWidth: 480 }}>
+              <div style={{ fontSize: 12, letterSpacing: '0.1em', color: '#7c7f77', textTransform: 'uppercase', marginBottom: 10 }}>Analytics agent</div>
+              <div style={{ fontSize: 18, fontWeight: 500, letterSpacing: '-0.02em', lineHeight: 1.1, color: '#f4f4f2', marginBottom: 12 }}>Shows you what&rsquo;s actually working</div>
+              <p style={leadStyle}>Plain-English answers about rankings, clicks and citations. No Search Console spreadsheet required.</p>
+            </div>
+            <a className="gv-link gv-accentlink" href={startHref} style={{ color: '#d7d9d3', textDecoration: 'none', fontSize: 14, whiteSpace: 'nowrap' }}>Explore the Analytics agent →</a>
+          </div>
+        </div>
+      </section>
+
+      {/* PLATFORM BENTO */}
+      <section id="platform" style={{ padding: '90px 24px 220px', maxWidth: 1120, margin: '0 auto' }}>
+        <div className="gv-r" style={{ textAlign: 'center', maxWidth: 620, margin: '0 auto 44px' }}>
+          <div style={eyebrow}>Not just vibes</div>
+          <h2 style={h2Style}>A full platform underneath.</h2>
+          <p style={leadStyle}>Every job a content team would staff, running as one connected system.</p>
+        </div>
+        <div className="gv-r-left" style={{ borderRadius: 20, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.09)', backgroundColor: '#000' }}>
+          <div style={{ position: 'relative' }}>
+            <div className="gv-bento" style={{ display: 'grid', gridTemplateColumns: '1.05fr 1fr 1fr', gridTemplateRows: '1.45fr 1.2fr 1.2fr', height: 800 }}>
+
+              {/* Cross-post queue */}
+              <div style={{ gridColumn: 1, gridRow: 1, borderRight: '1px solid rgba(255,255,255,0.08)', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '22px 34px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: 0 }}>
+                <div>
+                  <div style={{ fontSize: 14, color: '#f4f4f2', marginBottom: 4 }}>Cross-post queue</div>
+                  <div style={{ fontSize: 11, color: '#7c7f77', marginBottom: 12 }}>One brief, every channel</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {[
+                      { n: 'Blog post', s: 'Published', c: '#A2FF01EB', dot: '#7c7f77' },
+                      { n: 'X thread', s: 'Posted', c: '#d7d9d3', dot: '#7c7f77' },
+                      { n: 'LinkedIn', s: 'Posted', c: '#d7d9d3', dot: '#7c7f77' },
+                      { n: 'Instagram', s: 'Queued', c: '#7c7f77', dot: '#565952' },
+                    ].map((r) => (
+                      <div key={r.n} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#111110', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 9, padding: '8px 12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: r.dot, flexShrink: 0 }} />
+                          <span style={{ fontSize: 11.5, color: r.dot === '#565952' ? '#9a9d97' : '#eef0ea' }}>{r.n}</span>
+                        </div>
+                        <span style={{ fontSize: 10, fontWeight: 500, color: r.c }}>{r.s}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 500, color: '#f4f4f2', marginTop: 12, paddingTop: 10 }}>Distribution →</div>
+              </div>
+
+              {/* Calendar */}
+              <div style={{ gridColumn: '2 / 4', gridRow: 1, borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '30px 34px 24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: 0, overflow: 'hidden', position: 'relative', backgroundColor: '#000' }}>
+                <div style={{ maxHeight: 195, overflow: 'hidden', position: 'relative' }}>
+                  <div style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, overflow: 'hidden', backgroundColor: '#070707' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                      <span style={{ width: 17, height: 17, borderRadius: 5, border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, color: '#9a9d97' }}>‹</span>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: '#f4f4f2', letterSpacing: '-0.01em' }}>July 2026</div>
+                      <span style={{ width: 17, height: 17, borderRadius: 5, border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, color: '#9a9d97' }}>›</span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)' }}>
+                      {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
+                        <div key={d} style={{ padding: '4px 8px', fontSize: 9, color: '#7c7f77', borderRight: '1px solid rgba(255,255,255,0.06)' }}>{d}</div>
+                      ))}
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>
+                      {(() => {
+                        const posts: Record<number, string[]> = {
+                          6: ['The 2026 Playbook for a …', 'The 7 Best AI 3D Icon Gen…'],
+                          7: ['The 7 Best AI 3D Icon Gen…', 'The Reality of Using an AI…'],
+                          10: ['How to Make Drop-In Re…'],
+                          11: ['Venngage AI 3D Icon Gen…', 'How to Make a 3D Logo in…'],
+                          15: ['The Best Automatic Back…'],
+                          16: ['Finding the Best Auto Ba…'],
+                        };
+                        const planned: Record<number, string> = {
+                          21: 'Automatic background r…', 22: 'Automatic background r…', 24: 'Automatic background r…',
+                          28: 'How solo founders keep …', 30: 'I priced out a contract il…',
+                        };
+                        const cells: React.ReactNode[] = [];
+                        const cell = (key: string, children?: React.ReactNode, pad = false) => (
+                          <div key={key} style={{ borderRight: '1px solid rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '2px 4px', minHeight: 20, background: pad ? 'rgba(255,255,255,0.03)' : undefined, display: 'flex', flexDirection: 'column', gap: 1, overflow: 'hidden' }}>{children}</div>
+                        );
+                        for (let i = 0; i < 3; i++) cells.push(cell(`pad-a${i}`, undefined, true));
+                        for (let d = 1; d <= 31; d++) {
+                          const today = d === 18;
+                          cells.push(cell(`d${d}`, (
+                            <>
+                              <div style={today
+                                ? { fontSize: 8, color: '#e8e9e5', marginBottom: 1, background: 'rgba(255,255,255,0.14)', borderRadius: 4, width: 13, height: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }
+                                : { fontSize: 8, color: '#9a9d97', marginBottom: 1 }}>{d}</div>
+                              {(posts[d] || []).map((t, i) => (
+                                <div key={i} style={{ fontSize: 6.5, color: ACCENT, background: '#3a3d37', borderRadius: 3, padding: '1px 3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 600 }}>{t}</div>
+                              ))}
+                              {(posts[d]?.length ?? 0) > 1 && <div style={{ fontSize: 6.5, color: '#7c7f77', paddingLeft: 1 }}>+1 more</div>}
+                              {planned[d] && (
+                                <div style={{ fontSize: 6.5, color: '#9a9d97', border: '1px dashed rgba(255,255,255,0.22)', borderRadius: 3, padding: '1px 3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{planned[d]}</div>
+                              )}
+                            </>
+                          )));
+                        }
+                        cells.push(cell('pad-b0', undefined, true));
+                        return cells;
+                      })()}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 500, color: '#f4f4f2', marginTop: 12, position: 'relative', zIndex: 2 }}>Calendar →</div>
+                <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 150, background: 'linear-gradient(180deg, rgba(28,28,26,0), #000000, #000000)', pointerEvents: 'none', zIndex: 0 }} />
+                <div style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: 100, background: 'linear-gradient(90deg, rgba(28,28,26,0), #000000)', pointerEvents: 'none', zIndex: 0 }} />
+              </div>
+
+              {/* SERP */}
+              <div style={{ gridColumn: 1, gridRow: '2 / 4', borderRight: '1px solid rgba(255,255,255,0.08)', padding: '44px 26px 12px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', minHeight: 0 }}>
+                <div style={{ minHeight: 0, position: 'relative' }}>
+                  <div style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, overflow: 'hidden', backgroundColor: '#070707' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 10px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: '#f4f4f2' }}>Openings grove spotted</span>
+                      <span style={{ fontSize: 9, fontWeight: 600, color: ACCENT }}>live SERP</span>
+                    </div>
+                    <div style={{ padding: 10, position: 'relative' }}>
+                      <div style={{ fontSize: 10, color: '#7c7f77', marginBottom: 10, lineHeight: 1.4 }}>Queries you rank on page 2 for</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {[
+                          { kw: '3d icon generator', impr: '26 impr', rank: '#14.1' },
+                          { kw: 'prevent off-brand assets', impr: '25 impr', rank: '#8.9' },
+                          { kw: 'facebook ad fatigue', impr: '20 impr', rank: '#19.1' },
+                        ].map((o) => (
+                          <div key={o.kw} style={{ background: '#111110', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 9, padding: '9px 10px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                              <span style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: '0.04em', color: '#b8bab4', background: 'rgba(255,255,255,0.08)', borderRadius: 5, padding: '2px 6px' }}>NEAR WIN</span>
+                              <span style={{ fontSize: 9.5, color: '#7c7f77' }}>{o.impr}</span>
+                            </div>
+                            <div style={{ fontSize: 11.5, fontWeight: 600, color: '#f4f4f2', marginBottom: 3 }}>{o.kw}</div>
+                            <div style={{ fontSize: 9.5, color: '#7c7f77', lineHeight: 1.4 }}>Rank {o.rank} — a stronger page can reach page one.</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: 100, background: 'linear-gradient(90deg, rgba(7,7,7,0), #070707B8, #000000)', pointerEvents: 'none' }} />
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 500, color: '#f4f4f2', marginTop: 79, zIndex: 5, paddingTop: 16 }}>SERP →</div>
+              </div>
+              <div style={{ position: 'absolute', left: 0, bottom: 0, width: 365, height: 300, background: 'linear-gradient(180deg, rgba(28,28,26,0), #000000, #000000)', pointerEvents: 'none', zIndex: 0 }} />
+
+              {/* Idea studio */}
+              <div style={{ gridColumn: 2, gridRow: 2, borderRight: '1px solid rgba(255,255,255,0.08)', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '22px 26px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: 0 }}>
+                <div style={{ minHeight: 0 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ display: 'flex', gap: 5, background: '#111110', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 8, padding: 4, marginTop: 14 }}>
+                      <span style={{ flex: 1, textAlign: 'center', fontSize: 10, fontWeight: 600, color: '#f4f4f2', background: 'rgba(255,255,255,0.1)', borderRadius: 6, padding: '5px 0' }}>Idea studio</span>
+                      <span style={{ flex: 1, textAlign: 'center', fontSize: 10, fontWeight: 500, color: '#7c7f77', padding: '5px 0' }}>SEO set</span>
+                    </div>
+                    <span style={{ fontSize: 10, color: '#b8bab4', background: '#111110', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '8px 12px' }}>A strong opinion I hold</span>
+                    <div style={{ textAlign: 'center', fontSize: 11.5, fontWeight: 700, color: '#0a0a08', borderRadius: 8, padding: 7, backgroundColor: ACCENT }}>✦ Generate ideas</div>
+                  </div>
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 500, color: '#f4f4f2', marginTop: 7 }}>AI Assisted Writing →</div>
+              </div>
+
+              {/* Manager score */}
+              <div style={{ gridColumn: 3, gridRow: 2, borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '22px 26px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: 0, position: 'relative', overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 200, background: 'linear-gradient(180deg, rgba(0,0,0,0), #000000, #000000)', pointerEvents: 'none', zIndex: 1 }} />
+                <div style={{ position: 'relative' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 15, padding: '24px 0' }}>
+                    <div style={{ width: 60, height: 60, borderRadius: '50%', background: 'conic-gradient(#c7c9c3 0% 81%, rgba(255,255,255,0.08) 81% 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#050705', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                        <span style={{ fontSize: 15, fontWeight: 700, color: '#f4f4f2', lineHeight: 1 }}>81</span>
+                        <span style={{ fontSize: 5.5, letterSpacing: '0.04em', color: '#7c7f77' }}>OVERALL</span>
+                      </div>
+                    </div>
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+                      {[['STRATEGIC FIT', 90], ['MARKETING', 85], ['CRAFT', 60], ['SAFETY', 95]].map(([n, v]) => (
+                        <div key={n as string}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 7.5, letterSpacing: '0.03em', color: '#9a9d97', marginBottom: 2 }}><span>{n}</span><span>{v}</span></div>
+                          <div style={{ height: 3, borderRadius: 2, background: 'rgba(255,255,255,0.08)' }}><div style={{ width: `${v}%`, height: '100%', borderRadius: 2, background: '#c7c9c3' }} /></div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 500, color: '#f4f4f2', marginTop: 10, position: 'relative', zIndex: 5 }}>Writing Manager Agent →</div>
+              </div>
+
+              {/* Analytics sparkline */}
+              <div style={{ gridColumn: 2, gridRow: 3, borderRight: '1px solid rgba(255,255,255,0.08)', padding: '28px 26px 24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: 0, position: 'relative' }}>
+                <div>
+                  <div style={{ background: '#0d0f0c', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '14px 16px', position: 'relative', overflow: 'hidden' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12 }}>
+                      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#9a9d97" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 17l6-6 4 4 8-8" /><path d="M15 7h6v6" /></svg>
+                      <span style={{ fontSize: 12, color: '#9a9d97' }}>Organic clicks</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
+                      <span style={{ fontSize: 26, fontWeight: 700, color: '#f4f4f2', letterSpacing: '-0.02em' }}>78</span>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: '#e08585' }}>▼ 11%</span>
+                    </div>
+                    <svg viewBox="0 0 260 46" width="100%" height="46" preserveAspectRatio="none">
+                      <path d="M0,30 L8,20 16,34 24,16 32,28 40,12 48,26 56,18 64,30 72,14 80,24 88,20 96,32 104,16 112,26 120,10 128,22 136,30 144,18 152,26 160,14 168,24 176,20 184,30 192,12 200,22 208,16 216,26 224,20 232,12 240,22 248,16 256,20" fill="none" stroke={ACCENT} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 500, color: '#f4f4f2', marginTop: 12, zIndex: 9 }}>Analytics →</div>
+                <div style={{ position: 'absolute', left: 4, top: 72, height: 146, width: 338, background: 'linear-gradient(180deg, #00000000, #000000DC, #000000)', pointerEvents: 'none' }} />
+              </div>
+
+              {/* Canonical subdomain */}
+              <div style={{ gridColumn: 3, gridRow: 3, padding: '28px 26px 24px 30px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: 0, position: 'relative' }}>
+                <div style={{ marginBottom: 14 }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#111110', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 999, padding: '8px 12px', position: 'relative', overflow: 'hidden' }}>
+                  <span style={{ width: 15, height: 15, borderRadius: 4, background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: '#9a9d97', flexShrink: 0 }}>#</span>
+                  <span style={{ fontSize: 10.5, color: '#9a9d97', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>https://<span style={{ color: ACCENT }}>blog.yourdomain.com</span></span>
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 500, color: '#f4f4f2', marginTop: 12 }}>Canonical blog subdomain →</div>
+                <div style={{ position: 'absolute', top: 32, left: 184, width: 163, height: 156, background: 'linear-gradient(90deg, rgba(17,17,16,0), #000000, #000000)', pointerEvents: 'none' }} />
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* PRICING */}
-      <section id="pricing" style={{ padding: '56px 24px 120px', maxWidth: 1120, margin: '0 auto' }}>
-        <div className="gv-r" style={{ textAlign: 'center', maxWidth: 600, margin: '0 auto 52px' }}>
-          <div style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--accent,#63c281)', textTransform: 'uppercase', marginBottom: 14 }}>Plans</div>
-          <h2 style={{ fontSize: 'clamp(30px, 4.6vw, 50px)', fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.08, margin: '0 0 24px' }}>Cheaper than <span style={{ fontStyle: 'italic', color: 'var(--accent,#63c281)', fontWeight: 600 }}>one freelance post.</span></h2>
-          <div style={{ display: 'inline-flex', padding: 5, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 999, gap: 4 }}>
-            <button onClick={() => setBilling('monthly')} style={{ border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, padding: '8px 20px', borderRadius: 999, transition: '.2s', background: isMonthly ? 'var(--accent,#63c281)' : 'transparent', color: isMonthly ? '#06120b' : '#9aa096' }}>Monthly</button>
-            <button onClick={() => setBilling('annual')} style={{ border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, padding: '8px 20px', borderRadius: 999, transition: '.2s', background: !isMonthly ? 'var(--accent,#63c281)' : 'transparent', color: !isMonthly ? '#06120b' : '#9aa096' }}>Annual <span style={{ fontSize: 11, opacity: 0.8 }}>−20%</span></button>
+      <section id="pricing" style={{ padding: '30px 24px 220px', maxWidth: 1120, margin: '0 auto' }}>
+        <div className="gv-r" style={{ textAlign: 'center', maxWidth: 600, margin: '0 auto 36px' }}>
+          <div style={eyebrow}>Plans</div>
+          <h2 style={{ ...h2Style, margin: '0 0 24px' }}>Cheaper than one freelance post.</h2>
+          <div style={{ display: 'inline-flex', padding: 5, background: '#111110', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 999, gap: 4 }}>
+            <button onClick={() => setBilling('monthly')} style={{ ...ctaBtn, border: 'none', cursor: 'pointer', padding: '0 20px', borderRadius: 999, background: isMonthly ? '#f4f4f2' : 'transparent', color: isMonthly ? '#0a0a08' : '#9a9d97' }}>Monthly</button>
+            <button onClick={() => setBilling('annual')} style={{ ...ctaBtn, border: 'none', cursor: 'pointer', padding: '0 20px', borderRadius: 999, background: isMonthly ? 'transparent' : '#f4f4f2', color: isMonthly ? '#9a9d97' : '#0a0a08' }}>Annual <span style={{ fontSize: 11, opacity: 0.85, color: ACCENT }}>−20%</span></button>
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 22, alignItems: 'start' }}>
-          {tierBase.map((t) => (
-            <div key={t.name} className="gv-pcard" style={{ position: 'relative', background: t.popular ? 'linear-gradient(180deg, #0c130e, #090e0b)' : '#0f110f', border: `1px solid ${t.popular ? 'rgba(99,194,129,0.32)' : 'rgba(255,255,255,0.08)'}`, borderRadius: 18, padding: '38px 32px' }}>
-              {t.popular && <span style={{ position: 'absolute', top: 20, right: 22, fontSize: 10.5, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#06120b', background: 'var(--accent,#63c281)', padding: '4px 10px', borderRadius: 999, fontWeight: 600 }}>Most popular</span>}
-              <div style={{ fontSize: 15, fontWeight: 600, color: '#cdd2c9' }}>{t.name}</div>
-              <div style={{ fontSize: 13, color: '#6b6f67', margin: '4px 0 20px', minHeight: 36 }}>{t.blurb}</div>
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, marginBottom: 4 }}>
-                <span style={{ fontSize: 48, fontWeight: 700, letterSpacing: '-0.03em' }}>${isMonthly ? t.m : t.a}</span>
-                <span style={{ fontSize: 14, color: '#6b6f67', marginBottom: 10 }}>/mo</span>
+        <div className="gv-pricegrid" style={{ display: 'grid', gridTemplateColumns: `repeat(${tiers.length}, 1fr)`, background: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 18 }}>
+          {tiers.map((tier, i) => (
+            <div key={tier.name} style={{ position: 'relative', borderRight: i < tiers.length - 1 ? '1px solid rgba(255,255,255,0.1)' : 'none', padding: '32px 24px', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ fontSize: 17, fontWeight: 700, color: '#f4f4f2', marginBottom: 2 }}>{tier.name}</div>
+              <div style={{ fontSize: 13.5, color: '#8a8d86', lineHeight: 1.4, minHeight: '2.8em' }}>{tier.blurb}</div>
+              <div style={{ height: 1, background: 'rgba(255,255,255,0.1)', margin: '24px 0' }} />
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 24 }}>
+                <span style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em', color: '#f4f4f2' }}>${tier.price}</span>
+                <span style={{ fontSize: 13, color: '#8a8d86' }}>{tier.note}</span>
               </div>
-              <div style={{ fontSize: 11, color: '#565a53', marginBottom: 22, minHeight: 14 }}>{isMonthly ? 'billed monthly' : 'billed annually'}</div>
-              <a className="gv-btn" href={`/signup?plan=${t.plan}`} style={{ display: 'block', textAlign: 'center', textDecoration: 'none', border: `1px solid ${t.popular ? 'var(--accent,#63c281)' : 'rgba(255,255,255,0.18)'}`, background: t.popular ? 'var(--accent,#63c281)' : 'transparent', color: t.popular ? '#06120b' : '#eef1ea', fontFamily: 'inherit', fontWeight: 700, fontSize: 14.5, padding: 13, borderRadius: 11, cursor: 'pointer', marginBottom: 24, transition: 'transform .2s, box-shadow .2s' }}>{t.cta}</a>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                {t.feats.map((ft, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 10, fontSize: 13.5, color: '#b6bcb1', lineHeight: 1.5 }}><span style={{ color: 'var(--accent,#63c281)', flexShrink: 0 }}>✓</span>{ft}</div>
+              <div style={{ height: 1, background: 'rgba(255,255,255,0.1)', marginBottom: 24 }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 15, flex: 1 }}>
+                {tier.feats.map((ft) => (
+                  <div key={ft} style={{ display: 'flex', gap: 8, fontSize: 13.5, color: '#c9cbc5', lineHeight: 1.4, alignItems: 'baseline' }}><span style={{ color: '#565952', flexShrink: 0 }}>✓</span>{ft}</div>
                 ))}
               </div>
+              <a className="gv-btn" href={startHref} style={{ ...ctaBtn, textDecoration: 'none', width: '100%', border: `1px solid ${tier.popular ? 'transparent' : 'rgba(255,255,255,0.16)'}`, background: tier.popular ? ACCENT : 'transparent', color: tier.popular ? '#0a0a0a' : '#f4f4f2', padding: '0 12px', borderRadius: 8, marginTop: 28 }}>{tier.cta}</a>
             </div>
           ))}
         </div>
+        <div style={{ textAlign: 'center', fontSize: 13.5, color: '#8a8d86', lineHeight: 1.6, marginTop: 24 }}>Every plan starts free — no card to see your first post.</div>
       </section>
 
       {/* FAQ */}
-      <section id="faq" style={{ padding: '56px 24px 120px', maxWidth: 1120, margin: '0 auto' }}>
-        <div className="gv-faqgrid" style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 56, alignItems: 'start' }}>
+      <section id="faq" style={{ padding: '30px 24px 90px', maxWidth: 1120, margin: '0 auto' }}>
+        <div className="gv-faqgrid" style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 40, alignItems: 'start' }}>
           <div className="gv-r">
-            <div style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--accent,#63c281)', textTransform: 'uppercase', marginBottom: 14 }}>FAQ</div>
-            <h2 style={{ fontSize: 'clamp(30px, 4.4vw, 46px)', fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.08, margin: '0 0 16px' }}>The honest <span style={{ fontStyle: 'italic', color: 'var(--accent,#63c281)', fontWeight: 600 }}>FAQ.</span></h2>
-            <p style={{ fontSize: 15, color: '#9aa096', lineHeight: 1.6, margin: '0 0 22px' }}>The questions skeptical founders actually ask before handing over their blog.</p>
-            <a className="gv-btn" href={startHref} style={{ display: 'inline-block', background: 'var(--accent,#63c281)', color: '#06120b', fontWeight: 700, fontSize: 14, padding: '12px 22px', borderRadius: 999, textDecoration: 'none', transition: 'transform .2s, box-shadow .2s' }}>Start free →</a>
+            <div style={eyebrow}>FAQ</div>
+            <h2 style={h2Style}>The honest FAQ.</h2>
+            <p style={{ ...leadStyle, margin: '0 0 22px' }}>The questions skeptical founders actually ask before handing over their blog.</p>
+            <a className="gv-btn" href={startHref} style={{ ...ctaBtn, background: '#f4f4f2', color: '#0a0a0a', padding: '0 22px', borderRadius: 9, textDecoration: 'none' }}>Book a walkthrough →</a>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {faqs.map((f, i) => {
-              const open = faqOpen === i;
-              return (
-                <div key={i} className="gv-faq" style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: 13, background: '#111311', overflow: 'hidden' }}>
-                  <button onClick={() => setFaqOpen(open ? -1 : i)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left', background: 'transparent', border: 'none', cursor: 'pointer', padding: '18px 20px', color: '#eef1ea', fontFamily: 'inherit', fontSize: 15, fontWeight: 600 }}>
-                    <span style={{ flex: 1 }}>{f.q}</span>
-                    <span style={{ color: 'var(--accent,#63c281)', fontSize: 20, lineHeight: 1, flexShrink: 0 }}>{open ? '–' : '+'}</span>
-                  </button>
-                  {open && <div style={{ padding: '0 20px 20px', fontSize: 14, color: '#9aa096', lineHeight: 1.62 }}>{f.a}</div>}
-                </div>
-              );
-            })}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {faqs.map((f, i) => (
+              <div key={f.q} style={{ border: '1px solid rgba(255,255,255,0.09)', borderRadius: 12, background: '#0e0e0d', overflow: 'hidden' }}>
+                <button onClick={() => setFaqOpen(faqOpen === i ? -1 : i)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left', background: 'transparent', border: 'none', cursor: 'pointer', padding: '17px 18px', color: '#f4f4f2', fontFamily: 'inherit', fontSize: 14, fontWeight: 700 }}>
+                  <span style={{ flex: 1 }}>{f.q}</span>
+                  <span style={{ color: '#7c7f77', fontSize: 19, lineHeight: 1, flexShrink: 0 }}>{faqOpen === i ? '–' : '+'}</span>
+                </button>
+                {faqOpen === i && (
+                  <div style={{ padding: '0 18px 18px', fontSize: 14, color: '#9a9d97', lineHeight: 1.6 }}>{f.a}</div>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* FINAL CTA */}
-      <section style={{ position: 'relative', padding: '140px 24px 150px', textAlign: 'center', overflow: 'hidden', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-        <div style={{ position: 'absolute', inset: 'auto -20% -30% -20%', height: 460, pointerEvents: 'none', opacity: 'var(--glow,0.5)' }}>
-          <div style={{ position: 'absolute', bottom: 0, left: '16%', width: '60%', height: 340, background: 'radial-gradient(ellipse at center, rgba(99,194,129,0.45), rgba(99,194,129,0) 62%)', filter: 'blur(70px)', animation: 'gvDrift2 18s ease-in-out infinite' }} />
-          <div style={{ position: 'absolute', bottom: '4%', right: '8%', width: '46%', height: 280, background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.14), rgba(255,255,255,0) 60%)', filter: 'blur(70px)', animation: 'gvDrift1 24s ease-in-out infinite' }} />
-        </div>
-        <div className="gv-r" style={{ position: 'relative', maxWidth: 720, margin: '0 auto' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 11.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--accent,#63c281)', marginBottom: 24 }}><span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent,#63c281)', boxShadow: '0 0 8px var(--accent,#63c281)' }} /> Available for new domains</div>
-          <h2 style={{ fontSize: 'clamp(38px, 6vw, 68px)', fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.08, margin: '0 0 26px' }}>Your blog is one<br /><span style={{ fontStyle: 'italic', color: 'var(--accent,#63c281)', fontWeight: 600 }}>field away.</span></h2>
-          <p style={{ fontSize: 17, color: '#9aa096', margin: '0 0 32px' }}>Plant your domain tonight. Wake up to a researched draft in your queue — approve it, and it&apos;s live.</p>
-          {domainForm('2')}
+      <section style={{ padding: '162px 24px 175px', textAlign: 'center' }}>
+        <div className="gv-r" style={{ maxWidth: 680, margin: '0 auto' }}>
+          <h2 style={{ ...h2Style, lineHeight: 1.08, margin: '0 0 22px' }}>Your next post starts here.</h2>
+          <p style={{ fontSize: 18, fontWeight: 500, color: '#9a9d97', margin: '0 0 32px' }}>Plant your domain tonight. Wake up to a researched, ranked, published post.</p>
+          <form onSubmit={onSubmit} style={{ display: 'flex', gap: 8, maxWidth: 440, margin: '0 auto', background: '#111110', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '6px 6px 6px 18px', height: 44 }}>
+            <span style={{ display: 'flex', alignItems: 'center', color: '#7c7f77', fontSize: 14 }}>https://</span>
+            <input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="yourdomain.com" aria-label="Your domain" style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#f4f4f2', fontSize: 14, fontFamily: 'inherit', minWidth: 0 }} />
+            <button className="gv-btn" type="submit" style={{ ...ctaBtn, background: '#f4f4f2', color: '#0a0a0a', padding: '0 20px', borderRadius: 9, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}>Plant →</button>
+          </form>
         </div>
       </section>
 
       {/* FOOTER */}
-      <footer style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: '56px 24px 36px', maxWidth: 1120, margin: '0 auto' }}>
-        <div className="gv-r gv-footgrid" style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr 1fr', gap: 32, marginBottom: 44 }}>
+      <footer style={{ padding: '54px 24px 32px', maxWidth: 1120, margin: '0 auto' }}>
+        <div className="gv-r gv-footgrid" style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr 1fr', gap: 32, marginBottom: 40 }}>
           <div>
-            <a href="#hero" style={{ display: 'flex', alignItems: 'center', gap: 9, textDecoration: 'none', color: '#eef1ea', marginBottom: 14 }}>
-              <span style={{ width: 16, height: 16, borderRadius: '50%', background: 'radial-gradient(circle at 35% 30%, #9ff0bb, var(--accent,#63c281))', boxShadow: '0 0 12px rgba(99,194,129,0.6)' }} />
-              <span style={{ fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em' }}>grove</span>
+            <a href="#hero" style={{ display: 'flex', alignItems: 'center', gap: 9, textDecoration: 'none', color: '#f4f4f2', marginBottom: 14 }}>
+              <img src="/landing/grove-mark.png" alt="Grove" style={{ width: 28, height: 28, objectFit: 'contain' }} />
+              <span style={{ fontWeight: 700, fontSize: 17, letterSpacing: '-0.02em' }}>grove</span>
             </a>
-            <p style={{ fontSize: 13.5, color: '#6b6f67', lineHeight: 1.6, maxWidth: 260, margin: '0 0 16px' }}>The marketing agent that plants your domain once and grows the blog forever.</p>
-            <a className="gv-btn" href={startHref} style={{ display: 'inline-block', background: 'var(--accent,#63c281)', color: '#06120b', fontWeight: 700, fontSize: 13, padding: '9px 16px', borderRadius: 999, textDecoration: 'none', transition: 'transform .2s, box-shadow .2s' }}>{loggedIn ? 'Open dashboard' : 'Start free'} →</a>
+            <p style={{ fontSize: 14, fontWeight: 500, color: '#7c7f77', lineHeight: 1.6, maxWidth: 250, margin: 0 }}>The AI content team that plants your domain once and grows the blog forever.</p>
           </div>
           {footcols.map((col) => (
             <div key={col.head}>
-              <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#565a53', marginBottom: 16 }}>{col.head}</div>
+              <div style={{ fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#565952', marginBottom: 16 }}>{col.head}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
                 {col.links.map(([label, href]) => (
-                  <a key={label} className="gv-link" href={href} style={{ fontSize: 13.5, color: '#9aa096', textDecoration: 'none', transition: 'color .2s' }}>{label}</a>
+                  <a className="gv-link" key={label} href={href} style={{ fontSize: 12, fontWeight: 500, color: '#9a9d97', textDecoration: 'none' }}>{label}</a>
                 ))}
               </div>
             </div>
           ))}
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, paddingTop: 24, borderTop: '1px solid rgba(255,255,255,0.06)', fontSize: 11.5, color: '#565a53' }}>
-          <span>© 2026 grove — plant once, grows forever.</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, paddingTop: 22, fontSize: 12, color: '#565952' }}>
+          <span>© {new Date().getFullYear()} grove — plant once, grows forever.</span>
         </div>
       </footer>
     </div>
