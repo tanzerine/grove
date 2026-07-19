@@ -2,7 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import { mdToHtml, extractToc } from '@/lib/markdown';
 import { rewriteImgsToCdn } from '@/lib/image-cdn';
 import Image from 'next/image';
-import { stripLeadingH1 } from '@/lib/article-body';
+import { stripLeadingH1, stripLeadingCoverImage } from '@/lib/article-body';
 import { extractFaq } from '@/lib/faq';
 import { jsonLdScript, blogHomeUrl, blogPostUrl, subdomainSlugFromHost, isCustomBlogHost, canonicalBaseFor, servedBlogBaseFor, buildArticleGraph } from '@/lib/seo';
 import { pickRelated } from '@/lib/related-posts';
@@ -96,7 +96,9 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   // The page renders p.title in its own <h1>, so the body's leading H1 is
   // dropped (or the title prints twice). ToC ids come from the same stripped
   // body so anchors line up with the rendered html.
-  const bodyMd = stripLeadingH1(p.body_md ?? '');
+  // This page renders the cover in its own <figure>, so the copy the pipeline
+  // injected into the body would show twice.
+  const bodyMd = stripLeadingCoverImage(stripLeadingH1(p.body_md ?? ''), p.cover_image_url);
   const { body: linkedMd } = injectInternalLinks(bodyMd, siblings ?? [], prefix);
   // Body images (injected cover + inline illustrations) are Supabase Storage
   // URLs; rewrite them through Vercel's image CDN so pageviews don't drain

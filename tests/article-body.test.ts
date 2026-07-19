@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { stripLeadingH1, withTitleH1 } from '../lib/article-body';
+import { stripLeadingH1, stripLeadingCoverImage, withTitleH1 } from '../lib/article-body';
 
 describe('stripLeadingH1', () => {
   it('drops a leading # heading', () => {
@@ -52,5 +52,48 @@ describe('withTitleH1', () => {
     const stored = '# Round Trip\n\n![cover](https://x.com/c.png)\n\nIntro.';
     const stripped = stripLeadingH1(stored);
     expect(withTitleH1('Round Trip', stripped)).toBe(stored);
+  });
+});
+
+describe('stripLeadingCoverImage', () => {
+  const COVER = 'https://x.supabase.co/storage/v1/object/public/post-covers/c.webp';
+
+  it('drops the leading image when it matches the cover URL', () => {
+    const md = `![My Title](${COVER})\n\nIntro paragraph.`;
+    expect(stripLeadingCoverImage(md, COVER)).toBe('\nIntro paragraph.');
+  });
+
+  it('drops it after the H1 strip (the real call order)', () => {
+    const stored = `# Title\n\n![Title](${COVER})\n\nIntro.`;
+    const out = stripLeadingCoverImage(stripLeadingH1(stored), COVER);
+    expect(out).not.toContain(COVER);
+    expect(out).toContain('Intro.');
+  });
+
+  it('keeps a leading image with a DIFFERENT url (author content)', () => {
+    const md = '![diagram](https://example.com/diagram.png)\n\nIntro.';
+    expect(stripLeadingCoverImage(md, COVER)).toBe(md);
+  });
+
+  it('keeps a matching image that appears after body text', () => {
+    const md = `Intro first.\n\n![Title](${COVER})\n\nMore.`;
+    expect(stripLeadingCoverImage(md, COVER)).toBe(md);
+  });
+
+  it('keeps a line that is not purely an image', () => {
+    const md = `Some text ![Title](${COVER}) inline.\n\nMore.`;
+    expect(stripLeadingCoverImage(md, COVER)).toBe(md);
+  });
+
+  it('handles an image with a markdown title attribute', () => {
+    const md = `![alt](${COVER} "caption")\n\nIntro.`;
+    expect(stripLeadingCoverImage(md, COVER)).toBe('\nIntro.');
+  });
+
+  it('no-ops without a cover url or body', () => {
+    const md = `![Title](${COVER})\n\nIntro.`;
+    expect(stripLeadingCoverImage(md, null)).toBe(md);
+    expect(stripLeadingCoverImage(md, undefined)).toBe(md);
+    expect(stripLeadingCoverImage('', COVER)).toBe('');
   });
 });

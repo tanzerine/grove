@@ -6,7 +6,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { mdToHtml, extractToc } from '@/lib/markdown';
-import { stripLeadingH1 } from '@/lib/article-body';
+import { stripLeadingH1, stripLeadingCoverImage } from '@/lib/article-body';
 import { genreFor, authorFor } from '@/lib/blog-genre';
 import { pickRelated } from '@/lib/related-posts';
 import { sanitizeEmbedHost } from '@/lib/seo';
@@ -84,7 +84,12 @@ export async function GET(_req: Request, ctx: { params: Promise<{ hostname: stri
   // its own chrome, so the body's leading `# Title` is dropped once here —
   // otherwise raw-markdown consumers print the title twice. TOC ids are
   // computed from the same stripped body so anchors match the rendered html.
-  const rawBody = stripLeadingH1(post.body_md ?? '');
+  // Same for the injected cover: the response carries cover_image_url and
+  // embed.js renders it as its own element, so the body copy would dupe it.
+  const rawBody = stripLeadingCoverImage(
+    stripLeadingH1(post.body_md ?? ''),
+    post.cover_image_url,
+  );
   const toc = extractToc(rawBody);
   const cta = { headline: `Try ${businessName}`, subline, url: ctaUrl };
 
