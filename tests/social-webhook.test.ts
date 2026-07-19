@@ -51,11 +51,11 @@ describe('deliverWebhook', () => {
     const fetchMock = vi.fn(async () => ({ ok: true, status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
 
-    const res = await deliverWebhook(post, domain, { url: 'https://hook.test/x', secret: 'whsec_abc' });
+    const res = await deliverWebhook(post, domain, { url: 'https://93.184.216.34/x', secret: 'whsec_abc' });
 
     expect(fetchMock).toHaveBeenCalledOnce();
     const [url, opts] = fetchMock.mock.calls[0] as [string, any];
-    expect(url).toBe('https://hook.test/x');
+    expect(url).toBe('https://93.184.216.34/x');
     // signature header present and matches the exact body sent
     const sig = opts.headers['x-grove-signature'];
     expect(sig).toBe(signPayload(opts.body, 'whsec_abc'));
@@ -66,7 +66,7 @@ describe('deliverWebhook', () => {
   it('omits the signature header when no secret is set', async () => {
     const fetchMock = vi.fn(async () => ({ ok: true, status: 204 }));
     vi.stubGlobal('fetch', fetchMock);
-    await deliverWebhook(post, domain, { url: 'https://hook.test/x', secret: null });
+    await deliverWebhook(post, domain, { url: 'https://93.184.216.34/x', secret: null });
     const opts = (fetchMock.mock.calls[0] as any[])[1];
     expect(opts.headers['x-grove-signature']).toBeUndefined();
   });
@@ -74,14 +74,14 @@ describe('deliverWebhook', () => {
   it('records an error (never throws) on a non-2xx response', async () => {
     const fetchMock = vi.fn(async () => ({ ok: false, status: 500 }));
     vi.stubGlobal('fetch', fetchMock);
-    const res = await deliverWebhook(post, domain, { url: 'https://hook.test/x', secret: 's' });
+    const res = await deliverWebhook(post, domain, { url: 'https://93.184.216.34/x', secret: 's' });
     expect(res?.error).toContain('500');
   });
 
   it('records an error (never throws) when fetch rejects', async () => {
     const fetchMock = vi.fn(async () => { throw new Error('ECONNREFUSED'); });
     vi.stubGlobal('fetch', fetchMock);
-    const res = await deliverWebhook(post, domain, { url: 'https://hook.test/x', secret: 's' });
+    const res = await deliverWebhook(post, domain, { url: 'https://93.184.216.34/x', secret: 's' });
     expect(res?.error).toContain('ECONNREFUSED');
   });
 
@@ -89,7 +89,7 @@ describe('deliverWebhook', () => {
     process.env.SOCIAL_DRY_RUN = 'true';
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
-    const res = await deliverWebhook(post, domain, { url: 'https://hook.test/x', secret: 's' });
+    const res = await deliverWebhook(post, domain, { url: 'https://93.184.216.34/x', secret: 's' });
     expect(fetchMock).not.toHaveBeenCalled();
     expect(res?.dry_run).toBe(true);
   });

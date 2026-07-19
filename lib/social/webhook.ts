@@ -16,6 +16,7 @@ import {
   type PostForShare, type DomainForShare,
 } from './compose';
 import { PLATFORMS } from './providers';
+import { safeFetch } from '../net/ssrf';
 
 export type WebhookResult = { at: string; status?: number; error?: string; dry_run?: boolean };
 
@@ -75,7 +76,10 @@ export async function deliverWebhook(
     };
     if (cfg.secret) headers[SIGNATURE_HEADER] = signPayload(body, cfg.secret);
 
-    const r = await fetch(cfg.url, {
+    // safeFetch re-validates the URL (and every redirect hop) at send time —
+    // save-time validation alone is bypassable via DNS-rebinding or a 3xx to an
+    // internal address (SSRF: owner-configured URL).
+    const r = await safeFetch(cfg.url, {
       method: 'POST',
       headers,
       body,

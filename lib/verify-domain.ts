@@ -13,7 +13,7 @@
  * need to do ONE — pick whichever is easiest for their setup.
  */
 import { promises as dns } from 'node:dns';
-import { isPublicHttpUrl } from './net/ssrf';
+import { safeFetch } from './net/ssrf';
 
 export type VerifyMethod = 'dns' | 'meta' | 'http';
 export type VerifyResult =
@@ -52,15 +52,13 @@ async function checkDns(host: string, token: string): Promise<{ matched: string 
 // ─── method 2: HTML meta tag in homepage HEAD ────────────────────────────────
 async function fetchHtml(url: string): Promise<string | null> {
   // Owner-controlled host — refuse to fetch anything resolving to a private
-  // address (SSRF). DNS-based verification above doesn't touch the host so it
-  // still works for legitimately-internal sites.
-  if (!(await isPublicHttpUrl(url))) return null;
+  // address (SSRF), including via a redirect hop. DNS-based verification above
+  // doesn't touch the host so it still works for legitimately-internal sites.
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
   try {
-    const res = await fetch(url, {
+    const res = await safeFetch(url, {
       signal: ctrl.signal,
-      redirect: 'follow',
       headers: { 'user-agent': 'grove-verifier/1.0 (+https://grove.so/verify)' },
     });
     if (!res.ok) return null;
@@ -91,12 +89,12 @@ async function checkHttpFile(host: string, token: string): Promise<{ matched: st
   for (const h of hostVariants(host)) {
     for (const scheme of ['https', 'http'] as const) {
       const fileUrl = `${scheme}://${h}${HTTP_PATH}`;
-      if (!(await isPublicHttpUrl(fileUrl))) continue; // SSRF guard
       const ctrl = new AbortController();
       const t = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
       try {
-        const res = await fetch(fileUrl, {
-          signal: ctrl.signal, redirect: 'follow',
+        // safeFetch validates every redirect hop (SSRF guard)
+        const res = await safeFetch(fileUrl, {
+          signal: ctrl.signal,
           headers: { 'user-agent': 'grove-verifier/1.0' },
         });
         if (!res.ok) continue;

@@ -6,7 +6,7 @@
  * has no idea what the business does and produces generic, off-topic drafts.
  */
 import { llmCall, extractJson } from '../llm';
-import { isPublicHttpUrl } from '../net/ssrf';
+import { safeFetch } from '../net/ssrf';
 import {
   type BrandColors,
   hexToHsl, darkenHex, deriveBrandColors,
@@ -181,11 +181,11 @@ export function extractBrandColors(html: string, externalCss = ''): BrandColors 
 async function fetchHomepageRaw(hostname: string): Promise<{ html: string; base: string } | null> {
   for (const base of [`https://${hostname}`, `https://www.${hostname.replace(/^www\./,'')}`]) {
     try {
-      if (!(await isPublicHttpUrl(base))) continue; // SSRF: owner-controlled host
       const ctrl = new AbortController();
       const t = setTimeout(() => ctrl.abort(), 8_000);
-      const r = await fetch(base, {
-        signal: ctrl.signal, redirect: 'follow',
+      // safeFetch validates every redirect hop (SSRF: owner-controlled host)
+      const r = await safeFetch(base, {
+        signal: ctrl.signal,
         headers: { 'user-agent': 'grove-profiler/1.0 (+https://grove.so)' },
       });
       clearTimeout(t);
@@ -216,11 +216,11 @@ async function fetchExternalCss(html: string, baseUrl: string): Promise<string> 
     try {
       const url = new URL(href, baseUrl);
       if (!/^https?:$/.test(url.protocol)) continue;
-      if (!(await isPublicHttpUrl(url.toString()))) continue;
       const ctrl = new AbortController();
       const t = setTimeout(() => ctrl.abort(), 8_000);
-      const r = await fetch(url.toString(), {
-        signal: ctrl.signal, redirect: 'follow',
+      // safeFetch validates every redirect hop (SSRF: attacker-influenced href)
+      const r = await safeFetch(url.toString(), {
+        signal: ctrl.signal,
         headers: { 'user-agent': 'grove-profiler/1.0 (+https://grove.so)' },
       });
       clearTimeout(t);
@@ -244,11 +244,11 @@ const CANDIDATE_PATHS = [
 
 async function fetchText(url: string): Promise<{ url: string; title: string; meta: string; body: string } | null> {
   try {
-    if (!(await isPublicHttpUrl(url))) return null; // SSRF: owner-controlled host
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 8_000);
-    const r = await fetch(url, {
-      signal: ctrl.signal, redirect: 'follow',
+    // safeFetch validates every redirect hop (SSRF: owner-controlled host)
+    const r = await safeFetch(url, {
+      signal: ctrl.signal,
       headers: { 'user-agent': 'grove-profiler/1.0 (+https://grove.so)' },
     });
     clearTimeout(t);
@@ -283,11 +283,11 @@ async function discoverBlogSamples(hostname: string): Promise<string[]> {
   const bases = [`https://${hostname}`, `https://www.${hostname.replace(/^www\./, '')}`];
   for (const base of bases) {
     try {
-      if (!(await isPublicHttpUrl(`${base}/blog`))) continue; // SSRF: owner-controlled host
       const ctrl = new AbortController();
       const t = setTimeout(() => ctrl.abort(), 8_000);
-      const r = await fetch(`${base}/blog`, {
-        signal: ctrl.signal, redirect: 'follow',
+      // safeFetch validates every redirect hop (SSRF: owner-controlled host)
+      const r = await safeFetch(`${base}/blog`, {
+        signal: ctrl.signal,
         headers: { 'user-agent': 'grove-profiler/1.0 (+https://grove.so)' },
       });
       clearTimeout(t);
