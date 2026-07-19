@@ -5,7 +5,7 @@ import { resolvePost, parseWhen, extractReschedule, type PostRef } from '../lib/
 import type { ContentRow } from '../lib/search-console/insights';
 import { relevantKnowledge } from '../lib/assistant/knowledge';
 import { signalsBlock, type AssistantSignals } from '../lib/assistant/context';
-import { buildAnswerPrompt, NO_ACCESS_RX, sanitizeHistory, guardReply } from '../lib/assistant/chat';
+import { buildAnswerPrompt, NO_ACCESS_RX, sanitizeHistory, guardReply, normalizeAnswer } from '../lib/assistant/chat';
 
 describe('parseSlash', () => {
   it('parses a known command and its remainder', () => {
@@ -397,6 +397,35 @@ describe('buildAnswerPrompt', () => {
     });
     expect(user).not.toContain('user database');
     expect(user).toContain('OWNER: am i getting new users?');
+  });
+});
+
+describe('normalizeAnswer', () => {
+  it('reads the canonical {thought, reply} shape', () => {
+    expect(normalizeAnswer('{"thought":"t","reply":"the answer"}'))
+      .toEqual({ thought: 't', reply: 'the answer' });
+  });
+
+  it('accepts the drifted {"message": ...} shape seen in production', () => {
+    const raw = JSON.stringify({ message: 'Your top article is **"The 7 Best AI 3D Icon Generators"**.' });
+    const a = normalizeAnswer(raw);
+    expect(a.reply).toContain('Your top article');
+    expect(a.reply).not.toContain('"message"');
+  });
+
+  it('accepts other alternate keys and pairs them with a thought alias', () => {
+    expect(normalizeAnswer('{"reasoning":"because","answer":"42 clicks"}'))
+      .toEqual({ thought: 'because', reply: '42 clicks' });
+  });
+
+  it('falls back to the longest string value for unknown shapes — never raw JSON', () => {
+    const a = normalizeAnswer('{"foo":"short","bar":"this is the long real answer body"}');
+    expect(a.reply).toBe('this is the long real answer body');
+  });
+
+  it('treats non-JSON as the reply, stripping stray fences', () => {
+    expect(normalizeAnswer('Just a plain answer.').reply).toBe('Just a plain answer.');
+    expect(normalizeAnswer('```json\nplain but fenced\n```').reply).toBe('plain but fenced');
   });
 });
 
