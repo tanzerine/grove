@@ -26,7 +26,7 @@ export default function ProcessDrawer({ unusual, children }: { unusual?: boolean
         className="gv-ghost"
         style={{
           display: 'inline-flex', alignItems: 'center', gap: 8,
-          border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.02)',
+          border: '1px solid rgba(15,23,18,0.12)', background: 'rgba(15,23,18,0.02)',
           color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600,
           padding: '7px 13px', borderRadius: 9, cursor: 'pointer',
         }}
@@ -48,7 +48,7 @@ export default function ProcessDrawer({ unusual, children }: { unusual?: boolean
         onClick={(e) => e.stopPropagation()}
         style={{
           position: 'fixed', top: 0, left: 0, height: '100%', width: 'min(420px, 92vw)',
-          background: 'var(--gv-side)', borderRight: '1px solid rgba(255,255,255,0.08)',
+          background: 'var(--gv-side)', borderRight: '1px solid rgba(15,23,18,0.08)',
           boxShadow: '4px 0 24px rgba(0,0,0,0.5)', zIndex: 45, overflowY: 'auto',
           transform: open ? 'translateX(0)' : 'translateX(-100%)',
           transition: 'transform .28s cubic-bezier(.2,.8,.2,1)',
@@ -63,7 +63,7 @@ export default function ProcessDrawer({ unusual, children }: { unusual?: boolean
           <button
             onClick={() => setOpen(false)}
             aria-label="Close"
-            style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', color: 'var(--gv-dim)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+            style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid rgba(15,23,18,0.1)', background: 'rgba(15,23,18,0.03)', color: 'var(--gv-dim)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
           >
             <Icon name="x" size={14} />
           </button>

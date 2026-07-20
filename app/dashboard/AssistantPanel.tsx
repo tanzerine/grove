@@ -26,6 +26,7 @@ import {
 import { parseChatText, type ChatSpan } from '@/lib/assistant/chat-format';
 
 const ACCENT = 'var(--gv-accent)';
+const ACCENT_INK = 'var(--gv-accent-ink)';
 
 type Change = { label: string; detail: string; href: string };
 type LinkChip = { label: string; href: string };
@@ -48,7 +49,7 @@ const iconFor = (label: string) =>
  *  (lib/assistant/chat-format.ts); this just maps blocks to React nodes. */
 function ChatText({ text }: { text: string }) {
   const spansOf = (spans: ChatSpan[]) => spans.map((s, j) => s.code
-    ? <code key={j} className="mono" style={{ fontSize: 11.5, background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: 5 }}>{s.text}</code>
+    ? <code key={j} className="mono" style={{ fontSize: 11.5, background: 'rgba(15,23,18,0.06)', padding: '1px 5px', borderRadius: 5 }}>{s.text}</code>
     : s.bold
       ? <b key={j} style={{ color: 'var(--gv-ink)' }}>{s.text}</b>
       : <span key={j}>{s.text}</span>);
@@ -59,7 +60,7 @@ function ChatText({ text }: { text: string }) {
         if (b.kind === 'bullet') {
           return (
             <div key={i} style={{ display: 'flex', gap: 8, margin: '3px 0' }}>
-              <span style={{ color: ACCENT, flexShrink: 0 }}>•</span>
+              <span style={{ color: ACCENT_INK, flexShrink: 0 }}>•</span>
               <span style={{ flex: 1, minWidth: 0 }}>{spansOf(b.spans)}</span>
             </div>
           );
@@ -67,7 +68,7 @@ function ChatText({ text }: { text: string }) {
         if (b.kind === 'num') {
           return (
             <div key={i} style={{ display: 'flex', gap: 8, margin: '3px 0' }}>
-              <span style={{ color: ACCENT, flexShrink: 0, minWidth: 15, textAlign: 'right' }}>{b.num}.</span>
+              <span style={{ color: ACCENT_INK, flexShrink: 0, minWidth: 15, textAlign: 'right' }}>{b.num}.</span>
               <span style={{ flex: 1, minWidth: 0 }}>{spansOf(b.spans)}</span>
             </div>
           );
@@ -80,7 +81,7 @@ function ChatText({ text }: { text: string }) {
 
 const iconBtnStyle: React.CSSProperties = {
   width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
-  borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent',
+  borderRadius: 8, border: '1px solid rgba(15,23,18,0.1)', background: 'transparent',
   color: 'var(--gv-dim)', cursor: 'pointer',
 };
 
@@ -260,8 +261,8 @@ export default function AssistantPanel() {
 
       <aside className={`gv-assist gv-scroll ${open ? 'is-open' : ''}`} aria-hidden={!open}>
         {/* header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 16px 12px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <span style={{ color: ACCENT, display: 'flex' }}><Icon name="sparkle" size={16} /></span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 16px 12px', borderBottom: '1px solid rgba(15,23,18,0.06)' }}>
+          <span style={{ color: ACCENT_INK, display: 'flex' }}><Icon name="sparkle" size={16} /></span>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontSize: 13.5, fontWeight: 700 }}>Agent</div>
             <div style={{ fontSize: 10.5, color: 'var(--gv-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeHostname}</div>
@@ -270,7 +271,7 @@ export default function AssistantPanel() {
             type="button"
             className="gv-ghost"
             onClick={startNewChat}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, border: '1px solid rgba(99,194,129,0.3)', background: 'rgba(99,194,129,0.06)', color: ACCENT, fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, padding: '6px 10px', borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, border: '1px solid rgba(162,255,1,0.3)', background: 'rgba(162,255,1,0.06)', color: ACCENT_INK, fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, padding: '6px 10px', borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap' }}
           >
             <Icon name="pen" size={12} /> New chat
           </button>
@@ -281,7 +282,7 @@ export default function AssistantPanel() {
             title="Chat history"
             aria-pressed={view === 'history'}
             onClick={() => setView((v) => (v === 'history' ? 'chat' : 'history'))}
-            style={{ ...iconBtnStyle, ...(view === 'history' ? { borderColor: 'rgba(99,194,129,0.45)', color: ACCENT } : {}) }}
+            style={{ ...iconBtnStyle, ...(view === 'history' ? { borderColor: 'rgba(162,255,1,0.45)', color: ACCENT_INK } : {}) }}
           >
             <Icon name="clock" size={13} />
           </button>
@@ -312,7 +313,7 @@ export default function AssistantPanel() {
                 tabIndex={0}
                 onClick={() => openChat(c)}
                 onKeyDown={(e) => { if (e.key === 'Enter') openChat(c); }}
-                style={{ display: 'flex', alignItems: 'center', gap: 10, border: `1px solid ${c.id === chat.id ? 'rgba(99,194,129,0.35)' : 'rgba(255,255,255,0.08)'}`, borderRadius: 11, padding: '10px 12px', cursor: 'pointer' }}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, border: `1px solid ${c.id === chat.id ? 'rgba(162,255,1,0.35)' : 'rgba(15,23,18,0.08)'}`, borderRadius: 11, padding: '10px 12px', cursor: 'pointer' }}
               >
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ fontSize: 12.5, color: 'var(--gv-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -350,9 +351,9 @@ export default function AssistantPanel() {
                       type="button"
                       className="gv-sugg"
                       onClick={() => { setInput(s); inputRef.current?.focus(); }}
-                      style={{ textAlign: 'left', fontSize: 12, color: 'var(--gv-soft)', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '9px 12px', cursor: 'pointer', fontFamily: 'inherit' }}
+                      style={{ textAlign: 'left', fontSize: 12, color: 'var(--gv-soft)', background: 'rgba(15,23,18,0.03)', border: '1px solid rgba(15,23,18,0.08)', borderRadius: 10, padding: '9px 12px', cursor: 'pointer', fontFamily: 'inherit' }}
                     >
-                      <b style={{ color: ACCENT }}>{s.split(' ')[0]}</b>{s.slice(s.indexOf(' '))}
+                      <b style={{ color: ACCENT_INK }}>{s.split(' ')[0]}</b>{s.slice(s.indexOf(' '))}
                     </button>
                   ))}
                 </div>
@@ -360,9 +361,9 @@ export default function AssistantPanel() {
             )}
 
             {messages.map((m, i) => m.role === 'user' ? (
-              <div key={i} style={{ border: '1px solid rgba(255,255,255,0.09)', borderRadius: 12, padding: '10px 13px', fontSize: 12.5, lineHeight: 1.55, color: 'var(--gv-ink)', background: 'rgba(255,255,255,0.025)' }}>
+              <div key={i} style={{ border: '1px solid rgba(15,23,18,0.09)', borderRadius: 12, padding: '10px 13px', fontSize: 12.5, lineHeight: 1.55, color: 'var(--gv-ink)', background: 'rgba(15,23,18,0.025)' }}>
                 {/^\/[a-z]+/i.test(m.content)
-                  ? <><b style={{ color: ACCENT }}>{m.content.split(' ')[0]}</b>{m.content.slice(m.content.indexOf(' ') > -1 ? m.content.indexOf(' ') : m.content.length)}</>
+                  ? <><b style={{ color: ACCENT_INK }}>{m.content.split(' ')[0]}</b>{m.content.slice(m.content.indexOf(' ') > -1 ? m.content.indexOf(' ') : m.content.length)}</>
                   : m.content}
               </div>
             ) : (
@@ -381,15 +382,15 @@ export default function AssistantPanel() {
                     className="gv-sugg"
                     onClick={() => send(m.proposal)}
                     disabled={sending}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, textAlign: 'left', marginTop: 10, fontSize: 12, color: 'var(--gv-ink)', background: 'rgba(99,194,129,0.08)', border: '1px solid rgba(99,194,129,0.35)', borderRadius: 10, padding: '9px 12px', cursor: sending ? 'default' : 'pointer', fontFamily: 'inherit', opacity: sending ? 0.55 : 1 }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, textAlign: 'left', marginTop: 10, fontSize: 12, color: 'var(--gv-ink)', background: 'rgba(162,255,1,0.08)', border: '1px solid rgba(162,255,1,0.35)', borderRadius: 10, padding: '9px 12px', cursor: sending ? 'default' : 'pointer', fontFamily: 'inherit', opacity: sending ? 0.55 : 1 }}
                   >
-                    <span style={{ color: ACCENT, display: 'flex', flexShrink: 0 }}><Icon name="sparkle" size={13} /></span>
-                    <span><b style={{ color: ACCENT }}>Do it:</b> {m.proposal}</span>
+                    <span style={{ color: ACCENT_INK, display: 'flex', flexShrink: 0 }}><Icon name="sparkle" size={13} /></span>
+                    <span><b style={{ color: ACCENT_INK }}>Do it:</b> {m.proposal}</span>
                   </button>
                 )}
 
                 {m.changes && (
-                  <div style={{ marginTop: 12, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 10 }}>
+                  <div style={{ marginTop: 12, borderTop: '1px solid rgba(15,23,18,0.06)', paddingTop: 10 }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
                       <div style={{ fontSize: 11.5, fontWeight: 700 }}>Changes</div>
                       {m.undo && (
@@ -404,8 +405,8 @@ export default function AssistantPanel() {
                       )}
                     </div>
                     {m.changes.map((c) => (
-                      <Link key={c.href + c.label} href={c.href} className="gv-prow" style={{ display: 'flex', alignItems: 'center', gap: 10, border: '1px solid rgba(255,255,255,0.08)', borderRadius: 11, padding: '10px 12px', marginBottom: 6, textDecoration: 'none' }}>
-                        <span style={{ width: 28, height: 28, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(99,194,129,0.1)', color: ACCENT }}>
+                      <Link key={c.href + c.label} href={c.href} className="gv-prow" style={{ display: 'flex', alignItems: 'center', gap: 10, border: '1px solid rgba(15,23,18,0.08)', borderRadius: 11, padding: '10px 12px', marginBottom: 6, textDecoration: 'none' }}>
+                        <span style={{ width: 28, height: 28, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(162,255,1,0.1)', color: ACCENT_INK }}>
                           <Icon name={iconFor(c.label)} size={14} />
                         </span>
                         <span style={{ fontSize: 12.5, color: 'var(--gv-ink)' }}>{c.label}</span>
@@ -418,7 +419,7 @@ export default function AssistantPanel() {
                 {m.links && (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
                     {m.links.map((l) => (
-                      <Link key={l.href + l.label} href={l.href} className="gv-chip" style={{ fontSize: 11, color: 'var(--gv-dim)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 99, padding: '4px 10px', textDecoration: 'none' }}>
+                      <Link key={l.href + l.label} href={l.href} className="gv-chip" style={{ fontSize: 11, color: 'var(--gv-dim)', border: '1px solid rgba(15,23,18,0.1)', borderRadius: 99, padding: '4px 10px', textDecoration: 'none' }}>
                         {l.label} →
                       </Link>
                     ))}
@@ -438,9 +439,9 @@ export default function AssistantPanel() {
 
         {/* composer (hidden while browsing history) */}
         {view === 'chat' && (
-          <div style={{ padding: '10px 14px 14px', borderTop: '1px solid rgba(255,255,255,0.06)', position: 'relative' }}>
+          <div style={{ padding: '10px 14px 14px', borderTop: '1px solid rgba(15,23,18,0.06)', position: 'relative' }}>
             {slashMatches.length > 0 && (
-              <div style={{ position: 'absolute', bottom: '100%', left: 14, right: 14, marginBottom: 6, background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, overflow: 'hidden', boxShadow: '0 14px 34px rgba(0,0,0,0.45)' }}>
+              <div style={{ position: 'absolute', bottom: '100%', left: 14, right: 14, marginBottom: 6, background: 'var(--gv-card)', border: '1px solid rgba(15,23,18,0.1)', borderRadius: 12, overflow: 'hidden', boxShadow: '0 14px 34px rgba(0,0,0,0.45)' }}>
                 {slashMatches.map((c) => (
                   <button
                     key={c.command}
@@ -449,7 +450,7 @@ export default function AssistantPanel() {
                     onClick={() => { setInput(`/${c.command} `); inputRef.current?.focus(); }}
                     style={{ display: 'flex', alignItems: 'baseline', gap: 9, width: '100%', textAlign: 'left', padding: '9px 13px', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
                   >
-                    <b style={{ fontSize: 12.5, color: ACCENT }}>/{c.command}</b>
+                    <b style={{ fontSize: 12.5, color: ACCENT_INK }}>/{c.command}</b>
                     <span style={{ fontSize: 11.5, color: 'var(--gv-faint)' }}>{c.hint}</span>
                   </button>
                 ))}
@@ -463,7 +464,7 @@ export default function AssistantPanel() {
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && slashMatches.length === 0) { e.preventDefault(); send(); } }}
                 placeholder={messages.length ? 'Add follow up…' : 'Ask, or type / for commands…'}
                 disabled={sending}
-                style={{ flex: 1, minWidth: 0, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 11, padding: '10px 13px', fontSize: 12.5, color: 'var(--gv-ink)', fontFamily: 'inherit', outline: 'none' }}
+                style={{ flex: 1, minWidth: 0, background: 'rgba(15,23,18,0.03)', border: '1px solid rgba(15,23,18,0.1)', borderRadius: 11, padding: '10px 13px', fontSize: 12.5, color: 'var(--gv-ink)', fontFamily: 'inherit', outline: 'none' }}
               />
               <button
                 type="button"

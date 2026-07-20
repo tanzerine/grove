@@ -133,7 +133,7 @@ export default function CustomHostnameForm({
           className="mono"
           style={{
             flex: '1 1 280px', fontSize: 13, padding: '9px 12px', borderRadius: 10,
-            border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', color: 'var(--gv-ink)',
+            border: '1px solid rgba(15,23,18,0.1)', background: 'rgba(15,23,18,0.04)', color: 'var(--gv-ink)',
           }}
         />
         <button
@@ -143,7 +143,7 @@ export default function CustomHostnameForm({
           title={cannotSubmit ? 'Enter a hostname first' : undefined}
           style={{
             padding: '9px 16px', borderRadius: 10,
-            border: `1px solid ${isClear ? 'rgba(255,255,255,0.14)' : 'var(--gv-accent)'}`,
+            border: `1px solid ${isClear ? 'rgba(15,23,18,0.14)' : 'var(--gv-accent)'}`,
             background: isClear ? 'transparent' : 'var(--gv-accent)',
             color: isClear ? 'var(--gv-ink)' : 'var(--gv-on-accent)',
             fontSize: 13, cursor: saveDisabled ? 'not-allowed' : 'pointer',
@@ -164,7 +164,7 @@ export default function CustomHostnameForm({
 
       {/* Live setup checklist — three real probes, polled until green. */}
       {configured && (
-        <div style={{ margin: '12px 0 0', padding: '14px 16px', borderRadius: 12, border: '1px solid var(--gv-line)', background: 'rgba(255,255,255,0.03)' }}>
+        <div style={{ margin: '12px 0 0', padding: '14px 16px', borderRadius: 12, border: '1px solid var(--gv-line)', background: 'rgba(15,23,18,0.03)' }}>
           {status!.steps!.map((s) => (
             <div key={s.id} style={{ display: 'flex', gap: 10, alignItems: 'baseline', padding: '4px 0' }}>
               <span className="mono" aria-hidden style={{ fontSize: 13, color: s.ok ? 'var(--gv-accent)' : 'var(--gv-faint)' }}>
@@ -181,21 +181,21 @@ export default function CustomHostnameForm({
 
           {status!.allOk ? (
             <p style={{ margin: '10px 0 0', fontSize: 12.5, lineHeight: 1.55, color: 'var(--gv-ink)' }}>
-              Your blog is live at <a className="mono" style={{ color: 'var(--gv-accent)' }} href={`https://${status!.hostname}`} target="_blank" rel="noopener noreferrer">https://{status!.hostname}</a>.
+              Your blog is live at <a className="mono" style={{ color: 'var(--gv-accent-ink)' }} href={`https://${status!.hostname}`} target="_blank" rel="noopener noreferrer">https://{status!.hostname}</a>.
               Canonical URLs, sitemap, RSS, robots.txt, and JSON-LD all point here — search credit lands on your domain.
             </p>
           ) : (
             <>
               {/* The one DNS record, copy-ready. Trailing-dot note because some
                   registrars require it and reject the bare value. */}
-              <div style={{ margin: '10px 0 0', padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--gv-line)', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ margin: '10px 0 0', padding: '10px 12px', borderRadius: 10, background: 'rgba(15,23,18,0.04)', border: '1px solid var(--gv-line)', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                 <span className="mono" style={{ fontSize: 12.5, color: 'var(--gv-ink)' }}>
                   CNAME&nbsp;&nbsp;{status!.record?.host ?? 'blog'}&nbsp;→&nbsp;{status!.record?.value ?? 'cname.vercel-dns.com'}
                 </span>
                 <button
                   type="button"
                   onClick={copyRecord}
-                  style={{ padding: '4px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.14)', background: 'transparent', fontSize: 12, cursor: 'pointer', color: 'var(--gv-ink)' }}
+                  style={{ padding: '4px 10px', borderRadius: 8, border: '1px solid rgba(15,23,18,0.14)', background: 'transparent', fontSize: 12, cursor: 'pointer', color: 'var(--gv-ink)' }}
                 >
                   {copied ? 'Copied ✓' : 'Copy value'}
                 </button>
@@ -211,7 +211,7 @@ export default function CustomHostnameForm({
                   <button
                     type="button"
                     onClick={startPolling}
-                    style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.14)', background: 'transparent', fontSize: 12.5, cursor: 'pointer', color: 'var(--gv-ink)' }}
+                    style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid rgba(15,23,18,0.14)', background: 'transparent', fontSize: 12.5, cursor: 'pointer', color: 'var(--gv-ink)' }}
                   >
                     Check again
                   </button>

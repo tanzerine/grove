@@ -92,7 +92,7 @@ export default function ThemeColorsForm({
         {override && (
           <button
             type="button" onClick={reset} disabled={state === 'saving'}
-            style={{ padding: '9px 16px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'transparent', color: 'var(--gv-ink)', fontSize: 13, cursor: 'pointer' }}
+            style={{ padding: '9px 16px', borderRadius: 10, border: '1px solid rgba(15,23,18,0.14)', background: 'transparent', color: 'var(--gv-ink)', fontSize: 13, cursor: 'pointer' }}
           >
             Reset to crawled colors
           </button>
@@ -119,14 +119,14 @@ function Swatch({ label, hint, value, onChange }: { label: string; hint: string;
           value={valid ? (value.length === 4 ? expand(value) : value) : '#000000'}
           onChange={(e) => onChange(e.target.value)}
           aria-label={`${label} color`}
-          style={{ width: 42, height: 42, border: '1px solid rgba(255,255,255,0.14)', borderRadius: 10, background: 'transparent', padding: 2, cursor: 'pointer' }}
+          style={{ width: 42, height: 42, border: '1px solid rgba(15,23,18,0.14)', borderRadius: 10, background: 'transparent', padding: 2, cursor: 'pointer' }}
         />
         <input
           value={value}
           onChange={(e) => onChange(e.target.value)}
           spellCheck={false}
           className="mono"
-          style={{ width: 100, fontSize: 13, padding: '9px 10px', borderRadius: 10, border: `1px solid ${valid ? 'rgba(255,255,255,0.1)' : 'var(--gv-red)'}`, background: 'rgba(255,255,255,0.04)', color: 'var(--gv-ink)' }}
+          style={{ width: 100, fontSize: 13, padding: '9px 10px', borderRadius: 10, border: `1px solid ${valid ? 'rgba(15,23,18,0.1)' : 'var(--gv-red)'}`, background: 'rgba(15,23,18,0.04)', color: 'var(--gv-ink)' }}
         />
       </div>
     </div>

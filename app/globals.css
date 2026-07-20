@@ -19,33 +19,74 @@
   --sh-md: 0 6px 16px -8px rgba(21,40,27,.14), 0 12px 30px -12px rgba(21,40,27,.10);
   --sh-lg: 0 30px 70px -28px rgba(21,40,27,.28), 0 10px 28px -14px rgba(63,143,94,.18);
 
-  /* ── dark app palette — single source for .gv-app / .gv-auth / .gv-onb ──
+  /* ── light app palette — single source for .gv-app / .gv-auth / .gv-onb ──
      Every dashboard, auth, and onboarding surface reads these tokens; never
-     hardcode the hex values in components. */
-  --gv-accent: #63c281;   /* brand green on dark */
-  --gv-on-accent: #06120b;/* text on accent-filled controls */
-  --gv-bg: #0a0b0a;       /* app canvas */
-  --gv-side: #0c0e0c;     /* sidebar */
-  --gv-card: #101310;     /* card surface */
-  --gv-card-grad: linear-gradient(150deg, #0c130e, #0a0d0a); /* accent hero card */
-  --gv-pop: #15181a;      /* popover / menu surface */
-  --gv-line: rgba(255,255,255,0.07);
-  --gv-ink: #eef1ea;      /* primary text */
-  --gv-soft: #cdd2c9;     /* secondary text */
-  --gv-dim: #9aa096;      /* muted text */
-  --gv-faint: #6b6f67;    /* faint text */
-  --gv-fainter: #565a53;  /* placeholder / axis text */
-  /* status + semantic accents (calendar, pipeline, alerts) */
-  --gv-amber: #e0c878;    /* review / pending / warn */
-  --gv-blue: #9bb0e8;     /* scheduled */
-  --gv-sky: #7fb6e6;      /* draft / info */
-  --gv-red: #c97f7f;      /* danger accents + borders */
-  --gv-red-text: #ff9b9b; /* error text on dark */
-  --gv-red-soft: #d39a9a; /* muted error text */
+     hardcode the hex values in components. Ported from the light Grove
+     dashboard .dc design comp.
+
+     --gv-veil / --gv-veil-* replace the dark skin's rgba(255,255,255,α)
+     idiom: on a light canvas a white overlay is invisible, so every scrim,
+     hairline, and hover wash is an ink-tinted overlay instead. Use these
+     rather than reintroducing a literal rgba() anywhere. */
+  --gv-accent: #a2ff01;   /* brand lime — FILLS, borders, dots only */
+  --gv-on-accent: #12160a;/* text on accent-filled controls */
+  /* Lime is ~1.1:1 on white, so it can never be a text colour. Anywhere the
+     accent has to read AS text (links, active labels, the autopilot pill),
+     use this olive instead — the comp's own choice for exactly that job. */
+  --gv-accent-ink: #4b5c14;
+  --gv-bg: #f6f7f8;       /* app canvas */
+  --gv-side: #ffffff;     /* sidebar */
+  --gv-card: #ffffff;     /* card surface */
+  --gv-card-grad: linear-gradient(150deg, #ffffff, #f3f5f2); /* accent hero card */
+  --gv-pop: #ffffff;      /* popover / menu surface */
+  --gv-line: rgba(15,23,18,0.08);
+  /* NOTE: the muted tiers are darker than the .dc comp (#767d77 / #9a9f99 /
+     #a8ada7, which measure 4.23 / 2.51 / 2.28 against this canvas — all below
+     WCAG AA, while carrying real copy: nav labels, row meta, stat sublabels).
+     AA on #f6f7f8 bottoms out around #6c736d, so the comp's three-step
+     lightness ramp cannot survive it — every muted tier converges. The tokens
+     are kept distinct for intent, but muted hierarchy is now carried by SIZE
+     and WEIGHT, not lightness. Everything else is the comp verbatim. */
+  --gv-ink: #14181a;      /* primary text */
+  --gv-soft: #33383a;     /* secondary text */
+  --gv-dim: #6a716b;      /* muted text — AA floor, 4.53:1 even on a 5% chip tint */
+  --gv-faint: #6a716b;    /* small meta (row meta, stat sublabels) */
+  --gv-fainter: #6a716b;  /* placeholder / axis / section-label text */
+  /* ink-tinted overlays — the light-mode replacement for white-alpha */
+  --gv-veil: rgba(15,23,18,0.02);        /* faintest fill (inset panels) */
+  --gv-veil-2: rgba(15,23,18,0.035);     /* input / ghost-button fill */
+  --gv-veil-3: rgba(15,23,18,0.06);      /* active nav, selected chip */
+  --gv-veil-line: rgba(15,23,18,0.12);   /* control border */
+  --gv-veil-line-2: rgba(15,23,18,0.18); /* stronger border */
+  --gv-veil-hover: rgba(15,23,18,0.05);  /* neutral hover wash */
+  /* status + semantic accents (calendar, pipeline, alerts) — darkened for
+     legibility on white; the dark skin's pastels fail contrast here. */
+  /* The app is grayscale by design — hue is reserved for lime (primary
+     actions + live-right-now status) and red (danger only). These three
+     "semantic" tokens used to carry their own hues (amber/blue/sky); they
+     now sit on a 3-step grey ramp instead, so every existing call site
+     that reads them goes grey for free, while staying tellable apart where
+     they appear side-by-side with no icon/label to lean on (calendar
+     swatches, status dots): amber darkest ("elevated" — review, pending,
+     warnings, needs a decision), blue mid ("committed" — scheduled, will
+     happen without you), sky lightest ("in flux" — draft, still writing).
+     Where more than 3 categories coexist (calendar day chips), pair this
+     with border-style too — see the ES map in dashboard/page.tsx. */
+  --gv-amber: var(--gv-soft);   /* review / pending / warn — elevated tier, 11.9:1 */
+  --gv-blue: #5b605d;           /* scheduled — mid tier, 6.4:1 */
+  --gv-sky: var(--gv-dim);      /* draft / info — light tier, 5:1 */
+  --gv-red: #c94f4f;      /* danger accents + borders */
+  --gv-red-text: #b23b3b; /* error text on light */
+  --gv-red-soft: #a35353; /* muted error text */
 }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; background: var(--bone); color: var(--ink); font-family: 'General Sans', system-ui, sans-serif; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+/* --bone is a warm ivory (#fcfbf7) — right for the public blog and landing,
+   wrong behind the app, whose canvas is a cool grey. The app surfaces paint
+   their own background, but the ivory still shows through on overscroll, so
+   match the page element to the app canvas on those routes only. */
+body:has(.gv-app), body:has(.gv-auth), body:has(.gv-onb) { background: var(--gv-bg); }
 /* Landing is pure black edge-to-edge; the default light OS/browser scrollbar
    track reads as a stray white line against it, so theme it dark here. */
 body:has(.gv-land) { scrollbar-color: rgba(255,255,255,0.22) #000; scrollbar-width: thin; }
@@ -754,23 +795,23 @@ html { scroll-behavior: smooth; }
 }
 
 /* =====================================================================
-   GROVE DARK DASHBOARD SKIN  (scoped to .gv-app — never leaks to landing)
+   GROVE LIGHT DASHBOARD SKIN  (scoped to .gv-app — never leaks to landing)
    Faithful port of the Grove .dc design comps.
    ===================================================================== */
 .gv-app {
   /* palette tokens come from :root (--gv-*) */
   background: var(--gv-bg);
   color: var(--gv-ink);
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
   display: flex;
   position: relative;
 }
-.gv-app ::selection { background: rgba(99,194,129,0.3); color: #fff; }
+.gv-app ::selection { background: rgba(162,255,1,0.35); color: #0a0a08; }
 .gv-app input::placeholder { color: var(--gv-fainter); }
-/* .lede is a landing-page class (muted --clay on light); on the dark dashboard
-   that's too low-contrast, so lift it to the dark muted token. */
+/* .lede is a landing-page class tuned for the landing's own canvas; inside the
+   app it should track the shared muted token. */
 .gv-app .lede { color: var(--gv-dim); }
 .gv-app *, .gv-app *::before, .gv-app *::after { box-sizing: border-box; }
 
@@ -780,26 +821,26 @@ html { scroll-behavior: smooth; }
 @keyframes gvRingIn { from { stroke-dashoffset: 100; } }
 @keyframes gvThink { 0%,80%,100% { opacity: 0.25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
 @keyframes gvLineIn { 0% { opacity: 0; transform: translateY(5px); } 100% { opacity: 1; transform: translateY(0); } }
-@keyframes gvMark { 0%,100% { background: rgba(99,194,129,0.12); } 50% { background: rgba(99,194,129,0.22); } }
+@keyframes gvMark { 0%,100% { background: rgba(162,255,1,0.12); } 50% { background: rgba(162,255,1,0.22); } }
 
 /* ---- shell ---- */
 .gv-side {
   width: 280px; flex-shrink: 0; height: 100vh; position: sticky; top: 0;
-  border-right: 1px solid rgba(255,255,255,0.06); background: var(--gv-side);
+  border-right: 1px solid var(--gv-line); background: var(--gv-side);
   display: flex; flex-direction: column; overflow-y: auto; z-index: 40;
 }
 .gv-main { flex: 1; min-width: 0; height: 100vh; overflow-y: auto; position: relative; }
-.gv-glow { position: absolute; top: 0; left: 0; right: 0; height: 360px; pointer-events: none; opacity: 0.6; overflow: hidden; }
-.gv-glow .b1 { position: absolute; top: -42%; left: 30%; width: 44%; height: 110%; background: radial-gradient(ellipse at center, rgba(99,194,129,0.32), rgba(99,194,129,0) 60%); filter: blur(92px); animation: gvBlob 22s ease-in-out infinite; }
-.gv-glow .b2 { position: absolute; top: -38%; right: 4%; width: 36%; height: 100%; background: radial-gradient(ellipse at center, rgba(150,230,185,0.2), rgba(150,230,185,0) 62%); filter: blur(98px); animation: gvBlob 27s ease-in-out infinite reverse; }
-.gv-glow .b3 { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10,11,10,0) 0%, rgba(10,11,10,0.4) 60%, var(--gv-bg) 100%); }
+/* The ambient accent glow was a dark-canvas device — over a white page the
+   blobs read as a lime smudge, and the comp's canvas is flat. Hidden rather
+   than deleted so DashShell's markup (and the dark landing) stay untouched. */
+.gv-glow { display: none; }
 
 /* ---- agent chat (right sidebar) ---- */
 .gv-assist { display: none; }
 .gv-assist.is-open {
   display: flex; flex-direction: column;
   width: 340px; flex-shrink: 0; height: 100vh; position: sticky; top: 0;
-  border-left: 1px solid rgba(255,255,255,0.06); background: var(--gv-side);
+  border-left: 1px solid var(--gv-line); background: var(--gv-side);
   z-index: 40;
 }
 .gv-assist-fab {
@@ -807,53 +848,56 @@ html { scroll-behavior: smooth; }
   width: 46px; height: 46px; border-radius: 50%; border: none; cursor: pointer;
   background: var(--gv-accent); color: var(--gv-on-accent);
   display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 12px 30px rgba(99,194,129,0.35);
+  box-shadow: 0 12px 30px rgba(162,255,1,0.35);
 }
 @media (max-width: 1100px) {
   /* overlay drawer — the main column is too narrow to give up 340px */
   .gv-assist.is-open {
     position: fixed; top: 0; right: 0; bottom: 0; height: 100%;
-    width: min(92vw, 360px); box-shadow: -20px 0 60px rgba(0,0,0,0.55); z-index: 60;
+    width: min(92vw, 360px); box-shadow: -20px 0 60px rgba(21,40,27,0.18); z-index: 60;
   }
 }
 
 /* per-page sticky topbar */
 .gv-header {
   position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 16px;
-  padding: 14px 30px; background: rgba(10,11,10,0.72); backdrop-filter: blur(18px);
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  padding: 14px 30px; background: rgba(246,247,248,0.78); backdrop-filter: blur(18px);
+  border-bottom: 1px solid var(--gv-line);
 }
 .gv-body { position: relative; padding: 26px 36px 56px; max-width: 1500px; margin: 0 auto; }
 
 /* mobile shell chrome */
 .gv-mtop, .gv-scrim, .gv-burger { display: none; }
 
-/* ---- reusable bits ---- */
+/* ---- reusable bits ----
+   Interaction states follow the comp: a lime wash on hover, ink text on top.
+   The lime is a background/border only — never a text colour (see
+   --gv-accent-ink). */
 .gv-card { transition: border-color .25s, transform .25s; }
-.gv-card:hover { border-color: rgba(99,194,129,0.28) !important; }
-.gv-btn { transition: transform .18s, box-shadow .18s, background .18s, filter .18s; }
-.gv-btn:hover { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(99,194,129,0.2); }
+.gv-card:hover { border-color: rgba(162,255,1,0.55) !important; }
+.gv-btn { transition: transform .18s, background .18s, border-color .18s, filter .18s; }
+.gv-btn:hover { transform: translateY(-1px); background: rgba(162,255,1,0.16) !important; border-color: rgba(162,255,1,0.5) !important; color: var(--gv-ink) !important; }
 .gv-ghost { transition: background .2s, color .2s, border-color .2s; }
-.gv-ghost:hover { background: rgba(255,255,255,0.06) !important; color: var(--gv-ink) !important; }
+.gv-ghost:hover { background: rgba(162,255,1,0.16) !important; color: var(--gv-ink) !important; }
 .gv-nav { transition: background .18s, color .18s; }
-.gv-nav:hover { background: rgba(255,255,255,0.04) !important; color: var(--gv-ink) !important; }
-.gv-nav:hover .gv-ico { color: var(--gv-soft) !important; }
+.gv-nav:hover { background: rgba(162,255,1,0.16) !important; color: var(--gv-ink) !important; }
+.gv-nav:hover .gv-ico { color: var(--gv-ink) !important; }
 .gv-pill { transition: .2s; }
-.gv-pill:hover { border-color: rgba(99,194,129,0.4) !important; }
+.gv-pill:hover { border-color: rgba(162,255,1,0.4) !important; }
 .gv-row { transition: background .15s; }
-.gv-row:hover { background: rgba(255,255,255,0.025) !important; }
+.gv-row:hover { background: rgba(162,255,1,0.12) !important; }
 .gv-prow { transition: border-color .2s, background .2s; }
-.gv-prow:hover { border-color: rgba(99,194,129,0.28) !important; background: rgba(255,255,255,0.018) !important; }
+.gv-prow:hover { border-color: rgba(162,255,1,0.28) !important; background: rgba(15,23,18,0.018) !important; }
 .gv-sugg { transition: .15s; }
-.gv-sugg:hover { background: rgba(99,194,129,0.07) !important; border-color: rgba(99,194,129,0.3) !important; color: var(--gv-ink) !important; }
+.gv-sugg:hover { background: rgba(162,255,1,0.07) !important; border-color: rgba(162,255,1,0.3) !important; color: var(--gv-ink) !important; }
 .gv-chip { transition: .2s; }
-.gv-chip:hover { border-color: rgba(99,194,129,0.4) !important; transform: translateY(-1px); }
+.gv-chip:hover { border-color: rgba(162,255,1,0.4) !important; transform: translateY(-1px); }
 .gv-tab { transition: background .2s, color .2s; }
 .gv-back { transition: color .2s, gap .2s; }
 .gv-back:hover { color: var(--gv-soft) !important; gap: 9px; }
 .gv-iconbtn { transition: .2s; }
-.gv-iconbtn:hover { background: rgba(255,255,255,0.06) !important; color: var(--gv-ink) !important; border-color: rgba(255,255,255,0.18) !important; }
-.gv-qrow:hover { background: rgba(255,255,255,0.025) !important; }
+.gv-iconbtn:hover { background: var(--gv-line) !important; color: var(--gv-ink) !important; border-color: rgba(15,23,18,0.18) !important; }
+.gv-qrow:hover { background: rgba(15,23,18,0.025) !important; }
 .gv-node { transition: r .2s, opacity .2s; cursor: default; }
 
 .gv-det summary { list-style: none; cursor: pointer; }
@@ -863,7 +907,7 @@ html { scroll-behavior: smooth; }
 .gv-think { width: 5px; height: 5px; border-radius: 50%; background: var(--gv-accent); display: inline-block; animation: gvThink 1.2s ease-in-out infinite; }
 
 .gv-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
-.gv-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 99px; }
+.gv-scroll::-webkit-scrollbar-thumb { background: rgba(15,23,18,0.1); border-radius: 99px; }
 .gv-scroll::-webkit-scrollbar-track { background: transparent; }
 
 .gv-prose h2 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; font-size: 26px; line-height: 1.25; color: var(--gv-ink); margin: 38px 0 14px; }
@@ -874,23 +918,23 @@ html { scroll-behavior: smooth; }
   .gv-side {
     position: fixed; top: 0; left: 0; bottom: 0; height: 100%;
     transform: translateX(-100%); transition: transform .25s ease;
-    box-shadow: 0 0 40px rgba(0,0,0,0.5); max-width: 84vw;
+    box-shadow: 0 0 40px rgba(21,40,27,0.16); max-width: 84vw;
   }
   .gv-app.nav-open .gv-side { transform: translateX(0); }
   .gv-mtop {
     display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 35;
-    padding: 10px 16px; background: rgba(10,11,10,0.92); border-bottom: 1px solid rgba(255,255,255,0.06);
+    padding: 10px 16px; background: rgba(255,255,255,0.92); border-bottom: 1px solid var(--gv-line);
   }
   .gv-burger {
     display: inline-flex; flex-direction: column; justify-content: center; gap: 4px;
-    width: 38px; height: 38px; padding: 9px; border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 9px; background: rgba(255,255,255,0.03); cursor: pointer;
+    width: 38px; height: 38px; padding: 9px; border: 1px solid rgba(15,23,18,0.1);
+    border-radius: 9px; background: rgba(15,23,18,0.03); cursor: pointer;
   }
   .gv-burger span { display: block; height: 2px; border-radius: 2px; background: var(--gv-ink); transition: transform .2s, opacity .2s; }
   .gv-app.nav-open .gv-burger span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
   .gv-app.nav-open .gv-burger span:nth-child(2) { opacity: 0; }
   .gv-app.nav-open .gv-burger span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
-  .gv-scrim { display: block; position: fixed; inset: 0; z-index: 38; background: rgba(0,0,0,0.5); opacity: 0; pointer-events: none; transition: opacity .25s; }
+  .gv-scrim { display: block; position: fixed; inset: 0; z-index: 38; background: rgba(15,23,18,0.32); opacity: 0; pointer-events: none; transition: opacity .25s; }
   .gv-app.nav-open .gv-scrim { opacity: 1; pointer-events: auto; }
   .gv-app { display: block; }
   .gv-main { height: auto; min-height: 100vh; }
@@ -916,76 +960,82 @@ html { scroll-behavior: smooth; }
   .gv-grid4, .gv-grid5, .gv-grid3 { grid-template-columns: 1fr !important; }
 }
 
-/* Remap the legacy light design tokens to dark *inside the dashboard only*,
-   so legacy inline-styled components (RichEditor, PipelineTimeline,
-   QualityCharts, ReviewsTable) blend into the dark skin without a rewrite. */
+/* Remap the legacy design tokens *inside the dashboard only*, so legacy
+   inline-styled components (RichEditor, PipelineTimeline, QualityCharts,
+   ReviewsTable) blend into the app skin without a rewrite.
+
+   --moss/--leaf deliberately resolve to the olive, NOT the lime accent:
+   callers use them as chip fills under white text (CalendarClient's
+   "published" chip, QualityCharts' pass band), and white on lime is
+   unreadable. Lime stays reserved for fills that carry ink-coloured text. */
 .gv-app {
   --ink: var(--gv-ink);
   --bone: var(--gv-card);
-  --paper: #15181400;
-  --line: rgba(255,255,255,0.08);
+  --paper: transparent;
+  --line: rgba(15,23,18,0.08);
   --clay: var(--gv-dim);
-  --moss: var(--gv-accent);
-  --moss2: #4e9e6a;
-  --leaf: var(--gv-accent);
+  --moss: var(--gv-accent-ink);
+  --moss2: #3f6e4f;
+  --leaf: var(--gv-accent-ink);
   --mint: var(--mint);
-  --sh-sm: 0 1px 2px rgba(0,0,0,.3);
-  --sh-md: 0 6px 16px -8px rgba(0,0,0,.4);
-  --sh-lg: 0 30px 70px -28px rgba(0,0,0,.6);
+  --sh-sm: 0 1px 2px rgba(21,40,27,.05), 0 2px 6px -2px rgba(21,40,27,.07);
+  --sh-md: 0 6px 16px -8px rgba(21,40,27,.14), 0 12px 30px -12px rgba(21,40,27,.10);
+  --sh-lg: 0 30px 70px -28px rgba(21,40,27,.22);
 }
-/* legacy `.prose` article body: readable on the dark reading surface */
+/* legacy `.prose` article body: readable on the light reading surface */
 .gv-app .prose, .gv-app .prose p, .gv-app .prose li { color: var(--gv-soft); }
 .gv-app .prose h1, .gv-app .prose h2, .gv-app .prose h3, .gv-app .prose strong { color: var(--gv-ink); }
-.gv-app .prose a { color: var(--gv-accent); }
-.gv-app .prose blockquote { color: #b4bbac; border-color: rgba(99,194,129,0.4); }
-.gv-app .prose code, .gv-app .prose pre { background: rgba(255,255,255,0.04); color: var(--gv-soft); }
+.gv-app .prose a { color: var(--gv-accent-ink); }
+.gv-app .prose blockquote { color: var(--gv-dim); border-color: rgba(162,255,1,0.4); }
+.gv-app .prose code, .gv-app .prose pre { background: rgba(15,23,18,0.04); color: var(--gv-soft); }
 
 /* Dark overrides for legacy dashboard primitives still used by calendar /
    write / voice / published / connections pages. */
 .gv-app .h2, .gv-app .display { color: var(--gv-ink); }
 .gv-app .lede { color: var(--gv-dim); }
 .gv-app .mono { color: var(--gv-dim); }
-.gv-app .post-row { background: var(--gv-card); border-color: rgba(255,255,255,0.07); color: var(--gv-ink); }
+.gv-app .post-row { background: var(--gv-card); border-color: var(--gv-line); color: var(--gv-ink); }
 .gv-app a.post-row { text-decoration: none; }
-.gv-app .post-row:hover { border-color: rgba(99,194,129,0.28); }
-.gv-app .pthumb, .gv-app .qthumb { background: linear-gradient(135deg, rgba(99,194,129,0.32), rgba(99,194,129,0.08)); }
+.gv-app .post-row:hover { border-color: rgba(162,255,1,0.28); }
+.gv-app .pthumb, .gv-app .qthumb { background: linear-gradient(135deg, rgba(162,255,1,0.32), rgba(162,255,1,0.08)); }
 .gv-app .ptitle { color: var(--gv-ink); }
 .gv-app .pmeta { color: var(--gv-dim); }
 .gv-app .btn-primary { background: var(--gv-accent); color: var(--gv-on-accent); }
-.gv-app .btn-primary:hover { box-shadow: 0 10px 26px rgba(99,194,129,0.22); }
-.gv-app .btn-ghost { background: rgba(255,255,255,0.02); color: var(--gv-soft); border-color: rgba(255,255,255,0.12); }
-.gv-app .btn-ghost:hover { background: rgba(255,255,255,0.06); color: var(--gv-ink); }
-.gv-app .badge.live { background: rgba(99,194,129,0.16); color: var(--gv-accent); }
+.gv-app .btn-primary:hover { box-shadow: 0 10px 26px rgba(162,255,1,0.22); }
+.gv-app .btn-ghost { background: rgba(15,23,18,0.02); color: var(--gv-soft); border-color: rgba(15,23,18,0.12); }
+.gv-app .btn-ghost:hover { background: rgba(15,23,18,0.06); color: var(--gv-ink); }
+.gv-app .badge.live { background: rgba(162,255,1,0.16); color: var(--gv-accent-ink); }
 .gv-app .badge.live .d { background: var(--gv-accent); }
 .gv-app .badge.writing { background: rgba(224,200,120,0.14); color: var(--gv-amber); }
 .gv-app .badge.writing .d { background: var(--gv-amber); }
-.gv-app .badge.queue { background: rgba(255,255,255,0.05); color: var(--gv-dim); }
+.gv-app .badge.queue { background: rgba(15,23,18,0.05); color: var(--gv-dim); }
 .gv-app .badge.queue .d { background: var(--gv-dim); }
 .gv-app input, .gv-app textarea, .gv-app select { color: var(--gv-ink); }
-.gv-app .verified-chip { background: rgba(99,194,129,0.1); color: var(--gv-soft); border: 1px solid rgba(99,194,129,0.25); }
-.gv-app .verified-chip .v { color: var(--gv-accent); }
+.gv-app .verified-chip { background: rgba(162,255,1,0.1); color: var(--gv-soft); border: 1px solid rgba(162,255,1,0.25); }
+.gv-app .verified-chip .v { color: var(--gv-accent-ink); }
+
 
 /* Article writing surface — dark .prose for the editor + rendered draft.
    Scoped to .gv-app so the public /b/[slug] article keeps the light theme. */
 .gv-app .prose { color: var(--gv-soft); }
 .gv-app .prose h1, .gv-app .prose h2, .gv-app .prose h3 { color: var(--gv-ink); }
-.gv-app .prose h4 { color: var(--gv-accent); }
-.gv-app .prose strong { color: var(--gv-ink); background: linear-gradient(transparent 62%, rgba(99,194,129,0.22) 62%); }
+.gv-app .prose h4 { color: var(--gv-accent-ink); }
+.gv-app .prose strong { color: var(--gv-ink); background: linear-gradient(transparent 62%, rgba(162,255,1,0.22) 62%); }
 .gv-app .prose em, .gv-app .prose > p > em:only-child, .gv-app .prose img + em { color: var(--gv-dim); }
-.gv-app .prose a { color: #8fd3a6; border-bottom-color: rgba(143,211,166,0.4); }
-.gv-app .prose a:hover { color: var(--gv-accent); border-bottom-color: var(--gv-accent); }
-.gv-app .prose blockquote { border-left-color: rgba(99,194,129,0.45); color: var(--gv-soft); }
-.gv-app .prose code { background: rgba(255,255,255,0.06); color: var(--gv-ink); }
-.gv-app .prose pre { background: var(--gv-side); color: var(--gv-soft); border: 1px solid rgba(255,255,255,0.07); }
-.gv-app .prose hr { border-color: rgba(255,255,255,0.1); }
-.gv-app .prose table th, .gv-app .prose table td { border-bottom-color: rgba(255,255,255,0.08); }
-.gv-app .prose table th { background: rgba(255,255,255,0.04); color: var(--gv-accent); }
-.gv-app .prose table tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+.gv-app .prose a { color: var(--gv-accent-ink); border-bottom-color: rgba(75,92,20,0.4); }
+.gv-app .prose a:hover { color: var(--gv-accent-ink); border-bottom-color: var(--gv-accent-ink); }
+.gv-app .prose blockquote { border-left-color: rgba(162,255,1,0.45); color: var(--gv-soft); }
+.gv-app .prose code { background: rgba(15,23,18,0.06); color: var(--gv-ink); }
+.gv-app .prose pre { background: var(--gv-side); color: var(--gv-soft); border: 1px solid var(--gv-line); }
+.gv-app .prose hr { border-color: rgba(15,23,18,0.1); }
+.gv-app .prose table th, .gv-app .prose table td { border-bottom-color: rgba(15,23,18,0.08); }
+.gv-app .prose table th { background: rgba(15,23,18,0.04); color: var(--gv-accent-ink); }
+.gv-app .prose table tr:nth-child(even) td { background: rgba(15,23,18,0.02); }
 
 /* ── Writing editor (Grove Write comp port) — serif canvas + helpers ── */
 .gv-tool { transition: background .15s, color .15s, border-color .15s; }
-.gv-tool:hover { background: rgba(255,255,255,0.05) !important; color: var(--gv-soft) !important; }
-.gv-danger:hover { background: rgba(201,127,127,0.1) !important; color: #e6b8b8 !important; border-color: rgba(201,127,127,0.3) !important; }
+.gv-tool:hover { background: rgba(15,23,18,0.05) !important; color: var(--gv-soft) !important; }
+.gv-danger:hover { background: rgba(201,127,127,0.1) !important; color: var(--gv-red-text) !important; border-color: rgba(201,127,127,0.3) !important; }
 .gv-tdot { width: 5px; height: 5px; border-radius: 50%; background: var(--gv-accent); display: inline-block; animation: gvThink 1.2s ease-in-out infinite; }
 .gv-prompt::placeholder { color: var(--gv-fainter); }
 .gv-title::placeholder { color: #3f4a40; }
@@ -1012,18 +1062,18 @@ html { scroll-behavior: smooth; }
 .gv-canvas-prose .prose h2::before { display: none; }
 .gv-canvas-prose .prose h3 { font-weight: 600; font-size: 21px; line-height: 1.3; margin: 32px 0 14px; }
 .gv-canvas-prose .prose a {
-  color: #8fd3a6; border-bottom: none; text-decoration: underline;
-  text-decoration-color: rgba(143,211,166,0.45); text-underline-offset: 3px;
+  color: var(--gv-accent-ink); border-bottom: none; text-decoration: underline;
+  text-decoration-color: rgba(75,92,20,0.45); text-underline-offset: 3px;
 }
-.gv-canvas-prose .prose a:hover { color: var(--gv-accent); text-decoration-color: var(--gv-accent); }
+.gv-canvas-prose .prose a:hover { color: var(--gv-accent-ink); text-decoration-color: var(--gv-accent-ink); }
 .gv-canvas-prose .prose strong {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-weight: 700; font-size: 0.86em;
+  font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 0.86em;
   color: var(--gv-ink); background: none; padding: 0;
 }
 .gv-canvas-prose .prose blockquote {
   margin: 32px 0; padding: 4px 0 4px 22px; border-left: 3px solid var(--gv-accent);
   background: transparent; border-radius: 0; font-family: 'Newsreader', Georgia, serif;
-  font-style: italic; font-size: 21px; line-height: 1.5; color: #e7ecdf;
+  font-style: italic; font-size: 21px; line-height: 1.5; color: var(--gv-soft);
 }
 .gv-canvas-prose .prose blockquote p::before, .gv-canvas-prose .prose blockquote p::after { content: none; }
 .gv-canvas-prose .prose ul li, .gv-canvas-prose .prose ol li { margin: 0.45em 0; }
@@ -1036,12 +1086,12 @@ html { scroll-behavior: smooth; }
 .gv-editor-canvas .prose h2 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; font-size: 26px; line-height: 1.25; color: var(--gv-ink); margin: 36px 0 14px; }
 .gv-editor-canvas .prose h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; font-size: 21px; line-height: 1.3; color: var(--gv-ink); margin: 28px 0 12px; }
 .gv-editor-canvas .prose h2::before { content: none; }
-.gv-editor-canvas .prose blockquote { border-left: 3px solid var(--gv-accent); padding: 4px 0 4px 22px; margin: 30px 0; font-style: italic; font-size: 23px; line-height: 1.45; color: #e7ecdf; background: none; }
+.gv-editor-canvas .prose blockquote { border-left: 3px solid var(--gv-accent); padding: 4px 0 4px 22px; margin: 30px 0; font-style: italic; font-size: 23px; line-height: 1.45; color: var(--gv-soft); background: none; }
 .gv-editor-canvas .prose blockquote p::before, .gv-editor-canvas .prose blockquote p::after { content: none; }
 .gv-editor-canvas .prose strong { color: var(--gv-ink); font-weight: 600; background: none; padding: 0; }
-.gv-editor-canvas .prose em { color: #b9c0b2; }
-.gv-editor-canvas .prose a { color: #8fd3a6; border-bottom-color: rgba(143,211,166,0.4); }
-.gv-editor-canvas .prose ul li::marker, .gv-editor-canvas .prose ol li::marker { color: var(--gv-accent); }
+.gv-editor-canvas .prose em { color: var(--gv-dim); }
+.gv-editor-canvas .prose a { color: var(--gv-accent-ink); border-bottom-color: rgba(75,92,20,0.4); }
+.gv-editor-canvas .prose ul li::marker, .gv-editor-canvas .prose ol li::marker { color: var(--gv-accent-ink); }
 .gv-editor-canvas .ProseMirror:focus { outline: none; }
 .gv-editor-canvas .ProseMirror p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: #3f4a40; float: left; height: 0; pointer-events: none; }
 @media (max-width: 760px) { .gv-write-grid { grid-template-columns: 1fr !important; } }
@@ -1055,20 +1105,20 @@ html { scroll-behavior: smooth; }
 .gv-app .prose ol > li::before {
   content: counter(gvol); position: absolute; left: 0; top: 0.12em;
   width: 28px; height: 28px; border-radius: 9px;
-  background: rgba(99,194,129,0.1); border: 1px solid rgba(99,194,129,0.22); color: var(--gv-accent);
-  font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 13px;
+  background: rgba(162,255,1,0.1); border: 1px solid rgba(162,255,1,0.22); color: var(--gv-accent-ink);
+  font-family: 'Inter', sans-serif; font-weight: 700; font-size: 13px;
   display: flex; align-items: center; justify-content: center;
 }
 .gv-app .prose ol > li::marker { content: none; }
 .gv-app .prose li > p { margin: 0; }
-.gv-app .prose sup { color: var(--gv-accent); font-weight: 700; font-size: 0.66em; vertical-align: super; }
+.gv-app .prose sup { color: var(--gv-accent-ink); font-weight: 700; font-size: 0.66em; vertical-align: super; }
 
 /* =====================================================================
-   DARK AUTH SCREEN  (/login + /signup) — same palette as the .gv-app skin
+   LIGHT AUTH SCREEN  (/login + /signup) — same palette as the .gv-app skin
    ===================================================================== */
 .gv-auth {
   /* palette tokens come from :root (--gv-*) */
-  --gv-line: rgba(255,255,255,0.08);
+  --gv-line: rgba(15,23,18,0.08);
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -1076,30 +1126,29 @@ html { scroll-behavior: smooth; }
   padding: 48px 20px;
   background: var(--gv-bg);
   color: var(--gv-ink);
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   position: relative;
   overflow: hidden;
 }
-.gv-auth ::selection { background: rgba(99,194,129,0.3); color: #fff; }
+.gv-auth ::selection { background: rgba(162,255,1,0.35); color: #0a0a08; }
 .gv-auth *, .gv-auth *::before, .gv-auth *::after { box-sizing: border-box; }
 
-.gv-auth-glow { position: absolute; inset: 0; pointer-events: none; opacity: 0.6; }
-.gv-auth-glow .b1 { position: absolute; top: -30%; left: 18%; width: 46%; height: 90%; background: radial-gradient(ellipse at center, rgba(99,194,129,0.30), rgba(99,194,129,0) 60%); filter: blur(96px); animation: gvAuthBlob 22s ease-in-out infinite; }
-.gv-auth-glow .b2 { position: absolute; top: -26%; right: 6%; width: 38%; height: 80%; background: radial-gradient(ellipse at center, rgba(150,230,185,0.18), rgba(150,230,185,0) 62%); filter: blur(100px); animation: gvAuthBlob 27s ease-in-out infinite reverse; }
-@keyframes gvAuthBlob { 0% { transform: translate3d(-4%,2%,0) scale(1.1); } 50% { transform: translate3d(6%,-3%,0) scale(1.28); } 100% { transform: translate3d(-4%,2%,0) scale(1.1); } }
+/* Flattened with .gv-glow — the accent blobs were a dark-canvas device and
+   read as a green smudge on the light auth/onboarding canvas. */
+.gv-auth-glow { display: none; }
 
 .gv-auth-card {
   position: relative; z-index: 1; width: 100%; max-width: 420px;
   background: var(--gv-card); border: 1px solid var(--gv-line); border-radius: 22px;
-  padding: 38px 34px 32px; box-shadow: 0 30px 80px -30px rgba(0,0,0,0.7);
+  padding: 38px 34px 32px; box-shadow: 0 30px 80px -30px rgba(21,40,27,0.22);
 }
 
-.gv-auth-brand { display: inline-flex; align-items: center; gap: 8px; font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif; font-weight: 600; font-size: 22px; color: var(--gv-ink); margin-bottom: 22px; }
+.gv-auth-brand { display: inline-flex; align-items: center; gap: 8px; font-family: 'Clash Display', 'Inter', sans-serif; font-weight: 600; font-size: 22px; color: var(--gv-ink); margin-bottom: 22px; }
 .gv-auth-mark { width: 26px; height: 26px; }
-.gv-auth-brand .dot { color: var(--gv-accent); }
+.gv-auth-brand .dot { color: var(--gv-accent-ink); }
 
-.gv-auth-title { font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif; font-weight: 600; font-size: 30px; line-height: 1.1; letter-spacing: -0.02em; margin: 0 0 8px; color: var(--gv-ink); }
+.gv-auth-title { font-family: 'Clash Display', 'Inter', sans-serif; font-weight: 600; font-size: 30px; line-height: 1.1; letter-spacing: -0.02em; margin: 0 0 8px; color: var(--gv-ink); }
 .gv-auth-sub { color: var(--gv-dim); font-size: 14.5px; line-height: 1.5; margin: 0 0 24px; }
 
 .gv-auth-google {
@@ -1108,7 +1157,7 @@ html { scroll-behavior: smooth; }
   background: #fff; color: #1f1f1f; border: none; font-size: 15px; font-weight: 600;
   font-family: inherit; transition: transform .15s, box-shadow .15s, opacity .15s;
 }
-.gv-auth-google:hover { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(0,0,0,0.4); }
+.gv-auth-google:hover { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(21,40,27,0.16); }
 .gv-auth-google:disabled { opacity: 0.6; cursor: default; transform: none; box-shadow: none; }
 
 .gv-auth-or { display: flex; align-items: center; gap: 14px; margin: 20px 0; color: var(--gv-faint); font-size: 12px; }
@@ -1117,11 +1166,11 @@ html { scroll-behavior: smooth; }
 .gv-auth-fields { display: flex; flex-direction: column; gap: 12px; }
 .gv-auth-input {
   width: 100%; padding: 13px 14px; border-radius: 12px;
-  background: rgba(255,255,255,0.03); border: 1px solid var(--gv-line); color: var(--gv-ink);
+  background: rgba(15,23,18,0.03); border: 1px solid var(--gv-line); color: var(--gv-ink);
   font-size: 15px; font-family: inherit; outline: none; transition: border-color .18s, background .18s;
 }
 .gv-auth-input::placeholder { color: var(--gv-faint); }
-.gv-auth-input:focus { border-color: rgba(99,194,129,0.55); background: rgba(99,194,129,0.04); }
+.gv-auth-input:focus { border-color: rgba(162,255,1,0.55); background: rgba(162,255,1,0.04); }
 .gv-auth-select { appearance: none; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%239aa096' d='M6 8 0 0h12z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
 .gv-auth-select option { background: var(--gv-pop); color: var(--gv-ink); }
 
@@ -1136,46 +1185,44 @@ html { scroll-behavior: smooth; }
   background: var(--gv-accent); color: var(--gv-on-accent); font-size: 15px; font-weight: 600; font-family: inherit;
   transition: transform .15s, box-shadow .15s, opacity .15s;
 }
-.gv-auth-submit:hover { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(99,194,129,0.28); }
+.gv-auth-submit:hover { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(162,255,1,0.28); }
 .gv-auth-submit:disabled { opacity: 0.6; cursor: default; transform: none; box-shadow: none; }
 
 .gv-auth-switch { margin: 22px 0 0; text-align: center; font-size: 14px; color: var(--gv-dim); }
-.gv-auth-switch a { color: var(--gv-accent); font-weight: 600; }
+.gv-auth-switch a { color: var(--gv-accent-ink); font-weight: 600; }
 .gv-auth-switch a:hover { text-decoration: underline; }
 
 /* indeterminate progress bar for in-flight pipeline rows */
 @keyframes gvIndet { 0% { left: -42%; } 100% { left: 100%; } }
 
 /* =====================================================================
-   DARK ONBOARDING FLOW  (/onboarding/*) — matches the .gv-auth dark screen
+   LIGHT ONBOARDING FLOW  (/onboarding/*) — matches the .gv-auth screen
    ===================================================================== */
 .gv-onb {
   min-height: 100vh; background: var(--gv-bg); color: var(--gv-ink);
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif; -webkit-font-smoothing: antialiased;
+  font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased;
   position: relative; padding: 56px 20px 80px; overflow-x: hidden;
 }
-.gv-onb ::selection { background: rgba(99,194,129,0.3); color: #fff; }
+.gv-onb ::selection { background: rgba(162,255,1,0.35); color: #0a0a08; }
 .gv-onb input::placeholder, .gv-onb textarea::placeholder { color: var(--gv-fainter); }
-.gv-onb a { color: var(--gv-accent); }
-/* pin the ambient glow to the viewport + clip it, so tall onboarding forms
-   scroll without the blobs adding overflow */
-.gv-onb .gv-auth-glow { position: fixed; overflow: hidden; }
+.gv-onb a { color: var(--gv-accent-ink); }
+/* (the ambient glow is hidden on the light skin — see .gv-auth-glow above) */
 .gv-onb-in { position: relative; z-index: 1; margin: 0 auto; }
-.gv-onb-eyebrow { font-family: 'DM Mono', ui-monospace, monospace; font-size: 11px; letter-spacing: 0.13em; text-transform: uppercase; color: var(--gv-accent); }
-.gv-onb-title { font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif; font-weight: 600; letter-spacing: -0.02em; color: var(--gv-ink); line-height: 1.06; margin: 10px 0 0; }
+.gv-onb-eyebrow { font-family: 'DM Mono', ui-monospace, monospace; font-size: 11px; letter-spacing: 0.13em; text-transform: uppercase; color: var(--gv-accent-ink); }
+.gv-onb-title { font-family: 'Clash Display', 'Inter', sans-serif; font-weight: 600; letter-spacing: -0.02em; color: var(--gv-ink); line-height: 1.06; margin: 10px 0 0; }
 .gv-onb-lede { color: var(--gv-dim); font-size: 16px; line-height: 1.6; margin: 10px 0 0; }
-.gv-onb-card { background: var(--gv-card); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; }
-.gv-onb-mini { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px 16px; color: var(--gv-soft); }
-.gv-onb-input { width: 100%; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); color: var(--gv-ink); border-radius: 10px; padding: 12px 14px; font-size: 15px; font-family: inherit; outline: none; transition: border-color .18s, background .18s; }
-.gv-onb-input:focus { border-color: rgba(99,194,129,0.55); background: rgba(99,194,129,0.04); }
+.gv-onb-card { background: var(--gv-card); border: 1px solid rgba(15,23,18,0.08); border-radius: 14px; }
+.gv-onb-mini { background: rgba(15,23,18,0.03); border: 1px solid rgba(15,23,18,0.08); border-radius: 10px; padding: 14px 16px; color: var(--gv-soft); }
+.gv-onb-input { width: 100%; background: rgba(15,23,18,0.03); border: 1px solid rgba(15,23,18,0.08); color: var(--gv-ink); border-radius: 10px; padding: 12px 14px; font-size: 15px; font-family: inherit; outline: none; transition: border-color .18s, background .18s; }
+.gv-onb-input:focus { border-color: rgba(162,255,1,0.55); background: rgba(162,255,1,0.04); }
 .gv-onb-btn { background: var(--gv-accent); color: var(--gv-on-accent); border: none; border-radius: 10px; padding: 12px 20px; font-size: 15px; font-weight: 600; font-family: inherit; cursor: pointer; transition: transform .15s, box-shadow .15s, opacity .15s; }
-.gv-onb-btn:hover { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(99,194,129,0.28); }
+.gv-onb-btn:hover { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(162,255,1,0.28); }
 .gv-onb-btn:disabled { opacity: 0.55; cursor: default; transform: none; box-shadow: none; }
-.gv-onb-ghost { background: transparent; color: var(--gv-soft); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 12px 18px; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer; transition: .2s; }
-.gv-onb-ghost:hover { background: rgba(255,255,255,0.06); color: var(--gv-ink); }
-.gv-onb-tab { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); color: var(--gv-dim); border-radius: 10px; padding: 10px 14px; font-size: 13.5px; font-weight: 600; cursor: pointer; font-family: inherit; transition: .18s; }
-.gv-onb-tab:hover { border-color: rgba(99,194,129,0.4); color: var(--gv-ink); }
-.gv-onb-tab.on { background: rgba(99,194,129,0.1); border-color: rgba(99,194,129,0.5); color: var(--gv-ink); }
+.gv-onb-ghost { background: transparent; color: var(--gv-soft); border: 1px solid rgba(15,23,18,0.12); border-radius: 10px; padding: 12px 18px; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer; transition: .2s; }
+.gv-onb-ghost:hover { background: rgba(15,23,18,0.06); color: var(--gv-ink); }
+.gv-onb-tab { background: rgba(15,23,18,0.03); border: 1px solid rgba(15,23,18,0.08); color: var(--gv-dim); border-radius: 10px; padding: 10px 14px; font-size: 13.5px; font-weight: 600; cursor: pointer; font-family: inherit; transition: .18s; }
+.gv-onb-tab:hover { border-color: rgba(162,255,1,0.4); color: var(--gv-ink); }
+.gv-onb-tab.on { background: rgba(162,255,1,0.1); border-color: rgba(162,255,1,0.5); color: var(--gv-ink); }
 
 /* ═══════════════════════ mobile pass 2 ═══════════════════════
    Makes the *content* of every page usable on a phone. The shell drawer

@@ -9,8 +9,9 @@ import { DashHeader } from '../gv-chrome';
 export const dynamic = 'force-dynamic';
 
 const ACCENT = 'var(--gv-accent)';
+const ACCENT_INK = 'var(--gv-accent-ink)';
 const CARD = 'var(--gv-card)';
-const LINE = 'rgba(255,255,255,0.08)';
+const LINE = 'rgba(15,23,18,0.08)';
 const DIM = 'var(--gv-dim)';
 
 export default async function AdminOverviewPage() {
@@ -38,7 +39,7 @@ export default async function AdminOverviewPage() {
           {/* live anomaly flags */}
           <div style={{ marginBottom: 18 }}>
             {flags.length === 0 ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: ACCENT, background: 'rgba(99,194,129,0.08)', border: `1px solid rgba(99,194,129,0.2)`, borderRadius: 10, padding: '10px 14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: ACCENT_INK, background: 'rgba(162,255,1,0.08)', border: `1px solid rgba(162,255,1,0.2)`, borderRadius: 10, padding: '10px 14px' }}>
                 <span>✓</span> No anomalies in the last hour.
               </div>
             ) : (
@@ -46,8 +47,8 @@ export default async function AdminOverviewPage() {
                 {flags.map((f) => {
                   const crit = f.severity === 'critical';
                   const fg = crit ? 'var(--gv-red-text)' : 'var(--gv-amber)';
-                  const bg = crit ? 'rgba(255,99,99,0.1)' : 'rgba(217,156,43,0.1)';
-                  const bd = crit ? 'rgba(255,99,99,0.3)' : 'rgba(217,156,43,0.3)';
+                  const bg = crit ? 'rgba(255,99,99,0.1)' : 'rgba(15,23,18,0.1)';
+                  const bd = crit ? 'rgba(255,99,99,0.3)' : 'rgba(15,23,18,0.3)';
                   return (
                     <div key={f.key} style={{ background: bg, border: `1px solid ${bd}`, borderRadius: 10, padding: '11px 14px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -93,7 +94,7 @@ export default async function AdminOverviewPage() {
                         <span style={{ color: 'var(--gv-soft)' }}>{r.source}</span>
                         <span style={{ color: DIM }}>{r.count}</span>
                       </div>
-                      <div style={{ height: 6, borderRadius: 99, background: 'rgba(255,255,255,0.05)' }}>
+                      <div style={{ height: 6, borderRadius: 99, background: 'rgba(15,23,18,0.05)' }}>
                         <div style={{ height: '100%', width: `${(r.count / maxRef) * 100}%`, borderRadius: 99, background: ACCENT }} />
                       </div>
                     </div>
@@ -174,10 +175,10 @@ function Empty({ children }: { children: React.ReactNode }) {
 }
 function PayBadge({ status }: { status: string }) {
   const map: Record<string, { bg: string; fg: string }> = {
-    succeeded: { bg: 'rgba(99,194,129,0.16)', fg: ACCENT },
-    refunded: { bg: 'rgba(255,255,255,0.06)', fg: DIM },
+    succeeded: { bg: 'rgba(162,255,1,0.16)', fg: ACCENT_INK },
+    refunded: { bg: 'rgba(15,23,18,0.06)', fg: DIM },
     failed: { bg: 'rgba(255,99,99,0.14)', fg: 'var(--gv-red-text)' },
-    pending: { bg: 'rgba(217,156,43,0.16)', fg: 'var(--gv-amber)' },
+    pending: { bg: 'rgba(15,23,18,0.16)', fg: 'var(--gv-amber)' },
   };
   const s = map[status] ?? map.pending;
   return <span style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: s.bg, color: s.fg }}>{status}</span>;
@@ -186,4 +187,4 @@ function PayBadge({ status }: { status: string }) {
 const cardStyle: React.CSSProperties = { background: CARD, border: `1px solid ${LINE}`, borderRadius: 14, padding: '16px 16px' };
 const th: React.CSSProperties = { padding: '0 10px 8px', fontWeight: 500 };
 const td: React.CSSProperties = { padding: '10px' };
-const pill: React.CSSProperties = { fontSize: 11.5, fontWeight: 600, color: ACCENT, background: 'rgba(99,194,129,0.12)', borderRadius: 999, padding: '2px 9px' };
+const pill: React.CSSProperties = { fontSize: 11.5, fontWeight: 600, color: ACCENT_INK, background: 'rgba(162,255,1,0.12)', borderRadius: 999, padding: '2px 9px' };

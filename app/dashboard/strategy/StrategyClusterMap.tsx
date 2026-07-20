@@ -2,14 +2,15 @@
 import { useState } from 'react';
 
 const ACCENT = 'var(--gv-accent)';
+const ACCENT_INK = 'var(--gv-accent-ink)';
 
 export type Spoke = { label: string; status: 'published' | 'planned' | 'gap' };
 export type Cluster = { hub: string; color: string; spokes: Spoke[] };
 
 const STYLE: Record<Spoke['status'], { fill: string; stroke: string; line: string; dash: string; text: string; tr: boolean }> = {
-  published: { fill: ACCENT, stroke: ACCENT, line: 'rgba(99,194,129,0.45)', dash: '0', text: 'var(--gv-soft)', tr: false },
-  planned: { fill: 'rgba(127,182,230,0.18)', stroke: 'var(--gv-sky)', line: 'rgba(127,182,230,0.4)', dash: '0', text: 'var(--gv-dim)', tr: false },
-  gap: { fill: 'rgba(224,200,120,0.08)', stroke: 'var(--gv-amber)', line: 'rgba(224,200,120,0.4)', dash: '4 4', text: '#9aa79e', tr: true },
+  published: { fill: ACCENT, stroke: ACCENT, line: 'rgba(162,255,1,0.45)', dash: '0', text: 'var(--gv-soft)', tr: false },
+  planned: { fill: 'rgba(15,23,18,0.18)', stroke: 'var(--gv-sky)', line: 'rgba(15,23,18,0.4)', dash: '0', text: 'var(--gv-dim)', tr: false },
+  gap: { fill: 'rgba(15,23,18,0.08)', stroke: 'var(--gv-amber)', line: 'rgba(15,23,18,0.4)', dash: '4 4', text: 'var(--gv-dim)', tr: true },
 };
 
 function ClusterSvg({ hub, spokes }: { hub: string; spokes: Spoke[] }) {
@@ -17,8 +18,8 @@ function ClusterSvg({ hub, spokes }: { hub: string; spokes: Spoke[] }) {
   const n = Math.max(spokes.length, 1);
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ height: 360, overflow: 'visible' }}>
-      <circle cx={cx} cy={cy} r={R} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth={1} />
-      <circle cx={cx} cy={cy} r={R * 0.5} fill="none" stroke="rgba(255,255,255,0.035)" strokeWidth={1} />
+      <circle cx={cx} cy={cy} r={R} fill="none" stroke="rgba(15,23,18,0.05)" strokeWidth={1} />
+      <circle cx={cx} cy={cy} r={R * 0.5} fill="none" stroke="rgba(15,23,18,0.035)" strokeWidth={1} />
       {spokes.map((s, i) => {
         const a = -Math.PI / 2 + i * ((2 * Math.PI) / n);
         const nx = cx + R * Math.cos(a), ny = cy + R * Math.sin(a);
@@ -26,8 +27,8 @@ function ClusterSvg({ hub, spokes }: { hub: string; spokes: Spoke[] }) {
         return <line key={`l${i}`} x1={cx} y1={cy} x2={nx} y2={ny} stroke={st.line} strokeWidth={1.4} strokeDasharray={st.dash} style={st.tr ? { animation: 'gvDash 1.6s linear infinite' } : undefined} />;
       })}
       {/* hub */}
-      <circle cx={cx} cy={cy} r={40} fill="rgba(99,194,129,0.08)" stroke="rgba(99,194,129,0.3)" strokeWidth={1.5} />
-      <circle cx={cx} cy={cy} r={34} fill="var(--gv-card)" stroke="rgba(99,194,129,0.5)" strokeWidth={1.5} />
+      <circle cx={cx} cy={cy} r={40} fill="rgba(162,255,1,0.08)" stroke="rgba(162,255,1,0.3)" strokeWidth={1.5} />
+      <circle cx={cx} cy={cy} r={34} fill="var(--gv-card)" stroke="rgba(162,255,1,0.5)" strokeWidth={1.5} />
       <text x={cx} y={cy - 3} textAnchor="middle" fontSize={10} fontWeight={700} fontFamily="Plus Jakarta Sans, sans-serif" fill="var(--gv-faint)" letterSpacing="0.08em">HUB</text>
       <text x={cx} y={cy + 11} textAnchor="middle" fontSize={12} fontWeight={700} fontFamily="Plus Jakarta Sans, sans-serif" fill="var(--gv-ink)">{hub}</text>
       {spokes.map((s, i) => {
@@ -49,20 +50,20 @@ function ClusterSvg({ hub, spokes }: { hub: string; spokes: Spoke[] }) {
 
 export default function StrategyClusterMap({ clusters }: { clusters: Cluster[] }) {
   const [pi, setPi] = useState(0);
-  const safe = clusters.length ? clusters : [{ hub: 'Plan', color: ACCENT, spokes: [] as Spoke[] }];
+  const safe = clusters.length ? clusters : [{ hub: 'Plan', color: ACCENT_INK, spokes: [] as Spoke[] }];
   const idx = pi % safe.length;
   const cur = safe[idx];
   const covered = cur.spokes.filter((s) => s.status === 'published').length;
   const gaps = cur.spokes.filter((s) => s.status === 'gap').length;
 
   const legend = [
-    { label: 'Published', color: ACCENT },
+    { label: 'Published', color: ACCENT_INK },
     { label: 'Planned', color: 'var(--gv-sky)' },
     { label: 'Gap', color: 'var(--gv-amber)' },
   ];
 
   return (
-    <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '22px 24px' }}>
+    <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '22px 24px' }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em' }}>Topical authority map</div>
@@ -82,7 +83,7 @@ export default function StrategyClusterMap({ clusters }: { clusters: Cluster[] }
           const active = i === idx;
           return (
             <button key={i} onClick={() => setPi(i)} className="gv-pill"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, border: `1px solid ${active ? 'rgba(99,194,129,0.28)' : 'rgba(255,255,255,0.08)'}`, background: active ? 'rgba(99,194,129,0.1)' : 'rgba(255,255,255,0.02)', color: active ? 'var(--gv-ink)' : 'var(--gv-dim)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '7px 13px', borderRadius: 999, cursor: 'pointer', transition: '.2s' }}>
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, border: `1px solid ${active ? 'rgba(162,255,1,0.28)' : 'rgba(15,23,18,0.08)'}`, background: active ? 'rgba(162,255,1,0.1)' : 'rgba(15,23,18,0.02)', color: active ? 'var(--gv-ink)' : 'var(--gv-dim)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '7px 13px', borderRadius: 999, cursor: 'pointer', transition: '.2s' }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.color }} />{c.hub}
             </button>
           );
@@ -91,8 +92,8 @@ export default function StrategyClusterMap({ clusters }: { clusters: Cluster[] }
 
       <div style={{ marginTop: 6 }}><ClusterSvg hub={cur.hub} spokes={cur.spokes} /></div>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, fontSize: 12, color: 'var(--gv-faint)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 14, marginTop: 6 }}>
-        <span><span style={{ color: ACCENT, fontWeight: 600 }}>{covered}</span> of {cur.spokes.length} spokes covered · {gaps} gap{gaps === 1 ? '' : 's'} worth filling</span>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, fontSize: 12, color: 'var(--gv-faint)', borderTop: '1px solid rgba(15,23,18,0.06)', paddingTop: 14, marginTop: 6 }}>
+        <span><span style={{ color: ACCENT_INK, fontWeight: 600 }}>{covered}</span> of {cur.spokes.length} spokes covered · {gaps} gap{gaps === 1 ? '' : 's'} worth filling</span>
       </div>
     </div>
   );

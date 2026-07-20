@@ -8,6 +8,7 @@ import AssistantPanel from './AssistantPanel';
 import { ChromeProvider, type Chrome } from './chrome-context';
 
 const ACCENT = 'var(--gv-accent)';
+const ACCENT_INK = 'var(--gv-accent-ink)';
 
 export default function DashShell({
   chrome,
@@ -33,7 +34,7 @@ export default function DashShell({
             <span /><span /><span />
           </button>
           <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 9, fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em', color: 'var(--gv-ink)' }}>
-            <span style={{ width: 17, height: 17, borderRadius: '50%', background: 'radial-gradient(circle at 35% 30%, var(--mint), var(--gv-accent))', boxShadow: '0 0 12px rgba(99,194,129,0.7)' }} />
+            <img src="/brand/logo-mark.png" alt="" width={18} height={18} style={{ objectFit: 'contain', flexShrink: 0 }} />
             grove
           </Link>
         </div>
@@ -42,9 +43,10 @@ export default function DashShell({
         {/* sidebar */}
         <aside className="gv-side gv-scroll">
           <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '22px 22px 18px' }}>
-            <span style={{ width: 17, height: 17, borderRadius: '50%', background: 'radial-gradient(circle at 35% 30%, var(--mint), var(--gv-accent))', boxShadow: '0 0 12px rgba(99,194,129,0.7)' }} />
+            <img src="/brand/logo-mark.png" alt="" width={18} height={18} style={{ objectFit: 'contain', flexShrink: 0 }} />
             <span style={{ fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em' }}>grove</span>
-            <Link href="/dashboard/billing" title="Manage billing" style={{ marginLeft: 'auto', fontSize: 9.5, letterSpacing: '0.1em', textTransform: 'uppercase', color: ACCENT, border: '1px solid rgba(99,194,129,0.3)', borderRadius: 6, padding: '3px 7px' }}>{chrome.plan}</Link>
+            {/* neutral chip, per the comp — the lime reads as an alert here */}
+            <Link href="/dashboard/billing" title="Manage billing" style={{ marginLeft: 'auto', fontSize: 9.5, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-dim)', border: '1px solid rgba(15,23,18,0.14)', borderRadius: 6, padding: '3px 7px' }}>{chrome.plan}</Link>
           </div>
 
           <SideNav badges={badges} isAdmin={chrome.isAdmin} />
@@ -52,9 +54,8 @@ export default function DashShell({
           <SiteSwitcher domains={chrome.domains} activeId={chrome.activeId} />
         </aside>
 
-        {/* main scroll region — owns the ambient glow; each page renders its own header + body */}
+        {/* main scroll region — each page renders its own header + body */}
         <main className="gv-main gv-scroll">
-          <div className="gv-glow"><div className="b1" /><div className="b2" /><div className="b3" /></div>
           {children}
         </main>
 

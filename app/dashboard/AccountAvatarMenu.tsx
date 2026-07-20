@@ -5,6 +5,7 @@ import { supabaseBrowser } from '@/lib/supabase/client';
 import { useChrome } from './chrome-context';
 
 const ACCENT = 'var(--gv-accent)';
+const ACCENT_INK = 'var(--gv-accent-ink)';
 
 /**
  * The top-right avatar in every page header → the personal account menu:
@@ -38,14 +39,14 @@ export default function AccountAvatarMenu() {
   return (
     <div ref={ref} style={{ position: 'relative' }}>
       <button type="button" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((v) => !v)} title="Account"
-        style={{ width: 38, height: 38, borderRadius: '50%', background: 'linear-gradient(135deg, rgba(99,194,129,0.3), rgba(99,194,129,0.1))', border: '1px solid rgba(99,194,129,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, color: ACCENT, cursor: 'pointer' }}>
+        style={{ width: 38, height: 38, borderRadius: '50%', background: 'linear-gradient(135deg, rgba(162,255,1,0.3), rgba(162,255,1,0.1))', border: '1px solid rgba(162,255,1,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, color: ACCENT_INK, cursor: 'pointer' }}>
         {initials}
       </button>
 
       {open && (
         <div role="menu" style={{
           position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: 220,
-          background: 'var(--gv-pop)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12,
+          background: 'var(--gv-pop)', border: '1px solid rgba(15,23,18,0.1)', borderRadius: 12,
           boxShadow: '0 16px 40px rgba(0,0,0,0.55)', padding: 6, zIndex: 70,
         }}>
           {email && (
@@ -78,5 +79,5 @@ function Item({ href, children, external, onClick }: { href: string; children: R
 }
 
 function Divider() {
-  return <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '4px 0' }} />;
+  return <div style={{ height: 1, background: 'var(--gv-line)', margin: '4px 0' }} />;
 }

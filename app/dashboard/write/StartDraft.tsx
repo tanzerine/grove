@@ -5,6 +5,7 @@ import type { SearchIntent } from '@/lib/strategy/keywords';
 import Icon from '../gv-icons';
 
 const ACCENT = 'var(--gv-accent)';
+const ACCENT_INK = 'var(--gv-accent-ink)';
 
 const PROMPTS = [
   'A problem customers keep hitting',
@@ -108,7 +109,7 @@ export default function StartDraft({ domainId, hostname }: { domainId: string; h
   }
 
   return (
-    <div style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '16px 16px 17px' }}>
+    <div style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '16px 16px 17px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 13 }}>
         <span style={iconBadge}><Icon name="write" size={15} /></span>
         <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--gv-ink)' }}>Start a draft</span>
@@ -120,7 +121,7 @@ export default function StartDraft({ domainId, hostname }: { domainId: string; h
           const on = tab === k;
           return (
             <button key={k} onClick={() => setTab(k)} className="gv-tool"
-              style={{ flex: 1, border: `1px solid ${on ? 'rgba(99,194,129,0.3)' : 'transparent'}`, background: on ? 'rgba(99,194,129,0.14)' : 'transparent', color: on ? ACCENT : 'var(--gv-dim)', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, padding: '6px 4px', borderRadius: 8, cursor: 'pointer' }}>
+              style={{ flex: 1, border: `1px solid ${on ? 'rgba(162,255,1,0.3)' : 'transparent'}`, background: on ? 'rgba(162,255,1,0.14)' : 'transparent', color: on ? ACCENT_INK : 'var(--gv-dim)', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, padding: '6px 4px', borderRadius: 8, cursor: 'pointer' }}>
               {label}
             </button>
           );
@@ -150,7 +151,7 @@ export default function StartDraft({ domainId, hostname }: { domainId: string; h
                     <span style={{ fontSize: 12.5, lineHeight: 1.4, color: 'var(--gv-ink)' }}>{idea}</span>
                     <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
                       <button onClick={() => writeMine(idea)} disabled={!!busyIdea} className="gv-ghost"
-                        style={{ border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, padding: '6px 10px', borderRadius: 8, cursor: 'pointer' }}>
+                        style={{ border: '1px solid rgba(15,23,18,0.12)', background: 'transparent', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, padding: '6px 10px', borderRadius: 8, cursor: 'pointer' }}>
                         {busy && busyKind === 'mine' ? 'Opening…' : 'Write myself'}
                       </button>
                       <button onClick={() => groveWrites(idea)} disabled={!!busyIdea} className="gv-btn"
@@ -173,11 +174,11 @@ export default function StartDraft({ domainId, hostname }: { domainId: string; h
             placeholder="Seed term — e.g. 'cold brew'" className="gv-prompt" style={field} />
           <div style={{ display: 'flex', gap: 8 }}>
             <select value={count} onChange={(e) => setCount(Number(e.target.value))} aria-label="Number of pages"
-              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '9px 10px', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 12, cursor: 'pointer' }}>
+              style={{ background: 'rgba(15,23,18,0.03)', border: '1px solid rgba(15,23,18,0.1)', borderRadius: 10, padding: '9px 10px', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 12, cursor: 'pointer' }}>
               {[4, 6, 8, 10, 12].map((n) => <option key={n} value={n} style={{ background: 'var(--gv-card)' }}>{n} pages</option>)}
             </select>
             <button onClick={previewSet} disabled={planning || seed.trim().length < 2} className="gv-ghost"
-              style={{ flex: 1, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.02)', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: '9px', borderRadius: 10, cursor: 'pointer' }}>
+              style={{ flex: 1, border: '1px solid rgba(15,23,18,0.12)', background: 'rgba(15,23,18,0.02)', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: '9px', borderRadius: 10, cursor: 'pointer' }}>
               {planning ? 'Planning…' : 'Preview set'}
             </button>
           </div>
@@ -215,16 +216,16 @@ function intentColor(intent: SearchIntent): string {
 }
 
 const iconBadge: React.CSSProperties = {
-  width: 28, height: 28, borderRadius: 8, background: 'rgba(99,194,129,0.14)', border: '1px solid rgba(99,194,129,0.3)',
-  display: 'flex', alignItems: 'center', justifyContent: 'center', color: ACCENT,
+  width: 28, height: 28, borderRadius: 8, background: 'rgba(162,255,1,0.14)', border: '1px solid rgba(162,255,1,0.3)',
+  display: 'flex', alignItems: 'center', justifyContent: 'center', color: ACCENT_INK,
 };
 const tabRow: React.CSSProperties = {
-  display: 'flex', gap: 4, padding: 3, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)',
+  display: 'flex', gap: 4, padding: 3, background: 'rgba(15,23,18,0.03)', border: '1px solid var(--gv-line)',
   borderRadius: 10, marginBottom: 14,
 };
 const desc: React.CSSProperties = { fontSize: 12, lineHeight: 1.5, color: 'var(--gv-dim)', margin: '0 0 11px' };
 const field: React.CSSProperties = {
-  width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10,
+  width: '100%', background: 'rgba(15,23,18,0.03)', border: '1px solid rgba(15,23,18,0.1)', borderRadius: 10,
   padding: '9px 12px', color: 'var(--gv-ink)', fontFamily: 'inherit', fontSize: 12.5, outline: 'none', boxSizing: 'border-box', marginBottom: 10,
 };
 const primaryBtn: React.CSSProperties = {
@@ -232,10 +233,10 @@ const primaryBtn: React.CSSProperties = {
   background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, padding: 10, borderRadius: 10, cursor: 'pointer',
 };
 const chip: React.CSSProperties = {
-  fontSize: 11, fontWeight: 600, color: 'var(--gv-dim)', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.09)',
+  fontSize: 11, fontWeight: 600, color: 'var(--gv-dim)', background: 'rgba(15,23,18,0.03)', border: '1px solid rgba(15,23,18,0.09)',
   borderRadius: 999, padding: '5px 10px', cursor: 'pointer', fontFamily: 'inherit',
 };
 const row: React.CSSProperties = {
-  padding: '10px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10,
+  padding: '10px 12px', background: 'rgba(15,23,18,0.02)', border: '1px solid var(--gv-line)', borderRadius: 10,
 };
 const errText: React.CSSProperties = { fontSize: 12, color: 'var(--gv-red)', margin: '10px 0 0' };

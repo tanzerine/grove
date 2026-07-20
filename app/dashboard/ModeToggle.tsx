@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 const ACCENT = 'var(--gv-accent)';
+const ACCENT_INK = 'var(--gv-accent-ink)';
 
 // What a given publish bar means, in plain language.
 function floorHint(v: number): string {
@@ -33,10 +34,10 @@ export default function ModeToggle({
   const modeHint = auto ? 'Posts publish automatically on schedule' : 'Posts go to the review queue for approval';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '11px 16px', background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, margin: '14px 0 4px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '11px 16px', background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 12, margin: '14px 0 4px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>Publishing</span>
-        <div style={{ display: 'inline-flex', padding: 3, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 999, gap: 2 }}>
+        <div style={{ display: 'inline-flex', padding: 3, background: 'rgba(15,23,18,0.04)', border: '1px solid rgba(15,23,18,0.08)', borderRadius: 999, gap: 2 }}>
           {(['Manual', 'Auto'] as const).map((label) => {
             const active = label === 'Auto' ? auto : !auto;
             return (
@@ -48,14 +49,14 @@ export default function ModeToggle({
             );
           })}
         </div>
-        <span style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.08)' }} />
+        <span style={{ width: 1, height: 20, background: 'rgba(15,23,18,0.08)' }} />
         <span style={{ fontSize: 12, color: 'var(--gv-faint)' }}>Cadence</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           {[1, 2, 3, 5, 7].map((n) => {
             const active = freq === n;
             return (
               <button key={n} disabled={saving} onClick={() => { setFreq(n); save({ posts_per_week: n }); }}
-                style={{ width: 28, height: 28, borderRadius: 8, border: `1px solid ${active ? ACCENT : 'rgba(255,255,255,0.1)'}`, background: active ? ACCENT : 'transparent', color: active ? 'var(--gv-on-accent)' : 'var(--gv-soft)', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ width: 28, height: 28, borderRadius: 8, border: `1px solid ${active ? ACCENT : 'rgba(15,23,18,0.1)'}`, background: active ? ACCENT : 'transparent', color: active ? 'var(--gv-on-accent)' : 'var(--gv-soft)', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                 {n}
               </button>
             );
@@ -67,7 +68,7 @@ export default function ModeToggle({
 
       {/* Publish bar — only meaningful on autopilot. Below it: manual review. */}
       {auto && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, paddingTop: 12, borderTop: '1px solid rgba(15,23,18,0.06)', flexWrap: 'wrap' }}>
           <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>Publish bar</span>
           <input
             type="range" min={0} max={100} step={5} value={floor} disabled={saving}
@@ -77,8 +78,8 @@ export default function ModeToggle({
             aria-label="Minimum quality score to auto-publish"
             style={{ flex: '1 1 200px', maxWidth: 320, accentColor: 'var(--gv-accent)', cursor: 'pointer' }}
           />
-          <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 3, fontVariantNumeric: 'tabular-nums', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '3px 9px' }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: ACCENT }}>{floor}</span>
+          <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 3, fontVariantNumeric: 'tabular-nums', border: '1px solid rgba(15,23,18,0.1)', borderRadius: 8, padding: '3px 9px' }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: ACCENT_INK }}>{floor}</span>
             <span style={{ fontSize: 9, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>min score</span>
           </span>
           <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--gv-faint)', textAlign: 'right', maxWidth: 300 }}>

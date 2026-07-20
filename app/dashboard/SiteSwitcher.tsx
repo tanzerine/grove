@@ -4,6 +4,7 @@ import Link from 'next/link';
 import type { ChromeDomain } from './chrome-context';
 
 const ACCENT = 'var(--gv-accent)';
+const ACCENT_INK = 'var(--gv-accent-ink)';
 
 /**
  * Bottom-of-sidebar site switcher (Instagram-style): the same user can connect
@@ -44,11 +45,11 @@ export default function SiteSwitcher({ domains, activeId }: { domains: ChromeDom
   }
 
   return (
-    <div ref={ref} style={{ position: 'relative', padding: 14, borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: 'auto' }}>
+    <div ref={ref} style={{ position: 'relative', padding: 14, borderTop: '1px solid rgba(15,23,18,0.06)', marginTop: 'auto' }}>
       {open && (
         <div role="menu" style={{
           position: 'absolute', left: 14, right: 14, bottom: 'calc(100% - 6px)',
-          background: 'var(--gv-pop)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12,
+          background: 'var(--gv-pop)', border: '1px solid rgba(15,23,18,0.1)', borderRadius: 12,
           boxShadow: '0 16px 40px rgba(0,0,0,0.55)', padding: 6, zIndex: 60, maxHeight: 360, overflowY: 'auto',
         }}>
           <div style={{ padding: '6px 10px 8px', fontSize: 10.5, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>Your sites</div>
@@ -56,20 +57,20 @@ export default function SiteSwitcher({ domains, activeId }: { domains: ChromeDom
             const isActive = d.id === activeId;
             return (
               <button key={d.id} role="menuitem" onClick={() => switchTo(d.id)} disabled={switching !== null}
-                style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', background: isActive ? 'rgba(99,194,129,0.1)' : 'transparent', border: 'none', borderRadius: 9, padding: '8px 10px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', background: isActive ? 'rgba(162,255,1,0.1)' : 'transparent', border: 'none', borderRadius: 9, padding: '8px 10px', cursor: 'pointer', fontFamily: 'inherit' }}>
                 <Avatar host={d.hostname} active={isActive} />
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--gv-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.hostname}</span>
                   <span style={{ display: 'block', fontSize: 11, color: d.verified_at ? 'var(--gv-faint)' : 'var(--gv-amber)' }}>{d.verified_at ? 'verified' : 'setup in progress'}</span>
                 </span>
-                {switching === d.id ? <span style={{ fontSize: 11, color: 'var(--gv-dim)' }}>…</span> : isActive ? <span style={{ color: ACCENT, fontSize: 13 }}>✓</span> : null}
+                {switching === d.id ? <span style={{ fontSize: 11, color: 'var(--gv-dim)' }}>…</span> : isActive ? <span style={{ color: ACCENT_INK, fontSize: 13 }}>✓</span> : null}
               </button>
             );
           })}
-          <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '6px 0' }} />
+          <div style={{ height: 1, background: 'var(--gv-line)', margin: '6px 0' }} />
           <Link href="/onboarding/domain" className="gv-nav" onClick={() => setOpen(false)}
-            style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 10px', borderRadius: 9, fontSize: 13, color: ACCENT, textDecoration: 'none' }}>
-            <span style={{ width: 26, height: 26, borderRadius: 7, border: '1px dashed rgba(99,194,129,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, lineHeight: 1 }}>+</span>
+            style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 10px', borderRadius: 9, fontSize: 13, color: ACCENT_INK, textDecoration: 'none' }}>
+            <span style={{ width: 26, height: 26, borderRadius: 7, border: '1px dashed rgba(162,255,1,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, lineHeight: 1 }}>+</span>
             Connect another website
           </Link>
         </div>
@@ -77,7 +78,7 @@ export default function SiteSwitcher({ domains, activeId }: { domains: ChromeDom
 
       <button type="button" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((v) => !v)}
         className="gv-ghost"
-        style={{ display: 'flex', alignItems: 'center', gap: 11, width: '100%', border: '1px solid rgba(255,255,255,0.09)', background: 'rgba(255,255,255,0.02)', borderRadius: 12, padding: '11px 13px', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
+        style={{ display: 'flex', alignItems: 'center', gap: 11, width: '100%', border: '1px solid rgba(15,23,18,0.09)', background: 'rgba(15,23,18,0.02)', borderRadius: 12, padding: '11px 13px', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
         <Avatar host={active?.hostname ?? 'grove'} active />
         <span style={{ flex: 1, minWidth: 0 }}>
           <span style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--gv-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{active?.hostname ?? 'No site yet'}</span>
@@ -92,6 +93,6 @@ export default function SiteSwitcher({ domains, activeId }: { domains: ChromeDom
 function Avatar({ host, active }: { host: string; active?: boolean }) {
   const letter = (host.replace(/^https?:\/\//, '')[0] ?? 'g').toUpperCase();
   return (
-    <span style={{ width: 30, height: 30, borderRadius: 8, flexShrink: 0, background: active ? 'rgba(99,194,129,0.14)' : 'rgba(255,255,255,0.05)', border: `1px solid ${active ? 'rgba(99,194,129,0.3)' : 'rgba(255,255,255,0.1)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: active ? ACCENT : 'var(--gv-dim)', fontWeight: 700, fontSize: 13 }}>{letter}</span>
+    <span style={{ width: 30, height: 30, borderRadius: 8, flexShrink: 0, background: active ? 'rgba(162,255,1,0.14)' : 'rgba(15,23,18,0.05)', border: `1px solid ${active ? 'rgba(162,255,1,0.3)' : 'rgba(15,23,18,0.1)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: active ? ACCENT_INK : 'var(--gv-dim)', fontWeight: 700, fontSize: 13 }}>{letter}</span>
   );
 }

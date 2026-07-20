@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation';
 import type { RefundReason } from '@/lib/refunds';
 
 const ACCENT = 'var(--gv-accent)';
+const ACCENT_INK = 'var(--gv-accent-ink)';
 const CARD = 'var(--gv-card)';
-const LINE = 'rgba(255,255,255,0.08)';
+const LINE = 'rgba(15,23,18,0.08)';
 
 // Three-step exit funnel: (1) why are you leaving, (2) free-text insight,
 // (3) confirm → submit. Submitting records the request + emails the owner;
@@ -41,13 +42,13 @@ export default function CancelFunnel({ reasons, plan }: { reasons: RefundReason[
     return (
       <Shell>
         <div style={{ textAlign: 'center', padding: '24px 8px' }}>
-          <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'rgba(99,194,129,0.14)', color: ACCENT, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: 24 }}>✓</div>
+          <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'rgba(162,255,1,0.14)', color: ACCENT_INK, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: 24 }}>✓</div>
           <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--gv-ink)', margin: '0 0 8px' }}>Request received</h2>
           <p style={{ fontSize: 14.5, color: 'var(--gv-dim)', lineHeight: 1.6, maxWidth: 420, margin: '0 auto 20px' }}>
             Thanks for the feedback — it genuinely helps. We&apos;ll review your refund and email you once it&apos;s
             processed. Refunds return to your card within a few business days.
           </p>
-          <Link href="/dashboard/billing" style={{ color: ACCENT, fontWeight: 600, fontSize: 14 }}>← Back to billing</Link>
+          <Link href="/dashboard/billing" style={{ color: ACCENT_INK, fontWeight: 600, fontSize: 14 }}>← Back to billing</Link>
         </div>
       </Shell>
     );
@@ -58,7 +59,7 @@ export default function CancelFunnel({ reasons, plan }: { reasons: RefundReason[
       {/* progress */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 22 }}>
         {[1, 2, 3].map((n) => (
-          <div key={n} style={{ flex: 1, height: 4, borderRadius: 99, background: n <= step ? ACCENT : 'rgba(255,255,255,0.08)' }} />
+          <div key={n} style={{ flex: 1, height: 4, borderRadius: 99, background: n <= step ? ACCENT : 'rgba(15,23,18,0.08)' }} />
         ))}
       </div>
 
@@ -72,8 +73,8 @@ export default function CancelFunnel({ reasons, plan }: { reasons: RefundReason[
                 style={{
                   display: 'flex', alignItems: 'center', gap: 11, textAlign: 'left', cursor: 'pointer',
                   padding: '13px 15px', borderRadius: 11, fontFamily: 'inherit', fontSize: 14.5,
-                  background: reason === r.code ? 'rgba(99,194,129,0.1)' : 'rgba(255,255,255,0.02)',
-                  border: `1px solid ${reason === r.code ? 'rgba(99,194,129,0.5)' : LINE}`,
+                  background: reason === r.code ? 'rgba(162,255,1,0.1)' : 'rgba(15,23,18,0.02)',
+                  border: `1px solid ${reason === r.code ? 'rgba(162,255,1,0.5)' : LINE}`,
                   color: reason === r.code ? 'var(--gv-ink)' : 'var(--gv-soft)',
                 }}>
                 <span style={{ width: 16, height: 16, borderRadius: '50%', flexShrink: 0, border: `2px solid ${reason === r.code ? ACCENT : 'var(--gv-fainter)'}`, background: reason === r.code ? ACCENT : 'transparent' }} />
@@ -113,7 +114,7 @@ export default function CancelFunnel({ reasons, plan }: { reasons: RefundReason[
             We&apos;ll cancel your subscription and process a full refund after a quick review. You&apos;ll get a
             confirmation email. Refunds land back on your card within a few business days.
           </p>
-          <div style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${LINE}`, borderRadius: 12, padding: 16, marginTop: 16, fontSize: 13.5, color: 'var(--gv-soft)' }}>
+          <div style={{ background: 'rgba(15,23,18,0.02)', border: `1px solid ${LINE}`, borderRadius: 12, padding: 16, marginTop: 16, fontSize: 13.5, color: 'var(--gv-soft)' }}>
             <Row k="Plan" v={plan ? cap(plan) : '—'} />
             <Row k="Reason" v={reasons.find((r) => r.code === reason)?.label ?? '—'} />
           </div>
@@ -150,7 +151,7 @@ function Nav({ children }: { children: React.ReactNode }) {
 
 const Title: React.CSSProperties = { fontSize: 21, fontWeight: 700, color: 'var(--gv-ink)', margin: 0, letterSpacing: '-0.01em' };
 const Sub: React.CSSProperties = { fontSize: 14, color: 'var(--gv-dim)', margin: '8px 0 0', lineHeight: 1.55 };
-const textArea: React.CSSProperties = { width: '100%', background: 'rgba(255,255,255,0.03)', border: `1px solid ${LINE}`, borderRadius: 11, color: 'var(--gv-ink)', fontSize: 14.5, fontFamily: 'inherit', padding: '12px 14px', outline: 'none', resize: 'vertical' };
+const textArea: React.CSSProperties = { width: '100%', background: 'rgba(15,23,18,0.03)', border: `1px solid ${LINE}`, borderRadius: 11, color: 'var(--gv-ink)', fontSize: 14.5, fontFamily: 'inherit', padding: '12px 14px', outline: 'none', resize: 'vertical' };
 const GhostLink: React.CSSProperties = { fontSize: 13.5, color: 'var(--gv-dim)' };
 const GhostBtn: React.CSSProperties = { background: 'transparent', border: 'none', color: 'var(--gv-dim)', fontSize: 13.5, cursor: 'pointer', fontFamily: 'inherit', padding: 0 };
 function primaryBtn(disabled: boolean): React.CSSProperties {

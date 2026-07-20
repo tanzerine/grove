@@ -35,7 +35,7 @@ export default function CrawlButton({ domainId, hostname }: { domainId: string; 
         {busy ? `Crawling ${hostname}…` : 'Crawl my site'}
       </button>
       {err && (
-        <div style={{ background: '#fdecec', border: '1px solid #f5b5b5', color: '#a33', padding: '8px 12px', borderRadius: 8, fontSize: 12, maxWidth: 460, textAlign: 'right' }}>
+        <div style={{ background: 'rgba(201,79,79,0.08)', border: '1px solid rgba(201,79,79,0.3)', color: 'var(--gv-red-text)', padding: '8px 12px', borderRadius: 8, fontSize: 12, maxWidth: 460, textAlign: 'right' }}>
           {err}
         </div>
       )}

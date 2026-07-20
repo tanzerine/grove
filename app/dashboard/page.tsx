@@ -9,16 +9,22 @@ import { DashHeader } from './gv-chrome';
 import OverviewPipeline, { type OvRow } from './OverviewPipeline';
 import AskAgent from './AskAgent';
 
+// ACCENT is the lime fill/border; ACCENT_INK is the olive to use whenever the
+// accent has to read as text (lime is ~1.1:1 on the white canvas).
 const ACCENT = 'var(--gv-accent)';
-const SAGE = '#9aa79e';
-const SAGE_DOT = '#8ea596';
+const ACCENT_INK = 'var(--gv-accent-ink)';
+const SAGE = '#5f6b62';
+const SAGE_DOT = '#7c8880';
 
 // Calendar event categories (matches the design's ES map).
-const ES: Record<string, { color: string; chipBg: string; name: string }> = {
-  published: { color: SAGE, chipBg: 'rgba(255,255,255,0.05)', name: 'Published' },
-  scheduled: { color: 'var(--gv-blue)', chipBg: 'rgba(123,158,240,0.12)', name: 'Scheduled' },
-  review: { color: 'var(--gv-amber)', chipBg: 'rgba(224,200,120,0.12)', name: 'In review' },
-  draft: { color: 'var(--gv-sky)', chipBg: 'rgba(127,182,230,0.12)', name: 'Draft' },
+// Grayscale calendar: scheduled/review/draft share the muted grey tier, so
+// border-style (solid/dashed/dotted/double — the original design comp's own
+// scheme) plus chip darkness carries the distinction instead of hue.
+const ES: Record<string, { color: string; chipBg: string; name: string; line: React.CSSProperties['borderStyle'] }> = {
+  published: { color: SAGE, chipBg: 'rgba(15,23,18,0.05)', name: 'Published', line: 'solid' },
+  scheduled: { color: 'var(--gv-blue)', chipBg: 'rgba(15,23,18,0.09)', name: 'Scheduled', line: 'dashed' },
+  review: { color: 'var(--gv-amber)', chipBg: 'rgba(15,23,18,0.12)', name: 'In review', line: 'dotted' },
+  draft: { color: 'var(--gv-sky)', chipBg: 'rgba(15,23,18,0.06)', name: 'Draft', line: 'double' },
 };
 
 function categoryFor(status: string): keyof typeof ES {
@@ -98,12 +104,12 @@ export default async function OverviewPage() {
     {
       icon: 'rankings', label: gscVis ? 'Search clicks' : 'Total reads', value: fmtNum(organicClicks),
       delta: readsDelta !== null && Math.abs(readsDelta) >= 1 ? `${readsDelta >= 0 ? '▲' : '▼'} ${Math.abs(readsDelta)}%` : '',
-      deltaColor: (readsDelta ?? 0) >= 0 ? ACCENT : 'var(--gv-red)',
+      deltaColor: (readsDelta ?? 0) >= 0 ? ACCENT_INK : 'var(--gv-red-text)',
       sub: brief && brief.readsThisWeek ? `${brief.readsThisWeek} read${brief.readsThisWeek === 1 ? '' : 's'} this week` : organicClicks ? 'all time' : 'no reads yet',
     },
     {
       icon: 'published', label: 'Posts published', value: String(publishedCount),
-      delta: brief?.publishedThisWeek ? `+${brief.publishedThisWeek}` : '', deltaColor: ACCENT,
+      delta: brief?.publishedThisWeek ? `+${brief.publishedThisWeek}` : '', deltaColor: ACCENT_INK,
       sub: domain ? `${domain.posts_per_week ?? 4} / week on autopilot` : '—',
     },
     {
@@ -123,7 +129,7 @@ export default async function OverviewPage() {
   const calYear = now.getFullYear(), calMonthIdx = now.getMonth(), todayNum = now.getDate();
   const calMonth = now.toLocaleString(undefined, { month: 'long', year: 'numeric' });
   const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const calLegend = (['published', 'scheduled', 'review', 'draft'] as const).map((k) => ({ label: ES[k].name, color: ES[k].color }));
+  const calLegend = (['published', 'scheduled', 'review', 'draft'] as const).map((k) => ({ label: ES[k].name, color: ES[k].color, line: ES[k].line }));
 
   const eventsByDay: Record<number, { s: keyof typeof ES; label: string }[]> = {};
   for (const p of all) {
@@ -144,12 +150,15 @@ export default async function OverviewPage() {
   while (cells.length % 7 !== 0) cells.push({ num: cells.length - (firstWeekday + daysInMonth) + 1, out: true });
   const calDays = cells.map((c) => {
     const isToday = !c.out && c.num === todayNum;
-    const evs = (!c.out && eventsByDay[c.num]) ? eventsByDay[c.num].map((e) => ({ label: e.label, full: `${ES[e.s].name} · ${e.label}`, color: ES[e.s].color, chipBg: ES[e.s].chipBg })) : [];
+    const evs = (!c.out && eventsByDay[c.num]) ? eventsByDay[c.num].map((e) => ({ label: e.label, full: `${ES[e.s].name} · ${e.label}`, color: ES[e.s].color, chipBg: ES[e.s].chipBg, line: ES[e.s].line })) : [];
     return {
       num: c.num,
-      numColor: c.out ? '#3a4640' : isToday ? ACCENT : 'var(--gv-dim)',
-      bg: c.out ? 'transparent' : 'rgba(255,255,255,0.015)',
-      border: c.out ? 'transparent' : isToday ? ACCENT : 'rgba(255,255,255,0.05)',
+      // Today is marked by the lime tint + an olive outline; the numeral itself
+      // is olive, because lime on the pale-lime cell measures 1.2:1.
+      // Adjacent-month days stay ghosted, but light enough to still be seen.
+      numColor: c.out ? '#a1a39e' : isToday ? ACCENT_INK : 'var(--gv-dim)',
+      bg: c.out ? 'transparent' : isToday ? 'rgba(162,255,1,0.1)' : 'rgba(15,23,18,0.02)',
+      border: c.out ? 'transparent' : isToday ? 'rgba(75,92,20,0.5)' : 'rgba(15,23,18,0.06)',
       events: evs,
     };
   });
@@ -202,12 +211,12 @@ export default async function OverviewPage() {
   const latestPub = published[0];
   const pubSocial = (latestPub?.social_published ?? {}) as Record<string, unknown>;
   const chState = (key: string) =>
-    pubSocial[key] ? { state: 'Posted', color: ACCENT, dot: ACCENT }
+    pubSocial[key] ? { state: 'Posted', color: ACCENT_INK, dot: ACCENT_INK }
       : domain?.auto_social ? { state: 'Queued', color: 'var(--gv-dim)', dot: SAGE_DOT }
         : { state: 'Off', color: 'var(--gv-faint)', dot: 'var(--gv-fainter)' };
   const channels = latestPub
     ? [
-        { name: 'Blog post', dot: ACCENT, color: ACCENT, state: 'Published' },
+        { name: 'Blog post', dot: ACCENT_INK, color: ACCENT_INK, state: 'Published' },
         { name: 'X thread', ...chState('x') },
         { name: 'LinkedIn', ...chState('linkedin') },
         { name: 'Instagram', ...chState('instagram') },
@@ -223,16 +232,16 @@ export default async function OverviewPage() {
   const activityRows: { text: string; time: string; dot: string; ring: string }[] = [];
   for (const p of all.slice(0, 8)) {
     if (p.status === 'published' && p.published_at) {
-      activityRows.push({ text: `Published “${(p.title ?? p.topic ?? '').slice(0, 38)}…”`, time: relTime(p.published_at), dot: ACCENT, ring: 'rgba(99,194,129,0.3)' });
+      activityRows.push({ text: `Published “${(p.title ?? p.topic ?? '').slice(0, 38)}…”`, time: relTime(p.published_at), dot: ACCENT_INK, ring: 'rgba(75,92,20,0.28)' });
     } else if (p.status === 'review') {
-      activityRows.push({ text: `Draft ready for review · “${(p.title ?? p.topic ?? '').slice(0, 30)}”`, time: relTime(p.created_at), dot: 'var(--gv-amber)', ring: 'rgba(224,200,120,0.3)' });
+      activityRows.push({ text: `Draft ready for review · “${(p.title ?? p.topic ?? '').slice(0, 30)}”`, time: relTime(p.created_at), dot: 'var(--gv-amber)', ring: 'rgba(15,23,18,0.3)' });
     } else if (['writing', 'researching', 'queued'].includes(p.status)) {
-      activityRows.push({ text: `Started “${(p.title ?? p.topic ?? '').slice(0, 34)}”`, time: relTime(p.created_at), dot: 'var(--gv-sky)', ring: 'rgba(127,182,230,0.3)' });
+      activityRows.push({ text: `Started “${(p.title ?? p.topic ?? '').slice(0, 34)}”`, time: relTime(p.created_at), dot: 'var(--gv-sky)', ring: 'rgba(15,23,18,0.3)' });
     }
     if (activityRows.length >= 5) break;
   }
   if (activityRows.length === 0) {
-    activityRows.push({ text: 'Your agent is ready — queue a topic to begin', time: 'now', dot: SAGE_DOT, ring: 'rgba(142,165,150,0.3)' });
+    activityRows.push({ text: 'Your agent is ready — queue a topic to begin', time: 'now', dot: SAGE_DOT, ring: 'rgba(124,136,128,0.3)' });
   }
 
   const shippedRecently = brief?.publishedThisWeek ?? published.length;
@@ -244,10 +253,12 @@ export default async function OverviewPage() {
       <div className="gv-body" style={{ maxWidth: 1680 }}>
         {/* search — relocated out of the nav bar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: 240, maxWidth: 420, display: 'flex', alignItems: 'center', gap: 9, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '9px 13px' }}>
+          <div style={{ flex: 1, minWidth: 240, maxWidth: 420, display: 'flex', alignItems: 'center', gap: 9, background: 'rgba(15,23,18,0.035)', border: '1px solid rgba(15,23,18,0.1)', borderRadius: 10, padding: '9px 13px' }}>
             <span style={{ color: 'var(--gv-fainter)', display: 'flex' }}><Icon name="search" size={16} /></span>
             <input placeholder="Search posts, keywords, domains…" style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: 'var(--gv-ink)', fontSize: 13, fontFamily: 'inherit', minWidth: 0 }} />
-            <span style={{ fontSize: 10.5, color: 'var(--gv-fainter)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 5, padding: '1px 6px' }}>⌘K</span>
+            {/* --gv-soft, not --gv-dim/--gv-fainter — this chip sits on the
+                search bar's own tint, which shaves ~0.3 off the ratio. */}
+            <span style={{ fontSize: 10.5, color: 'var(--gv-soft)', border: '1px solid rgba(15,23,18,0.12)', borderRadius: 5, padding: '1px 6px' }}>⌘K</span>
           </div>
         </div>
         {/* greeting */}
@@ -261,15 +272,15 @@ export default async function OverviewPage() {
             </p>
           </div>
           <div style={{ display: 'flex', gap: 9 }}>
-            <Link href="/dashboard/pipeline" className="gv-ghost" style={{ border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '10px 16px', borderRadius: 10, cursor: 'pointer', textDecoration: 'none' }}>Review queue ({inReview.length})</Link>
-            <Link href="/dashboard/write" className="gv-btn" style={{ border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '10px 18px', borderRadius: 10, cursor: 'pointer', textDecoration: 'none' }}>Write</Link>
+            <Link href="/dashboard/pipeline" className="gv-ghost" style={{ border: '1px solid rgba(15,23,18,0.14)', background: 'rgba(15,23,18,0.02)', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '10px 16px', borderRadius: 10, cursor: 'pointer', textDecoration: 'none' }}>Review queue ({inReview.length})</Link>
+            <Link href="/dashboard/write" className="gv-btn" style={{ border: 'none', background: 'var(--gv-ink)', color: '#ffffff', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '10px 18px', borderRadius: 10, cursor: 'pointer', textDecoration: 'none' }}>Write</Link>
           </div>
         </div>
 
         {/* stat cards */}
         <div className="gv-grid4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 14 }}>
           {stats.map((s, i) => (
-            <div key={i} className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: '18px 20px' }}>
+            <div key={i} className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(15,23,18,0.08)', borderRadius: 16, padding: '18px 20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, color: 'var(--gv-dim)', fontSize: 12.5 }}>
                 <span style={{ display: 'flex', color: SAGE }}><Icon name={s.icon} /></span>{s.label}
               </div>
@@ -285,7 +296,7 @@ export default async function OverviewPage() {
         {/* calendar + agent */}
         <div className="gv-2col-wide" style={{ display: 'grid', gridTemplateColumns: '1.85fr 1fr', gap: 14, marginBottom: 14 }}>
           {/* publishing calendar */}
-          <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '22px 24px' }}>
+          <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(15,23,18,0.08)', borderRadius: 18, padding: '22px 24px' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
               <div>
                 <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em' }}>Publishing calendar</div>
@@ -297,7 +308,7 @@ export default async function OverviewPage() {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, margin: '16px 0 14px' }}>
               {calLegend.map((l) => (
                 <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11.5, color: 'var(--gv-dim)' }}>
-                  <span style={{ width: 9, height: 9, borderRadius: 3, background: l.color }} />{l.label}
+                  <span style={{ width: 18, height: 10, borderRadius: 3, background: 'transparent', borderStyle: l.line, borderWidth: l.line === 'double' ? 3 : 2, borderColor: l.color }} />{l.label}
                 </div>
               ))}
               <span style={{ marginLeft: 'auto', fontSize: 13, fontWeight: 600 }}>{calMonth}</span>
@@ -311,7 +322,7 @@ export default async function OverviewPage() {
                 <div key={i} style={{ minHeight: 62, minWidth: 0, overflow: 'hidden', borderRadius: 9, background: d.bg, border: `1px solid ${d.border}`, padding: '6px 6px 5px', display: 'flex', flexDirection: 'column', gap: 3 }}>
                   <span style={{ fontSize: 10.5, fontWeight: 600, color: d.numColor, alignSelf: 'flex-end', fontVariantNumeric: 'tabular-nums' }}>{d.num}</span>
                   {d.events.map((ev, j) => (
-                    <span key={j} title={ev.full} style={{ display: 'block', fontSize: 9.5, fontWeight: 600, lineHeight: 1.25, color: ev.color, background: ev.chipBg, borderLeft: `2px solid ${ev.color}`, borderRadius: 4, padding: '2px 4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ev.label}</span>
+                    <span key={j} title={ev.full} style={{ display: 'block', fontSize: 9.5, fontWeight: 600, lineHeight: 1.25, color: ev.color, background: ev.chipBg, borderStyle: ev.line, borderWidth: 1, borderColor: 'rgba(15,23,18,0.5)', borderRadius: 4, padding: '2px 4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ev.label}</span>
                   ))}
                 </div>
               ))}
@@ -321,17 +332,17 @@ export default async function OverviewPage() {
           {/* agent panel — sits at the top of its column and stays only as tall
               as its content (short), rather than stretching to the calendar. */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14, alignSelf: 'start' }}>
-            <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 22px' }}>
+            <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(15,23,18,0.08)', borderRadius: 18, padding: '20px 22px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ width: 30, height: 30, borderRadius: 9, background: 'rgba(99,194,129,0.12)', border: '1px solid rgba(99,194,129,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: ACCENT }}><Icon name="leaf" /></span>
+                  <span style={{ width: 30, height: 30, borderRadius: 9, background: 'rgba(15,23,18,0.03)', border: '1px solid rgba(15,23,18,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gv-ink)' }}><Icon name="leaf" /></span>
                   <div style={{ lineHeight: 1.2 }}>
                     <div style={{ fontSize: 14, fontWeight: 700 }}>Your marketing agent</div>
                     <div style={{ fontSize: 11, color: 'var(--gv-faint)' }}>autonomous · loop running</div>
                   </div>
                 </div>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: SAGE, fontWeight: 600 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: ACCENT, animation: 'gvPulse 1.8s ease-in-out infinite' }} />working
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: ACCENT_INK, animation: 'gvPulse 1.8s ease-in-out infinite' }} />working
                 </span>
               </div>
 
@@ -340,21 +351,23 @@ export default async function OverviewPage() {
               <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 9 }}>Working on now</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                 {agentItems.map((a, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 10, background: a.attn ? 'rgba(224,200,120,0.06)' : 'rgba(255,255,255,0.025)', border: `1px solid ${a.attn ? 'rgba(224,200,120,0.22)' : 'rgba(255,255,255,0.06)'}` }}>
+                  <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 10, background: a.attn ? 'rgba(15,23,18,0.1)' : 'rgba(15,23,18,0.025)', border: `1px solid ${a.attn ? 'rgba(15,23,18,0.3)' : 'rgba(15,23,18,0.06)'}` }}>
                     <span style={{ display: 'flex', color: a.attn ? 'var(--gv-amber)' : SAGE, flexShrink: 0, marginTop: 1 }}><Icon name={a.icon} /></span>
                     <span style={{ flex: 1, minWidth: 0 }}>
                       <span style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--gv-ink)' }}>{a.title}</span>
-                      <span style={{ display: 'block', fontSize: 11.5, color: 'var(--gv-faint)', marginTop: 1, lineHeight: 1.4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.detail}</span>
+                      {/* attn rows sit on a darker ink tint (0.1 vs 0.025 alpha),
+                          which pulls --gv-faint below AA there — --gv-soft covers it. */}
+                      <span style={{ display: 'block', fontSize: 11.5, color: a.attn ? 'var(--gv-soft)' : 'var(--gv-faint)', marginTop: 1, lineHeight: 1.4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.detail}</span>
                     </span>
                     {a.action && (
-                      <Link href={a.action.href} className="gv-btn" style={{ border: '1px solid rgba(255,255,255,0.16)', background: 'rgba(255,255,255,0.06)', color: 'var(--gv-ink)', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, padding: '5px 11px', borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, textDecoration: 'none' }}>{a.action.label}</Link>
+                      <Link href={a.action.href} className="gv-btn" style={{ border: '1px solid rgba(15,23,18,0.16)', background: 'rgba(15,23,18,0.06)', color: 'var(--gv-ink)', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, padding: '5px 11px', borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, textDecoration: 'none' }}>{a.action.label}</Link>
                     )}
                   </div>
                 ))}
               </div>
 
               {agentInsight && (
-                <div style={{ marginTop: 18, padding: '14px 15px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div style={{ marginTop: 18, padding: '14px 15px', borderRadius: 12, background: 'rgba(15,23,18,0.03)', border: '1px solid rgba(15,23,18,0.08)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: SAGE, marginBottom: 8 }}><span style={{ display: 'flex' }}><Icon name="answers" /></span> Agent insight</div>
                   <div style={{ fontSize: 12.5, color: 'var(--gv-soft)', lineHeight: 1.55 }}>{agentInsight}</div>
                   <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
@@ -364,8 +377,8 @@ export default async function OverviewPage() {
               )}
 
               <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
-                <AskAgent prompt="Why is this month lacking new viewers?" label="Ask about my numbers" />
-                <AskAgent prompt="Improve my low-CTR titles" label="Fix weak titles" />
+                <AskAgent prompt="Why is this month lacking new viewers?" label="Ask about my numbers" light />
+                <AskAgent prompt="Improve my low-CTR titles" label="Fix weak titles" light />
               </div>
             </div>
           </div>
@@ -377,7 +390,7 @@ export default async function OverviewPage() {
         {/* bottom row */}
         <div className="gv-grid3" style={{ display: 'grid', gridTemplateColumns: '1fr 1.15fr 1fr', gap: 14 }}>
           {/* channels */}
-          <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 22px' }}>
+          <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(15,23,18,0.08)', borderRadius: 18, padding: '20px 22px' }}>
             <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>Cross-post queue</div>
             <div style={{ fontSize: 12, color: 'var(--gv-faint)', marginBottom: 18 }}>One brief, every channel</div>
             {channels.length === 0 ? (
@@ -388,7 +401,7 @@ export default async function OverviewPage() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                 {channels.map((c) => (
-                  <div key={c.name} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '11px 13px', borderRadius: 11, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div key={c.name} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '11px 13px', borderRadius: 11, background: 'rgba(15,23,18,0.025)', border: '1px solid rgba(15,23,18,0.06)' }}>
                     <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.dot }} />
                     <span style={{ fontSize: 13, color: 'var(--gv-soft)' }}>{c.name}</span>
                     <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 600, color: c.color }}>{c.state}</span>
@@ -399,7 +412,7 @@ export default async function OverviewPage() {
           </div>
 
           {/* top movers */}
-          <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 22px' }}>
+          <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(15,23,18,0.08)', borderRadius: 18, padding: '20px 22px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <div style={{ fontSize: 14, fontWeight: 700 }}>Top queries</div>
               <span style={{ fontSize: 11.5, color: 'var(--gv-faint)' }}>position · clicks</span>
@@ -415,7 +428,7 @@ export default async function OverviewPage() {
                   <div key={k.term} className="gv-row" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 10px', borderRadius: 9, transition: 'background .15s' }}>
                     <span style={{ fontSize: 13, color: 'var(--gv-soft)', flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{k.term}</span>
                     <span style={{ fontSize: 12, color: 'var(--gv-faint)', fontVariantNumeric: 'tabular-nums' }}>#{k.pos}</span>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: ACCENT, width: 52, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{k.clicks}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: ACCENT_INK, width: 52, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{k.clicks}</span>
                   </div>
                 ))}
               </div>
@@ -423,14 +436,14 @@ export default async function OverviewPage() {
           </div>
 
           {/* activity */}
-          <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 22px' }}>
+          <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(15,23,18,0.08)', borderRadius: 18, padding: '20px 22px' }}>
             <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 18 }}>Recent activity</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
               {activityRows.map((a, i) => (
                 <div key={i} style={{ display: 'flex', gap: 13, paddingBottom: 16 }}>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
                     <span style={{ width: 9, height: 9, borderRadius: '50%', background: a.dot, border: '2px solid var(--gv-card)', boxShadow: `0 0 0 1px ${a.ring}` }} />
-                    {i < activityRows.length - 1 && <span style={{ flex: 1, width: 1, background: 'rgba(255,255,255,0.07)', marginTop: 4 }} />}
+                    {i < activityRows.length - 1 && <span style={{ flex: 1, width: 1, background: 'rgba(15,23,18,0.08)', marginTop: 4 }} />}
                   </div>
                   <div style={{ marginTop: -3 }}>
                     <div style={{ fontSize: 12.5, color: 'var(--gv-soft)', lineHeight: 1.45 }}>{a.text}</div>

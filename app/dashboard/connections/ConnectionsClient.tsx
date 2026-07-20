@@ -157,7 +157,7 @@ export default function ConnectionsClient({
       )}
 
       {/* auto-share toggle */}
-      <div style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: 20, marginBottom: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+      <div style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 14, padding: 20, marginBottom: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
         <div>
           <div style={{ fontSize: 15, fontWeight: 600 }}>Auto-share on publish</div>
           <div style={{ fontSize: 13, color: 'var(--clay)', marginTop: 2 }}>
@@ -189,7 +189,7 @@ export default function ConnectionsClient({
         {platforms.map((p) => {
           const m = META[p.id];
           return (
-            <div key={p.id} style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div key={p.id} style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 14, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
               <div style={{ width: 40, height: 40, borderRadius: 10, background: m.color, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontFamily: 'Clash Display', flexShrink: 0 }}>
                 {m.label[0]}
               </div>
@@ -226,7 +226,7 @@ export default function ConnectionsClient({
       </p>
 
       {/* webhook — the no-OAuth path: pipe every publish into Zapier / Make / n8n */}
-      <div style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: 20, marginTop: 28 }}>
+      <div style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 14, padding: 20, marginTop: 28 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <h4 style={{ fontFamily: 'Clash Display', fontSize: 20, margin: 0 }}>Publish webhook</h4>
           {webhookActive && (
@@ -285,9 +285,9 @@ export default function ConnectionsClient({
 function Banner({ children, ok }: { children: React.ReactNode; ok?: boolean }) {
   return (
     <div style={{
-      background: ok ? 'rgba(89,148,94,0.10)' : '#fdecea',
-      border: `1px solid ${ok ? 'var(--moss)' : '#e6a89f'}`,
-      color: ok ? 'var(--moss)' : 'var(--gv-red)',
+      background: ok ? 'rgba(75,92,20,0.08)' : 'rgba(201,79,79,0.08)',
+      border: `1px solid ${ok ? 'rgba(75,92,20,0.3)' : 'rgba(201,79,79,0.3)'}`,
+      color: ok ? 'var(--moss)' : 'var(--gv-red-text)',
       borderRadius: 10, padding: '10px 14px', fontSize: 13, marginBottom: 16,
     }}>
       {children}

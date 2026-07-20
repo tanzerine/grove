@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 const ACCENT = 'var(--gv-accent)';
+const ACCENT_INK = 'var(--gv-accent-ink)';
 
 type SetupState =
   | { status: 'verified'; siteUrl: string }
@@ -114,7 +115,7 @@ export default function GoogleConnect({
     <span style={{ position: 'relative', display: 'inline-flex' }}>
       {node}
       {err && (
-        <span style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, zIndex: 50, width: 240, fontSize: 11.5, lineHeight: 1.45, color: 'var(--gv-red-soft)', background: '#1a1110', border: '1px solid rgba(240,120,100,0.3)', borderRadius: 10, padding: '8px 11px', boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}>
+        <span style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, zIndex: 50, width: 240, fontSize: 11.5, lineHeight: 1.45, color: 'var(--gv-red-soft)', background: 'var(--gv-card)', border: '1px solid rgba(201,79,79,0.3)', borderRadius: 10, padding: '8px 11px', boxShadow: 'var(--sh-md)' }}>
           {err}
         </span>
       )}
@@ -124,10 +125,10 @@ export default function GoogleConnect({
   // 1) Verified → live, show a connected pill + refresh.
   if (connected && verified) {
     return wrap(
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 9, padding: '7px 11px 7px 12px', border: '1px solid rgba(99,194,129,0.28)', background: 'rgba(99,194,129,0.08)', borderRadius: 999 }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 9, padding: '7px 11px 7px 12px', border: '1px solid rgba(162,255,1,0.28)', background: 'rgba(162,255,1,0.08)', borderRadius: 999 }}>
         <GoogleMark size={14} />
         <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--gv-soft)' }}>Google connected</span>
-        <span style={{ width: 6, height: 6, borderRadius: '50%', background: ACCENT, animation: 'gvPulse 2.4s ease-in-out infinite' }} />
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: ACCENT_INK, animation: 'gvPulse 2.4s ease-in-out infinite' }} />
         <button onClick={sync} disabled={busy === 'sync'} className="gv-ghost" style={{ marginLeft: 2, border: 'none', background: 'transparent', color: 'var(--gv-dim)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '2px 6px', borderRadius: 7, cursor: 'pointer' }}>
           {busy === 'sync' ? 'Syncing…' : 'Refresh'}
         </button>
@@ -141,13 +142,13 @@ export default function GoogleConnect({
     const host = setup?.status === 'needs_dns' ? setup.host : '';
     return (
       <span style={{ position: 'relative', display: 'inline-flex' }}>
-        <button onClick={toggleSetup} className="gv-btn" style={{ display: 'inline-flex', alignItems: 'center', gap: 9, border: '1px solid rgba(212,165,90,0.4)', background: 'rgba(212,165,90,0.1)', color: 'var(--gv-amber)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '8px 14px', borderRadius: 10, cursor: 'pointer' }}>
+        <button onClick={toggleSetup} className="gv-btn" style={{ display: 'inline-flex', alignItems: 'center', gap: 9, border: '1px solid rgba(15,23,18,0.4)', background: 'rgba(15,23,18,0.1)', color: 'var(--gv-amber)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '8px 14px', borderRadius: 10, cursor: 'pointer' }}>
           <GoogleMark size={14} />
           Finish Google setup
-          <span style={{ color: '#b89a5a', fontSize: 11, transform: setupOpen ? 'rotate(180deg)' : 'none', transition: '.2s' }}>⌄</span>
+          <span style={{ color: 'var(--gv-dim)', fontSize: 11, transform: setupOpen ? 'rotate(180deg)' : 'none', transition: '.2s' }}>⌄</span>
         </button>
         {setupOpen && (
-          <div style={{ position: 'absolute', top: 'calc(100% + 10px)', right: 0, zIndex: 60, width: 320, background: '#12150f', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: 16, boxShadow: '0 16px 40px rgba(0,0,0,0.5)' }}>
+          <div style={{ position: 'absolute', top: 'calc(100% + 10px)', right: 0, zIndex: 60, width: 320, background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 14, padding: 16, boxShadow: 'var(--sh-lg)' }}>
             {!setup ? (
               <p style={{ margin: 0, fontSize: 12.5, color: 'var(--gv-dim)' }}>Checking your Search Console…</p>
             ) : setup.status === 'needs_dns' ? (
@@ -156,13 +157,13 @@ export default function GoogleConnect({
                 <p style={{ fontSize: 12, color: 'var(--gv-dim)', lineHeight: 1.5, margin: '6px 0 12px' }}>
                   Add this <b style={{ color: 'var(--gv-soft)' }}>TXT record</b> to <b style={{ color: 'var(--gv-soft)' }}>{host}</b>&apos;s DNS, then verify — Grove adds the Search Console property for you.
                 </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '10px 12px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12, background: 'rgba(15,23,18,0.03)', border: '1px solid var(--gv-line)', borderRadius: 10, padding: '10px 12px' }}>
                   <Field label="Type" value="TXT" />
                   <Field label="Name" value="@" />
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                     <span style={{ width: 44, flexShrink: 0, color: 'var(--gv-faint)' }}>Value</span>
                     <span style={{ flex: 1, minWidth: 0, color: 'var(--gv-soft)', fontFamily: 'monospace', fontSize: 11.5, overflowWrap: 'anywhere' }}>{rec}</span>
-                    <button onClick={() => { navigator.clipboard?.writeText(rec); setCopied(true); setTimeout(() => setCopied(false), 1500); }} className="gv-ghost" style={{ flexShrink: 0, border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: 'var(--gv-dim)', fontFamily: 'inherit', fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 7, cursor: 'pointer' }}>{copied ? 'Copied' : 'Copy'}</button>
+                    <button onClick={() => { navigator.clipboard?.writeText(rec); setCopied(true); setTimeout(() => setCopied(false), 1500); }} className="gv-ghost" style={{ flexShrink: 0, border: '1px solid rgba(15,23,18,0.12)', background: 'transparent', color: 'var(--gv-dim)', fontFamily: 'inherit', fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 7, cursor: 'pointer' }}>{copied ? 'Copied' : 'Copy'}</button>
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
@@ -175,7 +176,7 @@ export default function GoogleConnect({
             ) : setup.status === 'dns_not_found' ? (
               <>
                 <p style={{ margin: 0, fontSize: 12.5, color: 'var(--gv-amber)', lineHeight: 1.5 }}>We can&apos;t see the record yet — DNS changes can take up to an hour. Double-check the value, then verify again.</p>
-                <button onClick={loadSetup} className="gv-ghost" style={{ marginTop: 10, border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: 'var(--gv-dim)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '6px 11px', borderRadius: 8, cursor: 'pointer' }}>Show the record again</button>
+                <button onClick={loadSetup} className="gv-ghost" style={{ marginTop: 10, border: '1px solid rgba(15,23,18,0.12)', background: 'transparent', color: 'var(--gv-dim)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '6px 11px', borderRadius: 8, cursor: 'pointer' }}>Show the record again</button>
               </>
             ) : (
               <p style={{ margin: 0, fontSize: 12.5, color: 'var(--gv-red-soft)', lineHeight: 1.5 }}>Something went wrong reaching Search Console. Try disconnecting and connecting again.</p>
@@ -183,7 +184,7 @@ export default function GoogleConnect({
           </div>
         )}
         {err && (
-          <span style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, zIndex: 50, width: 240, fontSize: 11.5, lineHeight: 1.45, color: 'var(--gv-red-soft)', background: '#1a1110', border: '1px solid rgba(240,120,100,0.3)', borderRadius: 10, padding: '8px 11px', boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}>{err}</span>
+          <span style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, zIndex: 50, width: 240, fontSize: 11.5, lineHeight: 1.45, color: 'var(--gv-red-soft)', background: 'var(--gv-card)', border: '1px solid rgba(201,79,79,0.3)', borderRadius: 10, padding: '8px 11px', boxShadow: 'var(--sh-md)' }}>{err}</span>
         )}
       </span>
     );
@@ -191,7 +192,7 @@ export default function GoogleConnect({
 
   // 3) Not connected → the connect CTA.
   return wrap(
-    <button onClick={connect} disabled={busy === 'connect'} className="gv-btn" style={{ display: 'inline-flex', alignItems: 'center', gap: 9, border: '1px solid rgba(255,255,255,0.14)', background: '#fff', color: '#1f2421', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, padding: '8px 15px', borderRadius: 10, cursor: 'pointer' }}>
+    <button onClick={connect} disabled={busy === 'connect'} className="gv-btn" style={{ display: 'inline-flex', alignItems: 'center', gap: 9, border: '1px solid rgba(15,23,18,0.14)', background: '#fff', color: '#1f2421', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, padding: '8px 15px', borderRadius: 10, cursor: 'pointer' }}>
       <GoogleMark size={15} />
       {busy === 'connect' ? 'Connecting…' : 'Connect Google'}
     </button>,

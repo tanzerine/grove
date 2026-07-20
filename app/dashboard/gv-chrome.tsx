@@ -10,7 +10,7 @@ export function HeaderRight() {
   return (
     <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14 }}>
       <NavAutopilot />
-      <span style={{ width: 1, height: 26, background: 'rgba(255,255,255,0.08)' }} />
+      <span style={{ width: 1, height: 26, background: 'rgba(15,23,18,0.08)' }} />
       <OnboardingBell />
       <AccountAvatarMenu />
     </div>
@@ -39,5 +39,5 @@ export function DashHeader({ title, subtitle, left }: { title?: string; subtitle
 
 /** A standard card surface used across pages. */
 export function card(extra: React.CSSProperties = {}): React.CSSProperties {
-  return { background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, ...extra };
+  return { background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, ...extra };
 }

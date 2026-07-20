@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 const ACCENT = 'var(--gv-accent)';
+const ACCENT_INK = 'var(--gv-accent-ink)';
 
 type Msg = { id?: string; role: 'user' | 'agent'; content: string; revised?: boolean };
 type Budget = { messagesLeft: number; revisionsLeft: number };
@@ -59,7 +60,7 @@ export default function PlanChat({ domainId }: { domainId: string }) {
   };
 
   return (
-    <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '22px 24px', marginTop: 14 }}>
+    <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '22px 24px', marginTop: 14 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>
           <div style={{ fontSize: 15, fontWeight: 700 }}>Talk to your strategist</div>
@@ -80,14 +81,14 @@ export default function PlanChat({ domainId }: { domainId: string }) {
             <div key={m.id ?? i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '82%' }}>
               <div style={{
                 padding: '9px 13px', borderRadius: 12, fontSize: 13, lineHeight: 1.55, whiteSpace: 'pre-wrap',
-                background: m.role === 'user' ? 'rgba(99,194,129,0.12)' : 'rgba(255,255,255,0.03)',
-                border: `1px solid ${m.role === 'user' ? 'rgba(99,194,129,0.25)' : 'rgba(255,255,255,0.07)'}`,
+                background: m.role === 'user' ? 'rgba(162,255,1,0.12)' : 'rgba(15,23,18,0.03)',
+                border: `1px solid ${m.role === 'user' ? 'rgba(162,255,1,0.25)' : 'var(--gv-line)'}`,
                 color: 'var(--gv-soft)',
               }}>
                 {m.content}
               </div>
               {m.revised && (
-                <div style={{ fontSize: 10.5, color: ACCENT, marginTop: 3, textAlign: 'left' }}>✓ plan updated</div>
+                <div style={{ fontSize: 10.5, color: ACCENT_INK, marginTop: 3, textAlign: 'left' }}>✓ plan updated</div>
               )}
             </div>
           ))}
@@ -103,7 +104,7 @@ export default function PlanChat({ domainId }: { domainId: string }) {
           placeholder="Ask about the plan, or tell me what to change…"
           disabled={sending}
           style={{
-            flex: 1, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)',
+            flex: 1, background: 'rgba(15,23,18,0.03)', border: '1px solid rgba(15,23,18,0.1)',
             borderRadius: 10, padding: '11px 14px', fontSize: 13, color: 'var(--gv-ink)', fontFamily: 'inherit', outline: 'none',
           }}
         />
