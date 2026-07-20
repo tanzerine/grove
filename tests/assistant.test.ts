@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseSlash, classifyIntent, writeTopicFrom } from '../lib/assistant/triage';
+import { parseSlash, classifyIntent, writeTopicFrom, isAffirmation } from '../lib/assistant/triage';
 import { pickTitleCandidates, sanitizeRewrites, TITLE_LIMITS } from '../lib/assistant/titles';
 import { resolvePost, parseWhen, extractReschedule, type PostRef } from '../lib/assistant/pipeline';
 import type { ContentRow } from '../lib/search-console/insights';
@@ -48,6 +48,10 @@ describe('classifyIntent', () => {
     expect(classifyIntent('drop the pricing pillar')).toBe('revise');
     expect(classifyIntent('can you focus the plan more on comparisons')).toBe('revise');
     expect(classifyIntent('/strategy add two more conversion posts')).toBe('revise');
+    // softer steering verbs count too — this exact phrasing once fell to
+    // analytics and the answer model role-played the revision
+    expect(classifyIntent('can you adjust the strategy a little to boost up the conversion rate?')).toBe('revise');
+    expect(classifyIntent('tweak the plan to favor tutorials')).toBe('revise');
   });
 
   it('question-phrased plan talk stays a question, not a revision', () => {
@@ -100,6 +104,26 @@ describe('classifyIntent', () => {
     expect(classifyIntent('이번 달 트래픽이 왜 이래?')).toBe('analytics');
     expect(classifyIntent('커피 원두 보관에 대한 글 써줘')).toBe('write');
     expect(classifyIntent('커스텀 도메인 설정 어떻게 해?')).toBe('help');
+  });
+});
+
+describe('isAffirmation', () => {
+  it('accepts bare confirmations, with trailing punctuation', () => {
+    expect(isAffirmation('yes')).toBe(true);
+    expect(isAffirmation('Yes please!')).toBe(true);
+    expect(isAffirmation('do it')).toBe(true);
+    expect(isAffirmation('go ahead')).toBe(true);
+    expect(isAffirmation('ok')).toBe(true);
+    expect(isAffirmation('sounds good.')).toBe(true);
+    expect(isAffirmation('네')).toBe(true);
+    expect(isAffirmation('해줘')).toBe(true);
+  });
+
+  it('rejects anything with extra content or unrelated words', () => {
+    expect(isAffirmation('yes but drop the listicle')).toBe(false);
+    expect(isAffirmation('yesterday was slow')).toBe(false);
+    expect(isAffirmation('no')).toBe(false);
+    expect(isAffirmation('ok how do I set up DNS?')).toBe(false);
   });
 });
 
@@ -344,5 +368,14 @@ describe('buildAnswerPrompt', () => {
     expect(system).toContain('(no data yet)');
     expect(system).not.toContain('CURRENT PLAN MEMO');
     expect(system).not.toContain('\nGUIDES\n');
+  });
+
+  it('forbids claiming actions and defines the proposed_command contract', () => {
+    const { system } = buildAnswerPrompt({
+      hostname: 'acme.com', intent: 'general', message: 'yes',
+      signalsMd: '', planMd: '', history: [],
+    });
+    expect(system).toContain('WORDS ONLY');
+    expect(system).toContain('proposed_command');
   });
 });

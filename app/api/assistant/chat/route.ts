@@ -19,7 +19,7 @@ import { generatePost } from '@/lib/pipeline/generate';
 import { runCoverForPost } from '@/lib/pipeline/cover-image';
 import { getAgentContext } from '@/lib/strategy/context-store';
 import { contextForPrompt } from '@/lib/strategy/context';
-import { classifyIntent, parseSlash, writeTopicFrom, type AssistantIntent } from '@/lib/assistant/triage';
+import { classifyIntent, parseSlash, writeTopicFrom, isAffirmation, type AssistantIntent } from '@/lib/assistant/triage';
 import { answerAssistant } from '@/lib/assistant/chat';
 import { PLAN_CHAT_LIMITS } from '@/lib/strategy/plan-chat';
 import { planChatBudget, applyPlanRevision } from '@/lib/strategy/apply-revision';
@@ -38,6 +38,9 @@ export const maxDuration = 300;   // the queued article pipeline finishes in aft
 const postBody = z.object({
   domain_id: z.string().uuid(),
   message: z.string().trim().min(1).max(2000),
+  /** The last proposed_command the panel is holding — executed only when the
+   *  message is a bare affirmation ("yes", "do it"), via normal triage. */
+  command: z.string().trim().min(1).max(500).optional(),
   history: z.array(z.object({
     role: z.enum(['user', 'agent']),
     content: z.string().max(4000),
@@ -54,7 +57,13 @@ const ok = (body: {
   links?: Array<{ label: string; href: string }>;
   /** revert payload for actions the panel can undo (title rewrites) */
   undo?: TitleRewrite[];
+  /** actionable phrase the panel renders as a one-tap "Do it" button */
+  proposal?: string;
 }) => NextResponse.json({ changes: [], links: [], ...body });
+
+/** Intents that write something — a proposal only ships if it triages here,
+ *  so the button (or a "yes") is guaranteed to reach an action path. */
+const ACTION_INTENTS: AssistantIntent[] = ['write', 'revise', 'titles', 'approve', 'retry', 'reschedule'];
 
 async function loadPosts(domainId: string, statuses: string[]): Promise<PostRef[]> {
   const { data } = await supabaseAdmin()
@@ -88,7 +97,15 @@ function linksFor(intent: AssistantIntent, message: string) {
 export async function POST(req: Request) {
   const parsed = postBody.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: 'invalid body' }, { status: 400 });
-  const { domain_id, message, history = [] } = parsed.data;
+  const { domain_id, history = [] } = parsed.data;
+
+  // A bare "yes" with a pending proposal executes the proposal: the command
+  // text replaces the message and flows through the same deterministic triage
+  // as if the owner had typed it. Anything beyond a plain affirmation ("yes
+  // but drop the listicle") stays a normal message.
+  const message = parsed.data.command && isAffirmation(parsed.data.message)
+    ? parsed.data.command
+    : parsed.data.message;
 
   const sb = await supabaseServer();
   const { data: { user } } = await sb.auth.getUser();
@@ -405,7 +422,7 @@ export async function POST(req: Request) {
       getAgentContext(domain.id).catch(() => ({ plan_md: '', progress_md: '' })),
     ]);
     const question = parseSlash(message)?.rest || message;
-    const { thought, reply } = await answerAssistant({
+    const { thought, reply, proposedCommand } = await answerAssistant({
       hostname: domain.hostname,
       intent,
       message: question,
@@ -413,7 +430,11 @@ export async function POST(req: Request) {
       planMd: contextForPrompt(agentCtx.plan_md, agentCtx.progress_md, 3000),
       history,
     });
-    return ok({ intent, thought, reply, links: linksFor(intent, message) });
+    // Only ship a proposal that would actually trigger an action — anything
+    // that triages back to an answer intent would loop, so it's dropped.
+    const proposal = proposedCommand && ACTION_INTENTS.includes(classifyIntent(proposedCommand))
+      ? proposedCommand : undefined;
+    return ok({ intent, thought, reply, proposal, links: linksFor(intent, message) });
   } catch (err) {
     console.error('[assistant-chat]', err);
     return ok({
