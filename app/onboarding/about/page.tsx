@@ -158,8 +158,8 @@ function AboutInner() {
                     style={{
                       padding: '9px 14px',
                       borderRadius: 10,
-                      border: `1px solid ${selected ? 'rgba(99,194,129,0.5)' : 'rgba(255,255,255,0.1)'}`,
-                      background: selected ? 'rgba(99,194,129,0.12)' : 'rgba(255,255,255,0.02)',
+                      border: `1px solid ${selected ? 'rgba(162,255,1,0.5)' : 'rgba(15,23,18,0.1)'}`,
+                      background: selected ? 'rgba(162,255,1,0.12)' : 'rgba(15,23,18,0.02)',
                       color: selected ? 'var(--gv-ink)' : 'var(--gv-soft)',
                       fontFamily: 'inherit',
                       fontSize: 14,

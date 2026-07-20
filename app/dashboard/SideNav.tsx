@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import Icon from './gv-icons';
 
 const ACCENT = 'var(--gv-accent)';
+const ACCENT_INK = 'var(--gv-accent-ink)';
 
 type Item = { href: string; label: string; icon: string; badgeKey?: string; match: (p: string) => boolean };
 type Section = { head: string; items: Item[] };
@@ -50,12 +51,12 @@ export default function SideNav({ badges = {}, isAdmin = false }: { badges?: Rec
               <Link key={it.href} href={it.href} className="gv-nav"
                 style={{
                   display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left',
-                  border: `1px solid ${active ? 'rgba(99,194,129,0.22)' : 'transparent'}`,
-                  background: active ? 'rgba(99,194,129,0.1)' : 'transparent',
+                  border: `1px solid ${active ? 'rgba(162,255,1,0.22)' : 'transparent'}`,
+                  background: active ? 'rgba(162,255,1,0.1)' : 'transparent',
                   color: active ? 'var(--gv-ink)' : 'var(--gv-dim)',
                   fontSize: 13.5, fontWeight: 500, padding: '9px 12px', borderRadius: 10, cursor: 'pointer',
                 }}>
-                <span className="gv-ico" style={{ color: active ? ACCENT : 'var(--gv-faint)', display: 'flex', flexShrink: 0 }}>
+                <span className="gv-ico" style={{ color: active ? ACCENT_INK : 'var(--gv-faint)', display: 'flex', flexShrink: 0 }}>
                   <Icon name={it.icon} />
                 </span>
                 <span style={{ flex: 1 }}>{it.label}</span>

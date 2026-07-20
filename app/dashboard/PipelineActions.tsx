@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Icon from './gv-icons';
 
 const ACCENT = 'var(--gv-accent)';
+const ACCENT_INK = 'var(--gv-accent-ink)';
 
 export default function PipelineActions({ domainId }: { domainId?: string }) {
   const r = useRouter();
@@ -38,17 +39,17 @@ export default function PipelineActions({ domainId }: { domainId?: string }) {
     setSuggesting(false);
   }
 
-  const ghost: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 6, border: '1px solid rgba(99,194,129,0.25)', background: 'rgba(99,194,129,0.06)', color: ACCENT, fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '11px 15px', borderRadius: 10, cursor: 'pointer', whiteSpace: 'nowrap' };
+  const ghost: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 6, border: '1px solid rgba(162,255,1,0.25)', background: 'rgba(162,255,1,0.06)', color: ACCENT_INK, fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '11px 15px', borderRadius: 10, cursor: 'pointer', whiteSpace: 'nowrap' };
 
   return (
-    <div style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 13, padding: '16px 18px', marginBottom: 12 }}>
+    <div style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 13, padding: '16px 18px', marginBottom: 12 }}>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <input
           value={topic}
           onChange={(e) => setTopic(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && enqueue()}
           placeholder="Add a topic… e.g. 'reduce churn with onboarding nudges'"
-          style={{ flex: '1 1 220px', minWidth: 0, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 10, padding: '11px 14px', color: 'var(--gv-ink)', fontSize: 13.5, fontFamily: 'inherit', outline: 'none' }}
+          style={{ flex: '1 1 220px', minWidth: 0, background: 'rgba(15,23,18,0.03)', border: '1px solid rgba(15,23,18,0.09)', borderRadius: 10, padding: '11px 14px', color: 'var(--gv-ink)', fontSize: 13.5, fontFamily: 'inherit', outline: 'none' }}
         />
         <button onClick={suggest} disabled={suggesting || !domainId} className="gv-ghost" style={ghost}>
           <Icon name="sparkle" size={13} />{suggesting ? 'Thinking…' : 'Suggest'}
@@ -62,7 +63,7 @@ export default function PipelineActions({ domainId }: { domainId?: string }) {
       {open && (
         <div style={{ marginTop: 14 }}>
           <div style={{ fontSize: 10, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--gv-faint)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ color: ACCENT, display: 'flex' }}><Icon name="sparkle" size={13} /></span> Grove suggests · from your strategy &amp; live SERP
+            <span style={{ color: ACCENT_INK, display: 'flex' }}><Icon name="sparkle" size={13} /></span> Grove suggests · from your strategy &amp; live SERP
           </div>
           {suggErr && (
             <p style={{ fontSize: 12, color: 'var(--gv-red-soft)', margin: '0 0 8px' }}>Couldn’t generate suggestions — build the site profile first.</p>
@@ -70,7 +71,7 @@ export default function PipelineActions({ domainId }: { domainId?: string }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {suggestions.map((s, i) => (
               <button key={i} className="gv-sugg" onClick={() => { setTopic(s); setOpen(false); }}
-                style={{ textAlign: 'left', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 9, fontSize: 13, color: 'var(--gv-soft)', cursor: 'pointer', fontFamily: 'inherit', lineHeight: 1.4 }}>
+                style={{ textAlign: 'left', padding: '10px 14px', background: 'rgba(15,23,18,0.02)', border: '1px solid var(--gv-line)', borderRadius: 9, fontSize: 13, color: 'var(--gv-soft)', cursor: 'pointer', fontFamily: 'inherit', lineHeight: 1.4 }}>
                 {s}
               </button>
             ))}
@@ -80,7 +81,7 @@ export default function PipelineActions({ domainId }: { domainId?: string }) {
 
       <div style={{ fontSize: 12, color: 'var(--gv-faint)', marginTop: 12 }}>
         Prefer to write it yourself?{' '}
-        <Link href="/dashboard/write" style={{ color: ACCENT, fontWeight: 600 }}>Open the writing desk →</Link>
+        <Link href="/dashboard/write" style={{ color: ACCENT_INK, fontWeight: 600 }}>Open the writing desk →</Link>
       </div>
     </div>
   );

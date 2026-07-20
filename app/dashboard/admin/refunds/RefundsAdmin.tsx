@@ -3,7 +3,8 @@ import { useState } from 'react';
 import { reasonLabel } from '@/lib/refunds';
 
 const ACCENT = 'var(--gv-accent)';
-const LINE = 'rgba(255,255,255,0.08)';
+const ACCENT_INK = 'var(--gv-accent-ink)';
+const LINE = 'rgba(15,23,18,0.08)';
 
 export type RefundRow = {
   id: string;
@@ -21,11 +22,11 @@ export type RefundRow = {
 };
 
 const STATUS_STYLE: Record<string, { bg: string; fg: string }> = {
-  pending: { bg: 'rgba(217,156,43,0.16)', fg: 'var(--gv-amber)' },
-  refunded: { bg: 'rgba(99,194,129,0.16)', fg: ACCENT },
-  no_charge: { bg: 'rgba(255,255,255,0.06)', fg: 'var(--gv-dim)' },
+  pending: { bg: 'rgba(15,23,18,0.16)', fg: 'var(--gv-amber)' },
+  refunded: { bg: 'rgba(162,255,1,0.16)', fg: ACCENT_INK },
+  no_charge: { bg: 'rgba(15,23,18,0.06)', fg: 'var(--gv-dim)' },
   failed: { bg: 'rgba(255,99,99,0.14)', fg: 'var(--gv-red-text)' },
-  dismissed: { bg: 'rgba(255,255,255,0.05)', fg: 'var(--gv-faint)' },
+  dismissed: { bg: 'rgba(15,23,18,0.05)', fg: 'var(--gv-faint)' },
 };
 
 export default function RefundsAdmin({ initialRows }: { initialRows: RefundRow[] }) {

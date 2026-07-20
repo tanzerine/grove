@@ -6,6 +6,7 @@ import type { BillingInterval, Plan, PlanId } from '@/lib/plans';
 import { ANNUAL_DISCOUNT, formatUsd, monthlyPriceUsd, yearlyPriceUsd } from '@/lib/plans';
 
 const ACCENT = 'var(--gv-accent)';
+const ACCENT_INK = 'var(--gv-accent-ink)';
 
 export default function BillingClient({
   plans,
@@ -80,7 +81,7 @@ export default function BillingClient({
           <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--gv-ink)', letterSpacing: '-0.01em' }}>
             {currentPlan ? plans.find((p) => p.id === currentPlan)?.name : 'No active plan'}
             {status && currentPlan && (
-              <span style={{ fontSize: 11, fontWeight: 600, marginLeft: 10, padding: '3px 9px', borderRadius: 999, background: 'rgba(99,194,129,0.14)', color: ACCENT, verticalAlign: 'middle' }}>
+              <span style={{ fontSize: 11, fontWeight: 600, marginLeft: 10, padding: '3px 9px', borderRadius: 999, background: 'rgba(162,255,1,0.14)', color: ACCENT_INK, verticalAlign: 'middle' }}>
                 {status}
               </span>
             )}
@@ -91,7 +92,7 @@ export default function BillingClient({
         </div>
         {hasCustomer && (
           <button onClick={manage} disabled={busy !== null} className="gv-ghost"
-            style={{ marginLeft: 'auto', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.02)', color: 'var(--gv-soft)', borderRadius: 10, padding: '10px 16px', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ marginLeft: 'auto', border: '1px solid rgba(15,23,18,0.12)', background: 'rgba(15,23,18,0.02)', color: 'var(--gv-soft)', borderRadius: 10, padding: '10px 16px', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             {busy === 'manage' ? 'Opening…' : 'Manage billing'}
           </button>
         )}
@@ -99,7 +100,7 @@ export default function BillingClient({
 
       {/* interval toggle */}
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
-        <div style={{ display: 'inline-flex', padding: 4, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 999, gap: 4 }}>
+        <div style={{ display: 'inline-flex', padding: 4, background: 'rgba(15,23,18,0.03)', border: '1px solid rgba(15,23,18,0.1)', borderRadius: 999, gap: 4 }}>
           {(['month', 'year'] as const).map((iv) => {
             const on = interval === iv;
             return (
@@ -108,7 +109,7 @@ export default function BillingClient({
                   background: on ? 'var(--gv-ink)' : 'transparent', color: on ? 'var(--gv-card)' : 'var(--gv-dim)' }}>
                 {iv === 'month' ? 'Monthly' : 'Annual'}
                 {iv === 'year' && (
-                  <span style={{ fontSize: 11, marginLeft: 6, color: on ? 'var(--gv-card)' : ACCENT, opacity: on ? 0.75 : 1 }}>
+                  <span style={{ fontSize: 11, marginLeft: 6, color: on ? 'var(--gv-card)' : ACCENT_INK, opacity: on ? 0.75 : 1 }}>
                     −{Math.round(ANNUAL_DISCOUNT * 100)}%
                   </span>
                 )}
@@ -125,11 +126,11 @@ export default function BillingClient({
           const isCurrent = p.id === currentPlan && interval === (currentInterval ?? interval);
           return (
             <div key={p.id} className="gv-card"
-              style={{ background: 'var(--gv-card)', border: `1px solid ${isCurrent ? 'rgba(99,194,129,0.45)' : 'rgba(255,255,255,0.08)'}`, borderRadius: 16, padding: '22px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              style={{ background: 'var(--gv-card)', border: `1px solid ${isCurrent ? 'rgba(162,255,1,0.45)' : 'rgba(15,23,18,0.08)'}`, borderRadius: 16, padding: '22px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: 17, fontWeight: 700, color: 'var(--gv-ink)' }}>{p.name}</span>
-                  {isCurrent && <span style={{ fontSize: 10.5, fontWeight: 700, color: ACCENT }}>CURRENT</span>}
+                  {isCurrent && <span style={{ fontSize: 10.5, fontWeight: 700, color: ACCENT_INK }}>CURRENT</span>}
                 </div>
                 <div style={{ marginTop: 8 }}>
                   <span style={{ fontSize: 30, fontWeight: 700, color: 'var(--gv-ink)' }}>${monthlyPriceUsd(p.id, interval)}</span>
@@ -143,13 +144,13 @@ export default function BillingClient({
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {p.features.map((f) => (
                   <li key={f} style={{ fontSize: 13.5, color: 'var(--gv-soft)', display: 'flex', gap: 9 }}>
-                    <span style={{ color: ACCENT }}>✓</span>{f}
+                    <span style={{ color: ACCENT_INK }}>✓</span>{f}
                   </li>
                 ))}
               </ul>
               <button onClick={() => choose(p.id)} disabled={busy !== null || isCurrent}
                 style={{ marginTop: 'auto', borderRadius: 10, padding: '11px 16px', fontSize: 14, fontWeight: 600, cursor: isCurrent ? 'default' : 'pointer', fontFamily: 'inherit', border: 'none',
-                  background: isCurrent ? 'rgba(255,255,255,0.05)' : ACCENT, color: isCurrent ? 'var(--gv-faint)' : 'var(--gv-on-accent)', opacity: busy && busy !== p.id ? 0.6 : 1 }}>
+                  background: isCurrent ? 'rgba(15,23,18,0.05)' : ACCENT, color: isCurrent ? 'var(--gv-faint)' : 'var(--gv-on-accent)', opacity: busy && busy !== p.id ? 0.6 : 1 }}>
                 {isCurrent ? 'Current plan' : busy === p.id ? 'Redirecting…' : currentPlan ? 'Switch to this' : 'Choose plan'}
               </button>
             </div>
@@ -170,9 +171,9 @@ export default function BillingClient({
 
 function Banner({ tone, children }: { tone: 'ok' | 'err' | 'muted'; children: React.ReactNode }) {
   const styles = {
-    ok: { bg: 'rgba(99,194,129,0.1)', bd: 'rgba(99,194,129,0.3)', fg: 'var(--mint)' },
+    ok: { bg: 'rgba(162,255,1,0.1)', bd: 'rgba(162,255,1,0.3)', fg: 'var(--mint)' },
     err: { bg: 'rgba(255,99,99,0.1)', bd: 'rgba(255,99,99,0.3)', fg: 'var(--gv-red-text)' },
-    muted: { bg: 'rgba(255,255,255,0.04)', bd: 'rgba(255,255,255,0.1)', fg: 'var(--gv-soft)' },
+    muted: { bg: 'rgba(15,23,18,0.04)', bd: 'rgba(15,23,18,0.1)', fg: 'var(--gv-soft)' },
   }[tone];
   return (
     <div style={{ background: styles.bg, border: `1px solid ${styles.bd}`, color: styles.fg, borderRadius: 12, padding: '12px 16px', fontSize: 13.5, marginBottom: 18 }}>

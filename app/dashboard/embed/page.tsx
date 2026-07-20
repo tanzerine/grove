@@ -37,7 +37,7 @@ export default async function Page() {
 
       {domain && (
         <div style={{ marginTop: 26, border: '1px solid var(--gv-accent)', borderRadius: 14, padding: '22px 24px', background: 'var(--gv-card)' }}>
-          <div className="mono" style={{ fontSize: 11, color: 'var(--gv-accent)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+          <div className="mono" style={{ fontSize: 11, color: 'var(--gv-accent-ink)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
             1 · Own the SEO — zero code
           </div>
           <div style={{ fontFamily: 'Clash Display', fontSize: 20, marginTop: 4 }}>
@@ -131,7 +131,7 @@ export default async function Page() {
 
       {domain && (
         <div style={{ marginTop: 26, border: '1px solid var(--gv-line)', borderRadius: 14, padding: '22px 24px', background: 'var(--gv-card)' }}>
-          <div className="mono" style={{ fontSize: 11, color: 'var(--gv-accent)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+          <div className="mono" style={{ fontSize: 11, color: 'var(--gv-accent-ink)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
             4 · Theme colors
           </div>
           <div style={{ fontFamily: 'Clash Display', fontSize: 20, marginTop: 4 }}>
@@ -155,7 +155,7 @@ export default async function Page() {
 
       {domain && (
         <div style={{ marginTop: 26, border: '1px solid var(--gv-line)', borderRadius: 14, padding: '22px 24px', background: 'var(--gv-card)' }}>
-          <div className="mono" style={{ fontSize: 11, color: 'var(--gv-accent)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+          <div className="mono" style={{ fontSize: 11, color: 'var(--gv-accent-ink)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
             5 · Banner link
           </div>
           <div style={{ fontFamily: 'Clash Display', fontSize: 20, marginTop: 4 }}>
@@ -190,12 +190,12 @@ function SnippetCard({
   return (
     <div style={{ marginTop: 26, border: '1px solid var(--gv-line)', borderRadius: 14, overflow: 'hidden' }}>
       <div style={{ padding: '18px 22px', background: 'var(--gv-card)', borderBottom: '1px solid var(--gv-line)' }}>
-        <div className="mono" style={{ fontSize: 11, color: 'var(--gv-accent)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{kicker}</div>
+        <div className="mono" style={{ fontSize: 11, color: 'var(--gv-accent-ink)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{kicker}</div>
         <div style={{ fontFamily: 'Clash Display', fontSize: 20, marginTop: 4 }}>{title}</div>
         <p style={{ fontSize: 14, color: 'var(--gv-dim)', margin: '8px 0 0', lineHeight: 1.55 }}>{desc}</p>
       </div>
       {preview && (
-        <div style={{ padding: '22px 22px 6px', background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+        <div style={{ padding: '22px 22px 6px', background: 'rgba(15,23,18,0.03)', borderBottom: '1px solid var(--gv-line)' }}>
           <div className="mono" style={{ fontSize: 10, color: 'var(--gv-dim)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>
             Preview
           </div>
@@ -246,7 +246,7 @@ function WidgetPreview() {
           <div style={{ width: 60, height: 6, borderRadius: 999, background: 'rgba(78,158,106,0.35)', marginBottom: 5 }} />
           <div style={{ width: 92, height: 9, borderRadius: 3, background: 'var(--ink)', opacity: 0.7 }} />
         </div>
-        <div className="mono" style={{ fontSize: 10, color: 'var(--gv-accent)' }}>Read the blog →</div>
+        <div className="mono" style={{ fontSize: 10, color: 'var(--gv-accent-ink)' }}>Read the blog →</div>
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
         <MiniCard /><MiniCard /><MiniCard />
@@ -264,7 +264,7 @@ function BlogPreview() {
       {/* header: title + search pill */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <div style={{ width: 110, height: 10, borderRadius: 3, background: 'var(--ink)', opacity: 0.7 }} />
-        <div style={{ width: 120, height: 20, borderRadius: 999, background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)' }} />
+        <div style={{ width: 120, height: 20, borderRadius: 999, background: 'var(--gv-card)', border: '1px solid var(--gv-line)' }} />
       </div>
       {/* genre chips */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>

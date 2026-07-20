@@ -13,10 +13,13 @@ export type RubricScores = {
   overall?: number | null;
 };
 
-/** Score band colors — single source, same thresholds as PostRow. */
+/** Score band colors — single source, same thresholds as PostRow. Grayscale:
+ *  passing (≥70) reads as significant via --moss (the app's accent-ink
+ *  alias); failing (<40) keeps red as the one non-grey danger signal; the
+ *  middle band is neither, so it's plain grey rather than a diluted hue. */
 export function bandColor(v: number | null | undefined): string {
   if (v == null || !Number.isFinite(v)) return 'var(--clay)';
-  return v >= 70 ? 'var(--moss)' : v >= 40 ? '#E0A040' : '#b04a3b';
+  return v >= 70 ? 'var(--moss)' : v >= 40 ? 'var(--gv-soft)' : 'var(--gv-red-text)';
 }
 
 /* ─────────────────────────── donut ring ─────────────────────────── */

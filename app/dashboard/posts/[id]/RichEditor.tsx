@@ -14,6 +14,7 @@ import { stripLeadingH1, withTitleH1 } from '@/lib/article-body';
 import Icon from '../../gv-icons';
 
 const ACCENT = 'var(--gv-accent)';
+const ACCENT_INK = 'var(--gv-accent-ink)';
 
 type Props = {
   postId: string | null;         // null = a brand-new blank draft, created on first save
@@ -267,9 +268,9 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
         )}
         {editing && (
           <>
-            <span style={{ fontSize: 12, color: ACCENT, fontWeight: 600 }}>Editing</span>
+            <span style={{ fontSize: 12, color: ACCENT_INK, fontWeight: 600 }}>Editing</span>
             {(dirty || metaDirty) && <span style={{ fontSize: 11, color: 'var(--gv-amber)' }}>● unsaved</span>}
-            {saved && <span style={{ fontSize: 11, color: ACCENT }}>✓ saved</span>}
+            {saved && <span style={{ fontSize: 11, color: ACCENT_INK }}>✓ saved</span>}
           </>
         )}
         <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--gv-faint)', fontVariantNumeric: 'tabular-nums' }}>{wordCount.toLocaleString()} words · {Math.max(1, Math.round(wordCount / 230))} min read</span>
@@ -303,7 +304,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
             <FmtBtn on={editor.isActive('bulletList')} onClick={() => editor.chain().focus().toggleBulletList().run()}>•</FmtBtn>
             <FmtBtn on={editor.isActive('orderedList')} onClick={() => editor.chain().focus().toggleOrderedList().run()}>1.</FmtBtn>
             <FmtBtn on={editor.isActive('link')} onClick={setLink}>link</FmtBtn>
-            <span style={{ width: 1, background: 'rgba(255,255,255,0.22)', margin: '2px 3px' }} />
+            <span style={{ width: 1, background: 'rgba(15,23,18,0.22)', margin: '2px 3px' }} />
             <FmtBtn onClick={() => { promptRef.current?.focus(); }}>✨ AI</FmtBtn>
           </div>
         </BubbleMenu>
@@ -317,7 +318,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
           <div style={{ maxWidth: 820, margin: '0 auto' }}>
             {/* persistent formatting toolbar */}
             {canEdit && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', padding: '8px 10px', marginBottom: 18, border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, background: 'rgba(255,255,255,0.015)', position: 'sticky', top: 64, zIndex: 10, backdropFilter: 'blur(10px)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', padding: '8px 10px', marginBottom: 18, border: '1px solid var(--gv-line)', borderRadius: 12, background: 'rgba(15,23,18,0.015)', position: 'sticky', top: 64, zIndex: 10, backdropFilter: 'blur(10px)' }}>
                 <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--gv-dim)', padding: '0 8px' }}>Paragraph</span>
                 <span style={tbDivider} />
                 <ToolBtn on={editor?.isActive('bold')} onClick={() => editor?.chain().focus().toggleBold().run()} serif>B</ToolBtn>
@@ -327,7 +328,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
                 <ToolBtn on={editor?.isActive('orderedList')} onClick={() => editor?.chain().focus().toggleOrderedList().run()}>1.</ToolBtn>
                 <ToolBtn on={editor?.isActive('link')} onClick={setLink}><Icon name="link" size={15} /></ToolBtn>
                 <span style={{ flex: 1 }} />
-                <button onClick={() => promptRef.current?.focus()} className="gv-btn" style={{ display: 'flex', alignItems: 'center', gap: 7, height: 30, padding: '0 13px', borderRadius: 8, border: 'none', background: 'rgba(99,194,129,0.14)', color: ACCENT, fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>
+                <button onClick={() => promptRef.current?.focus()} className="gv-btn" style={{ display: 'flex', alignItems: 'center', gap: 7, height: 30, padding: '0 13px', borderRadius: 8, border: 'none', background: 'rgba(162,255,1,0.14)', color: ACCENT_INK, fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>
                   <Icon name="sparkle" size={13} /> Ask grove
                 </button>
               </div>
@@ -339,7 +340,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
               onClick={enterEdit}
               style={{
                 background: '#0d100c',
-                border: `1px solid ${editing ? 'rgba(99,194,129,0.4)' : 'rgba(255,255,255,0.06)'}`,
+                border: `1px solid ${editing ? 'rgba(162,255,1,0.4)' : 'rgba(15,23,18,0.06)'}`,
                 borderRadius: 18, padding: '48px 56px 54px', transition: 'border-color .15s',
                 cursor: canEdit && !editing ? 'text' : 'default',
               }}
@@ -369,14 +370,14 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
                 <button
                   onClick={() => setSeoOpen((o) => !o)}
                   className="gv-tool"
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', marginTop: 14, border: '1px solid rgba(255,255,255,0.07)', background: 'var(--gv-card)', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '13px 18px', borderRadius: seoOpen ? '12px 12px 0 0' : 12, cursor: 'pointer', textAlign: 'left' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', marginTop: 14, border: '1px solid var(--gv-line)', background: 'var(--gv-card)', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '13px 18px', borderRadius: seoOpen ? '12px 12px 0 0' : 12, cursor: 'pointer', textAlign: 'left' }}
                 >
                   <span style={{ display: 'flex', transform: seoOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform .2s' }}><Icon name="chevron" size={14} /></span>
                   Title &amp; SEO
                   {metaDirty && <span style={{ color: 'var(--gv-amber)', fontSize: 11, fontWeight: 500 }}>● unsaved</span>}
                 </button>
                 {seoOpen && (
-                  <div style={{ border: '1px solid rgba(255,255,255,0.07)', borderTop: 'none', borderRadius: '0 0 12px 12px', background: '#0d100c', padding: 18, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div style={{ border: '1px solid var(--gv-line)', borderTop: 'none', borderRadius: '0 0 12px 12px', background: '#0d100c', padding: 18, display: 'flex', flexDirection: 'column', gap: 14 }}>
                     <label style={lbl}>Meta title <span style={{ color: metaTitle.length > 60 ? 'var(--gv-red)' : 'var(--gv-dim)' }}>({metaTitle.length}/60)</span></label>
                     <input value={metaTitle} onChange={(e) => setMetaTitle(e.target.value)} maxLength={80} className="gv-prompt" style={inp} />
                     <label style={lbl}>Meta description <span style={{ color: metaDesc.length > 155 ? 'var(--gv-red)' : 'var(--gv-dim)' }}>({metaDesc.length}/155)</span></label>
@@ -397,13 +398,13 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
         {showRail && (
           <aside className="gv-rail" style={{ position: 'sticky', top: 78, display: 'flex', flexDirection: 'column', gap: 14 }}>
             {railExtra}
-            <div style={{ background: 'var(--gv-card-grad)', border: '1px solid rgba(99,194,129,0.2)', borderRadius: 18, padding: '18px 18px 16px' }}>
+            <div style={{ background: 'var(--gv-card-grad)', border: '1px solid rgba(162,255,1,0.2)', borderRadius: 18, padding: '18px 18px 16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 13 }}>
-                <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(99,194,129,0.14)', border: '1px solid rgba(99,194,129,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: ACCENT }}><Icon name="sparkle" size={15} /></span>
+                <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(162,255,1,0.14)', border: '1px solid rgba(162,255,1,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: ACCENT_INK }}><Icon name="sparkle" size={15} /></span>
                 <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--gv-ink)' }}>grove assist</span>
                 <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--gv-dim)' }}>{pendingCount} suggestion{pendingCount === 1 ? '' : 's'}</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '8px 8px 8px 14px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, background: 'rgba(15,23,18,0.03)', border: '1px solid rgba(15,23,18,0.1)', borderRadius: 12, padding: '8px 8px 8px 14px' }}>
                 <input
                   ref={promptRef}
                   className="gv-prompt"
@@ -417,7 +418,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 11 }}>
                 {CHIPS.map((label) => (
-                  <button key={label} onClick={() => askGrove(label)} className="gv-chip" style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--gv-dim)', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 999, padding: '5px 11px', cursor: 'pointer', fontFamily: 'inherit' }}>{label}</button>
+                  <button key={label} onClick={() => askGrove(label)} className="gv-chip" style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--gv-dim)', background: 'rgba(15,23,18,0.03)', border: '1px solid rgba(15,23,18,0.09)', borderRadius: 999, padding: '5px 11px', cursor: 'pointer', fontFamily: 'inherit' }}>{label}</button>
                 ))}
               </div>
             </div>
@@ -428,9 +429,9 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
                 {cards.map((c) => {
                   const resolved = c.status === 'applied' || c.status === 'dismissed';
                   return (
-                    <div key={c.id} style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '14px 15px', opacity: resolved ? 0.6 : 1 }}>
+                    <div key={c.id} style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 14, padding: '14px 15px', opacity: resolved ? 0.6 : 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 9 }}>
-                        <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: ACCENT, background: 'rgba(99,194,129,0.12)', borderRadius: 5, padding: '3px 7px' }}>Ask grove</span>
+                        <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: ACCENT_INK, background: 'rgba(162,255,1,0.12)', borderRadius: 5, padding: '3px 7px' }}>Ask grove</span>
                         <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--gv-soft)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.label}</span>
                       </div>
 
@@ -453,13 +454,13 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
                           <div style={{ fontFamily: "'Newsreader', Georgia, serif", fontSize: 14.5, lineHeight: 1.55, color: '#d4dacd' }}>{c.suggested}</div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 12 }}>
                             <button onClick={() => applyCard(c)} className="gv-btn" style={{ display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: '7px 13px', borderRadius: 8, cursor: 'pointer' }}><Icon name="check" size={13} /> Apply</button>
-                            <button onClick={() => dismissCard(c.id)} className="gv-ghost" style={{ border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: 'var(--gv-dim)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '7px 13px', borderRadius: 8, cursor: 'pointer' }}>Dismiss</button>
+                            <button onClick={() => dismissCard(c.id)} className="gv-ghost" style={{ border: '1px solid rgba(15,23,18,0.12)', background: 'transparent', color: 'var(--gv-dim)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '7px 13px', borderRadius: 8, cursor: 'pointer' }}>Dismiss</button>
                           </div>
                         </div>
                       )}
 
                       {resolved && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: c.status === 'applied' ? ACCENT : 'var(--gv-faint)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: c.status === 'applied' ? ACCENT_INK : 'var(--gv-faint)' }}>
                           <span style={{ display: 'flex' }}><Icon name={c.status === 'applied' ? 'check' : 'x'} size={13} /></span>
                           {c.status === 'applied' ? 'Applied to draft' : 'Dismissed'}
                         </div>
@@ -495,8 +496,8 @@ function ToolBtn({ children, on, onClick, serif, italic }: { children: React.Rea
     <button onMouseDown={(e) => { e.preventDefault(); onClick(); }} className="gv-tool"
       style={{
         width: 32, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        borderRadius: 8, border: `1px solid ${on ? 'rgba(99,194,129,0.3)' : 'rgba(255,255,255,0.08)'}`,
-        background: on ? 'rgba(99,194,129,0.14)' : 'transparent', color: on ? ACCENT : 'var(--gv-soft)',
+        borderRadius: 8, border: `1px solid ${on ? 'rgba(162,255,1,0.3)' : 'rgba(15,23,18,0.08)'}`,
+        background: on ? 'rgba(162,255,1,0.14)' : 'transparent', color: on ? ACCENT_INK : 'var(--gv-soft)',
         fontFamily: serif ? "'Newsreader', Georgia, serif" : 'inherit', fontStyle: italic ? 'italic' : 'normal',
         fontWeight: serif ? 700 : 500, fontSize: serif ? 15 : 13, lineHeight: 1, cursor: 'pointer',
       }}>
@@ -506,7 +507,7 @@ function ToolBtn({ children, on, onClick, serif, italic }: { children: React.Rea
 }
 
 const hintBtn: React.CSSProperties = {
-  background: 'none', border: 'none', color: ACCENT, fontSize: 12,
+  background: 'none', border: 'none', color: ACCENT_INK, fontSize: 12,
   cursor: 'pointer', fontFamily: 'inherit', padding: 0,
 };
 const primaryBtn: React.CSSProperties = {
@@ -514,19 +515,19 @@ const primaryBtn: React.CSSProperties = {
   fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, padding: '8px 14px', borderRadius: 9, cursor: 'pointer',
 };
 const ghostBtn: React.CSSProperties = {
-  border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)', color: 'var(--gv-soft)',
+  border: '1px solid rgba(15,23,18,0.1)', background: 'rgba(15,23,18,0.02)', color: 'var(--gv-soft)',
   fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '8px 13px', borderRadius: 9, cursor: 'pointer',
 };
-const tbDivider: React.CSSProperties = { width: 1, height: 18, background: 'rgba(255,255,255,0.08)', margin: '0 2px' };
+const tbDivider: React.CSSProperties = { width: 1, height: 18, background: 'rgba(15,23,18,0.08)', margin: '0 2px' };
 const bubbleBar: React.CSSProperties = {
-  display: 'flex', gap: 2, background: 'var(--gv-pop)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 4,
+  display: 'flex', gap: 2, background: 'var(--gv-pop)', border: '1px solid rgba(15,23,18,0.1)', borderRadius: 8, padding: 4,
   boxShadow: '0 6px 20px rgba(0,0,0,0.5)',
 };
 const lbl: React.CSSProperties = {
   fontSize: 12, fontWeight: 600, color: 'var(--gv-dim)', textTransform: 'uppercase', letterSpacing: '0.06em',
 };
 const inp: React.CSSProperties = {
-  width: '100%', padding: '10px 14px', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 8,
+  width: '100%', padding: '10px 14px', border: '1px solid rgba(15,23,18,0.09)', borderRadius: 8,
   fontSize: 14, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', resize: 'vertical',
-  color: 'var(--gv-ink)', background: 'rgba(255,255,255,0.04)',
+  color: 'var(--gv-ink)', background: 'rgba(15,23,18,0.04)',
 };

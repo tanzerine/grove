@@ -17,9 +17,11 @@ const STEP_LABELS: Record<string, string> = {
 const IN_FLIGHT = new Set(['queued', 'researching', 'writing']);
 
 function eventDot(event: string) {
-  if (event === 'done') return { color: 'var(--gv-accent)', icon: '✓' };
+  if (event === 'done') return { color: 'var(--gv-accent-ink)', icon: '✓' };
   if (event === 'fail') return { color: 'var(--gv-red)', icon: '✗' };
-  return { color: '#d99c2b', icon: '●' };
+  // In-progress steps stay grey — matches OverviewPipeline, where "writing"
+  // is secondary (var(--gv-soft)) and only done/live states get the accent.
+  return { color: 'var(--gv-soft)', icon: '●' };
 }
 
 
@@ -48,7 +50,7 @@ export default function PipelineTimeline({ log, status }: { log: LogEntry[]; sta
   const first = items[0]?.ts ?? Date.now();
 
   return (
-    <div style={{ background: 'var(--gv-card)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.07)', overflow: 'hidden' }}>
+    <div style={{ background: 'var(--gv-card)', borderRadius: 12, border: '1px solid var(--gv-line)', overflow: 'hidden' }}>
 
         {/* ── Header / toggle ── */}
         <button
@@ -60,10 +62,10 @@ export default function PipelineTimeline({ log, status }: { log: LogEntry[]; sta
             cursor: 'pointer', textAlign: 'left', gap: 8,
           }}
         >
-          <span className="mono" style={{ fontSize: 11, color: 'var(--gv-accent)', letterSpacing: '0.08em', textTransform: 'uppercase', flex: 1 }}>
+          <span className="mono" style={{ fontSize: 11, color: 'var(--gv-accent-ink)', letterSpacing: '0.08em', textTransform: 'uppercase', flex: 1 }}>
             Pipeline timeline
             {isLive && (
-              <span className="grove-live-dot" style={{ marginLeft: 8, color: '#d99c2b' }}>● live</span>
+              <span className="grove-live-dot" style={{ marginLeft: 8, color: 'var(--gv-soft)' }}>● live</span>
             )}
           </span>
           <span className="mono" style={{ fontSize: 11, color: 'var(--gv-dim)', marginRight: 6 }}>

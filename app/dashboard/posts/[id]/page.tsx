@@ -18,6 +18,7 @@ import { DashHeader } from '../../gv-chrome';
 import { PLATFORMS } from '@/lib/social/providers';
 
 const ACCENT = 'var(--gv-accent)';
+const ACCENT_INK = 'var(--gv-accent-ink)';
 
 export default async function PostPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -86,12 +87,12 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
   const unusual = (managerOverall !== null && managerOverall < 70) || hasBlockingIssues || !!(readiness && readiness.checks.some((c) => !c.ok));
 
   const statusMeta: Record<string, { label: string; color: string; bg: string; border: string }> = {
-    review: { label: 'In review', color: 'var(--gv-amber)', bg: 'rgba(224,200,120,0.08)', border: 'rgba(224,200,120,0.24)' },
-    scheduled: { label: 'Scheduled', color: 'var(--gv-sky)', bg: 'rgba(127,182,230,0.08)', border: 'rgba(127,182,230,0.24)' },
-    published: { label: 'Live', color: ACCENT, bg: 'rgba(99,194,129,0.08)', border: 'rgba(99,194,129,0.24)' },
+    review: { label: 'In review', color: 'var(--gv-amber)', bg: 'rgba(15,23,18,0.08)', border: 'rgba(15,23,18,0.24)' },
+    scheduled: { label: 'Scheduled', color: 'var(--gv-sky)', bg: 'rgba(15,23,18,0.08)', border: 'rgba(15,23,18,0.24)' },
+    published: { label: 'Live', color: ACCENT_INK, bg: 'rgba(162,255,1,0.08)', border: 'rgba(162,255,1,0.24)' },
     failed: { label: 'Failed', color: 'var(--gv-red)', bg: 'rgba(201,127,127,0.08)', border: 'rgba(201,127,127,0.24)' },
   };
-  const sm = statusMeta[p.status] ?? { label: p.status, color: 'var(--gv-dim)', bg: 'rgba(255,255,255,0.03)', border: 'rgba(255,255,255,0.1)' };
+  const sm = statusMeta[p.status] ?? { label: p.status, color: 'var(--gv-dim)', bg: 'rgba(15,23,18,0.03)', border: 'rgba(15,23,18,0.1)' };
   const editable = ['review', 'scheduled', 'published'].includes(p.status);
 
   return (
@@ -129,7 +130,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
           {p.scheduled_at && (
             <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.2 }}>
               <span style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>Planned for</span>
-              <span style={{ fontSize: 13, fontWeight: 700, color: ACCENT }}><LocalTime iso={p.scheduled_at} /></span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: ACCENT_INK }}><LocalTime iso={p.scheduled_at} /></span>
             </div>
           )}
         </div>
@@ -148,7 +149,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
               {validation?.stats && p.body_md && <AeoCard report={scoreAeo(validation.stats)} />}
               {hasSerp && <SerpCard subtopics={serp.subtopics as string[]} body={p.body_md!} />}
               {sources.length > 0 && <SourcesCard sources={sources} />}
-              <div style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 22px' }}>
+              <div style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '20px 22px' }}>
                 <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-faint)', marginBottom: 14 }}>Pipeline timeline</div>
                 <PipelineTimeline log={(p.generation_log ?? []) as any} status={p.status} />
               </div>
@@ -193,7 +194,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
         ) : (
           /* ===== not yet editable: reading surface + review rail ===== */
           <div className="gv-2col-rail" style={{ display: 'grid', gridTemplateColumns: '1fr 372px', gap: 22, alignItems: 'start', marginTop: 22 }}>
-            <div className="gv-canvas-prose" style={{ background: '#0e110d', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, overflow: 'hidden' }}>
+            <div className="gv-canvas-prose" style={{ background: '#0e110d', border: '1px solid var(--gv-line)', borderRadius: 18, overflow: 'hidden' }}>
               {p.body_md && bodyHtml ? (
                 <div className="article-surface">
                   <h1 className="gv-canvas-title">{p.title ?? p.topic ?? '(no title)'}</h1>
@@ -211,7 +212,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
               {evals && evals.length > 0 && <ManagerCard evals={evals as any} />}
               {validation?.stats && p.body_md && <AeoCard report={scoreAeo(validation.stats)} />}
               {hasSerp && <SerpCard subtopics={serp.subtopics as string[]} body={p.body_md!} />}
-              <div style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 22px' }}>
+              <div style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '20px 22px' }}>
                 <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-faint)', marginBottom: 14 }}>Pipeline timeline</div>
                 <PipelineTimeline log={(p.generation_log ?? []) as any} status={p.status} />
               </div>
@@ -226,27 +227,27 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
 /* ---------- dark rail cards ---------- */
 
 function card(extra: React.CSSProperties = {}): React.CSSProperties {
-  return { background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 22px', ...extra };
+  return { background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '20px 22px', ...extra };
 }
 
 function ReadinessCard({ r }: { r: Readiness }) {
   return (
-    <div className="gv-card" style={{ background: 'var(--gv-card-grad)', border: '1px solid rgba(99,194,129,0.2)', borderRadius: 18, padding: '20px 22px' }}>
+    <div className="gv-card" style={{ background: 'var(--gv-card-grad)', border: '1px solid rgba(162,255,1,0.2)', borderRadius: 18, padding: '20px 22px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-        <span style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(99,194,129,0.14)', border: '1px solid rgba(99,194,129,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: ACCENT, flexShrink: 0 }}><Icon name="check" size={16} /></span>
+        <span style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(162,255,1,0.14)', border: '1px solid rgba(162,255,1,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: ACCENT_INK, flexShrink: 0 }}><Icon name="check" size={16} /></span>
         <div style={{ fontFamily: "'Newsreader', Georgia, serif", fontSize: 20, fontWeight: 500, color: 'var(--gv-ink)', lineHeight: 1.2 }}>{r.headline}</div>
       </div>
       <p style={{ fontSize: 12.5, color: 'var(--gv-dim)', lineHeight: 1.55, margin: '13px 0 15px' }}>Built to rank on Google and get quoted by AI — written in your voice.</p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
         {r.checks.map((c) => (
           <div key={c.label} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13 }}>
-            <span style={{ color: c.ok ? ACCENT : 'var(--gv-faint)', display: 'flex' }}>{c.ok ? <Icon name="check" size={15} /> : <span style={{ width: 9, height: 9, borderRadius: '50%', border: '1.5px solid var(--gv-fainter)', display: 'inline-block' }} />}</span>
+            <span style={{ color: c.ok ? ACCENT_INK : 'var(--gv-faint)', display: 'flex' }}>{c.ok ? <Icon name="check" size={15} /> : <span style={{ width: 9, height: 9, borderRadius: '50%', border: '1.5px solid var(--gv-fainter)', display: 'inline-block' }} />}</span>
             <span style={{ color: c.ok ? 'var(--gv-soft)' : 'var(--gv-faint)' }}>{c.label}</span>
           </div>
         ))}
       </div>
       {r.notes.length > 0 && (
-        <div style={{ marginTop: 14, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 12 }}>
+        <div style={{ marginTop: 14, borderTop: '1px solid rgba(15,23,18,0.06)', paddingTop: 12 }}>
           <div style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 7 }}>Worth a look</div>
           <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: 'var(--gv-soft)', lineHeight: 1.65 }}>
             {r.notes.map((t, i) => <li key={i}>{t}</li>)}
@@ -265,7 +266,7 @@ function ManagerCard({ evals }: { evals: EvalRow[] }) {
   const latest = evals[evals.length - 1];
   const overall = Number(latest.scores?.overall ?? 0);
   const actionLabel: Record<string, { text: string; color: string }> = {
-    approve: { text: 'Approved by the manager agent', color: ACCENT },
+    approve: { text: 'Approved by the manager agent', color: ACCENT_INK },
     rewrite: { text: 'Sent back for rewrite', color: 'var(--gv-amber)' },
     reject: { text: 'Rejected — routed to your review', color: 'var(--gv-red)' },
   };
@@ -278,11 +279,11 @@ function ManagerCard({ evals }: { evals: EvalRow[] }) {
         <ScoreRing value={overall} />
         <RubricBars scores={latest.scores} />
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: act.color, marginTop: 16, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 13 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: act.color, marginTop: 16, borderTop: '1px solid rgba(15,23,18,0.06)', paddingTop: 13 }}>
         <span style={{ width: 7, height: 7, borderRadius: '50%', background: act.color }} />{act.text}
       </div>
       {issues.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 13, paddingTop: 13, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 13, paddingTop: 13, borderTop: '1px solid rgba(15,23,18,0.06)' }}>
           {issues.slice(0, 6).map((i, idx) => (
             <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 12 }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: SEV_DOT[i.severity] ?? ACCENT, flexShrink: 0 }} />
@@ -306,7 +307,7 @@ function AeoCard({ report }: { report: ReturnType<typeof scoreAeo> }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {report.checks.map((c) => (
           <div key={c.label} style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 12.5 }}>
-            <span style={{ color: c.ok ? ACCENT : 'var(--gv-fainter)', display: 'flex', flexShrink: 0 }}>{c.ok ? <Icon name="check" size={14} /> : <span style={{ width: 9, height: 9, borderRadius: '50%', border: '1.5px solid var(--gv-fainter)', display: 'inline-block' }} />}</span>
+            <span style={{ color: c.ok ? ACCENT_INK : 'var(--gv-fainter)', display: 'flex', flexShrink: 0 }}>{c.ok ? <Icon name="check" size={14} /> : <span style={{ width: 9, height: 9, borderRadius: '50%', border: '1.5px solid var(--gv-fainter)', display: 'inline-block' }} />}</span>
             <span style={{ color: c.ok ? 'var(--gv-soft)' : 'var(--gv-faint)', flex: 1 }}>{c.label}</span>
             <span style={{ fontSize: 10.5, color: 'var(--gv-fainter)', fontFamily: 'ui-monospace, monospace' }}>{c.detail}</span>
           </div>
@@ -326,7 +327,7 @@ function SerpCard({ subtopics, body }: { subtopics: string[]; body: string }) {
         {subtopics.map((s) => {
           const gap = missing.has(s.toLowerCase());
           return (
-            <span key={s} className="gv-chip" style={{ fontSize: 12, padding: '5px 11px', borderRadius: 999, background: gap ? 'rgba(201,127,127,0.08)' : 'rgba(99,194,129,0.08)', color: gap ? 'var(--gv-red-soft)' : ACCENT, border: `1px solid ${gap ? 'rgba(201,127,127,0.26)' : 'rgba(99,194,129,0.24)'}` }}>
+            <span key={s} className="gv-chip" style={{ fontSize: 12, padding: '5px 11px', borderRadius: 999, background: gap ? 'rgba(201,127,127,0.08)' : 'rgba(162,255,1,0.08)', color: gap ? 'var(--gv-red-soft)' : ACCENT_INK, border: `1px solid ${gap ? 'rgba(201,127,127,0.26)' : 'rgba(162,255,1,0.24)'}` }}>
               {gap ? '+ ' : '✓ '}{s}
             </span>
           );

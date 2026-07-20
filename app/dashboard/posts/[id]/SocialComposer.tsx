@@ -161,7 +161,7 @@ export default function SocialComposer({
     }
   }
 
-  const ghost: React.CSSProperties = { border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.02)', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '7px 13px', borderRadius: 8, cursor: 'pointer' };
+  const ghost: React.CSSProperties = { border: '1px solid rgba(15,23,18,0.12)', background: 'rgba(15,23,18,0.02)', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '7px 13px', borderRadius: 8, cursor: 'pointer' };
   const primary: React.CSSProperties = { ...ghost, border: 'none', background: 'var(--gv-accent)', color: 'var(--gv-on-accent)', fontWeight: 700 };
 
   const draftedCount = (['x', 'linkedin', 'instagram'] as ChannelKey[]).filter((k) => (drafts[k] ?? '').trim()).length;
@@ -204,7 +204,7 @@ export default function SocialComposer({
       </div>
 
       {note && (
-        <div style={{ marginBottom: 12, fontSize: 12.5, borderRadius: 10, padding: '9px 13px', background: note.ok ? 'rgba(99,194,129,0.08)' : 'rgba(201,127,127,0.08)', border: `1px solid ${note.ok ? 'rgba(99,194,129,0.24)' : 'rgba(201,127,127,0.3)'}`, color: note.ok ? 'var(--gv-accent)' : 'var(--gv-red-soft)' }}>
+        <div style={{ marginBottom: 12, fontSize: 12.5, borderRadius: 10, padding: '9px 13px', background: note.ok ? 'rgba(162,255,1,0.08)' : 'rgba(201,127,127,0.08)', border: `1px solid ${note.ok ? 'rgba(162,255,1,0.24)' : 'rgba(201,127,127,0.3)'}`, color: note.ok ? 'var(--gv-accent)' : 'var(--gv-red-soft)' }}>
           {note.text}
         </div>
       )}
@@ -217,7 +217,7 @@ export default function SocialComposer({
       ) : (
         <>
           {/* channel tabs */}
-          <div style={{ display: 'flex', gap: 4, padding: 3, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, marginBottom: 14, width: 'fit-content', maxWidth: '100%', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 4, padding: 3, background: 'rgba(15,23,18,0.03)', border: '1px solid var(--gv-line)', borderRadius: 10, marginBottom: 14, width: 'fit-content', maxWidth: '100%', flexWrap: 'wrap' }}>
             {platforms.map((pf) => {
               const on = tab === pf.id;
               const dot = tabDot(pf.id);
@@ -277,7 +277,7 @@ function ToggleSwitch({ on, disabled, onClick }: { on: boolean; disabled?: boole
       style={{
         width: 34, height: 20, borderRadius: 999, border: 'none', position: 'relative', flexShrink: 0,
         cursor: disabled ? 'not-allowed' : 'pointer',
-        background: on ? 'var(--gv-accent)' : 'rgba(255,255,255,0.14)',
+        background: on ? 'var(--gv-accent)' : 'rgba(15,23,18,0.14)',
         transition: 'background .15s', opacity: disabled ? 0.5 : 1, padding: 0,
       }}
     >
@@ -297,9 +297,9 @@ function StatusChip({ record, xId }: { record?: PublishRecord; xId?: string }) {
   if (record.dry_run) return <span style={{ fontSize: 11, color: 'var(--gv-amber)' }}>dry run</span>;
   if (record.id || record.status) {
     return (
-      <span style={{ fontSize: 11, color: 'var(--gv-accent)' }}>
+      <span style={{ fontSize: 11, color: 'var(--gv-accent-ink)' }}>
         posted{record.at ? ` · ${new Date(record.at).toLocaleDateString()}` : ''}
-        {xId && <> · <a href={`https://x.com/i/web/status/${xId}`} target="_blank" rel="noreferrer" style={{ color: 'var(--gv-accent)' }}>view</a></>}
+        {xId && <> · <a href={`https://x.com/i/web/status/${xId}`} target="_blank" rel="noreferrer" style={{ color: 'var(--gv-accent-ink)' }}>view</a></>}
       </span>
     );
   }
@@ -321,7 +321,7 @@ function Channel({
   const postHint = !pf.connected ? 'Not connected' : null;
 
   return (
-    <div style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '18px 22px 16px', opacity: pf.connected && !autoOn && !published ? 0.75 : 1 }}>
+    <div style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 14, padding: '18px 22px 16px', opacity: pf.connected && !autoOn && !published ? 0.75 : 1 }}>
       {/* meta line */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap', fontSize: 11.5, color: 'var(--gv-faint)' }}>
         <span>
@@ -345,7 +345,7 @@ function Channel({
         onChange={(e) => onChange(e.target.value)}
         rows={Math.min(12, Math.max(4, value.split('\n').length + 1))}
         spellCheck={false}
-        style={{ width: '100%', resize: 'vertical', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '12px 14px', fontFamily: 'inherit', fontSize: 13.5, lineHeight: 1.7, color: '#dfe4da' }}
+        style={{ width: '100%', resize: 'vertical', background: 'rgba(15,23,18,0.02)', border: '1px solid rgba(15,23,18,0.08)', borderRadius: 10, padding: '12px 14px', fontFamily: 'inherit', fontSize: 13.5, lineHeight: 1.7, color: '#dfe4da' }}
       />
 
       {/* footer: hint + channel controls */}
@@ -369,7 +369,7 @@ function Channel({
             className="gv-ghost"
             onClick={onPost}
             disabled={!!busy}
-            style={{ border: '1px solid rgba(99,194,129,0.3)', background: 'rgba(99,194,129,0.08)', color: 'var(--gv-accent)', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, padding: '6px 12px', borderRadius: 8, cursor: 'pointer' }}
+            style={{ border: '1px solid rgba(162,255,1,0.3)', background: 'rgba(162,255,1,0.08)', color: 'var(--gv-accent-ink)', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, padding: '6px 12px', borderRadius: 8, cursor: 'pointer' }}
           >
             {busy === pf.id ? 'Posting…' : record?.error ? 'Retry' : 'Post now'}
           </button>
@@ -385,7 +385,7 @@ function Channel({
 function WebhookPanel({ record, published, busy, onSend }: { record?: PublishRecord; published: boolean; busy: string | null; onSend: () => void }) {
   const delivered = !!record?.status && !record.error;
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '18px 22px' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 14, padding: '18px 22px' }}>
       <span style={{ fontSize: 12.5, color: 'var(--gv-dim)' }}>Sends URL, cover, and every channel’s copy to your endpoint.</span>
       <StatusChip record={record} />
       <div style={{ marginLeft: 'auto' }}>
@@ -394,7 +394,7 @@ function WebhookPanel({ record, published, busy, onSend }: { record?: PublishRec
             className="gv-ghost"
             onClick={onSend}
             disabled={!!busy}
-            style={{ border: '1px solid rgba(99,194,129,0.3)', background: 'rgba(99,194,129,0.08)', color: 'var(--gv-accent)', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, padding: '6px 12px', borderRadius: 8, cursor: 'pointer' }}
+            style={{ border: '1px solid rgba(162,255,1,0.3)', background: 'rgba(162,255,1,0.08)', color: 'var(--gv-accent-ink)', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, padding: '6px 12px', borderRadius: 8, cursor: 'pointer' }}
           >
             {busy === 'webhook' ? 'Sending…' : record?.error ? 'Retry' : 'Send'}
           </button>

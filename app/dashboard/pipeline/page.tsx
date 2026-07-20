@@ -8,6 +8,7 @@ import Icon from '../gv-icons';
 import { DashHeader } from '../gv-chrome';
 
 const ACCENT = 'var(--gv-accent)';
+const ACCENT_INK = 'var(--gv-accent-ink)';
 const band = (s: number) => (s >= 70 ? ACCENT : s >= 40 ? 'var(--gv-amber)' : 'var(--gv-red)');
 
 export default async function Page() {
@@ -50,10 +51,10 @@ export default async function Page() {
   const STUCK_MIN = 3;
   const isStuck = (p: any) => ['queued', 'researching', 'writing'].includes(p.status) && (Date.now() - new Date(p.created_at).getTime()) / 60000 > STUCK_MIN;
   const groupsDef = [
-    { key: 'flight', label: 'In flight', color: ACCENT, test: (p: any) => ['queued', 'researching', 'writing'].includes(p.status) && !isStuck(p) },
+    { key: 'flight', label: 'In flight', color: ACCENT_INK, test: (p: any) => ['queued', 'researching', 'writing'].includes(p.status) && !isStuck(p) },
     { key: 'review', label: 'Needs your review', color: 'var(--gv-amber)', test: (p: any) => p.status === 'review' },
     { key: 'scheduled', label: 'Scheduled', color: 'var(--gv-dim)', test: (p: any) => p.status === 'scheduled' },
-    { key: 'live', label: 'Published', color: ACCENT, test: (p: any) => p.status === 'published' },
+    { key: 'live', label: 'Published', color: ACCENT_INK, test: (p: any) => p.status === 'published' },
     { key: 'failed', label: 'Needs attention', color: 'var(--gv-red)', test: (p: any) => p.status === 'failed' || isStuck(p) },
   ];
   const groups = groupsDef.map((g) => ({ ...g, items: (posts ?? []).filter(g.test) })).filter((g) => g.items.length);
@@ -95,11 +96,11 @@ export default async function Page() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 14, marginBottom: 16, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.2 }}>
             <span style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>Next publish</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: ACCENT }}>{countdown}</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: ACCENT_INK }}>{countdown}</span>
           </div>
         </div>
         {domain && !domain.verified_at && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', background: 'rgba(224,200,120,0.06)', border: '1px solid rgba(224,200,120,0.24)', borderRadius: 12, padding: '12px 16px', marginBottom: 16, fontSize: 13.5, color: '#d8d2bf' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', background: 'rgba(15,23,18,0.06)', border: '1px solid rgba(15,23,18,0.24)', borderRadius: 12, padding: '12px 16px', marginBottom: 16, fontSize: 13.5, color: '#d8d2bf' }}>
             <span><b style={{ color: 'var(--gv-ink)' }}>{domain.hostname}</b> isn’t verified yet — autopilot is paused, but you can queue topics and review every draft.</span>
             <Link href={`/onboarding/verify?domain=${domain.id}`} className="gv-btn" style={{ whiteSpace: 'nowrap', border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontWeight: 700, fontSize: 13, padding: '9px 15px', borderRadius: 10 }}>Verify domain →</Link>
           </div>
@@ -107,10 +108,10 @@ export default async function Page() {
 
         {/* agent weekly brief */}
         {brief && (
-          <section className="gv-card" style={{ background: 'var(--gv-card-grad)', border: '1px solid rgba(99,194,129,0.18)', borderRadius: 18, padding: '24px 26px', marginBottom: 16 }}>
+          <section className="gv-card" style={{ background: 'var(--gv-card-grad)', border: '1px solid rgba(162,255,1,0.18)', borderRadius: 18, padding: '24px 26px', marginBottom: 16 }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
               <div style={{ flex: 1, minWidth: 280 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 10.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: ACCENT }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 10.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: ACCENT_INK }}>
                   <span style={{ display: 'flex' }}><Icon name="leaf" size={13} /></span> Your marketing agent · last 7 days
                 </div>
                 <p style={{ fontSize: 15.5, lineHeight: 1.62, color: 'var(--gv-soft)', margin: '12px 0 0', maxWidth: 660 }}>{composeBrief(brief).join(' ')}</p>
@@ -122,9 +123,9 @@ export default async function Page() {
             {chips.length > 0 && (
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 18 }}>
                 {chips.map((c, i) => (
-                  <div key={i} style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 11, padding: '9px 15px' }}>
+                  <div key={i} style={{ background: 'rgba(15,23,18,0.025)', border: '1px solid var(--gv-line)', borderRadius: 11, padding: '9px 15px' }}>
                     <span style={{ fontSize: 19, fontWeight: 700, letterSpacing: '-0.02em' }}>{c.value}</span>
-                    {c.sub && <span style={{ fontSize: 12, marginLeft: 6, fontWeight: 600, color: ACCENT }}>{c.sub}</span>}
+                    {c.sub && <span style={{ fontSize: 12, marginLeft: 6, fontWeight: 600, color: ACCENT_INK }}>{c.sub}</span>}
                     <div style={{ fontSize: 9.5, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--gv-faint)', marginTop: 2 }}>{c.label}</div>
                   </div>
                 ))}
@@ -146,7 +147,7 @@ export default async function Page() {
                   <span style={{ width: 7, height: 7, borderRadius: '50%', background: g.color }} />
                   <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-soft)' }}>{g.label}</span>
                   <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gv-fainter)', fontVariantNumeric: 'tabular-nums' }}>{g.items.length}</span>
-                  <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+                  <span style={{ flex: 1, height: 1, background: 'rgba(15,23,18,0.06)' }} />
                 </div>
                 {g.key === 'review' && <ReviewWhy autoPublish={domain?.auto_publish ?? false} />}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
@@ -163,7 +164,7 @@ export default async function Page() {
           {/* RIGHT RAIL */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {/* article quality */}
-            <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 22px' }}>
+            <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '20px 22px' }}>
               <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-faint)' }}>Article quality · manager scores</div>
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, marginTop: 12 }}>
                 <span style={{ fontSize: 34, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1 }}>{qAvg || '—'}</span>
@@ -181,13 +182,13 @@ export default async function Page() {
 
             {/* AI-search readiness */}
             {aeoTotal >= 2 && (
-              <div className="gv-card" style={{ background: 'var(--gv-card-grad)', border: '1px solid rgba(99,194,129,0.16)', borderRadius: 18, padding: '20px 22px' }}>
+              <div className="gv-card" style={{ background: 'var(--gv-card-grad)', border: '1px solid rgba(162,255,1,0.16)', borderRadius: 18, padding: '20px 22px' }}>
                 <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-faint)' }}>AI-search readiness</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 14 }}>
                   <div style={{ position: 'relative', width: 66, height: 66, flexShrink: 0 }}>
                     <svg viewBox="0 0 36 36" style={{ width: 66, height: 66, transform: 'rotate(-90deg)' }}>
-                      <circle cx="18" cy="18" r="15.5" fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="3.4" />
-                      <circle cx="18" cy="18" r="15.5" fill="none" stroke={ACCENT} strokeWidth="3.4" strokeLinecap="round" strokeDasharray="97.4" strokeDashoffset={(97.4 * (1 - aeoPct / 100)).toFixed(1)} />
+                      <circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--gv-line)" strokeWidth="3.4" />
+                      <circle cx="18" cy="18" r="15.5" fill="none" stroke={ACCENT_INK} strokeWidth="3.4" strokeLinecap="round" strokeDasharray="97.4" strokeDashoffset={(97.4 * (1 - aeoPct / 100)).toFixed(1)} />
                     </svg>
                     <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700 }}>{aeoReadyCount}/{aeoTotal}</span>
                   </div>
@@ -200,13 +201,13 @@ export default async function Page() {
             )}
 
             {/* the agent loop */}
-            <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '20px 22px' }}>
+            <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '20px 22px' }}>
               <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-faint)', marginBottom: 16 }}>The agent loop</div>
               {loop.map((l, i) => (
                 <div key={l.n} style={{ display: 'flex', gap: 13, paddingBottom: 16 }}>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
-                    <span style={{ width: 26, height: 26, borderRadius: 8, background: 'rgba(99,194,129,0.1)', border: '1px solid rgba(99,194,129,0.25)', color: ACCENT, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>{l.n}</span>
-                    {i < loop.length - 1 && <span style={{ flex: 1, width: 1, minHeight: 16, background: 'rgba(99,194,129,0.18)', marginTop: 4 }} />}
+                    <span style={{ width: 26, height: 26, borderRadius: 8, background: 'rgba(162,255,1,0.1)', border: '1px solid rgba(162,255,1,0.25)', color: ACCENT_INK, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>{l.n}</span>
+                    {i < loop.length - 1 && <span style={{ flex: 1, width: 1, minHeight: 16, background: 'rgba(162,255,1,0.18)', marginTop: 4 }} />}
                   </div>
                   <div style={{ marginTop: 1 }}>
                     <div style={{ fontSize: 13.5, fontWeight: 600 }}>{l.title}</div>
@@ -214,7 +215,7 @@ export default async function Page() {
                   </div>
                 </div>
               ))}
-              <div style={{ fontSize: 11, color: 'var(--gv-fainter)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 12, display: 'flex', alignItems: 'center', gap: 7 }}><span style={{ color: ACCENT }}>↻</span> Strategy re-reviewed on the 1st of each month</div>
+              <div style={{ fontSize: 11, color: 'var(--gv-fainter)', borderTop: '1px solid rgba(15,23,18,0.06)', paddingTop: 12, display: 'flex', alignItems: 'center', gap: 7 }}><span style={{ color: ACCENT_INK }}>↻</span> Strategy re-reviewed on the 1st of each month</div>
             </div>
           </div>
         </div>
@@ -237,7 +238,7 @@ function ReviewWhy({ autoPublish }: { autoPublish: boolean }) {
       <summary style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 11.5, color: 'var(--gv-dim)', listStyle: 'none', userSelect: 'none', width: 'fit-content' }}>
         <Icon name="q" size={13} /> Why is this waiting for you?
       </summary>
-      <div style={{ marginTop: 9, padding: '13px 15px', background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, maxWidth: 560 }}>
+      <div style={{ marginTop: 9, padding: '13px 15px', background: 'var(--gv-card)', border: '1px solid rgba(15,23,18,0.08)', borderRadius: 12, maxWidth: 560 }}>
         <div style={{ fontSize: 11.5, color: 'var(--gv-soft)', fontWeight: 600, marginBottom: 8 }}>
           A draft publishes on its own only when both gates pass:
         </div>

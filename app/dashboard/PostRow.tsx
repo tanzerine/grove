@@ -6,6 +6,7 @@ import LocalTime from './LocalTime';
 import Icon from './gv-icons';
 
 const ACCENT = 'var(--gv-accent)';
+const ACCENT_INK = 'var(--gv-accent-ink)';
 
 // posts in-flight > STUCK_MIN minutes are almost certainly stuck
 // (Vercel function ceiling is 300s; if it's been > 3 min something died)
@@ -79,8 +80,9 @@ export default function PostRow({ p, score, blogSlug }: { p: any; score?: { over
     await fetch(`/api/posts/${p.id}/approve`, { method: 'POST' }); setBusy(null); r.refresh();
   }
 
-  const scoreColor = !score ? 'var(--gv-faint)' : score.overall >= 70 ? ACCENT : score.overall >= 40 ? 'var(--gv-amber)' : 'var(--gv-red)';
-  const metaColor = v.danger ? '#c98f8f' : 'var(--gv-dim)';
+  // Text, not a fill — ACCENT_INK not ACCENT (raw lime is ~1.1:1 on white).
+  const scoreColor = !score ? 'var(--gv-faint)' : score.overall >= 70 ? ACCENT_INK : score.overall >= 40 ? 'var(--gv-amber)' : 'var(--gv-red)';
+  const metaColor = v.danger ? 'var(--gv-red-soft)' : 'var(--gv-dim)';
 
   // A post that reached a post-manager stage but has no evaluation means the
   // gate didn't run — that's WHY it's held for review, so make it legible
@@ -109,37 +111,37 @@ export default function PostRow({ p, score, blogSlug }: { p: any; score?: { over
 
   const btn = (label: string, onClick: () => void, primary = false, key?: string) => (
     <button key={key} className="gv-btn" onClick={onClick} disabled={!!busy}
-      style={{ border: `1px solid ${primary ? ACCENT : 'rgba(255,255,255,0.12)'}`, background: primary ? ACCENT : 'rgba(255,255,255,0.03)', color: primary ? 'var(--gv-on-accent)' : 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '7px 15px', borderRadius: 9, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
+      style={{ border: `1px solid ${primary ? ACCENT : 'rgba(15,23,18,0.12)'}`, background: primary ? ACCENT : 'rgba(15,23,18,0.03)', color: primary ? 'var(--gv-on-accent)' : 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '7px 15px', borderRadius: 9, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
       {label}
     </button>
   );
 
   return (
-    <div className="gv-prow" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '14px 16px' }}>
+    <div className="gv-prow" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 14, padding: '14px 16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 13 }}>
-        <span style={{ width: 38, height: 38, borderRadius: 10, background: v.accent ? 'rgba(99,194,129,0.1)' : 'rgba(255,255,255,0.04)', border: `1px solid ${v.accent ? 'rgba(99,194,129,0.2)' : 'rgba(255,255,255,0.07)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: v.danger ? 'var(--gv-red)' : v.accent ? ACCENT : 'var(--gv-dim)', flexShrink: 0 }}>
+        <span style={{ width: 38, height: 38, borderRadius: 10, background: v.accent ? 'rgba(162,255,1,0.1)' : 'rgba(15,23,18,0.04)', border: `1px solid ${v.accent ? 'rgba(162,255,1,0.2)' : 'var(--gv-line)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: v.danger ? 'var(--gv-red)' : v.accent ? ACCENT_INK : 'var(--gv-dim)', flexShrink: 0 }}>
           <Icon name={v.icon} size={18} />
         </span>
         <Link href={`/dashboard/posts/${p.id}`} style={{ flex: 1, minWidth: 0, textDecoration: 'none', color: 'inherit' }}>
           <div style={{ fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', paddingRight: 8 }}>{p.title ?? p.topic ?? '(no title yet)'}</div>
           <div style={{ fontSize: 12, color: metaColor, marginTop: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
-            {inFlight && <span style={{ width: 6, height: 6, borderRadius: '50%', background: ACCENT, flexShrink: 0, animation: 'gvPulse 1.8s ease-in-out infinite' }} />}
+            {inFlight && <span style={{ width: 6, height: 6, borderRadius: '50%', background: ACCENT_INK, flexShrink: 0, animation: 'gvPulse 1.8s ease-in-out infinite' }} />}
             {meta}
           </div>
         </Link>
 
         {score ? (
-          <span title={`Manager quality score · last decision: ${score.action}`} style={{ display: 'inline-flex', alignItems: 'baseline', gap: 2, flexShrink: 0, fontVariantNumeric: 'tabular-nums', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '4px 9px' }}>
+          <span title={`Manager quality score · last decision: ${score.action}`} style={{ display: 'inline-flex', alignItems: 'baseline', gap: 2, flexShrink: 0, fontVariantNumeric: 'tabular-nums', border: '1px solid rgba(15,23,18,0.1)', borderRadius: 8, padding: '4px 9px' }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: scoreColor }}>{score.overall}</span>
             <span style={{ fontSize: 9, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>score</span>
           </span>
         ) : managerFailed ? (
-          <span title="The quality check hit an error (often a temporary provider outage) and didn't finish. Your draft is safe — use “Re-run check” to grade it." style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0, border: '1px solid rgba(224,200,120,0.3)', background: 'rgba(224,200,120,0.08)', borderRadius: 8, padding: '4px 9px' }}>
+          <span title="The quality check hit an error (often a temporary provider outage) and didn't finish. Your draft is safe — use “Re-run check” to grade it." style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0, border: '1px solid rgba(15,23,18,0.3)', background: 'rgba(15,23,18,0.08)', borderRadius: 8, padding: '4px 9px' }}>
             <span style={{ color: 'var(--gv-amber)', display: 'flex' }}><Icon name="alert" size={11} /></span>
             <span style={{ fontSize: 9.5, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--gv-amber)' }}>grading failed</span>
           </span>
         ) : ungraded ? (
-          <span title="No quality score — the manager's evaluation didn't run for this draft. It's held for your review by default." style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0, border: '1px dashed rgba(255,255,255,0.16)', borderRadius: 8, padding: '4px 9px' }}>
+          <span title="No quality score — the manager's evaluation didn't run for this draft. It's held for your review by default." style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0, border: '1px dashed rgba(15,23,18,0.16)', borderRadius: 8, padding: '4px 9px' }}>
             <Icon name="alert" size={11} />
             <span style={{ fontSize: 9.5, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--gv-faint)' }}>ungraded</span>
           </span>
@@ -153,14 +155,14 @@ export default function PostRow({ p, score, blogSlug }: { p: any; score?: { over
           {showDelete && btn(busy === 'delete' ? '…' : 'Delete', del, false, 'd')}
           {p.status === 'published' && blogSlug && p.slug && (
             <a className="gv-btn" href={`/b/${blogSlug}/${p.slug}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}
-              style={{ border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.03)', color: 'var(--gv-soft)', fontSize: 12.5, fontWeight: 600, padding: '7px 15px', borderRadius: 9, textDecoration: 'none', whiteSpace: 'nowrap' }}>View ↗</a>
+              style={{ border: '1px solid rgba(15,23,18,0.12)', background: 'rgba(15,23,18,0.03)', color: 'var(--gv-soft)', fontSize: 12.5, fontWeight: 600, padding: '7px 15px', borderRadius: 9, textDecoration: 'none', whiteSpace: 'nowrap' }}>View ↗</a>
           )}
         </div>
       </div>
 
       {inFlight && (
         <div style={{ marginTop: 13 }}>
-          <div style={{ position: 'relative', height: 3, borderRadius: 99, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+          <div style={{ position: 'relative', height: 3, borderRadius: 99, background: 'rgba(15,23,18,0.06)', overflow: 'hidden' }}>
             <span style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: '40%', borderRadius: 99, background: ACCENT, opacity: 0.55, animation: 'gvIndet 1.6s ease-in-out infinite' }} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 10 }}>

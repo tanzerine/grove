@@ -48,7 +48,7 @@ function VerifyInner() {
       <div className="gv-onb-in" style={{ maxWidth: 780 }}>
         <span className="gv-onb-eyebrow">Step 2 of 2</span>
         <h1 className="gv-onb-title" style={{ fontSize: 'clamp(26px, 6.5vw, 36px)' }}>
-          Verify ownership of <span style={{ fontFamily: MONO, color: 'var(--gv-accent)' }}>{d.hostname}</span>
+          Verify ownership of <span style={{ fontFamily: MONO, color: 'var(--gv-accent-ink)' }}>{d.hostname}</span>
         </h1>
         <p className="gv-onb-lede">
           Pick whichever method is easiest. You only need to do <b style={{ color: 'var(--gv-ink)' }}>one</b>.
@@ -57,7 +57,7 @@ function VerifyInner() {
 
         <div style={{ display: 'flex', gap: 8, marginTop: 24, flexWrap: 'wrap' }}>
           <button className={`gv-onb-tab ${tab === 'dns' ? 'on' : ''}`} onClick={() => setTab('dns')}>
-            🛡️ DNS record <small style={{ color: 'var(--gv-accent)' }}>recommended</small>
+            🛡️ DNS record <small style={{ color: 'var(--gv-accent-ink)' }}>recommended</small>
           </button>
           <button className={`gv-onb-tab ${tab === 'meta' ? 'on' : ''}`} onClick={() => setTab('meta')}>🏷️ Meta tag</button>
           <button className={`gv-onb-tab ${tab === 'file' ? 'on' : ''}`} onClick={() => setTab('file')}>📄 File upload</button>
@@ -113,7 +113,7 @@ function VerifyInner() {
 
         <p style={{ marginTop: 26, fontSize: 14, color: DIM, lineHeight: 1.6 }}>
           Don&apos;t have DNS access right now?{' '}
-          <a href="/dashboard" style={{ color: 'var(--gv-accent)', textDecoration: 'underline' }}>Skip for now →</a>{' '}
+          <a href="/dashboard" style={{ color: 'var(--gv-accent-ink)', textDecoration: 'underline' }}>Skip for now →</a>{' '}
           You can already queue topics and watch Grove write — autopilot publishing stays paused until you verify.
         </p>
       </div>
