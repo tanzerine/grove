@@ -5,7 +5,7 @@ import { resolvePost, parseWhen, extractReschedule, type PostRef } from '../lib/
 import type { ContentRow } from '../lib/search-console/insights';
 import { relevantKnowledge } from '../lib/assistant/knowledge';
 import { signalsBlock, type AssistantSignals } from '../lib/assistant/context';
-import { buildAnswerPrompt } from '../lib/assistant/chat';
+import { buildAnswerPrompt, NO_ACCESS_RX, sanitizeHistory, guardReply, normalizeAnswer } from '../lib/assistant/chat';
 
 describe('parseSlash', () => {
   it('parses a known command and its remainder', () => {
@@ -35,6 +35,11 @@ describe('classifyIntent', () => {
     expect(classifyIntent("whats the reason this month is lacking new viewers?")).toBe('analytics');
     expect(classifyIntent('I want to write new article about pour-over recipes')).toBe('write');
     expect(classifyIntent('can you tell me how to setup canonical url')).toBe('help');
+  });
+
+  it('acquisition phrasing is an analytics question', () => {
+    expect(classifyIntent('Am I getting new users with this current strategy?')).toBe('analytics');
+    expect(classifyIntent('how many signups came from the blog?')).toBe('analytics');
   });
 
   it('how-to phrasing beats the strategy word-net, analytics terms beat help', () => {
@@ -309,12 +314,23 @@ const SIGNALS: AssistantSignals = {
     topPost: { title: 'Hello', views: 40 },
   },
   month: {
-    views: 300, prevViews: 500, conversions: 9, organicShare: 0.35,
-    topPosts: [{ title: 'Best post', views: 80 }],
+    views: 300, prevViews: 500, uniqueSessions: 210,
+    conversions: 9, prevConversions: 4, organicShare: 0.35,
+    medianDwellSec: 74, outboundRate: 0.08,
+    topPosts: [{ title: 'Best post', views: 80, conversions: 3 }],
   },
+  articles: [
+    { title: 'Best post', reads: 80, clicks: 30, impressions: 1500, ctr: 0.02, position: 9.2 },
+    { title: 'Quiet post', reads: 4, clicks: 0, impressions: 0, ctr: 0, position: 0 },
+  ],
+  articlesTotal: 14,
+  funnel: { clicks: 210, read50: 120, converted: 9 },
+  traffic: { total: 210, sources: [{ key: 'search', name: 'Search', clicks: 120, pct: 57 }, { key: 'direct', name: 'Direct', clicks: 90, pct: 43 }] },
+  engagement: { views: 300, events: 900, sessions: 210, avgDwellSec: 81 },
   gsc: { clicks: 42, impressions: 2100, ctr: 0.02, avgPosition: 18.4 },
+  ga: { views: 4200, activeUsers: 1900, avgEngagementSec: 62 },
   setup: {
-    gscConnected: true, ga4Connected: false, canonicalBase: null,
+    gscConnected: true, ga4Connected: true, canonicalBase: null,
     customHostname: null, autoPublish: true, postsPerWeek: 4,
   },
 };
@@ -323,24 +339,45 @@ describe('signalsBlock', () => {
   it('renders every section with the real numbers', () => {
     const md = signalsBlock(SIGNALS);
     expect(md).toContain('14 total');
-    expect(md).toContain('300 reads (previous month total 500)');
+    expect(md).toContain('300 article reads across 210 unique readers (previous month total 500)');
+    expect(md).toContain('9 conversions (previous month 4)');
     expect(md).toContain('42 clicks from 2100 impressions (CTR 2%)');
     expect(md).toContain('Next scheduled publish: 2026-07-20');
     expect(md).toContain('canonical base not set');
     expect(md).toContain('autopilot ON');
   });
 
-  it('says GSC is missing instead of inventing zeros', () => {
+  it('answers the new-users question directly via the funnel line', () => {
+    const md = signalsBlock(SIGNALS);
+    expect(md).toContain('210 opened an article → 120 read past halfway → 9 converted');
+    expect(md).toContain('New users FROM THE BLOG = that last number');
+  });
+
+  it('lists per-article live numbers, flagging pre-search articles honestly', () => {
+    const md = signalsBlock(SIGNALS);
+    expect(md).toContain('"Best post" — 80 reads, 30 clicks / 1500 impressions (CTR 2%), avg position 9.2');
+    expect(md).toContain('"Quiet post" — 4 reads, no search impressions yet');
+    expect(md).toContain('and 12 more articles');
+  });
+
+  it('includes traffic sources and whole-site GA', () => {
+    const md = signalsBlock(SIGNALS);
+    expect(md).toContain('Search 57%, Direct 43% of 210 arrivals');
+    expect(md).toContain('4200 pageviews, 1900 active users');
+  });
+
+  it('says GSC/GA are missing instead of inventing zeros', () => {
     const md = signalsBlock({
-      ...SIGNALS, gsc: null,
-      setup: { ...SIGNALS.setup, gscConnected: false },
+      ...SIGNALS, gsc: null, ga: null,
+      setup: { ...SIGNALS.setup, gscConnected: false, ga4Connected: false },
     });
     expect(md).toContain('NOT connected');
+    expect(md).toContain('Google Analytics: not connected');
   });
 });
 
 describe('buildAnswerPrompt', () => {
-  it('embeds signals, plan memo, matching guides and the transcript', () => {
+  it('carries the data in the USER prompt: signals, plan memo, guides, transcript', () => {
     const { system, user } = buildAnswerPrompt({
       hostname: 'acme.com',
       intent: 'help',
@@ -353,21 +390,119 @@ describe('buildAnswerPrompt', () => {
       ],
     });
     expect(system).toContain('acme.com');
-    expect(system).toContain('42 clicks');
-    expect(system).toContain('PLAN MEMO CONTENT');
-    expect(system).toContain('Canonical URL setup');
+    // the data must ride in the user prompt so a dropped system_prompt can't blind the model
+    expect(user).toContain('LIVE DATA for acme.com');
+    expect(user).toContain('42 clicks');
+    expect(user).toContain('PLAN MEMO CONTENT');
+    expect(user).toContain('Canonical URL setup');
     expect(user).toContain('OWNER: how do I set up the canonical url?');
     expect(user).toContain('YOU: hello — what do you need?');
+    expect(user).toContain('never claim you lack access');
   });
 
   it('omits empty sections', () => {
-    const { system } = buildAnswerPrompt({
+    const { user } = buildAnswerPrompt({
       hostname: 'acme.com', intent: 'general', message: 'good morning',
       signalsMd: '', planMd: '', history: [],
     });
-    expect(system).toContain('(no data yet)');
-    expect(system).not.toContain('CURRENT PLAN MEMO');
-    expect(system).not.toContain('\nGUIDES\n');
+    expect(user).toContain('brand-new blog');
+    expect(user).not.toContain('CURRENT PLAN MEMO');
+    expect(user).not.toContain('\nGUIDES\n');
+  });
+
+  it('strips old disclaimer turns from the transcript', () => {
+    const { user } = buildAnswerPrompt({
+      hostname: 'acme.com', intent: 'analytics', message: 'am I getting new users?',
+      signalsMd: signalsBlock(SIGNALS), planMd: '',
+      history: [
+        { role: 'user', content: 'am i getting new users?' },
+        { role: 'agent', content: "I don't have direct access to your live analytics dashboard or user database." },
+      ],
+    });
+    expect(user).not.toContain('user database');
+    expect(user).toContain('OWNER: am i getting new users?');
+  });
+
+  it('forbids claiming actions and defines the proposed_command contract', () => {
+    const { system } = buildAnswerPrompt({
+      hostname: 'acme.com', intent: 'general', message: 'yes',
+      signalsMd: '', planMd: '', history: [],
+    });
+    expect(system).toContain('WORDS ONLY');
+    expect(system).toContain('proposed_command');
+  });
+});
+
+describe('normalizeAnswer', () => {
+  it('reads the canonical {thought, reply} shape', () => {
+    expect(normalizeAnswer('{"thought":"t","reply":"the answer"}'))
+      .toEqual({ thought: 't', reply: 'the answer' });
+  });
+
+  it('accepts the drifted {"message": ...} shape seen in production', () => {
+    const raw = JSON.stringify({ message: 'Your top article is **"The 7 Best AI 3D Icon Generators"**.' });
+    const a = normalizeAnswer(raw);
+    expect(a.reply).toContain('Your top article');
+    expect(a.reply).not.toContain('"message"');
+  });
+
+  it('accepts other alternate keys and pairs them with a thought alias', () => {
+    expect(normalizeAnswer('{"reasoning":"because","answer":"42 clicks"}'))
+      .toEqual({ thought: 'because', reply: '42 clicks' });
+  });
+
+  it('falls back to the longest string value for unknown shapes — never raw JSON', () => {
+    const a = normalizeAnswer('{"foo":"short","bar":"this is the long real answer body"}');
+    expect(a.reply).toBe('this is the long real answer body');
+  });
+
+  it('treats non-JSON as the reply, stripping stray fences', () => {
+    expect(normalizeAnswer('Just a plain answer.').reply).toBe('Just a plain answer.');
+    expect(normalizeAnswer('```json\nplain but fenced\n```').reply).toBe('plain but fenced');
+  });
+
+  it('carries proposed_command through, exact key only', () => {
+    const a = normalizeAnswer('{"thought":"t","reply":"I can queue that.","proposed_command":"write an article about cold brew"}');
+    expect(a.proposedCommand).toBe('write an article about cold brew');
+    // alternate keys never become an executable command
+    expect(normalizeAnswer('{"reply":"hi","command":"drop the plan"}').proposedCommand).toBeUndefined();
+  });
+});
+
+describe('NO_ACCESS_RX / sanitizeHistory / guardReply', () => {
+  const badReplies = [
+    "To give you a completely direct answer: I don't know, because I cannot see your data.",
+    "Because I am an AI, I don't have access to your website's analytics, Stripe account, or user database.",
+    'you will need to check your own analytics dashboard (like Google Analytics, PostHog, or your database)',
+    'If you want to look at your numbers and paste them here, I would be happy to help you analyze them!',
+  ];
+
+  it('catches every shape of the disclaimer from the real transcript', () => {
+    for (const r of badReplies) expect(NO_ACCESS_RX.test(r)).toBe(true);
+  });
+
+  it('does not flag honest replies about missing connections', () => {
+    expect(NO_ACCESS_RX.test('Google Search Console is NOT connected — connect it on the Analytics page.')).toBe(false);
+    expect(NO_ACCESS_RX.test('Yes — 9 readers converted this month, up from 4. Connect GA4 from Dashboard → Analytics for whole-site user counts.')).toBe(false);
+  });
+
+  it('sanitizeHistory drops poisoned agent turns, keeps everything else', () => {
+    const cleaned = sanitizeHistory([
+      { role: 'user', content: 'am i getting new users?' },
+      { role: 'agent', content: badReplies[1] },
+      { role: 'agent', content: 'You had 9 conversions this month.' },
+    ]);
+    expect(cleaned).toHaveLength(2);
+    expect(cleaned[1].content).toContain('9 conversions');
+  });
+
+  it('guardReply swaps a disclaimer for the live data and passes good replies through', () => {
+    const good = { thought: 't', reply: 'Yes — 9 conversions this month, up from 4.' };
+    expect(guardReply(good, 'DATA')).toBe(good);
+    const guarded = guardReply({ thought: '', reply: badReplies[0] }, 'FUNNEL: 210 → 120 → 9');
+    expect(guarded.reply).toContain('I do have your live data');
+    expect(guarded.reply).toContain('FUNNEL: 210 → 120 → 9');
+    expect(NO_ACCESS_RX.test(guarded.reply)).toBe(false);
   });
 
   it('forbids claiming actions and defines the proposed_command contract', () => {

@@ -74,3 +74,37 @@ export async function assertPublicHttpUrl(raw: string): Promise<URL> {
 export async function isPublicHttpUrl(raw: string): Promise<boolean> {
   try { await assertPublicHttpUrl(raw); return true; } catch { return false; }
 }
+
+/**
+ * SSRF-safe `fetch` for owner-influenced URLs.
+ *
+ * A plain `isPublicHttpUrl(url)` check followed by `fetch(url, { redirect:
+ * 'follow' })` is bypassable: the target host passes the guard, then answers
+ * with a 3xx to `http://169.254.169.254/…` (or any internal address) and the
+ * built-in redirect follower walks Grove's server straight into the private
+ * network. This wrapper follows redirects MANUALLY, re-validating every hop —
+ * so an internal address can't be reached whether it's the first URL or the
+ * fifth Location header.
+ *
+ * Drop-in for `fetch`: pass the same init you would otherwise (headers, signal,
+ * method, body). Any `redirect` in init is ignored — we always drive it here.
+ * Throws (like `assertPublicHttpUrl`) when a hop is private/blocked or the
+ * redirect chain is too long; callers already wrap these fetches in try/catch.
+ */
+export async function safeFetch(
+  input: string,
+  init: RequestInit = {},
+  opts: { maxRedirects?: number } = {},
+): Promise<Response> {
+  const maxRedirects = opts.maxRedirects ?? 5;
+  let url = input;
+  for (let hop = 0; ; hop++) {
+    await assertPublicHttpUrl(url); // throws on private/blocked — before any connection
+    const res = await fetch(url, { ...init, redirect: 'manual' });
+    if (res.status < 300 || res.status >= 400) return res;
+    const loc = res.headers.get('location');
+    if (!loc) return res; // 3xx without a target — hand it back as-is
+    if (hop >= maxRedirects) throw new Error('too many redirects');
+    url = new URL(loc, url).toString(); // resolve relative Location against current hop
+  }
+}

@@ -7,6 +7,16 @@
  * everything else is ONE workhorse-model call over a compact signals block
  * plus at most two knowledge sections. Never the strategist tier.
  *
+ * HARD RULE: the model must never claim it can't see the owner's data — the
+ * signals block IS their analytics. Three layers enforce it, because prompt
+ * text alone demonstrably wasn't enough:
+ *   1. the data rides in the USER prompt (not only system_prompt, which a
+ *      provider adapter may drop or de-weight),
+ *   2. sanitizeHistory() strips old "I can't see your data" agent turns so
+ *      the model can't imitate its own past mistake, and
+ *   3. guardReply() replaces any disclaimer that still slips through with
+ *      the live data block itself.
+ *
  * Prompt assembly is pure (unit-tested); the route owns auth and data.
  */
 import { llmCall, extractJson } from '../llm';
@@ -23,6 +33,84 @@ export type AssistantAnswer = {
   proposedCommand?: string;
 };
 
+/** The "I'm an AI without access to your data" reflex, in its usual shapes. */
+export const NO_ACCESS_RX = new RegExp(
+  [
+    "i\\s+(do\\s?n[o']t|can\\s?no?[o']?t|can'?t)\\s+(have\\s+)?(direct\\s+)?(access|see|view)",
+    "cannot\\s+see\\s+your\\s+(data|analytics|numbers)",
+    "don'?t\\s+have\\s+(direct\\s+)?access\\s+to\\s+your",
+    'because\\s+i\\s+am\\s+an\\s+ai',
+    'as\\s+an\\s+ai(\\s+(model|assistant|language\\s+model))?[,\\s]',
+    "check\\s+your\\s+(own\\s+)?analytics\\s+(platform|dashboard|tool)",
+    'google\\s+analytics,\\s*posthog',
+    'paste\\s+(them|your\\s+(numbers|data|stats))\\s+here',
+  ].join('|'),
+  'i',
+);
+
+/** Drop old agent turns that carry the disclaimer, so a poisoned transcript
+ *  (answers from before the data plumbing existed) can't teach the model to
+ *  repeat "I can't see your data" forever. Pure. */
+export function sanitizeHistory(history: AssistantTurn[]): AssistantTurn[] {
+  return history.filter((t) => !(t.role === 'agent' && NO_ACCESS_RX.test(t.content)));
+}
+
+/** Last line of defense: if the model still disclaimed access, answer with
+ *  the live data itself instead of ever showing the disclaimer. Pure. */
+export function guardReply(answer: AssistantAnswer, signalsMd: string): AssistantAnswer {
+  if (!NO_ACCESS_RX.test(answer.reply)) return answer;
+  return {
+    thought: 'Corrected a bad reply — answering from the live data directly.',
+    reply: `I do have your live data — here it is:\n\n${signalsMd.trim()}\n\nAsk me about any line above and I'll break it down.`,
+  };
+}
+
+/**
+ * Turn whatever the model produced into {thought, reply} without EVER
+ * leaking raw JSON to the owner. Models drift on the output contract —
+ * {"message": "..."} instead of {"reply": "..."} was seen in production —
+ * so: known alternate keys are accepted, an unknown object shape falls back
+ * to its longest string value, and non-JSON text (fences stripped) is
+ * treated as the reply itself. Pure.
+ */
+const REPLY_KEYS = ['reply', 'message', 'answer', 'response', 'content', 'text'];
+const THOUGHT_KEYS = ['thought', 'reasoning', 'thinking'];
+
+export function normalizeAnswer(raw: string): AssistantAnswer {
+  let parsed: unknown = null;
+  try { parsed = extractJson(raw); } catch { /* not JSON — treated as text below */ }
+
+  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+    const obj = parsed as Record<string, unknown>;
+    const pick = (keys: string[]) => {
+      for (const k of keys) {
+        const v = obj[k];
+        if (typeof v === 'string' && v.trim()) return v.trim();
+      }
+      return '';
+    };
+    let reply = pick(REPLY_KEYS);
+    if (!reply) {
+      const strings = Object.values(obj)
+        .filter((v): v is string => typeof v === 'string' && !!v.trim())
+        .sort((a, b) => b.length - a.length);
+      reply = strings[0]?.trim() ?? '';
+    }
+    if (reply) {
+      // Exact key only — the fallback pickers must never promote loose text
+      // into something the route would execute.
+      const proposal = typeof obj.proposed_command === 'string' ? obj.proposed_command.trim() : '';
+      return { thought: pick(THOUGHT_KEYS), reply, proposedCommand: proposal || undefined };
+    }
+  }
+
+  const cleaned = raw.trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/```\s*$/, '')
+    .trim();
+  return { thought: '', reply: cleaned };
+}
+
 export function buildAnswerPrompt(opts: {
   hostname: string;
   intent: AssistantIntent;
@@ -36,15 +124,26 @@ export function buildAnswerPrompt(opts: {
     .join('\n\n');
 
   const system = `You are Grove, the AI marketing agent that runs the blog for ${opts.hostname}.
-The owner is chatting with you in the dashboard sidebar. Answer like a sharp
-marketing teammate: concrete, plain language, 2-5 short sentences, no jargon,
-no filler. Ground every number in the SIGNALS block — never invent metrics.
-If a metric isn't in the signals, say it isn't tracked yet and how to get it
-(e.g. connect Search Console). When diagnosing traffic ("why is this month
-lacking new viewers?"), reason from what's there: publish count, impressions
-vs clicks (CTR), organic share, and how young the blog is — then give 1-2
-specific next moves. For setup questions, answer strictly from the GUIDES
-section and point at the dashboard page.
+The owner is chatting with you in the dashboard sidebar.
+
+The LIVE DATA block in the owner's message is their real analytics — their
+first-party reader events, Google Search Console, Google Analytics, and
+per-article numbers, queried just now. You DO have access; never say you
+don't, never tell them to check an analytics platform — you ARE it. If a
+section reads "not connected", that specific source is the only gap: name it
+and the one connection that fills it, and answer from everything else.
+
+Answer like a sharp marketing teammate: concrete, plain language, lead with
+the direct answer and its number. Keep it tight — a few sentences, or short
+"-" bullet lines when comparing articles. Never invent metrics.
+- "Am I getting new users / customers / signups?" → answer from the reader
+  funnel's converted count and this month's conversions vs last month, plus
+  the click-through rate to ${opts.hostname}. Give the actual numbers.
+- "Why is traffic lacking?" → diagnose from publish count, impressions vs
+  clicks (CTR), organic share, and how young the blog is; give 1-2 next moves.
+- Per-article questions ("which content works?") → use the PER-ARTICLE rows.
+For setup questions, answer strictly from the GUIDES section and point at
+the dashboard page.
 
 THIS REPLY IS WORDS ONLY — you cannot change anything from here. Never say
 you did, are doing, or will do something. Actions run through separate
@@ -56,20 +155,25 @@ seems to want one of these, put the exact imperative phrase in
 "proposed_command" — it becomes a button that actually runs it — and in the
 reply say what it will do, not that it's done.
 
-SIGNALS for ${opts.hostname}
-${opts.signalsMd || '(no data yet)'}
-${opts.planMd ? `\nCURRENT PLAN MEMO\n${opts.planMd}` : ''}
-${guides ? `\nGUIDES\n${guides}` : ''}
-
 OUTPUT: ONE raw JSON object, no markdown fences:
-{"thought":"one short sentence — your reasoning headline","reply":"the answer, plain text","proposed_command":"omit unless the owner wants an action — then the exact imperative phrase"}`;
+{"thought":"one short sentence — your reasoning headline","reply":"the message shown to the owner ('-' bullets, numbered lists and **bold** allowed; no headers, no tables)","proposed_command":"omit unless the owner wants an action — then the exact imperative phrase"}`;
 
-  const transcript = opts.history
+  const transcript = sanitizeHistory(opts.history)
     .slice(-8)
     .map((t) => `${t.role === 'user' ? 'OWNER' : 'YOU'}: ${t.content}`)
     .join('\n');
 
-  const user = `${transcript ? `RECENT CONVERSATION\n${transcript}\n\n` : ''}OWNER: ${opts.message}`;
+  // The data lives in the USER prompt on purpose — see the header comment.
+  const user = `LIVE DATA for ${opts.hostname} (authoritative — queried just now)
+${opts.signalsMd || '(no articles or reader events recorded yet — a brand-new blog)'}
+${opts.planMd ? `\nCURRENT PLAN MEMO\n${opts.planMd}` : ''}
+${guides ? `\nGUIDES\n${guides}` : ''}
+${transcript ? `\nRECENT CONVERSATION (may predate the data above — the LIVE DATA always wins)\n${transcript}\n` : ''}
+OWNER: ${opts.message}
+
+Answer the owner's last message from the LIVE DATA above. It is real and
+current — never claim you lack access to it. Reply with the JSON object.`;
+
   return { system, user };
 }
 
@@ -82,17 +186,6 @@ export async function answerAssistant(opts: {
   history: AssistantTurn[];
 }): Promise<AssistantAnswer> {
   const { system, user } = buildAnswerPrompt(opts);
-  const { text } = await llmCall({ system, user, maxTokens: 700 });
-  try {
-    const parsed = extractJson<{ thought?: string; reply?: string; proposed_command?: string }>(text);
-    if (parsed.reply) {
-      const proposal = (parsed.proposed_command ?? '').trim();
-      return {
-        thought: (parsed.thought ?? '').trim(),
-        reply: parsed.reply.trim(),
-        proposedCommand: proposal || undefined,
-      };
-    }
-  } catch { /* fall through — treat raw text as the reply */ }
-  return { thought: '', reply: text.trim() };
+  const { text } = await llmCall({ system, user, maxTokens: 900 });
+  return guardReply(normalizeAnswer(text), opts.signalsMd || '(no data recorded yet)');
 }
