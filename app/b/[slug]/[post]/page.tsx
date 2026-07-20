@@ -226,7 +226,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
                       <Image src={rp.cover_image_url} alt="" width={640} height={427} sizes="(max-width: 640px) 100vw, 300px" className="bi-cover" style={{ height: 110 }} />
                     )}
                     <div style={{ padding: '12px 14px 14px' }}>
-                      <div style={{ fontFamily: 'Clash Display', fontSize: 16, lineHeight: 1.3 }}>{rp.title}</div>
+                      <div style={{ fontFamily: 'Inter', fontSize: 16, lineHeight: 1.3 }}>{rp.title}</div>
                       {rp.meta_description && (
                         <p style={{ fontSize: 12.5, color: 'var(--clay)', margin: '6px 0 0', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                           {rp.meta_description}

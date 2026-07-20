@@ -40,28 +40,25 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
-          href="https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&f[]=general-sans@400,500,600,700&display=swap"
-          rel="stylesheet"
-        />
-        <link
           href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap"
-          rel="stylesheet"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500;1,600&display=swap"
           rel="stylesheet"
         />
         <link
           href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&display=swap"
           rel="stylesheet"
         />
-        {/* Inter — the app-surface typeface (.gv-app / .gv-auth / .gv-onb),
-            per the light dashboard comp. Landing + public blog keep
-            Clash Display / General Sans. */}
+        {/* Inter is the one typeface everywhere — landing, blog, dashboard,
+            auth, onboarding, legal. DM Mono (kickers/labels/code) and
+            Newsreader (blog article serif accents) keep their distinct
+            roles. GT Walsheim (self-hosted, see app/globals.css) is
+            reserved for the single biggest title on a page. */}
         <link
           href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
           rel="stylesheet"
         />
+        {/* Preload so GT Walsheim is ready before first paint on any page
+            that uses it — self-hosted, tiny (27KB), cheap everywhere. */}
+        <link rel="preload" href="/fonts/GTWalsheim-Medium.otf" as="font" type="font/otf" crossOrigin="anonymous" />
       </head>
       <body>{children}</body>
     </html>

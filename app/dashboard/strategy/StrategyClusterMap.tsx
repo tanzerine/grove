@@ -29,8 +29,8 @@ function ClusterSvg({ hub, spokes }: { hub: string; spokes: Spoke[] }) {
       {/* hub */}
       <circle cx={cx} cy={cy} r={40} fill="rgba(162,255,1,0.08)" stroke="rgba(162,255,1,0.3)" strokeWidth={1.5} />
       <circle cx={cx} cy={cy} r={34} fill="var(--gv-card)" stroke="rgba(162,255,1,0.5)" strokeWidth={1.5} />
-      <text x={cx} y={cy - 3} textAnchor="middle" fontSize={10} fontWeight={700} fontFamily="Plus Jakarta Sans, sans-serif" fill="var(--gv-faint)" letterSpacing="0.08em">HUB</text>
-      <text x={cx} y={cy + 11} textAnchor="middle" fontSize={12} fontWeight={700} fontFamily="Plus Jakarta Sans, sans-serif" fill="var(--gv-ink)">{hub}</text>
+      <text x={cx} y={cy - 3} textAnchor="middle" fontSize={10} fontWeight={700} fontFamily="Inter, sans-serif" fill="var(--gv-faint)" letterSpacing="0.08em">HUB</text>
+      <text x={cx} y={cy + 11} textAnchor="middle" fontSize={12} fontWeight={700} fontFamily="Inter, sans-serif" fill="var(--gv-ink)">{hub}</text>
       {spokes.map((s, i) => {
         const a = -Math.PI / 2 + i * ((2 * Math.PI) / n);
         const nx = cx + R * Math.cos(a), ny = cy + R * Math.sin(a);
@@ -40,7 +40,7 @@ function ClusterSvg({ hub, spokes }: { hub: string; spokes: Spoke[] }) {
         return (
           <g key={`n${i}`}>
             <circle className="gv-node" cx={nx} cy={ny} r={8.5} fill={st.fill} stroke={st.stroke} strokeWidth={1.8} strokeDasharray={st.dash} />
-            <text x={lx} y={ly + 3.5} textAnchor={anchor} fontSize={11} fontWeight={600} fontFamily="Plus Jakarta Sans, sans-serif" fill={st.text}>{s.label}</text>
+            <text x={lx} y={ly + 3.5} textAnchor={anchor} fontSize={11} fontWeight={600} fontFamily="Inter, sans-serif" fill={st.text}>{s.label}</text>
           </g>
         );
       })}

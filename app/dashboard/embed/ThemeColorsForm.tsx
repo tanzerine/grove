@@ -70,7 +70,7 @@ export default function ThemeColorsForm({
             <div className="mono" style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: derived.banner_text_muted }}>
               Powered by your brand
             </div>
-            <div style={{ fontFamily: 'Clash Display, sans-serif', fontSize: 17, margin: '5px 0 10px' }}>Try your product</div>
+            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 17, margin: '5px 0 10px' }}>Try your product</div>
             <span style={{ display: 'inline-block', background: derived.btn_color, color: derived.btn_text_color, padding: '7px 16px', borderRadius: 999, fontSize: 12, fontWeight: 600 }}>
               Visit →
             </span>

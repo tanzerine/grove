@@ -125,7 +125,7 @@ export default function CalendarClient({
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 24, gap: 12, flexWrap: 'wrap' }}>
-        <h4 style={{ fontFamily: 'Clash Display', fontSize: 'clamp(22px, 5.5vw, 28px)', margin: 0 }}>Calendar</h4>
+        <h4 style={{ fontFamily: 'Inter', fontSize: 'clamp(22px, 5.5vw, 28px)', margin: 0 }}>Calendar</h4>
         <Link href="/dashboard" style={{ fontSize: 12, color: 'var(--moss)', textDecoration: 'none' }}>← Pipeline</Link>
       </div>
 
@@ -134,7 +134,7 @@ export default function CalendarClient({
         <div style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 16, overflow: 'hidden', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: '1px solid var(--line)' }}>
             <button onClick={prevMonth} style={navBtn}>‹</button>
-            <span style={{ fontFamily: 'Clash Display', fontSize: 20, fontWeight: 600 }}>{MONTHS[month]} {year}</span>
+            <span style={{ fontFamily: 'Inter', fontSize: 20, fontWeight: 600 }}>{MONTHS[month]} {year}</span>
             <button onClick={nextMonth} style={navBtn}>›</button>
           </div>
 
@@ -216,7 +216,7 @@ export default function CalendarClient({
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {selectedDay && (
             <div style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 14, padding: 20 }}>
-              <div style={{ fontFamily: 'Clash Display', fontSize: 15, marginBottom: 12 }}>
+              <div style={{ fontFamily: 'Inter', fontSize: 15, marginBottom: 12 }}>
                 {MONTHS[month]} {selectedDay}
               </div>
 
