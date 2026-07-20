@@ -25,7 +25,13 @@ import type { AssistantIntent } from './triage';
 
 export type AssistantTurn = { role: 'user' | 'agent'; content: string };
 
-export type AssistantAnswer = { thought: string; reply: string };
+export type AssistantAnswer = {
+  thought: string;
+  reply: string;
+  /** Exact imperative phrase for an action the route can execute (the panel
+   *  shows it as a one-tap button; a bare "yes" also runs it). */
+  proposedCommand?: string;
+};
 
 /** The "I'm an AI without access to your data" reflex, in its usual shapes. */
 export const NO_ACCESS_RX = new RegExp(
@@ -90,7 +96,12 @@ export function normalizeAnswer(raw: string): AssistantAnswer {
         .sort((a, b) => b.length - a.length);
       reply = strings[0]?.trim() ?? '';
     }
-    if (reply) return { thought: pick(THOUGHT_KEYS), reply };
+    if (reply) {
+      // Exact key only — the fallback pickers must never promote loose text
+      // into something the route would execute.
+      const proposal = typeof obj.proposed_command === 'string' ? obj.proposed_command.trim() : '';
+      return { thought: pick(THOUGHT_KEYS), reply, proposedCommand: proposal || undefined };
+    }
   }
 
   const cleaned = raw.trim()
@@ -132,15 +143,20 @@ the direct answer and its number. Keep it tight — a few sentences, or short
   clicks (CTR), organic share, and how young the blog is; give 1-2 next moves.
 - Per-article questions ("which content works?") → use the PER-ARTICLE rows.
 For setup questions, answer strictly from the GUIDES section and point at
-the dashboard page. You can also DO things when asked directly: queue a new
-article ("write an article about <topic>"), revise the monthly plan ("add
-two more conversion posts"), rewrite low-CTR titles, approve a draft in
-review, retry a failed post, reschedule a post ("move the launch post to
-Friday"). If the owner seems to want one of these, tell them the exact
-phrase to say.
+the dashboard page.
 
-OUTPUT: ONE raw JSON object, no markdown fences, EXACTLY these two keys:
-{"thought":"one short sentence — your reasoning headline","reply":"the message shown to the owner ('-' bullets, numbered lists and **bold** allowed; no headers, no tables)"}`;
+THIS REPLY IS WORDS ONLY — you cannot change anything from here. Never say
+you did, are doing, or will do something. Actions run through separate
+commands: queue a new article ("write an article about <topic>"), revise the
+monthly plan ("add two more conversion posts"), rewrite low-CTR titles
+("rewrite my low-CTR titles"), approve a draft in review, retry a failed
+post, reschedule a post ("move the launch post to Friday"). If the owner
+seems to want one of these, put the exact imperative phrase in
+"proposed_command" — it becomes a button that actually runs it — and in the
+reply say what it will do, not that it's done.
+
+OUTPUT: ONE raw JSON object, no markdown fences:
+{"thought":"one short sentence — your reasoning headline","reply":"the message shown to the owner ('-' bullets, numbered lists and **bold** allowed; no headers, no tables)","proposed_command":"omit unless the owner wants an action — then the exact imperative phrase"}`;
 
   const transcript = sanitizeHistory(opts.history)
     .slice(-8)

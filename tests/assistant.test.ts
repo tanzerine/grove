@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseSlash, classifyIntent, writeTopicFrom } from '../lib/assistant/triage';
+import { parseSlash, classifyIntent, writeTopicFrom, isAffirmation } from '../lib/assistant/triage';
 import { pickTitleCandidates, sanitizeRewrites, TITLE_LIMITS } from '../lib/assistant/titles';
 import { resolvePost, parseWhen, extractReschedule, type PostRef } from '../lib/assistant/pipeline';
 import type { ContentRow } from '../lib/search-console/insights';
@@ -53,6 +53,10 @@ describe('classifyIntent', () => {
     expect(classifyIntent('drop the pricing pillar')).toBe('revise');
     expect(classifyIntent('can you focus the plan more on comparisons')).toBe('revise');
     expect(classifyIntent('/strategy add two more conversion posts')).toBe('revise');
+    // softer steering verbs count too — this exact phrasing once fell to
+    // analytics and the answer model role-played the revision
+    expect(classifyIntent('can you adjust the strategy a little to boost up the conversion rate?')).toBe('revise');
+    expect(classifyIntent('tweak the plan to favor tutorials')).toBe('revise');
   });
 
   it('question-phrased plan talk stays a question, not a revision', () => {
@@ -105,6 +109,26 @@ describe('classifyIntent', () => {
     expect(classifyIntent('이번 달 트래픽이 왜 이래?')).toBe('analytics');
     expect(classifyIntent('커피 원두 보관에 대한 글 써줘')).toBe('write');
     expect(classifyIntent('커스텀 도메인 설정 어떻게 해?')).toBe('help');
+  });
+});
+
+describe('isAffirmation', () => {
+  it('accepts bare confirmations, with trailing punctuation', () => {
+    expect(isAffirmation('yes')).toBe(true);
+    expect(isAffirmation('Yes please!')).toBe(true);
+    expect(isAffirmation('do it')).toBe(true);
+    expect(isAffirmation('go ahead')).toBe(true);
+    expect(isAffirmation('ok')).toBe(true);
+    expect(isAffirmation('sounds good.')).toBe(true);
+    expect(isAffirmation('네')).toBe(true);
+    expect(isAffirmation('해줘')).toBe(true);
+  });
+
+  it('rejects anything with extra content or unrelated words', () => {
+    expect(isAffirmation('yes but drop the listicle')).toBe(false);
+    expect(isAffirmation('yesterday was slow')).toBe(false);
+    expect(isAffirmation('no')).toBe(false);
+    expect(isAffirmation('ok how do I set up DNS?')).toBe(false);
   });
 });
 
@@ -398,6 +422,15 @@ describe('buildAnswerPrompt', () => {
     expect(user).not.toContain('user database');
     expect(user).toContain('OWNER: am i getting new users?');
   });
+
+  it('forbids claiming actions and defines the proposed_command contract', () => {
+    const { system } = buildAnswerPrompt({
+      hostname: 'acme.com', intent: 'general', message: 'yes',
+      signalsMd: '', planMd: '', history: [],
+    });
+    expect(system).toContain('WORDS ONLY');
+    expect(system).toContain('proposed_command');
+  });
 });
 
 describe('normalizeAnswer', () => {
@@ -426,6 +459,13 @@ describe('normalizeAnswer', () => {
   it('treats non-JSON as the reply, stripping stray fences', () => {
     expect(normalizeAnswer('Just a plain answer.').reply).toBe('Just a plain answer.');
     expect(normalizeAnswer('```json\nplain but fenced\n```').reply).toBe('plain but fenced');
+  });
+
+  it('carries proposed_command through, exact key only', () => {
+    const a = normalizeAnswer('{"thought":"t","reply":"I can queue that.","proposed_command":"write an article about cold brew"}');
+    expect(a.proposedCommand).toBe('write an article about cold brew');
+    // alternate keys never become an executable command
+    expect(normalizeAnswer('{"reply":"hi","command":"drop the plan"}').proposedCommand).toBeUndefined();
   });
 });
 
@@ -463,5 +503,14 @@ describe('NO_ACCESS_RX / sanitizeHistory / guardReply', () => {
     expect(guarded.reply).toContain('I do have your live data');
     expect(guarded.reply).toContain('FUNNEL: 210 → 120 → 9');
     expect(NO_ACCESS_RX.test(guarded.reply)).toBe(false);
+  });
+
+  it('forbids claiming actions and defines the proposed_command contract', () => {
+    const { system } = buildAnswerPrompt({
+      hostname: 'acme.com', intent: 'general', message: 'yes',
+      signalsMd: '', planMd: '', history: [],
+    });
+    expect(system).toContain('WORDS ONLY');
+    expect(system).toContain('proposed_command');
   });
 });

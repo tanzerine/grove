@@ -32,7 +32,7 @@ type LinkChip = { label: string; href: string };
 type UndoItem = { post_id: string; from: string; to: string };
 type Msg =
   | { role: 'user'; content: string }
-  | { role: 'agent'; content: string; thought?: string; thoughtSec?: number; changes?: Change[]; links?: LinkChip[]; undo?: UndoItem[]; undone?: boolean };
+  | { role: 'agent'; content: string; thought?: string; thoughtSec?: number; changes?: Change[]; links?: LinkChip[]; undo?: UndoItem[]; undone?: boolean; proposal?: string };
 
 const SUGGESTIONS = [
   '/analytics What’s actually driving clicks this month?',
@@ -192,13 +192,17 @@ export default function AssistantPanel() {
     setInput('');
     setSending(true);
     const history = messages.slice(-10).map((m) => ({ role: m.role, content: m.content }));
+    // The pending proposal (from the latest agent turn) rides along so a bare
+    // "yes" executes it server-side; older turns' proposals don't count.
+    const lastAgent = [...messages].reverse().find((m) => m.role === 'agent');
+    const command = lastAgent?.role === 'agent' ? lastAgent.proposal : undefined;
     patchMessages((m) => [...m, { role: 'user', content: message }]);
     const started = Date.now();
     try {
       const res = await fetch('/api/assistant/chat', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ domain_id: activeId, message, history }),
+        body: JSON.stringify({ domain_id: activeId, message, history, ...(command ? { command } : {}) }),
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d?.error ?? 'request failed');
@@ -209,6 +213,7 @@ export default function AssistantPanel() {
         changes: d.changes?.length ? d.changes : undefined,
         links: d.links?.length ? d.links : undefined,
         undo: d.undo?.length ? d.undo : undefined,
+        proposal: d.proposal || undefined,
       }]);
       if (d.changes?.length) router.refresh();   // e.g. pipeline badge just grew
     } catch {
@@ -370,6 +375,19 @@ export default function AssistantPanel() {
                 )}
                 <div style={{ fontSize: 12.5, color: 'var(--gv-soft)', lineHeight: 1.6 }}><ChatText text={m.content} /></div>
 
+                {m.proposal && (
+                  <button
+                    type="button"
+                    className="gv-sugg"
+                    onClick={() => send(m.proposal)}
+                    disabled={sending}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, textAlign: 'left', marginTop: 10, fontSize: 12, color: 'var(--gv-ink)', background: 'rgba(99,194,129,0.08)', border: '1px solid rgba(99,194,129,0.35)', borderRadius: 10, padding: '9px 12px', cursor: sending ? 'default' : 'pointer', fontFamily: 'inherit', opacity: sending ? 0.55 : 1 }}
+                  >
+                    <span style={{ color: ACCENT, display: 'flex', flexShrink: 0 }}><Icon name="sparkle" size={13} /></span>
+                    <span><b style={{ color: ACCENT }}>Do it:</b> {m.proposal}</span>
+                  </button>
+                )}
+
                 {m.changes && (
                   <div style={{ marginTop: 12, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 10 }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -458,6 +476,7 @@ export default function AssistantPanel() {
                 <Icon name="send" size={14} />
               </button>
             </div>
+
           </div>
         )}
       </aside>

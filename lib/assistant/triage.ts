@@ -91,6 +91,7 @@ const REVISE_VERBS = new RegExp(
     '\\badd\\b', 'remove', '\\bdrop\\b', 'delete', 'replace', 'swap', 'change', '\\bmove\\b',
     'reschedule', 'cancel', 'focus', 'shift', 'increase', 'decrease', 'fewer', '\\bmore\\b',
     '\\bless\\b', 'prioriti[sz]e', 'instead', 'stop writing', "don'?t write",
+    'adjust', 'tweak', 'revise', 'rework',
     '바꿔', '바꾸', '변경', '추가', '빼', '삭제', '제거', '줄여', '줄이', '늘려', '늘리', '대신', '집중', '그만',
   ].join('|'), 'i',
 );
@@ -149,6 +150,25 @@ export function classifyIntent(message: string): AssistantIntent {
   if (ANALYTICS_HINTS.test(m)) return 'analytics';
   if (STRATEGY_HINTS.test(m)) return 'strategy';
   return 'general';
+}
+
+/**
+ * A bare confirmation ("yes", "do it", "go ahead") — nothing else in the
+ * message. Used by the chat route: when the panel carries a pending
+ * proposed_command and the owner just says yes, the command (not the "yes")
+ * is what enters triage. Anything with extra content ("yes but…") is NOT an
+ * affirmation, so caveats always reach the model as a normal message.
+ */
+const AFFIRMATIONS = new RegExp(
+  '^(?:' + [
+    'yes( please)?', 'yep', 'yeah', 'yup', 'sure', 'ok(ay)?', 'sounds good',
+    'do (it|that)', 'go ahead', 'please do', 'proceed', "let'?s do it", 'go for it',
+    '네', '예', '응', '좋아요?', '그래', '해\\s*줘', '진행해\\s*줘?', '고고',
+  ].join('|') + ')[.!?~\\s]*$', 'i',
+);
+
+export function isAffirmation(message: string): boolean {
+  return AFFIRMATIONS.test(message.trim());
 }
 
 /**
