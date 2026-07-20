@@ -200,7 +200,7 @@ export default async function BlogIndex({
               <span className="mono" style={{ fontSize: 10, letterSpacing: '0.12em', background: 'var(--moss)', color: 'white', borderRadius: 999, padding: '3px 10px' }}>FEATURED</span>
               <GenreTag genre={genreFor(featured.format, featured.title)} />
             </div>
-            <h2 style={{ fontFamily: 'Clash Display', fontSize: 32, lineHeight: 1.12, margin: '14px 0 0' }}>{featured.title}</h2>
+            <h2 style={{ fontFamily: 'Inter', fontSize: 32, lineHeight: 1.12, margin: '14px 0 0' }}>{featured.title}</h2>
             {featured.meta_description && (
               <p style={{ color: 'var(--clay)', fontSize: 15, lineHeight: 1.6, margin: '10px 0 0' }}>{featured.meta_description}</p>
             )}
@@ -228,7 +228,7 @@ export default async function BlogIndex({
                   : <div className="bi-fallback" aria-hidden style={{ background: fallbackColor(p.title, covers) }}>{initialOf(p.title)}</div>}
                 <div style={{ padding: '16px 18px 18px', display: 'flex', flexDirection: 'column', flex: 1 }}>
                   <div><GenreTag genre={g} /></div>
-                  <h2 style={{ fontFamily: 'Clash Display', fontSize: 20, lineHeight: 1.2, margin: '10px 0 0' }}>{p.title}</h2>
+                  <h2 style={{ fontFamily: 'Inter', fontSize: 20, lineHeight: 1.2, margin: '10px 0 0' }}>{p.title}</h2>
                   {p.meta_description && (
                     <p style={{ color: 'var(--clay)', fontSize: 13.5, lineHeight: 1.55, margin: '8px 0 0', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                       {p.meta_description}

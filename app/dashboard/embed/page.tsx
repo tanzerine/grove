@@ -40,7 +40,7 @@ export default async function Page() {
           <div className="mono" style={{ fontSize: 11, color: 'var(--gv-accent-ink)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
             1 · Own the SEO — zero code
           </div>
-          <div style={{ fontFamily: 'Clash Display', fontSize: 20, marginTop: 4 }}>
+          <div style={{ fontFamily: 'Inter', fontSize: 20, marginTop: 4 }}>
             Serve the whole blog on your own subdomain
           </div>
           <p style={{ fontSize: 14, color: 'var(--gv-dim)', margin: '8px 0 14px', lineHeight: 1.55 }}>
@@ -75,7 +75,7 @@ export default async function Page() {
         preview={<WidgetPreview />}
       />
 
-      <h3 style={{ fontFamily: 'Clash Display', fontSize: 22, marginTop: 40 }}>How it works</h3>
+      <h3 style={{ fontFamily: 'Inter', fontSize: 22, marginTop: 40 }}>How it works</h3>
       <ol style={{ paddingLeft: 18, marginTop: 10, lineHeight: 1.8, color: 'var(--gv-dim)' }}>
         <li>Paste a snippet. On load, the script reads <span className="mono">window.location.hostname</span>.</li>
         <li>It calls <span className="mono">/api/embed/host/&lt;your-domain&gt;</span> on grove for your published posts.</li>
@@ -83,7 +83,7 @@ export default async function Page() {
         <li>The full-blog mode reads articles in-page via <span className="mono">#grove/&lt;slug&gt;</span> hash routing, so your header and footer stay put.</li>
       </ol>
 
-      <h3 style={{ fontFamily: 'Clash Display', fontSize: 22, marginTop: 30 }}>Make it yours</h3>
+      <h3 style={{ fontFamily: 'Inter', fontSize: 22, marginTop: 30 }}>Make it yours</h3>
       <ul style={{ paddingLeft: 18, marginTop: 10, lineHeight: 1.8, color: 'var(--gv-dim)' }}>
         <li><span className="mono">data-accent=&quot;#hex&quot;</span> — match your brand color (links, chips, hover).</li>
         <li><span className="mono">data-article-base=&quot;/blog&quot;</span> on <span className="mono">#grove-blog</span> — link cards to your own
@@ -98,7 +98,7 @@ export default async function Page() {
             <span className="mono" style={{ fontSize: 11, color: 'var(--gv-dim)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
               Advanced · serve articles yourself
             </span>
-            <span style={{ display: 'block', fontFamily: 'Clash Display', fontSize: 18, marginTop: 4 }}>
+            <span style={{ display: 'block', fontFamily: 'Inter', fontSize: 18, marginTop: 4 }}>
               I already render articles on my own site — make those pages canonical
             </span>
             <span style={{ display: 'block', fontSize: 13, color: 'var(--gv-dim)', marginTop: 4, lineHeight: 1.5 }}>
@@ -134,7 +134,7 @@ export default async function Page() {
           <div className="mono" style={{ fontSize: 11, color: 'var(--gv-accent-ink)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
             4 · Theme colors
           </div>
-          <div style={{ fontFamily: 'Clash Display', fontSize: 20, marginTop: 4 }}>
+          <div style={{ fontFamily: 'Inter', fontSize: 20, marginTop: 4 }}>
             Set your blog&rsquo;s brand colors
           </div>
           <p style={{ fontSize: 14, color: 'var(--gv-dim)', margin: '8px 0 16px', lineHeight: 1.55 }}>
@@ -158,7 +158,7 @@ export default async function Page() {
           <div className="mono" style={{ fontSize: 11, color: 'var(--gv-accent-ink)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
             5 · Banner link
           </div>
-          <div style={{ fontFamily: 'Clash Display', fontSize: 20, marginTop: 4 }}>
+          <div style={{ fontFamily: 'Inter', fontSize: 20, marginTop: 4 }}>
             Choose where the “Try {(domain as any).site_profile?.business?.name || domain.hostname.replace(/^www\./, '')}” banner sends readers
           </div>
           <p style={{ fontSize: 14, color: 'var(--gv-dim)', margin: '8px 0 14px', lineHeight: 1.55 }}>
@@ -191,7 +191,7 @@ function SnippetCard({
     <div style={{ marginTop: 26, border: '1px solid var(--gv-line)', borderRadius: 14, overflow: 'hidden' }}>
       <div style={{ padding: '18px 22px', background: 'var(--gv-card)', borderBottom: '1px solid var(--gv-line)' }}>
         <div className="mono" style={{ fontSize: 11, color: 'var(--gv-accent-ink)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{kicker}</div>
-        <div style={{ fontFamily: 'Clash Display', fontSize: 20, marginTop: 4 }}>{title}</div>
+        <div style={{ fontFamily: 'Inter', fontSize: 20, marginTop: 4 }}>{title}</div>
         <p style={{ fontSize: 14, color: 'var(--gv-dim)', margin: '8px 0 0', lineHeight: 1.55 }}>{desc}</p>
       </div>
       {preview && (

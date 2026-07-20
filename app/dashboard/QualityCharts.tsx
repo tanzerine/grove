@@ -1,7 +1,7 @@
 /**
  * Article-quality visualizations — pure SVG/JSX, no chart library, no hooks,
- * so they render server-side and stay on the design system (Clash Display
- * numerals, DM Mono labels, moss/amber/red score bands shared with PostRow).
+ * so they render server-side and stay on the design system (Inter numerals,
+ * DM Mono labels, moss/grey/red score bands shared with PostRow).
  */
 import Link from 'next/link';
 
@@ -42,7 +42,7 @@ export function ScoreRing({ value, size = 92, label = 'overall' }: { value: numb
         />
       </svg>
       <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ fontFamily: 'Clash Display', fontSize: size * 0.3, lineHeight: 1, color: 'var(--ink)' }}>{v}</span>
+        <span style={{ fontFamily: 'Inter', fontSize: size * 0.3, lineHeight: 1, color: 'var(--ink)' }}>{v}</span>
         <span className="mono" style={{ fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--clay)', marginTop: 2 }}>{label}</span>
       </div>
     </div>

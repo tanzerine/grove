@@ -264,7 +264,10 @@ export default async function OverviewPage() {
         {/* greeting */}
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 22 }}>
           <div>
-            <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.025em', margin: 0 }}>{greeting()}</h1>
+            {/* The one big title on the dashboard's home page — GT Walsheim,
+                matching every other page's single hero title. Weight 500,
+                not 700: Walsheim only ships that one weight. */}
+            <h1 style={{ fontSize: 26, fontWeight: 500, letterSpacing: '-0.025em', margin: 0, fontFamily: "'GT Walsheim', 'Inter', sans-serif" }}>{greeting()}</h1>
             <p style={{ fontSize: 14, color: 'var(--gv-dim)', margin: '6px 0 0' }}>
               {shippedRecently > 0
                 ? <>grove shipped <span style={{ color: 'var(--gv-ink)', fontWeight: 600 }}>{shippedRecently} post{shippedRecently === 1 ? '' : 's'}</span> this week.{inReview.length ? <> {inReview.length} {inReview.length === 1 ? 'draft is' : 'drafts are'} waiting on you.</> : ' Everything is on schedule.'}</>

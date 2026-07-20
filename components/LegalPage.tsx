@@ -14,13 +14,15 @@ export default function LegalPage({
   children: ReactNode;
 }) {
   return (
-    <div style={{ background: '#0a0b0a', color: '#cdd2c9', minHeight: '100vh', fontFamily: "'Plus Jakarta Sans', sans-serif", WebkitFontSmoothing: 'antialiased' }}>
+    <div style={{ background: '#0a0b0a', color: '#cdd2c9', minHeight: '100vh', fontFamily: "'Inter', sans-serif", WebkitFontSmoothing: 'antialiased' }}>
       <div style={{ maxWidth: 720, margin: '0 auto', padding: '72px 24px 96px' }}>
         <a href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 9, textDecoration: 'none', color: '#eef1ea', marginBottom: 40 }}>
           <span style={{ width: 16, height: 16, borderRadius: '50%', background: 'radial-gradient(circle at 35% 30%, #9ff0bb, #63c281)', boxShadow: '0 0 12px rgba(99,194,129,0.6)' }} />
           <span style={{ fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em' }}>grove</span>
         </a>
-        <h1 style={{ fontSize: 'clamp(30px, 5vw, 44px)', fontWeight: 700, letterSpacing: '-0.03em', color: '#eef1ea', margin: '0 0 8px' }}>{title}</h1>
+        {/* The one big title on this page — GT Walsheim, weight 500 (its
+            only shipped weight), matching every other page's single hero. */}
+        <h1 style={{ fontSize: 'clamp(30px, 5vw, 44px)', fontWeight: 500, letterSpacing: '-0.03em', color: '#eef1ea', margin: '0 0 8px', fontFamily: "'GT Walsheim', 'Inter', sans-serif" }}>{title}</h1>
         <p style={{ fontSize: 13, color: '#6b6f67', margin: '0 0 40px' }}>Last updated {updated}</p>
         <div className="gv-legal" style={{ fontSize: 15, lineHeight: 1.7 }}>
           <style>{`

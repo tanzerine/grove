@@ -139,7 +139,7 @@ export default function ConnectionsClient({
   return (
     <div>
       <div style={{ marginBottom: 22 }}>
-        <h4 style={{ fontFamily: 'Clash Display', fontSize: 28, margin: 0 }}>Social accounts</h4>
+        <h4 style={{ fontFamily: 'Inter', fontSize: 28, margin: 0 }}>Social accounts</h4>
         <p style={{ fontSize: 14, color: 'var(--clay)', marginTop: 6, maxWidth: 560 }}>
           Connect your accounts and Grove will automatically share each article when it publishes —
           using the channel-native copy it already writes for every post.
@@ -190,7 +190,7 @@ export default function ConnectionsClient({
           const m = META[p.id];
           return (
             <div key={p.id} style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 14, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: m.color, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontFamily: 'Clash Display', flexShrink: 0 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: m.color, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontFamily: 'Inter', flexShrink: 0 }}>
                 {m.label[0]}
               </div>
               <div style={{ flex: 1 }}>
@@ -228,7 +228,7 @@ export default function ConnectionsClient({
       {/* webhook — the no-OAuth path: pipe every publish into Zapier / Make / n8n */}
       <div style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 14, padding: 20, marginTop: 28 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <h4 style={{ fontFamily: 'Clash Display', fontSize: 20, margin: 0 }}>Publish webhook</h4>
+          <h4 style={{ fontFamily: 'Inter', fontSize: 20, margin: 0 }}>Publish webhook</h4>
           {webhookActive && (
             <span style={{ fontSize: 11, fontFamily: 'DM Mono', color: 'var(--moss)', background: 'rgba(89,148,94,0.10)', borderRadius: 999, padding: '2px 8px' }}>
               active
