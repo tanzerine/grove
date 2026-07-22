@@ -11,6 +11,7 @@ import { genreFor, authorFor } from '@/lib/blog-genre';
 import { pickRelated } from '@/lib/related-posts';
 import { sanitizeEmbedHost } from '@/lib/seo';
 import { embedTheme, brandingPayload, resolveBranding, type EmbedTheme } from '@/lib/blog-theme';
+import { resolveBlogDomain } from '@/lib/blog-domain';
 
 export async function GET(_req: Request, ctx: { params: Promise<{ hostname: string; slug: string }> }) {
   const { hostname: raw, slug } = await ctx.params;
@@ -26,17 +27,12 @@ export async function GET(_req: Request, ctx: { params: Promise<{ hostname: stri
   const apex = host.replace(/^www\./, '');
 
   const sb = supabaseAdmin();
-  // A hostname can have more than one domain row (e.g. a stale unverified
-  // duplicate). Prefer the verified row so we don't look the article up under
-  // an empty duplicate and 404 a post that's actually published — this must
-  // match the list endpoint's ordering or the list and articles disagree.
-  const { data: domain } = await sb
-    .from('domains')
-    .select('*') // '*': survives a DB where cta_url (0021) hasn't been applied yet
-    .or(`hostname.eq.${apex},hostname.eq.www.${apex}`)
-    .order('verified_at', { ascending: false, nullsFirst: false })
-    .limit(1)
-    .maybeSingle();
+  // A hostname can have more than one domain row (e.g. a stale, empty, unverified
+  // duplicate). resolveBlogDomain prefers the row that actually owns published
+  // content, so we never look the article up under an empty duplicate and 404 a
+  // post that's actually published — this MUST match the list endpoint's
+  // resolution or the list and articles disagree.
+  const domain = await resolveBlogDomain(sb, apex);
 
   if (!domain) {
     return NextResponse.json(

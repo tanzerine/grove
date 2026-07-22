@@ -10,6 +10,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import { blogPostUrl, sanitizeEmbedHost } from '@/lib/seo';
 import { genreFor, authorFor } from '@/lib/blog-genre';
 import { brandingPayload, resolveBranding } from '@/lib/blog-theme';
+import { resolveBlogDomain } from '@/lib/blog-domain';
 
 export async function GET(req: Request, ctx: { params: Promise<{ hostname: string }> }) {
   const { hostname: raw } = await ctx.params;
@@ -29,17 +30,12 @@ export async function GET(req: Request, ctx: { params: Promise<{ hostname: strin
   const page = Math.max(1, Number(url.searchParams.get('page')) || 1);
 
   const sb = supabaseAdmin();
-  // A hostname can have more than one domain row (e.g. a stale unverified
-  // duplicate alongside the real verified one). Without an explicit order the
-  // pick was non-deterministic and could land on the empty duplicate, making a
-  // populated blog look empty. Prefer the verified row (verified_at not null).
-  const { data: domain } = await sb
-    .from('domains')
-    .select('*') // '*': survives pre-0018 DB (canonical_blog_base may not exist yet)
-    .or(`hostname.eq.${apex},hostname.eq.www.${apex}`)
-    .order('verified_at', { ascending: false, nullsFirst: false })
-    .limit(1)
-    .maybeSingle();
+  // A hostname can have more than one domain row (e.g. a stale, empty, unverified
+  // duplicate — often under a different account — alongside the real populated
+  // one). resolveBlogDomain prefers the row that actually owns published content
+  // so an empty duplicate can never hijack a live blog. This MUST match the
+  // article endpoint's resolution or the list and articles disagree.
+  const domain = await resolveBlogDomain(sb, apex);
 
   if (!domain) {
     return NextResponse.json(
