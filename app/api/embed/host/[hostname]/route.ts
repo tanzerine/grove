@@ -57,6 +57,12 @@ export async function GET(req: Request, ctx: { params: Promise<{ hostname: strin
     .select('slug,title,meta_description,published_at,cover_image_url,cover_image_credit,format:research->brief->>format', { count: 'exact' })
     .eq('domain_id', domain.id)
     .eq('status', 'published')
+    // `slug` is nullable: a post can be briefly 'published' before its slug is
+    // assigned, and the 5-min-cached feed would then emit a card that links to
+    // `/blog/null` (a 404 for readers, a wasted crawl, and a junk analytics
+    // row). Never ship an unlinkable post — the card has nowhere to point.
+    .not('slug', 'is', null)
+    .neq('slug', '')
     .order('published_at', { ascending: false })
     .range((page - 1) * limit, page * limit - 1);
 
