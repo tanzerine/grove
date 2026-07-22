@@ -9,6 +9,9 @@ export type Chrome = {
   email: string | null;
   isAdmin: boolean;
   plan: string;
+  /** Live subscription? Gates every cost-bearing action in the UI (backend
+   *  still 402s independently). false for Free / lapsed accounts. */
+  entitled: boolean;
   activeHostname: string | null;
   activeId: string | null;
   /** Autopilot state of the active domain — drives the nav-bar autopilot toggle. */
@@ -28,7 +31,7 @@ export function useChrome(): Chrome {
   const c = useContext(Ctx);
   if (!c) {
     // Safe fallback so a stray render never throws.
-    return { email: null, isAdmin: false, plan: 'Free', activeHostname: null, activeId: null, activeAutoPublish: false, domains: [], onboarding: EMPTY_ONBOARDING, activity: EMPTY_ACTIVITY };
+    return { email: null, isAdmin: false, plan: 'Free', entitled: false, activeHostname: null, activeId: null, activeAutoPublish: false, domains: [], onboarding: EMPTY_ONBOARDING, activity: EMPTY_ACTIVITY };
   }
   return c;
 }

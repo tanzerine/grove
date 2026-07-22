@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { SearchIntent } from '@/lib/strategy/keywords';
 import Icon from '../gv-icons';
+import { useUpsell } from '../Upsell';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
@@ -25,6 +26,7 @@ type Tab = 'idea' | 'seo';
  */
 export default function StartDraft({ domainId, hostname }: { domainId: string; hostname: string }) {
   const r = useRouter();
+  const { gate } = useUpsell();
   const [tab, setTab] = useState<Tab>('idea');
 
   // idea studio
@@ -70,6 +72,7 @@ export default function StartDraft({ domainId, hostname }: { domainId: string; h
   }
 
   async function groveWrites(topic: string) {
+    if (!gate('write')) return;
     setBusyIdea(topic); setBusyKind('grove');
     await fetch('/api/posts', {
       method: 'POST', headers: { 'content-type': 'application/json' },
@@ -79,6 +82,7 @@ export default function StartDraft({ domainId, hostname }: { domainId: string; h
   }
 
   async function previewSet() {
+    if (!gate('pseo')) return;
     setPlanning(true); setPseoErr(null); setPages([]);
     try {
       const res = await fetch('/api/pseo/plan', {
@@ -95,6 +99,7 @@ export default function StartDraft({ domainId, hostname }: { domainId: string; h
 
   async function generateSet() {
     if (!pages.length) return;
+    if (!gate('pseo')) return;
     setGenerating(true); setPseoErr(null);
     try {
       const res = await fetch('/api/pseo/generate', {

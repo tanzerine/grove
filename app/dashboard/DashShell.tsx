@@ -6,6 +6,7 @@ import SideNav from './SideNav';
 import SiteSwitcher from './SiteSwitcher';
 import AssistantPanel from './AssistantPanel';
 import { ChromeProvider, type Chrome } from './chrome-context';
+import { UpsellProvider } from './Upsell';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
@@ -27,6 +28,7 @@ export default function DashShell({
 
   return (
     <ChromeProvider value={chrome}>
+      <UpsellProvider>
       <div className={`gv-app ${open ? 'nav-open' : ''}`}>
         {/* mobile top chrome */}
         <div className="gv-mtop">
@@ -62,6 +64,7 @@ export default function DashShell({
         {/* agent chat — right sidebar */}
         <AssistantPanel />
       </div>
+      </UpsellProvider>
     </ChromeProvider>
   );
 }

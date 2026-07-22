@@ -3,12 +3,14 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Icon from './gv-icons';
+import { useUpsell } from './Upsell';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
 
 export default function PipelineActions({ domainId }: { domainId?: string }) {
   const r = useRouter();
+  const { gate } = useUpsell();
   const [topic, setTopic] = useState('');
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
@@ -18,6 +20,9 @@ export default function PipelineActions({ domainId }: { domainId?: string }) {
 
   async function enqueue() {
     if (!domainId || !topic.trim()) return;
+    // Free/lapsed accounts get the upsell instead of a doomed 402. `suggest`
+    // stays open on purpose — real, personalized topic ideas are the tease.
+    if (!gate('generate')) return;
     setBusy(true);
     await fetch('/api/posts', {
       method: 'POST', headers: { 'content-type': 'application/json' },

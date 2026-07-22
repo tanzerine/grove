@@ -3,6 +3,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { isAdminEmail } from '@/lib/admin';
+import { entitlementFrom } from '@/lib/billing';
 import { ACTIVE_DOMAIN_COOKIE } from '@/lib/active-domain';
 import { getOnboarding, EMPTY_ONBOARDING } from '@/lib/onboarding/checklist';
 import { getActivity, EMPTY_ACTIVITY } from '@/lib/notifications/feed';
@@ -40,14 +41,20 @@ export default async function DashLayout({ children }: { children: React.ReactNo
     }
   } catch { /* badges are optional */ }
 
-  // Real plan label for the sidebar chip (best-effort; never blocks render).
+  // Real plan label for the sidebar chip + entitlement (best-effort; never
+  // blocks render). `entitled` gates every cost-bearing action in the UI and
+  // is the single source the client reads to decide "run it" vs "tease it";
+  // the backend 402s independently, so a wrong-but-generous value can't leak
+  // LLM spend. entitlementFrom() is the same pure rule the APIs use.
   let plan = 'Free';
+  let entitled = false;
   try {
     const { data: sub } = await sb
       .from('subscriptions').select('plan, stripe_status').eq('user_id', user.id).maybeSingle();
     const isActive = sub?.stripe_status && ['active', 'trialing', 'past_due'].includes(sub.stripe_status);
     if (isActive && sub?.plan) plan = sub.plan.charAt(0).toUpperCase() + sub.plan.slice(1);
-  } catch { /* chip is cosmetic */ }
+    entitled = entitlementFrom(sub).canGenerate;
+  } catch { /* chip is cosmetic; stay un-entitled on error */ }
 
   // Header bell payloads (best-effort) — onboarding guide + live activity feed.
   let onboarding = EMPTY_ONBOARDING;
@@ -59,6 +66,7 @@ export default async function DashLayout({ children }: { children: React.ReactNo
     email: user.email ?? null,
     isAdmin: isAdminEmail(user.email),
     plan,
+    entitled,
     activeHostname: active?.hostname ?? null,
     activeId: active?.id ?? null,
     activeAutoPublish: !!(active as any)?.auto_publish,

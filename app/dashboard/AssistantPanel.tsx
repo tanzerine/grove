@@ -19,6 +19,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Icon from './gv-icons';
 import { useChrome } from './chrome-context';
+import { useUpsell } from './Upsell';
 import { SLASH_COMMANDS } from '@/lib/assistant/triage';
 import {
   createChat, upsertChat, removeChat, parseChats, chatTitle, relativeTime, type Chat,
@@ -87,6 +88,7 @@ const iconBtnStyle: React.CSSProperties = {
 
 export default function AssistantPanel() {
   const { activeId, activeHostname } = useChrome();
+  const { gate } = useUpsell();
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<'chat' | 'history'>('chat');
   const [chats, setChats] = useState<Chat[]>([]);
@@ -190,6 +192,8 @@ export default function AssistantPanel() {
   const send = async (raw?: string) => {
     const message = (raw ?? input).trim();
     if (!message || sending || !activeId) return;
+    // The agent executes real, cost-bearing actions — tease, don't 402.
+    if (!gate('assistant')) return;
     setInput('');
     setSending(true);
     const history = messages.slice(-10).map((m) => ({ role: m.role, content: m.content }));
