@@ -55,7 +55,7 @@ export default function PostActions({
   }
 
   const primary: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, border: 'none', background: 'var(--gv-accent)', color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, padding: '9px 16px', borderRadius: 9, cursor: 'pointer' };
-  const tool: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 7, border: '1px solid rgba(15,23,18,0.09)', background: 'rgba(15,23,18,0.02)', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '8px 13px', borderRadius: 9, cursor: 'pointer' };
+  const tool: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 7, border: '1px solid rgba(255,255,255,0.09)', background: 'rgba(255,255,255,0.02)', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '8px 13px', borderRadius: 9, cursor: 'pointer' };
 
   return (
     <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap', alignItems: 'center', width: '100%' }}>

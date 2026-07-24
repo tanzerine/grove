@@ -52,11 +52,11 @@ export default function SideNav({ badges = {}, isAdmin = false }: { badges?: Rec
                 style={{
                   display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left',
                   border: `1px solid ${active ? 'rgba(162,255,1,0.22)' : 'transparent'}`,
-                  background: active ? 'rgba(162,255,1,0.1)' : 'transparent',
-                  color: active ? 'var(--gv-ink)' : 'var(--gv-dim)',
+                  background: active ? 'rgba(162,255,1,0.14)' : 'transparent',
+                  color: active ? ACCENT_INK : 'var(--gv-dim)',
                   fontSize: 13.5, fontWeight: 500, padding: '9px 12px', borderRadius: 10, cursor: 'pointer',
                 }}>
-                <span className="gv-ico" style={{ color: active ? ACCENT_INK : 'var(--gv-faint)', display: 'flex', flexShrink: 0 }}>
+                <span className="gv-ico" style={{ color: active ? ACCENT : 'var(--gv-faint)', display: 'flex', flexShrink: 0 }}>
                   <Icon name={it.icon} />
                 </span>
                 <span style={{ flex: 1 }}>{it.label}</span>

@@ -160,7 +160,7 @@ export default function CalendarClient({
                   style={{
                     borderRight: (i + 1) % 7 !== 0 ? '1px solid var(--line)' : 'none',
                     borderBottom: i < cells.length - 7 ? '1px solid var(--line)' : 'none',
-                    background: active ? 'rgba(162,255,1,0.1)' : 'rgba(15,23,18,0.015)',
+                    background: active ? 'rgba(162,255,1,0.1)' : 'rgba(255,255,255,0.015)',
                     cursor: day ? 'pointer' : 'default', transition: 'background .12s',
                     minWidth: 0, overflow: 'hidden',   // keep long titles from blowing out the grid
                   }}
@@ -179,7 +179,7 @@ export default function CalendarClient({
                           <div key={it.p.id} style={{
                             fontSize: 10, lineHeight: 1.3,
                             background: STATUS_COLOR[it.p.status] ?? 'var(--clay)',
-                            color: 'white', borderRadius: 4, padding: '2px 5px',
+                            color: 'var(--gv-on-accent)', borderRadius: 4, padding: '2px 5px',
                             overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
                           }}>{it.p.title ?? it.p.topic ?? '(draft)'}</div>
                         ) : (
@@ -290,7 +290,7 @@ export default function CalendarClient({
                             style={{
                               textAlign: 'left', width: '100%', padding: '8px 12px', borderRadius: 8,
                               border: `2px solid ${editing ? 'var(--moss)' : 'var(--line)'}`,
-                              background: editing ? 'rgba(162,255,1,0.08)' : 'rgba(15,23,18,0.03)',
+                              background: editing ? 'rgba(162,255,1,0.08)' : 'rgba(255,255,255,0.03)',
                               cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, color: 'var(--ink)',
                               overflowWrap: 'anywhere',
                             }}>

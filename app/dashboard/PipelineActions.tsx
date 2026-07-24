@@ -54,7 +54,7 @@ export default function PipelineActions({ domainId }: { domainId?: string }) {
           onChange={(e) => setTopic(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && enqueue()}
           placeholder="Add a topic… e.g. 'reduce churn with onboarding nudges'"
-          style={{ flex: '1 1 220px', minWidth: 0, background: 'rgba(15,23,18,0.03)', border: '1px solid rgba(15,23,18,0.09)', borderRadius: 10, padding: '11px 14px', color: 'var(--gv-ink)', fontSize: 13.5, fontFamily: 'inherit', outline: 'none' }}
+          style={{ flex: '1 1 220px', minWidth: 0, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 10, padding: '11px 14px', color: 'var(--gv-ink)', fontSize: 13.5, fontFamily: 'inherit', outline: 'none' }}
         />
         <button onClick={suggest} disabled={suggesting || !domainId} className="gv-ghost" style={ghost}>
           <Icon name="sparkle" size={13} />{suggesting ? 'Thinking…' : 'Suggest'}
@@ -76,7 +76,7 @@ export default function PipelineActions({ domainId }: { domainId?: string }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {suggestions.map((s, i) => (
               <button key={i} className="gv-sugg" onClick={() => { setTopic(s); setOpen(false); }}
-                style={{ textAlign: 'left', padding: '10px 14px', background: 'rgba(15,23,18,0.02)', border: '1px solid var(--gv-line)', borderRadius: 9, fontSize: 13, color: 'var(--gv-soft)', cursor: 'pointer', fontFamily: 'inherit', lineHeight: 1.4 }}>
+                style={{ textAlign: 'left', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--gv-line)', borderRadius: 9, fontSize: 13, color: 'var(--gv-soft)', cursor: 'pointer', fontFamily: 'inherit', lineHeight: 1.4 }}>
                 {s}
               </button>
             ))}

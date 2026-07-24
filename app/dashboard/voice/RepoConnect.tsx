@@ -73,7 +73,7 @@ export default function RepoConnect({
           className="mono"
           style={{
             flex: '1 1 260px', fontSize: 13, padding: '9px 12px', borderRadius: 8,
-            border: '1px solid rgba(15,23,18,0.12)', background: 'var(--paper)', color: 'inherit',
+            border: '1px solid rgba(255,255,255,0.12)', background: 'var(--paper)', color: 'inherit',
           }}
         />
         <button className="btn btn-primary btn-sm" onClick={sync} disabled={!!busy || !input.trim()}>
@@ -95,7 +95,7 @@ export default function RepoConnect({
           className="mono"
           style={{
             fontSize: 13, padding: '9px 12px', borderRadius: 8,
-            border: '1px solid rgba(15,23,18,0.12)', background: 'var(--paper)', color: 'inherit',
+            border: '1px solid rgba(255,255,255,0.12)', background: 'var(--paper)', color: 'inherit',
           }}
         />
       ) : (

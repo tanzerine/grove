@@ -161,7 +161,7 @@ export default function SocialComposer({
     }
   }
 
-  const ghost: React.CSSProperties = { border: '1px solid rgba(15,23,18,0.12)', background: 'rgba(15,23,18,0.02)', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '7px 13px', borderRadius: 8, cursor: 'pointer' };
+  const ghost: React.CSSProperties = { border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.02)', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '7px 13px', borderRadius: 8, cursor: 'pointer' };
   const primary: React.CSSProperties = { ...ghost, border: 'none', background: 'var(--gv-accent)', color: 'var(--gv-on-accent)', fontWeight: 700 };
 
   const draftedCount = (['x', 'linkedin', 'instagram'] as ChannelKey[]).filter((k) => (drafts[k] ?? '').trim()).length;
@@ -217,7 +217,7 @@ export default function SocialComposer({
       ) : (
         <>
           {/* channel tabs */}
-          <div style={{ display: 'flex', gap: 4, padding: 3, background: 'rgba(15,23,18,0.03)', border: '1px solid var(--gv-line)', borderRadius: 10, marginBottom: 14, width: 'fit-content', maxWidth: '100%', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 4, padding: 3, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--gv-line)', borderRadius: 10, marginBottom: 14, width: 'fit-content', maxWidth: '100%', flexWrap: 'wrap' }}>
             {platforms.map((pf) => {
               const on = tab === pf.id;
               const dot = tabDot(pf.id);
@@ -277,7 +277,7 @@ function ToggleSwitch({ on, disabled, onClick }: { on: boolean; disabled?: boole
       style={{
         width: 34, height: 20, borderRadius: 999, border: 'none', position: 'relative', flexShrink: 0,
         cursor: disabled ? 'not-allowed' : 'pointer',
-        background: on ? 'var(--gv-accent)' : 'rgba(15,23,18,0.14)',
+        background: on ? 'var(--gv-accent)' : 'rgba(255,255,255,0.14)',
         transition: 'background .15s', opacity: disabled ? 0.5 : 1, padding: 0,
       }}
     >
@@ -345,7 +345,7 @@ function Channel({
         onChange={(e) => onChange(e.target.value)}
         rows={Math.min(12, Math.max(4, value.split('\n').length + 1))}
         spellCheck={false}
-        style={{ width: '100%', resize: 'vertical', background: 'rgba(15,23,18,0.02)', border: '1px solid rgba(15,23,18,0.08)', borderRadius: 10, padding: '12px 14px', fontFamily: 'inherit', fontSize: 13.5, lineHeight: 1.7, color: '#dfe4da' }}
+        style={{ width: '100%', resize: 'vertical', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '12px 14px', fontFamily: 'inherit', fontSize: 13.5, lineHeight: 1.7, color: '#dfe4da' }}
       />
 
       {/* footer: hint + channel controls */}

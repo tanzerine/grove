@@ -29,7 +29,7 @@ export default async function Page() {
       </p>
 
       {!hasProfile && (
-        <div style={{ background: 'rgba(15,23,18,0.06)', border: '1px solid rgba(15,23,18,0.24)', color: '#d8d2bf', padding: 18, borderRadius: 12, marginTop: 20 }}>
+        <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.24)', color: '#d8d2bf', padding: 18, borderRadius: 12, marginTop: 20 }}>
           <b>No profile yet.</b>
           <p style={{ margin: '6px 0 0', fontSize: 14 }}>
             Click <b>Crawl my site</b> above. It hits your homepage, /about, /pricing, /products, /services,
