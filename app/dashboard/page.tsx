@@ -8,6 +8,8 @@ import Icon from './gv-icons';
 import { DashHeader } from './gv-chrome';
 import OverviewPipeline, { type OvRow } from './OverviewPipeline';
 import AskAgent from './AskAgent';
+import GhostPipeline from './GhostPipeline';
+import { getEntitlement } from '@/lib/billing';
 
 // ACCENT is the lime fill/border; ACCENT_INK is the olive to use whenever the
 // accent has to read as text (lime is ~1.1:1 on the white canvas).
@@ -74,6 +76,10 @@ function schedLabel(p: any): string {
 export default async function OverviewPage() {
   const sb = await supabaseServer();
   const domain = await getActiveDomain(sb);
+  // Entitlement drives the tease: Free / lapsed accounts see a locked preview
+  // pipeline instead of the live one. Backend still 402s independently.
+  const { data: { user } } = await sb.auth.getUser();
+  const entitled = user ? (await getEntitlement(user.id, sb)).canGenerate : false;
   const { data: posts } = await sb
     .from('posts').select('*').eq('domain_id', domain?.id).order('created_at', { ascending: false }).limit(60);
   const all = posts ?? [];
@@ -279,6 +285,10 @@ export default async function OverviewPage() {
             <Link href="/dashboard/write" className="gv-btn" style={{ border: 'none', background: 'var(--gv-ink)', color: '#ffffff', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '10px 18px', borderRadius: 10, cursor: 'pointer', textDecoration: 'none' }}>Write</Link>
           </div>
         </div>
+
+        {/* Free / lapsed: the locked preview pipeline sits up top, above the
+            (empty) real stats — real, personalized bait that routes to billing. */}
+        {!entitled && <GhostPipeline domainId={domain?.id} hostname={domain?.hostname ?? 'your site'} />}
 
         {/* stat cards */}
         <div className="gv-grid4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 14 }}>

@@ -828,6 +828,7 @@ html { scroll-behavior: smooth; }
 .gv-app *, .gv-app *::before, .gv-app *::after { box-sizing: border-box; }
 
 @keyframes gvPulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.45; transform: scale(0.85); } }
+@keyframes gvFade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes gvBlob { 0% { transform: translate3d(-4%,2%,0) scale(1.1); } 50% { transform: translate3d(6%,-3%,0) scale(1.28); } 100% { transform: translate3d(-4%,2%,0) scale(1.1); } }
 @keyframes gvDash { to { stroke-dashoffset: -22; } }
 @keyframes gvRingIn { from { stroke-dashoffset: 100; } }
