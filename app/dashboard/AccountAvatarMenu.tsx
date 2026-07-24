@@ -46,7 +46,7 @@ export default function AccountAvatarMenu() {
       {open && (
         <div role="menu" style={{
           position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: 220,
-          background: 'var(--gv-pop)', border: '1px solid rgba(15,23,18,0.1)', borderRadius: 12,
+          background: 'var(--gv-pop)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12,
           boxShadow: '0 16px 40px rgba(0,0,0,0.55)', padding: 6, zIndex: 70,
         }}>
           {email && (

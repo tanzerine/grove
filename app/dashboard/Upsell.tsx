@@ -102,11 +102,11 @@ export function UpsellProvider({ children }: { children: React.ReactNode }) {
           role="dialog"
           aria-modal="true"
           onClick={() => setFeature(null)}
-          style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(15,23,18,0.44)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, animation: 'gvFade 0.14s ease-out' }}
+          style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, animation: 'gvFade 0.14s ease-out' }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{ width: '100%', maxWidth: 440, background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 20, padding: '26px 26px 22px', boxShadow: '0 24px 70px rgba(15,23,18,0.28)' }}
+            style={{ width: '100%', maxWidth: 440, background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 20, padding: '26px 26px 22px', boxShadow: '0 24px 70px rgba(255,255,255,0.28)' }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: ACCENT_INK, fontWeight: 700 }}>

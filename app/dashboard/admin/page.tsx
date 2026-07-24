@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
 const CARD = 'var(--gv-card)';
-const LINE = 'rgba(15,23,18,0.08)';
+const LINE = 'rgba(255,255,255,0.08)';
 const DIM = 'var(--gv-dim)';
 
 export default async function AdminOverviewPage() {
@@ -47,8 +47,8 @@ export default async function AdminOverviewPage() {
                 {flags.map((f) => {
                   const crit = f.severity === 'critical';
                   const fg = crit ? 'var(--gv-red-text)' : 'var(--gv-amber)';
-                  const bg = crit ? 'rgba(255,99,99,0.1)' : 'rgba(15,23,18,0.1)';
-                  const bd = crit ? 'rgba(255,99,99,0.3)' : 'rgba(15,23,18,0.3)';
+                  const bg = crit ? 'rgba(255,99,99,0.1)' : 'rgba(255,255,255,0.1)';
+                  const bd = crit ? 'rgba(255,99,99,0.3)' : 'rgba(255,255,255,0.3)';
                   return (
                     <div key={f.key} style={{ background: bg, border: `1px solid ${bd}`, borderRadius: 10, padding: '11px 14px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -94,7 +94,7 @@ export default async function AdminOverviewPage() {
                         <span style={{ color: 'var(--gv-soft)' }}>{r.source}</span>
                         <span style={{ color: DIM }}>{r.count}</span>
                       </div>
-                      <div style={{ height: 6, borderRadius: 99, background: 'rgba(15,23,18,0.05)' }}>
+                      <div style={{ height: 6, borderRadius: 99, background: 'rgba(255,255,255,0.05)' }}>
                         <div style={{ height: '100%', width: `${(r.count / maxRef) * 100}%`, borderRadius: 99, background: ACCENT }} />
                       </div>
                     </div>
@@ -176,9 +176,9 @@ function Empty({ children }: { children: React.ReactNode }) {
 function PayBadge({ status }: { status: string }) {
   const map: Record<string, { bg: string; fg: string }> = {
     succeeded: { bg: 'rgba(162,255,1,0.16)', fg: ACCENT_INK },
-    refunded: { bg: 'rgba(15,23,18,0.06)', fg: DIM },
+    refunded: { bg: 'rgba(255,255,255,0.06)', fg: DIM },
     failed: { bg: 'rgba(255,99,99,0.14)', fg: 'var(--gv-red-text)' },
-    pending: { bg: 'rgba(15,23,18,0.16)', fg: 'var(--gv-amber)' },
+    pending: { bg: 'rgba(255,255,255,0.16)', fg: 'var(--gv-amber)' },
   };
   const s = map[status] ?? map.pending;
   return <span style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: s.bg, color: s.fg }}>{status}</span>;

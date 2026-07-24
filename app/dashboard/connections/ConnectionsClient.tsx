@@ -190,7 +190,7 @@ export default function ConnectionsClient({
           const m = META[p.id];
           return (
             <div key={p.id} style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 14, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: m.color, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontFamily: 'Inter', flexShrink: 0 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: m.color, border: '1px solid rgba(255,255,255,0.14)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontFamily: 'Inter', flexShrink: 0 }}>
                 {m.label[0]}
               </div>
               <div style={{ flex: 1 }}>

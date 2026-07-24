@@ -195,7 +195,7 @@ function SnippetCard({
         <p style={{ fontSize: 14, color: 'var(--gv-dim)', margin: '8px 0 0', lineHeight: 1.55 }}>{desc}</p>
       </div>
       {preview && (
-        <div style={{ padding: '22px 22px 6px', background: 'rgba(15,23,18,0.03)', borderBottom: '1px solid var(--gv-line)' }}>
+        <div style={{ padding: '22px 22px 6px', background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid var(--gv-line)' }}>
           <div className="mono" style={{ fontSize: 10, color: 'var(--gv-dim)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>
             Preview
           </div>

@@ -156,7 +156,7 @@ export default function StartDraft({ domainId, hostname }: { domainId: string; h
                     <span style={{ fontSize: 12.5, lineHeight: 1.4, color: 'var(--gv-ink)' }}>{idea}</span>
                     <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
                       <button onClick={() => writeMine(idea)} disabled={!!busyIdea} className="gv-ghost"
-                        style={{ border: '1px solid rgba(15,23,18,0.12)', background: 'transparent', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, padding: '6px 10px', borderRadius: 8, cursor: 'pointer' }}>
+                        style={{ border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, padding: '6px 10px', borderRadius: 8, cursor: 'pointer' }}>
                         {busy && busyKind === 'mine' ? 'Opening…' : 'Write myself'}
                       </button>
                       <button onClick={() => groveWrites(idea)} disabled={!!busyIdea} className="gv-btn"
@@ -179,11 +179,11 @@ export default function StartDraft({ domainId, hostname }: { domainId: string; h
             placeholder="Seed term — e.g. 'cold brew'" className="gv-prompt" style={field} />
           <div style={{ display: 'flex', gap: 8 }}>
             <select value={count} onChange={(e) => setCount(Number(e.target.value))} aria-label="Number of pages"
-              style={{ background: 'rgba(15,23,18,0.03)', border: '1px solid rgba(15,23,18,0.1)', borderRadius: 10, padding: '9px 10px', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 12, cursor: 'pointer' }}>
+              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '9px 10px', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 12, cursor: 'pointer' }}>
               {[4, 6, 8, 10, 12].map((n) => <option key={n} value={n} style={{ background: 'var(--gv-card)' }}>{n} pages</option>)}
             </select>
             <button onClick={previewSet} disabled={planning || seed.trim().length < 2} className="gv-ghost"
-              style={{ flex: 1, border: '1px solid rgba(15,23,18,0.12)', background: 'rgba(15,23,18,0.02)', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: '9px', borderRadius: 10, cursor: 'pointer' }}>
+              style={{ flex: 1, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.02)', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: '9px', borderRadius: 10, cursor: 'pointer' }}>
               {planning ? 'Planning…' : 'Preview set'}
             </button>
           </div>
@@ -225,12 +225,12 @@ const iconBadge: React.CSSProperties = {
   display: 'flex', alignItems: 'center', justifyContent: 'center', color: ACCENT_INK,
 };
 const tabRow: React.CSSProperties = {
-  display: 'flex', gap: 4, padding: 3, background: 'rgba(15,23,18,0.03)', border: '1px solid var(--gv-line)',
+  display: 'flex', gap: 4, padding: 3, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--gv-line)',
   borderRadius: 10, marginBottom: 14,
 };
 const desc: React.CSSProperties = { fontSize: 12, lineHeight: 1.5, color: 'var(--gv-dim)', margin: '0 0 11px' };
 const field: React.CSSProperties = {
-  width: '100%', background: 'rgba(15,23,18,0.03)', border: '1px solid rgba(15,23,18,0.1)', borderRadius: 10,
+  width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10,
   padding: '9px 12px', color: 'var(--gv-ink)', fontFamily: 'inherit', fontSize: 12.5, outline: 'none', boxSizing: 'border-box', marginBottom: 10,
 };
 const primaryBtn: React.CSSProperties = {
@@ -238,10 +238,10 @@ const primaryBtn: React.CSSProperties = {
   background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, padding: 10, borderRadius: 10, cursor: 'pointer',
 };
 const chip: React.CSSProperties = {
-  fontSize: 11, fontWeight: 600, color: 'var(--gv-dim)', background: 'rgba(15,23,18,0.03)', border: '1px solid rgba(15,23,18,0.09)',
+  fontSize: 11, fontWeight: 600, color: 'var(--gv-dim)', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.09)',
   borderRadius: 999, padding: '5px 10px', cursor: 'pointer', fontFamily: 'inherit',
 };
 const row: React.CSSProperties = {
-  padding: '10px 12px', background: 'rgba(15,23,18,0.02)', border: '1px solid var(--gv-line)', borderRadius: 10,
+  padding: '10px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--gv-line)', borderRadius: 10,
 };
 const errText: React.CSSProperties = { fontSize: 12, color: 'var(--gv-red)', margin: '10px 0 0' };

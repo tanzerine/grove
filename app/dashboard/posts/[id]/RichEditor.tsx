@@ -304,7 +304,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
             <FmtBtn on={editor.isActive('bulletList')} onClick={() => editor.chain().focus().toggleBulletList().run()}>•</FmtBtn>
             <FmtBtn on={editor.isActive('orderedList')} onClick={() => editor.chain().focus().toggleOrderedList().run()}>1.</FmtBtn>
             <FmtBtn on={editor.isActive('link')} onClick={setLink}>link</FmtBtn>
-            <span style={{ width: 1, background: 'rgba(15,23,18,0.22)', margin: '2px 3px' }} />
+            <span style={{ width: 1, background: 'rgba(255,255,255,0.22)', margin: '2px 3px' }} />
             <FmtBtn onClick={() => { promptRef.current?.focus(); }}>✨ AI</FmtBtn>
           </div>
         </BubbleMenu>
@@ -318,7 +318,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
           <div style={{ maxWidth: 820, margin: '0 auto' }}>
             {/* persistent formatting toolbar */}
             {canEdit && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', padding: '8px 10px', marginBottom: 18, border: '1px solid var(--gv-line)', borderRadius: 12, background: 'rgba(15,23,18,0.015)', position: 'sticky', top: 64, zIndex: 10, backdropFilter: 'blur(10px)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', padding: '8px 10px', marginBottom: 18, border: '1px solid var(--gv-line)', borderRadius: 12, background: 'rgba(255,255,255,0.015)', position: 'sticky', top: 64, zIndex: 10, backdropFilter: 'blur(10px)' }}>
                 <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--gv-dim)', padding: '0 8px' }}>Paragraph</span>
                 <span style={tbDivider} />
                 <ToolBtn on={editor?.isActive('bold')} onClick={() => editor?.chain().focus().toggleBold().run()} serif>B</ToolBtn>
@@ -340,7 +340,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
               onClick={enterEdit}
               style={{
                 background: '#0d100c',
-                border: `1px solid ${editing ? 'rgba(162,255,1,0.4)' : 'rgba(15,23,18,0.06)'}`,
+                border: `1px solid ${editing ? 'rgba(162,255,1,0.4)' : 'rgba(255,255,255,0.06)'}`,
                 borderRadius: 18, padding: '48px 56px 54px', transition: 'border-color .15s',
                 cursor: canEdit && !editing ? 'text' : 'default',
               }}
@@ -404,7 +404,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
                 <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--gv-ink)' }}>grove assist</span>
                 <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--gv-dim)' }}>{pendingCount} suggestion{pendingCount === 1 ? '' : 's'}</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, background: 'rgba(15,23,18,0.03)', border: '1px solid rgba(15,23,18,0.1)', borderRadius: 12, padding: '8px 8px 8px 14px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '8px 8px 8px 14px' }}>
                 <input
                   ref={promptRef}
                   className="gv-prompt"
@@ -418,7 +418,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 11 }}>
                 {CHIPS.map((label) => (
-                  <button key={label} onClick={() => askGrove(label)} className="gv-chip" style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--gv-dim)', background: 'rgba(15,23,18,0.03)', border: '1px solid rgba(15,23,18,0.09)', borderRadius: 999, padding: '5px 11px', cursor: 'pointer', fontFamily: 'inherit' }}>{label}</button>
+                  <button key={label} onClick={() => askGrove(label)} className="gv-chip" style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--gv-dim)', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 999, padding: '5px 11px', cursor: 'pointer', fontFamily: 'inherit' }}>{label}</button>
                 ))}
               </div>
             </div>
@@ -454,7 +454,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
                           <div style={{ fontFamily: "'Newsreader', Georgia, serif", fontSize: 14.5, lineHeight: 1.55, color: '#d4dacd' }}>{c.suggested}</div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 12 }}>
                             <button onClick={() => applyCard(c)} className="gv-btn" style={{ display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: '7px 13px', borderRadius: 8, cursor: 'pointer' }}><Icon name="check" size={13} /> Apply</button>
-                            <button onClick={() => dismissCard(c.id)} className="gv-ghost" style={{ border: '1px solid rgba(15,23,18,0.12)', background: 'transparent', color: 'var(--gv-dim)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '7px 13px', borderRadius: 8, cursor: 'pointer' }}>Dismiss</button>
+                            <button onClick={() => dismissCard(c.id)} className="gv-ghost" style={{ border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: 'var(--gv-dim)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '7px 13px', borderRadius: 8, cursor: 'pointer' }}>Dismiss</button>
                           </div>
                         </div>
                       )}
@@ -496,7 +496,7 @@ function ToolBtn({ children, on, onClick, serif, italic }: { children: React.Rea
     <button onMouseDown={(e) => { e.preventDefault(); onClick(); }} className="gv-tool"
       style={{
         width: 32, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        borderRadius: 8, border: `1px solid ${on ? 'rgba(162,255,1,0.3)' : 'rgba(15,23,18,0.08)'}`,
+        borderRadius: 8, border: `1px solid ${on ? 'rgba(162,255,1,0.3)' : 'rgba(255,255,255,0.08)'}`,
         background: on ? 'rgba(162,255,1,0.14)' : 'transparent', color: on ? ACCENT_INK : 'var(--gv-soft)',
         fontFamily: serif ? "'Newsreader', Georgia, serif" : 'inherit', fontStyle: italic ? 'italic' : 'normal',
         fontWeight: serif ? 700 : 500, fontSize: serif ? 15 : 13, lineHeight: 1, cursor: 'pointer',
@@ -515,19 +515,19 @@ const primaryBtn: React.CSSProperties = {
   fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, padding: '8px 14px', borderRadius: 9, cursor: 'pointer',
 };
 const ghostBtn: React.CSSProperties = {
-  border: '1px solid rgba(15,23,18,0.1)', background: 'rgba(15,23,18,0.02)', color: 'var(--gv-soft)',
+  border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)', color: 'var(--gv-soft)',
   fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '8px 13px', borderRadius: 9, cursor: 'pointer',
 };
-const tbDivider: React.CSSProperties = { width: 1, height: 18, background: 'rgba(15,23,18,0.08)', margin: '0 2px' };
+const tbDivider: React.CSSProperties = { width: 1, height: 18, background: 'rgba(255,255,255,0.08)', margin: '0 2px' };
 const bubbleBar: React.CSSProperties = {
-  display: 'flex', gap: 2, background: 'var(--gv-pop)', border: '1px solid rgba(15,23,18,0.1)', borderRadius: 8, padding: 4,
+  display: 'flex', gap: 2, background: 'var(--gv-pop)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 4,
   boxShadow: '0 6px 20px rgba(0,0,0,0.5)',
 };
 const lbl: React.CSSProperties = {
   fontSize: 12, fontWeight: 600, color: 'var(--gv-dim)', textTransform: 'uppercase', letterSpacing: '0.06em',
 };
 const inp: React.CSSProperties = {
-  width: '100%', padding: '10px 14px', border: '1px solid rgba(15,23,18,0.09)', borderRadius: 8,
+  width: '100%', padding: '10px 14px', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 8,
   fontSize: 14, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', resize: 'vertical',
-  color: 'var(--gv-ink)', background: 'rgba(15,23,18,0.04)',
+  color: 'var(--gv-ink)', background: 'rgba(255,255,255,0.04)',
 };

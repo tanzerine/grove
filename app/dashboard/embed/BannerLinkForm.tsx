@@ -43,7 +43,7 @@ export default function BannerLinkForm({
           className="mono"
           style={{
             flex: '1 1 280px', fontSize: 13, padding: '9px 12px', borderRadius: 10,
-            border: '1px solid rgba(15,23,18,0.1)', background: 'rgba(15,23,18,0.04)', color: 'var(--gv-ink)',
+            border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', color: 'var(--gv-ink)',
           }}
         />
         <button

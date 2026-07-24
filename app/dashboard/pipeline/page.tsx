@@ -100,7 +100,7 @@ export default async function Page() {
           </div>
         </div>
         {domain && !domain.verified_at && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', background: 'rgba(15,23,18,0.06)', border: '1px solid rgba(15,23,18,0.24)', borderRadius: 12, padding: '12px 16px', marginBottom: 16, fontSize: 13.5, color: '#d8d2bf' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.24)', borderRadius: 12, padding: '12px 16px', marginBottom: 16, fontSize: 13.5, color: '#d8d2bf' }}>
             <span><b style={{ color: 'var(--gv-ink)' }}>{domain.hostname}</b> isn’t verified yet — autopilot is paused, but you can queue topics and review every draft.</span>
             <Link href={`/onboarding/verify?domain=${domain.id}`} className="gv-btn" style={{ whiteSpace: 'nowrap', border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontWeight: 700, fontSize: 13, padding: '9px 15px', borderRadius: 10 }}>Verify domain →</Link>
           </div>
@@ -123,7 +123,7 @@ export default async function Page() {
             {chips.length > 0 && (
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 18 }}>
                 {chips.map((c, i) => (
-                  <div key={i} style={{ background: 'rgba(15,23,18,0.025)', border: '1px solid var(--gv-line)', borderRadius: 11, padding: '9px 15px' }}>
+                  <div key={i} style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid var(--gv-line)', borderRadius: 11, padding: '9px 15px' }}>
                     <span style={{ fontSize: 19, fontWeight: 700, letterSpacing: '-0.02em' }}>{c.value}</span>
                     {c.sub && <span style={{ fontSize: 12, marginLeft: 6, fontWeight: 600, color: ACCENT_INK }}>{c.sub}</span>}
                     <div style={{ fontSize: 9.5, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--gv-faint)', marginTop: 2 }}>{c.label}</div>
@@ -147,7 +147,7 @@ export default async function Page() {
                   <span style={{ width: 7, height: 7, borderRadius: '50%', background: g.color }} />
                   <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-soft)' }}>{g.label}</span>
                   <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gv-fainter)', fontVariantNumeric: 'tabular-nums' }}>{g.items.length}</span>
-                  <span style={{ flex: 1, height: 1, background: 'rgba(15,23,18,0.06)' }} />
+                  <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
                 </div>
                 {g.key === 'review' && <ReviewWhy autoPublish={domain?.auto_publish ?? false} />}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
@@ -215,7 +215,7 @@ export default async function Page() {
                   </div>
                 </div>
               ))}
-              <div style={{ fontSize: 11, color: 'var(--gv-fainter)', borderTop: '1px solid rgba(15,23,18,0.06)', paddingTop: 12, display: 'flex', alignItems: 'center', gap: 7 }}><span style={{ color: ACCENT_INK }}>↻</span> Strategy re-reviewed on the 1st of each month</div>
+              <div style={{ fontSize: 11, color: 'var(--gv-fainter)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 12, display: 'flex', alignItems: 'center', gap: 7 }}><span style={{ color: ACCENT_INK }}>↻</span> Strategy re-reviewed on the 1st of each month</div>
             </div>
           </div>
         </div>
@@ -238,7 +238,7 @@ function ReviewWhy({ autoPublish }: { autoPublish: boolean }) {
       <summary style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 11.5, color: 'var(--gv-dim)', listStyle: 'none', userSelect: 'none', width: 'fit-content' }}>
         <Icon name="q" size={13} /> Why is this waiting for you?
       </summary>
-      <div style={{ marginTop: 9, padding: '13px 15px', background: 'var(--gv-card)', border: '1px solid rgba(15,23,18,0.08)', borderRadius: 12, maxWidth: 560 }}>
+      <div style={{ marginTop: 9, padding: '13px 15px', background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, maxWidth: 560 }}>
         <div style={{ fontSize: 11.5, color: 'var(--gv-soft)', fontWeight: 600, marginBottom: 8 }}>
           A draft publishes on its own only when both gates pass:
         </div>
