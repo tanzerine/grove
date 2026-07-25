@@ -31,7 +31,19 @@ export async function appendLog(postId: string, step: LogStep, event: LogEvent, 
   else console.log(tag);
 }
 
+/**
+ * Start a fresh log for a run. Seeds one entry rather than emptying the array:
+ * the scheduler tells a live generation from one the platform killed by how
+ * stale the log's newest timestamp is (lib/pipeline/capacity isStranded), and an
+ * empty log carries no timestamp to judge. Seeding closes the window where a
+ * just-started post looks abandoned — or an abandoned one looks untouched.
+ */
 export async function resetLog(postId: string) {
   const sb = supabaseAdmin();
-  await sb.from('posts').update({ generation_log: [] }).eq('id', postId);
+  await sb.from('posts').update({ generation_log: seedLog() }).eq('id', postId);
+}
+
+/** The single 'queued' entry a run (or a claim) starts its log with. */
+export function seedLog(): LogEntry[] {
+  return [{ ts: Date.now(), step: 'queued', event: 'start' }];
 }
