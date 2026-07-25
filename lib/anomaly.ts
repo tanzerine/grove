@@ -13,6 +13,18 @@
 import { supabaseAdmin } from './supabase/admin';
 import { getStripe, stripeConfigured } from './stripe';
 import { LIMITS } from './ratelimit';
+import {
+  capacityReport,
+  committedPostsPerMonth,
+  estimateGenerationMs,
+  generationDurationMs,
+  postsPerTick,
+  resolveTickBudgetMs,
+  schedulerTicksPerDay,
+} from './pipeline/capacity';
+
+/** Mirrors `maxDuration` in app/api/cron/scheduler/route.ts. */
+const SCHEDULER_MAX_DURATION_SEC = 300;
 
 export type Flag = {
   key: string;
@@ -30,6 +42,7 @@ const T = {
   ipHammerPerHour: 250,                 // events from one /24 (or /48) ip prefix
   signupWarn: 8, signupCrit: 30,        // new users in the last hour
   failedPayWarn: 4, failedPayCrit: 15,  // failed charges in the last 24h
+  capacityWarnRatio: 0.75,              // sold quota ÷ deliverable capacity
 };
 
 const iso = (ms: number) => new Date(ms).toISOString();
@@ -141,6 +154,53 @@ export async function detectAnomalies(): Promise<Flag[]> {
       }
     } catch { /* Stripe read failed */ }
   }
+
+  // ── Sold quota vs deliverable capacity ──
+  // Not a spike but the same class of problem: something is wrong and nobody
+  // would notice. The scheduler can only produce ticks/day × posts/tick; when
+  // live subscriptions promise more than that, every customer quietly gets less
+  // than their plan and the only symptom is a queue that never drains. Flag it
+  // while it's still a pricing decision rather than a support queue.
+  try {
+    const { data: subs } = await admin
+      .from('subscriptions')
+      .select('plan, stripe_status')
+      .in('stripe_status', ['active', 'trialing']);
+    const { data: recent } = await admin
+      .from('posts')
+      .select('generation_log')
+      .in('status', ['published', 'scheduled', 'review'])
+      .order('created_at', { ascending: false })
+      .limit(20);
+    const samples = (recent ?? [])
+      .map((r: any) => generationDurationMs(r.generation_log))
+      .filter((n): n is number => n !== null);
+
+    const report = capacityReport({
+      ticksPerDay: schedulerTicksPerDay(),
+      postsPerTick: postsPerTick(
+        resolveTickBudgetMs(SCHEDULER_MAX_DURATION_SEC, process.env.GROVE_TICK_BUDGET_MS),
+        estimateGenerationMs(samples),
+      ),
+      committedPerMonth: committedPostsPerMonth(subs ?? []),
+    });
+
+    if (report.oversubscribed) {
+      flags.push({
+        key: 'capacity_oversold',
+        severity: 'critical',
+        title: 'Sold more posts than we can generate',
+        detail: `Live plans promise ${report.committedPerMonth} posts/month; the schedule can deliver about ${report.postsPerMonth} (${report.ticksPerDay} ticks/day × ${report.postsPerTick}). Raise the scheduler frequency in vercel.json or stop selling the top tier.`,
+      });
+    } else if (report.utilization >= T.capacityWarnRatio) {
+      flags.push({
+        key: 'capacity_tight',
+        severity: 'warn',
+        title: 'Generation capacity is tight',
+        detail: `Live plans use ${Math.round(report.utilization * 100)}% of what the schedule can deliver (${report.committedPerMonth} of ~${report.postsPerMonth} posts/month). Add ticks before the next signups.`,
+      });
+    }
+  } catch { /* subscriptions or posts unreadable */ }
 
   return flags;
 }

@@ -46,6 +46,17 @@ Four-layer agent loop (see `ARCHITECTURE.md` for detail):
 - **Analytics** (`lib/analytics/`) — first-party event stream (`post_events`),
   no third-party JS. `lib/strategy/review.ts` aggregates it into the monthly report.
 
+**Throughput / capacity** (`lib/pipeline/capacity.ts`) — platform generation
+capacity is `ticks per day × posts per tick`. Ticks/day is parsed from the
+scheduler's schedule in `vercel.json` (its only source of truth); posts/tick is
+whatever fits the invocation's wall-clock budget at the *measured* p80 cost of
+recent generations (read back from `posts.generation_log`). **To raise
+throughput, change the cron schedule — not the code.** Every figure follows
+automatically, including the oversold-capacity flag on the admin overview
+(`lib/anomaly.ts`), which compares sold plan quota against deliverable capacity.
+Set `GROVE_TICK_BUDGET_MS` when the plan's real function ceiling is below the
+route's declared `maxDuration` (Vercel Hobby caps at 60s regardless).
+
 Other key surfaces:
 - `lib/agent-brief.ts` — plain-English weekly brief on the dashboard home.
 - `lib/seo.ts` — **single source for every public blog URL** (`blogHomeUrl`,
