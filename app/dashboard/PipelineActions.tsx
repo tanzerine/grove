@@ -46,6 +46,16 @@ export default function PipelineActions({ domainId }: { domainId?: string }) {
 
   const ghost: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 6, border: '1px solid rgba(162,255,1,0.25)', background: 'rgba(162,255,1,0.06)', color: ACCENT_INK, fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '11px 15px', borderRadius: 10, cursor: 'pointer', whiteSpace: 'nowrap' };
 
+  // Cheap funnel-intent read on the suggestion's own wording — not a model
+  // call, just a legible label so suggestions read like the strategy plan's
+  // TOFU/MOFU/BOFU intent chips instead of an undifferentiated list.
+  function intentOf(s: string): string {
+    const t = s.toLowerCase();
+    if (/\bvs\.?\b|pricing|compare|alternativ|cost of|hiring/.test(t)) return 'BOFU';
+    if (/checklist|metrics|mistake|activation|retention|onboarding/.test(t)) return 'MOFU';
+    return 'TOFU';
+  }
+
   return (
     <div style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 13, padding: '16px 18px', marginBottom: 12 }}>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -76,7 +86,8 @@ export default function PipelineActions({ domainId }: { domainId?: string }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {suggestions.map((s, i) => (
               <button key={i} className="gv-sugg" onClick={() => { setTopic(s); setOpen(false); }}
-                style={{ textAlign: 'left', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--gv-line)', borderRadius: 9, fontSize: 13, color: 'var(--gv-soft)', cursor: 'pointer', fontFamily: 'inherit', lineHeight: 1.4 }}>
+                style={{ textAlign: 'left', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--gv-line)', borderRadius: 9, fontSize: 13, color: 'var(--gv-soft)', cursor: 'pointer', fontFamily: 'inherit', lineHeight: 1.4, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 10, color: 'var(--gv-dim)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 5, padding: '2px 6px', flexShrink: 0 }}>{intentOf(s)}</span>
                 {s}
               </button>
             ))}

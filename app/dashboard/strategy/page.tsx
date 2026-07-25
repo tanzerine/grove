@@ -11,6 +11,9 @@ import Icon from '../gv-icons';
 import { DashHeader } from '../gv-chrome';
 import StrategyClusterMap, { type Cluster, type Spoke } from './StrategyClusterMap';
 import PlanChat from './PlanChat';
+import AgentLoopStrip from './AgentLoopStrip';
+import PlanningCadence, { type CadenceItem, type CadenceView } from './PlanningCadence';
+import PillarsAndCalendar, { type PillarCard, type CalRow, type Week } from './PillarsAndCalendar';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +24,13 @@ const ACCENT_INK = 'var(--gv-accent-ink)';
 // A distinct hue per pillar (the .dc comp's teal→purple ramp) keeps them
 // tellable apart in the allocation bar and swimlanes without leaning on lime.
 const PILLAR_COLORS = ['#3de8bb', '#7fb6e6', '#c9a3e6', '#a374d6', '#e0c878', '#8fd3a6'];
+const PILLAR_BORDERS = ['rgba(61,232,187,0.36)', 'rgba(127,182,230,0.32)', 'rgba(201,163,230,0.32)', 'rgba(163,116,214,0.34)', 'rgba(224,200,120,0.34)', 'rgba(143,211,166,0.34)'];
+const INTENT_LABEL: Record<string, string> = { editorial: 'TOFU', contextual: 'MOFU', conversion: 'BOFU' };
+const TOOL_ICON: Record<KPI['metric'], string> = {
+  views: 'analytics', unique_sessions: 'analytics', median_dwell_sec: 'analytics',
+  scroll_completion_rate: 'analytics', outbound_to_product_rate: 'analytics',
+  conversions: 'analytics', organic_share: 'analytics', newsletter_signups: 'analytics',
+};
 
 type SlotStatus = { status: string; slug: string | null; scheduled_at?: string | null };
 
@@ -77,7 +87,11 @@ export default async function StrategyPage() {
     const current = kpi ? currentMetricValue(kpi.metric, report) : 0;
     const target = kpi?.target ?? 0;
     const pct = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
-    return { label: g.title, current: fmtNumber(current), target: fmtTarget(kpi), pct };
+    return {
+      label: g.title, current: fmtNumber(current), target: fmtTarget(kpi), pct,
+      toolIcon: kpi ? TOOL_ICON[kpi.metric] : 'analytics',
+      note: 'first-party events',
+    };
   });
 
   // ---------- cluster category for a slot ----------
@@ -95,12 +109,18 @@ export default async function StrategyPage() {
     const published = slots.filter((sl) => catFor(sl) === 'published').length;
     const sharePct = Math.round((slots.length / totalSlots) * 100);
     const perf = report?.per_pillar?.[p.id];
+    // dominant funnel intent for the pillar's card chip — majority vote across its slots
+    const intentCounts = new Map<string, number>();
+    for (const sl of slots) intentCounts.set(sl.intent, (intentCounts.get(sl.intent) ?? 0) + 1);
+    const topIntent = [...intentCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'contextual';
+    const kws = slots.map((sl) => sl.target_keyword).filter((k): k is string => !!k).slice(0, 2);
     return {
-      name: p.title, color: PILLAR_COLORS[i % PILLAR_COLORS.length],
-      share: `${sharePct}%`, posts: slots.length,
+      key: p.id, name: p.title, color: PILLAR_COLORS[i % PILLAR_COLORS.length], chipBorder: PILLAR_BORDERS[i % PILLAR_BORDERS.length],
+      alloc: `${sharePct}%`, posts: slots.length,
       note: published ? `${published} live` : slots.length ? 'queued' : 'no slots',
       trend: perf?.views ? `${fmtNumber(perf.views)} views` : 'new',
       trendColor: perf && perf.views >= 1000 ? ACCENT : 'var(--gv-dim)',
+      intent: INTENT_LABEL[topIntent] ?? 'MOFU', kws,
     };
   });
 
@@ -160,6 +180,102 @@ export default async function StrategyPage() {
     return { label: `Week ${w}`, state, labelColor, items };
   });
 
+  // ---------- month-at-a-glance swimlanes: pillar rows × week columns ----------
+  // Real status → how far the 4-stage track (research/draft/review/publish) has
+  // gotten — a coarse but honest mapping from the post's actual pipeline stage.
+  const trackFor = (st?: string): ('done' | 'pending')[] => {
+    const d = 'done', p = 'pending';
+    if (st === 'published') return [d, d, d, d];
+    if (st === 'scheduled' || st === 'review') return [d, d, d, p];
+    if (st === 'writing') return [d, d, p, p];
+    if (st === 'researching' || st === 'queued') return [d, p, p, p];
+    if (st === 'failed') return [d, p, p, p];
+    return [p, p, p, p]; // no post generated yet for this slot
+  };
+  const weekdayFmt = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+  const [yearStr, monthStr] = String(s.month).slice(0, 7).split('-');
+  const monthIdx0 = Number(monthStr) - 1;
+  const monthShort = new Date(Date.UTC(Number(yearStr), monthIdx0, 1)).toLocaleString(undefined, { month: 'short', timeZone: 'UTC' });
+  const weekHeaders: Week[] = [1, 2, 3, 4].map((w) => {
+    const from = (w - 1) * 7 + 1;
+    const to = w === 4 ? daysInMonth : w * 7;
+    return { label: `Week ${w}`, dates: `${monthShort} ${from}–${to}` };
+  });
+  const calRows: CalRow[] = (s.pillars ?? []).map((p: Pillar, i: number) => {
+    const slots = plan.filter((sl) => sl.pillar_id === p.id);
+    const cells = [1, 2, 3, 4].map((w) =>
+      slots.filter((sl) => (weekBuckets[w] ?? []).includes(sl)).slice(0, 1).map((sl) => {
+        const d = effectiveDate(sl);
+        return {
+          day: d ? weekdayFmt.format(new Date(d)) : '—',
+          title: sl.topic, kw: sl.target_keyword ?? '',
+          track: trackFor(statusForSlot(sl)?.status),
+        };
+      }),
+    );
+    return { key: p.id, name: p.title, color: PILLAR_COLORS[i % PILLAR_COLORS.length], posts: slots.length, cells };
+  }).filter((r) => r.cells.some((c) => c.length));
+
+  // Where we're heading — month / week / today, derived from the plan itself.
+  const hz = horizons(s, now);
+
+  // ---------- planning cadence: monthly / weekly / daily ----------
+  const curWeekItems = weeks.find((w) => w.state === 'this week')?.items ?? weeks[0]?.items ?? [];
+  const cadenceViews: CadenceView[] = [
+    {
+      key: 'monthly', label: 'Monthly',
+      period: `${planMonth} — the full plan the agent commits to`,
+      items: goals.map((g): CadenceItem => ({
+        label: g.label, meta: `${g.current} now`,
+        state: g.pct >= 100 ? 'done' : g.pct > 0 ? 'progress' : 'queued',
+      })),
+    },
+    {
+      key: 'weekly', label: 'Weekly',
+      period: `Week ${todayWeek} · ${planMonth}`,
+      items: curWeekItems.map((it): CadenceItem => ({
+        label: `Publish "${it.title}"`, meta: it.status,
+        state: it.status === 'Live' ? 'done' : it.status === 'Planned' || it.status === 'Scheduled' ? 'queued' : 'progress',
+      })),
+    },
+    {
+      key: 'daily', label: 'Daily',
+      period: `Today · ${now.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}`,
+      items: [
+        { label: hz.today.headline, meta: 'today', state: 'progress' as const },
+        { label: hz.today.detail, meta: '', state: 'queued' as const },
+      ],
+    },
+  ];
+
+  // ---------- hero: north star + plan chips + agent loop ----------
+  const northStar = goals[0] ?? null;
+  const planChips = [
+    { value: String(plan.length), unit: 'posts', label: 'Planned this month' },
+    { value: String(pillars.length), unit: '', label: 'Content pillars' },
+    { value: fmtNumber(plan.length * 1900), unit: 'words (est.)', label: 'Estimated output' },
+    ...(northStar ? [{ value: northStar.target, unit: '', label: 'Target · ' + northStar.label }] : []),
+    { value: String(domain.posts_per_week ?? '—'), unit: '/ wk', label: 'Cadence' },
+  ];
+
+  const totalPosts = (posts ?? []).length;
+  const publishedCount = (posts ?? []).filter((p) => p.status === 'published').length;
+  const reviewCount = (posts ?? []).filter((p) => p.status === 'review').length;
+  const inProgressCount = (posts ?? []).filter((p) => ['queued', 'researching', 'writing'].includes(p.status)).length;
+  const pastManagerCount = (posts ?? []).filter((p) => ['review', 'scheduled', 'published', 'failed'].includes(p.status)).length;
+  const agentLoopSteps = [
+    { label: 'Strategy', icon: 'strategy', detail: 'You’re here — this plan drives generation & review below.' },
+    { label: 'Generation', icon: 'pen', detail: inProgressCount > 0 ? `${inProgressCount} post${inProgressCount === 1 ? '' : 's'} in the pipeline right now.` : 'Idle — nothing queued at the moment.' },
+    { label: 'Manager', icon: 'manager', detail: reviewCount > 0 ? `${reviewCount} draft${reviewCount === 1 ? '' : 's'} awaiting your review.` : `Grading is caught up — ${publishedCount} posts live.` },
+    { label: 'Analytics', icon: 'analytics', detail: report ? 'Reporting is live — feeding next month’s plan.' : 'Waiting on enough traffic to start reporting.' },
+  ];
+  const toolchain = [
+    { name: 'Live SERP research', icon: 'search2', runs: `${totalPosts} run${totalPosts === 1 ? '' : 's'}`, desc: 'Crawls search results & competitor posts to find the ranking gaps worth taking.' },
+    { name: 'Writer', icon: 'pen', runs: `${totalPosts} draft${totalPosts === 1 ? '' : 's'}`, desc: 'Drafts every post in your brand voice, structured for the target keyword.' },
+    { name: 'Manager', icon: 'manager', runs: `${pastManagerCount} review${pastManagerCount === 1 ? '' : 's'}`, desc: 'Scores each draft 0–100 on strategy fit & craft, and gates publish.' },
+    { name: 'Analytics', icon: 'analytics', runs: 'continuous', desc: 'Reads first-party events to grade the plan and tune next month.' },
+  ];
+
   // ---------- opportunities (real "page 2" queries from Search Console) ----------
   let opportunities: { tag: string; tagColor: string; tagBg: string; volume: string; title: string; why: string }[] = [];
   try {
@@ -178,8 +294,6 @@ export default async function StrategyPage() {
     ? s.notes
     : `${planMonth}'s plan: ${plan.length} posts across ${(s.pillars ?? []).length} pillars, drafted from last month's results.`;
 
-  // Where we're heading — month / week / today, derived from the plan itself.
-  const hz = horizons(s, now);
   const horizonCards = [
     { tag: 'This month', headline: hz.month.headline, detail: hz.month.detail },
     {
@@ -192,27 +306,123 @@ export default async function StrategyPage() {
 
   return (
     <>
-      <DashHeader title="Strategy" subtitle={`${domain.hostname} · the monthly plan your agent works from`} />
+      <DashHeader title="Strategy" subtitle={`${domain.hostname} · the agent's plan for ${planMonth}`} />
 
       <div className="gv-body">
-        {/* PLAN HERO */}
-        <section className="gv-card" style={{ background: 'var(--gv-card-grad)', border: '1px solid rgba(162,255,1,0.18)', borderRadius: 20, padding: '26px 28px', marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: 300 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 10.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: ACCENT_INK }}>
-                <Icon name="compass" size={13} /> This month&apos;s plan · auto-drafted from last month&apos;s results
+        {/* ===== HERO BRIEF ===== */}
+        <section className="gv-card" style={{ background: 'var(--gv-card-grad)', border: '1px solid rgba(162,255,1,0.18)', borderRadius: 18, padding: '26px 28px', marginBottom: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 28, flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: 320 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 10.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--gv-dim)' }}>
+                <Icon name="leaf" size={13} /> Marketing agent · monthly brief
               </div>
-              <p style={{ fontSize: 16, lineHeight: 1.62, color: 'var(--gv-soft)', margin: '13px 0 0', maxWidth: 720 }}>{heroText}</p>
+              <h1 style={{ fontWeight: 500, fontSize: 27, lineHeight: 1.3, letterSpacing: '-0.02em', color: 'var(--gv-ink)', margin: '14px 0 0', maxWidth: 720 }}>
+                {s.direction?.month || heroText}
+              </h1>
+              <p style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--gv-dim)', margin: '13px 0 0', maxWidth: 700 }}>{heroText}</p>
+              {northStar && (
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, marginTop: 16, padding: '10px 14px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 12 }}>
+                  <span style={{ display: 'flex', color: 'var(--gv-soft)' }}><Icon name="target" size={16} /></span>
+                  <span style={{ fontSize: 12.5, color: 'var(--gv-dim)' }}>North star</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--gv-ink)' }}>{northStar.target}</span>
+                  <span style={{ fontSize: 12.5, color: 'var(--gv-faint)' }}>{northStar.label}</span>
+                </div>
+              )}
             </div>
-            <div style={{ display: 'flex', gap: 9, flexShrink: 0 }}>
-              <Link href="/onboarding/intent" className="gv-ghost" style={{ border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.02)', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '10px 15px', borderRadius: 10, cursor: 'pointer', textDecoration: 'none' }}>Edit goals</Link>
-              <Link href="/dashboard/pipeline" className="gv-btn" style={{ border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '10px 16px', borderRadius: 10, cursor: 'pointer', whiteSpace: 'nowrap', textDecoration: 'none' }}>Open the pipeline →</Link>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'flex-end' }}>
+              <Link href="/dashboard/pipeline" className="gv-btn" style={{ display: 'flex', alignItems: 'center', gap: 9, border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 700, padding: '12px 20px', borderRadius: 10, cursor: 'pointer', whiteSpace: 'nowrap', textDecoration: 'none' }}>
+                <Icon name="strategy" size={15} /> Open the pipeline
+              </Link>
+              <Link href="/onboarding/intent" style={{ fontSize: 12.5, color: 'var(--gv-dim)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
+                Edit goals <Icon name="arrow" size={14} />
+              </Link>
             </div>
           </div>
+          {planChips.length > 0 && (
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 22, paddingTop: 20, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+              {planChips.map((c, i) => (
+                <div key={i} style={{ flex: 1, minWidth: 130, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 13, padding: '12px 15px' }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                    <span style={{ fontSize: 21, fontWeight: 700, letterSpacing: '-0.02em' }}>{c.value}</span>
+                    {c.unit && <span style={{ fontSize: 12, color: 'var(--gv-dim)', fontWeight: 600 }}>{c.unit}</span>}
+                  </div>
+                  <div style={{ fontSize: 10, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginTop: 3 }}>{c.label}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
-        {/* WHERE WE'RE HEADING — month / week / today */}
-        <div className="gv-grid4" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 14 }}>
+        {/* ===== AGENT LOOP STRIP ===== */}
+        <AgentLoopStrip steps={agentLoopSteps} />
+
+        {/* ===== PLANNING CADENCE ===== */}
+        <PlanningCadence views={cadenceViews} />
+
+        {/* ===== OKRs + TOOLCHAIN ===== */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.5fr) minmax(0,1fr)', gap: 16, marginBottom: 18, alignItems: 'start' }}>
+          {/* OKRs */}
+          {goals.length > 0 && (
+            <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '22px 24px' }}>
+              <div style={{ fontSize: 15, fontWeight: 700 }}>Objective &amp; key results</div>
+              <div style={{ fontSize: 12, color: 'var(--gv-faint)', margin: '3px 0 18px' }}>How this month&apos;s plan is tracking against its targets</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                {goals.map((g, i) => (
+                  <div key={i}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 8 }}>
+                      <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--gv-soft)', flex: 1, minWidth: 0 }}>{g.label}</span>
+                      <span style={{ fontSize: 12.5, color: 'var(--gv-faint)', fontVariantNumeric: 'tabular-nums' }}>{g.current}</span>
+                      <span style={{ display: 'flex', color: '#4a4d44' }}><Icon name="arrow" size={12} /></span>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--gv-ink)', fontVariantNumeric: 'tabular-nums' }}>{g.target}</span>
+                    </div>
+                    <div style={{ position: 'relative', height: 8, borderRadius: 99, background: 'rgba(255,255,255,0.07)', overflow: 'hidden' }}>
+                      <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: `${g.pct}%`, borderRadius: 99, background: ACCENT }} />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 7, fontSize: 11, color: 'var(--gv-faint)' }}>
+                      <span style={{ display: 'flex', color: 'var(--gv-fainter)' }}><Icon name={g.toolIcon} size={12} /></span> Tracked by Analytics · {g.note}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* TOOLCHAIN */}
+          <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '22px 24px' }}>
+            <div style={{ fontSize: 15, fontWeight: 700 }}>How grove will execute</div>
+            <div style={{ fontSize: 12, color: 'var(--gv-faint)', margin: '3px 0 18px' }}>The tools the agent runs to ship this plan</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {toolchain.map((t, i) => (
+                <div key={i} style={{ display: 'flex', gap: 13, paddingBottom: 16, paddingTop: 4 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                    <span style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.14)', color: 'var(--gv-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={t.icon} size={17} /></span>
+                    {i < toolchain.length - 1 && <span style={{ flex: 1, width: 1, minHeight: 12, background: 'rgba(255,255,255,0.14)', marginTop: 4 }} />}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0, paddingTop: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--gv-ink)' }}>{t.name}</span>
+                      <span style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 700, color: 'var(--gv-dim)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 999, padding: '2px 9px', whiteSpace: 'nowrap' }}>{t.runs}</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--gv-dim)', lineHeight: 1.5, marginTop: 3 }}>{t.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ===== CONTENT PILLARS + MONTH CALENDAR ===== */}
+        {pillars.length > 0 && (
+          <PillarsAndCalendar
+            pillars={pillars}
+            rows={calRows}
+            weeks={weekHeaders}
+            footNote={`${plan.length} posts mapped across ${pillars.length} pillars — approve changes any time in the chat below.`}
+          />
+        )}
+
+        {/* ===== WHERE WE'RE HEADING — month / week / today ===== */}
+        <div className="gv-grid4" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, margin: '18px 0 14px' }}>
           {horizonCards.map((h, i) => (
             <div key={i} className="gv-card" style={{ background: 'var(--gv-card)', border: `1px solid ${i === 2 ? 'rgba(162,255,1,0.22)' : 'var(--gv-line)'}`, borderRadius: 16, padding: '18px 20px' }}>
               <div style={{ fontSize: 10.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: i === 2 ? ACCENT_INK : 'var(--gv-dim)', fontWeight: 700 }}>{h.tag}</div>
@@ -222,89 +432,12 @@ export default async function StrategyPage() {
           ))}
         </div>
 
-        {/* GOAL CARDS */}
-        {goals.length > 0 && (
-          <div className="gv-grid4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 14 }}>
-            {goals.map((g, i) => (
-              <div key={i} className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 16, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
-                <div style={{ position: 'relative', width: 58, height: 58, flexShrink: 0 }}>
-                  <Ring pct={g.pct} />
-                  <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700 }}>{g.pct}%</span>
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 12, color: 'var(--gv-dim)' }}>{g.label}</div>
-                  <div style={{ fontSize: 21, fontWeight: 700, letterSpacing: '-0.02em', marginTop: 3 }}>{g.current}</div>
-                  <div style={{ fontSize: 11.5, color: 'var(--gv-faint)', marginTop: 1 }}>{g.target === '—' ? 'no numeric target yet' : `of ${g.target} goal`}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* TWO COLUMNS: cluster map + pillars */}
-        <div className="gv-2col-wide" style={{ display: 'grid', gridTemplateColumns: '1.45fr 1fr', gap: 14, alignItems: 'start', marginBottom: 14 }}>
+        {/* ===== EXTRA: topical authority map + live-SERP openings ===== */}
+        <div className="gv-2col-wide" style={{ display: 'grid', gridTemplateColumns: '1.45fr 1fr', gap: 14, alignItems: 'start' }}>
           {clusters.length > 0
             ? <StrategyClusterMap clusters={clusters} />
             : <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '22px 24px', color: 'var(--gv-faint)', fontSize: 13 }}>Topical clusters appear once your plan has slots.</div>}
 
-          {pillars.length > 0 && (
-            <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '22px 24px' }}>
-              <div style={{ fontSize: 15, fontWeight: 700 }}>Content pillars</div>
-              <div style={{ fontSize: 12.5, color: 'var(--gv-faint)', margin: '3px 0 18px' }}>How {planMonth.split(' ')[0]}&apos;s effort is allocated</div>
-              <div style={{ display: 'flex', height: 12, borderRadius: 99, overflow: 'hidden', marginBottom: 20 }}>
-                {pillars.map((p, i) => <span key={i} title={p.name} style={{ width: p.share, background: p.color }} />)}
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {pillars.map((p, i) => (
-                  <div key={i} className="gv-row" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 10px', borderRadius: 10, transition: 'background .15s' }}>
-                    <span style={{ width: 10, height: 10, borderRadius: 3, background: p.color, flexShrink: 0 }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--gv-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
-                      <div style={{ fontSize: 11.5, color: 'var(--gv-faint)', marginTop: 1 }}>{p.posts} posts · {p.note}</div>
-                    </div>
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <div style={{ fontSize: 14, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{p.share}</div>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: p.trendColor }}>{p.trend}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* BOTTOM: plan timeline + opportunities */}
-        <div className="gv-2col-wide" style={{ display: 'grid', gridTemplateColumns: '1.45fr 1fr', gap: 14, alignItems: 'start' }}>
-          {/* plan timeline */}
-          <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '22px 24px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-              <div style={{ fontSize: 15, fontWeight: 700 }}>The month, week by week</div>
-              <span style={{ fontSize: 11.5, color: 'var(--gv-faint)' }}>{plan.length} posts · {planMonth}</span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {weeks.map((w, i) => (
-                <div key={i} style={{ display: 'flex', gap: 14 }}>
-                  <div style={{ width: 64, flexShrink: 0, paddingTop: 2 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: w.labelColor }}>{w.label}</div>
-                    <div style={{ fontSize: 10.5, color: 'var(--gv-fainter)', marginTop: 2 }}>{w.state}</div>
-                  </div>
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 7 }}>
-                    {w.items.map((it, j) => (
-                      <div key={j} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 13px', borderRadius: 11, background: it.bg, border: `1px solid ${it.border}` }}>
-                        <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.04em', color: it.intentColor, border: `1px solid ${it.intentBorder}`, borderRadius: 5, padding: '2px 6px', flexShrink: 0 }}>{it.intent}</span>
-                        <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: 'var(--gv-soft)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.title}</span>
-                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: it.pillarColor, flexShrink: 0 }} />
-                        <span style={{ fontSize: 11, color: it.statusColor, flexShrink: 0, minWidth: 64, textAlign: 'right' }}>{it.status}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-              {weeks.length === 0 && <p style={{ color: 'var(--gv-faint)', fontSize: 13, margin: 0 }}>No slots scheduled yet this month.</p>}
-            </div>
-          </div>
-
-          {/* opportunities */}
           <div className="gv-card" style={{ background: 'var(--gv-card-grad)', border: '1px solid rgba(162,255,1,0.16)', borderRadius: 18, padding: '22px 24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
               <div style={{ fontSize: 15, fontWeight: 700 }}>Openings grove spotted</div>
@@ -343,17 +476,6 @@ export default async function StrategyPage() {
   );
 }
 
-function Ring({ pct }: { pct: number }) {
-  const r = 15.5, C = 2 * Math.PI * r;
-  return (
-    <svg viewBox="0 0 36 36" width={58} height={58} style={{ transform: 'rotate(-90deg)' }}>
-      <circle cx={18} cy={18} r={r} fill="none" stroke="var(--gv-line)" strokeWidth={3.4} />
-      <circle cx={18} cy={18} r={r} fill="none" stroke={ACCENT_INK} strokeWidth={3.4} strokeLinecap="round"
-        strokeDasharray={C.toFixed(1)} strokeDashoffset={(C * (1 - pct / 100)).toFixed(1)}
-        style={{ animation: 'gvRingIn 1.1s cubic-bezier(.4,0,.2,1)' }} />
-    </svg>
-  );
-}
 
 function currentMetricValue(metric: KPI['metric'], report: MonthlyReport | null): number {
   if (!report) return 0;

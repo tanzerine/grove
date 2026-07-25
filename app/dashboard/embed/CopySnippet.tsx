@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import Icon from '../gv-icons';
 
 export default function CopySnippet({ snippet }: { snippet: string }) {
   const [copied, setCopied] = useState(false);
@@ -25,13 +26,15 @@ export default function CopySnippet({ snippet }: { snippet: string }) {
   return (
     <button
       onClick={copy}
-      className="btn btn-sm"
+      className="gv-ghost"
       style={{
-        marginTop: 16, background: copied ? 'var(--leaf)' : 'var(--bone)',
-        color: copied ? 'var(--ink)' : 'var(--ink)', border: 'none',
+        display: 'flex', alignItems: 'center', gap: 6, border: '1px solid rgba(255,255,255,0.14)',
+        background: 'rgba(255,255,255,0.05)', color: 'var(--gv-soft)', fontFamily: 'inherit',
+        fontSize: 11.5, fontWeight: 600, padding: '5px 11px', borderRadius: 7, cursor: 'pointer',
+        transition: 'background .2s',
       }}
     >
-      {copied ? '✓ Copied to clipboard' : 'Copy snippet'}
+      <Icon name={copied ? 'check' : 'copy'} size={13} />{copied ? 'Copied' : 'Copy'}
     </button>
   );
 }
