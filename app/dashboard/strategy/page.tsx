@@ -2,14 +2,11 @@ import Link from 'next/link';
 import { supabaseServer } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { getActiveDomain } from '@/lib/active-domain';
-import { latestSnapshot } from '@/lib/search-console/sync';
-import { nearWinners } from '@/lib/search-console/insights';
 import { summarizeMonth, type MonthlyReport } from '@/lib/strategy/review';
 import type { Strategy, Goal, Pillar, PostSlot, KPI } from '@/lib/strategy/build';
 import { horizons } from '@/lib/strategy/context';
 import Icon from '../gv-icons';
 import { DashHeader } from '../gv-chrome';
-import StrategyClusterMap, { type Cluster, type Spoke } from './StrategyClusterMap';
 import PlanChat from './PlanChat';
 import AgentLoopStrip from './AgentLoopStrip';
 import PlanningCadence, { type CadenceItem, type CadenceView } from './PlanningCadence';
@@ -81,7 +78,6 @@ export default async function StrategyPage() {
   // ---------- goals (rings) ----------
   const now = new Date();
   const daysInMonth = new Date(now.getUTCFullYear(), now.getUTCMonth() + 1, 0).getUTCDate();
-  const expectedPace = now.getUTCDate() / daysInMonth;
   const goals = (s.goals ?? []).slice(0, 4).map((g: Goal) => {
     const kpi = (s.kpis ?? []).find((k: KPI) => k.goal_id === g.id);
     const current = kpi ? currentMetricValue(kpi.metric, report) : 0;
@@ -94,8 +90,8 @@ export default async function StrategyPage() {
     };
   });
 
-  // ---------- cluster category for a slot ----------
-  const catFor = (slot: PostSlot): Spoke['status'] => {
+  // ---------- coverage category for a slot ----------
+  const catFor = (slot: PostSlot): 'published' | 'planned' | 'gap' => {
     const st = statusForSlot(slot)?.status;
     if (st === 'published') return 'published';
     if (st && ['scheduled', 'review', 'writing', 'researching', 'queued'].includes(st)) return 'planned';
@@ -123,17 +119,6 @@ export default async function StrategyPage() {
       intent: INTENT_LABEL[topIntent] ?? 'MOFU', kws,
     };
   });
-
-  // ---------- clusters per pillar (hub-and-spoke) ----------
-  const clusters: Cluster[] = (s.pillars ?? []).map((p: Pillar, i: number) => {
-    const slots = plan.filter((sl) => sl.pillar_id === p.id).slice(0, 7);
-    const spokes: Spoke[] = slots.map((sl) => ({
-      label: (sl.target_keyword ?? sl.topic).slice(0, 22),
-      status: catFor(sl),
-    }));
-    const hub = p.title.split(/[\s&]+/)[0].slice(0, 12);
-    return { hub, color: PILLAR_COLORS[i % PILLAR_COLORS.length], spokes };
-  }).filter((c) => c.spokes.length);
 
   // ---------- plan timeline (weeks) ----------
   // TOFU/MOFU are peer funnel stages, told apart by their own label text —
@@ -220,31 +205,39 @@ export default async function StrategyPage() {
   const hz = horizons(s, now);
 
   // ---------- planning cadence: monthly / weekly / daily ----------
+  // This is also where the "where we're heading" horizons live: each view's
+  // headline is the horizon for that window, and the bullets below it are the
+  // concrete commitments — one section instead of a separate card row.
   const curWeekItems = weeks.find((w) => w.state === 'this week')?.items ?? weeks[0]?.items ?? [];
+  const weekBullets: CadenceItem[] = curWeekItems.length
+    ? curWeekItems.map((it): CadenceItem => ({
+        label: `Publish "${it.title}"`, meta: it.status,
+        state: it.status === 'Live' ? 'done' : it.status === 'Planned' || it.status === 'Scheduled' ? 'queued' : 'progress',
+      }))
+    : [{ label: 'Nothing new ships this week — existing posts keep earning.', meta: '', state: 'queued' }];
   const cadenceViews: CadenceView[] = [
     {
       key: 'monthly', label: 'Monthly',
       period: `${planMonth} — the full plan the agent commits to`,
-      items: goals.map((g): CadenceItem => ({
-        label: g.label, meta: `${g.current} now`,
-        state: g.pct >= 100 ? 'done' : g.pct > 0 ? 'progress' : 'queued',
-      })),
+      detail: hz.month.headline,
+      items: goals.length
+        ? goals.map((g): CadenceItem => ({
+            label: g.label, meta: `${g.current} of ${g.target}`,
+            state: g.pct >= 100 ? 'done' : g.pct > 0 ? 'progress' : 'queued',
+          }))
+        : [{ label: hz.month.detail, meta: '', state: 'queued' }],
     },
     {
       key: 'weekly', label: 'Weekly',
       period: `Week ${todayWeek} · ${planMonth}`,
-      items: curWeekItems.map((it): CadenceItem => ({
-        label: `Publish "${it.title}"`, meta: it.status,
-        state: it.status === 'Live' ? 'done' : it.status === 'Planned' || it.status === 'Scheduled' ? 'queued' : 'progress',
-      })),
+      detail: hz.week.headline,
+      items: weekBullets,
     },
     {
       key: 'daily', label: 'Daily',
       period: `Today · ${now.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}`,
-      items: [
-        { label: hz.today.headline, meta: 'today', state: 'progress' as const },
-        { label: hz.today.detail, meta: '', state: 'queued' as const },
-      ],
+      detail: hz.today.headline,
+      items: [{ label: hz.today.detail, meta: '', state: 'progress' }],
     },
   ];
 
@@ -276,33 +269,9 @@ export default async function StrategyPage() {
     { name: 'Analytics', icon: 'analytics', runs: 'continuous', desc: 'Reads first-party events to grade the plan and tune next month.' },
   ];
 
-  // ---------- opportunities (real "page 2" queries from Search Console) ----------
-  let opportunities: { tag: string; tagColor: string; tagBg: string; volume: string; title: string; why: string }[] = [];
-  try {
-    const snap = await latestSnapshot(domain.id);
-    if (snap.date) {
-      opportunities = nearWinners(snap.queries, { limit: 3 }).map((w) => ({
-        tag: 'Near win', tagColor: 'var(--gv-on-accent)', tagBg: ACCENT,
-        volume: `${w.impressions.toLocaleString()} impr`,
-        title: w.key,
-        why: `You rank #${w.position} with ${w.impressions.toLocaleString()} impressions — a stronger page can reach page one.`,
-      }));
-    }
-  } catch { /* GSC optional — opportunities stay empty until connected */ }
-
   const heroText = s.notes
     ? s.notes
     : `${planMonth}'s plan: ${plan.length} posts across ${(s.pillars ?? []).length} pillars, drafted from last month's results.`;
-
-  const horizonCards = [
-    { tag: 'This month', headline: hz.month.headline, detail: hz.month.detail },
-    {
-      tag: 'This week',
-      headline: hz.week.headline,
-      detail: hz.week.slots.map((sl) => `${sl.date} · ${sl.topic}`).slice(0, 3).join('\n') || 'Nothing new ships — existing posts keep earning.',
-    },
-    { tag: 'Today', headline: hz.today.headline, detail: hz.today.detail },
-  ];
 
   return (
     <>
@@ -351,6 +320,12 @@ export default async function StrategyPage() {
               ))}
             </div>
           )}
+
+          {/* Talking to the strategist belongs to the brief it changes — ask
+              about this plan, or revise it, without leaving the card. */}
+          <div id="plan-chat" style={{ marginTop: 22, paddingTop: 20, borderTop: '1px solid rgba(255,255,255,0.08)', scrollMarginTop: 84 }}>
+            <PlanChat domainId={domain.id} bare />
+          </div>
         </section>
 
         {/* ===== AGENT LOOP STRIP ===== */}
@@ -359,8 +334,10 @@ export default async function StrategyPage() {
         {/* ===== PLANNING CADENCE ===== */}
         <PlanningCadence views={cadenceViews} />
 
-        {/* ===== OKRs + TOOLCHAIN ===== */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.5fr) minmax(0,1fr)', gap: 16, marginBottom: 18, alignItems: 'start' }}>
+        {/* ===== OKRs + TOOLCHAIN =====
+             alignItems defaults to `stretch` on purpose: the two cards carry
+             different amounts of content but should read as one row. */}
+        <div className="gv-2col" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.5fr) minmax(0,1fr)', gap: 16, marginBottom: 14 }}>
           {/* OKRs */}
           {goals.length > 0 && (
             <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '22px 24px' }}>
@@ -421,56 +398,6 @@ export default async function StrategyPage() {
           />
         )}
 
-        {/* ===== WHERE WE'RE HEADING — month / week / today ===== */}
-        <div className="gv-grid4" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, margin: '18px 0 14px' }}>
-          {horizonCards.map((h, i) => (
-            <div key={i} className="gv-card" style={{ background: 'var(--gv-card)', border: `1px solid ${i === 2 ? 'rgba(162,255,1,0.22)' : 'var(--gv-line)'}`, borderRadius: 16, padding: '18px 20px' }}>
-              <div style={{ fontSize: 10.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: i === 2 ? ACCENT_INK : 'var(--gv-dim)', fontWeight: 700 }}>{h.tag}</div>
-              <div style={{ fontSize: 14.5, fontWeight: 600, color: 'var(--gv-ink)', lineHeight: 1.45, marginTop: 9 }}>{h.headline}</div>
-              <div style={{ fontSize: 12, color: 'var(--gv-faint)', lineHeight: 1.55, marginTop: 7, whiteSpace: 'pre-line' }}>{h.detail}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* ===== EXTRA: topical authority map + live-SERP openings ===== */}
-        <div className="gv-2col-wide" style={{ display: 'grid', gridTemplateColumns: '1.45fr 1fr', gap: 14, alignItems: 'start' }}>
-          {clusters.length > 0
-            ? <StrategyClusterMap clusters={clusters} />
-            : <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '22px 24px', color: 'var(--gv-faint)', fontSize: 13 }}>Topical clusters appear once your plan has slots.</div>}
-
-          <div className="gv-card" style={{ background: 'var(--gv-card-grad)', border: '1px solid rgba(162,255,1,0.16)', borderRadius: 18, padding: '22px 24px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-              <div style={{ fontSize: 15, fontWeight: 700 }}>Openings grove spotted</div>
-              <span style={{ fontSize: 11, color: ACCENT_INK, fontWeight: 600 }}>live SERP</span>
-            </div>
-            <div style={{ fontSize: 12.5, color: 'var(--gv-faint)', marginBottom: 16 }}>Queries you rank on page 2 for — ranked by upside</div>
-            {opportunities.length === 0 ? (
-              <div style={{ fontSize: 12.5, color: 'var(--gv-faint)', lineHeight: 1.6 }}>
-                Once Search Console is connected, the near-win queries grove can push to page one show up here.{' '}
-                <Link href="/dashboard/analytics" style={{ color: 'var(--gv-dim)', textDecoration: 'underline' }}>Connect Search Console →</Link>
-              </div>
-            ) : (
-              <>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {opportunities.map((o, i) => (
-                    <div key={i} style={{ padding: '13px 15px', borderRadius: 12, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                        <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: o.tagColor, background: o.tagBg, borderRadius: 5, padding: '2px 7px' }}>{o.tag}</span>
-                        <span style={{ marginLeft: 'auto', fontSize: 11.5, color: 'var(--gv-dim)', fontVariantNumeric: 'tabular-nums' }}>{o.volume}</span>
-                      </div>
-                      <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--gv-ink)', lineHeight: 1.4 }}>{o.title}</div>
-                      <div style={{ fontSize: 12, color: 'var(--gv-faint)', marginTop: 4, lineHeight: 1.45 }}>{o.why}</div>
-                    </div>
-                  ))}
-                </div>
-                <Link href="/dashboard/write" className="gv-btn" style={{ display: 'block', textAlign: 'center', width: '100%', marginTop: 14, border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: 11, borderRadius: 10, cursor: 'pointer', textDecoration: 'none' }}>Draft one of these</Link>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* PLAN CHAT — ask about the plan or change it in plain language */}
-        <PlanChat domainId={domain.id} />
       </div>
     </>
   );

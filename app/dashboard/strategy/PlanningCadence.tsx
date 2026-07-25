@@ -11,7 +11,14 @@ import Icon from '../gv-icons';
 const ACCENT_INK = 'var(--gv-accent-ink)';
 
 export type CadenceItem = { label: string; meta: string; state: 'done' | 'progress' | 'queued' };
-export type CadenceView = { key: 'monthly' | 'weekly' | 'daily'; label: string; period: string; items: CadenceItem[] };
+export type CadenceView = {
+  key: 'monthly' | 'weekly' | 'daily';
+  label: string;
+  period: string;
+  /** The horizon headline for this window — what we're heading toward. */
+  detail?: string;
+  items: CadenceItem[];
+};
 
 function Dot({ state }: { state: CadenceItem['state'] }) {
   const done = state === 'done', prog = state === 'progress';
@@ -48,6 +55,9 @@ export default function PlanningCadence({ views }: { views: CadenceView[] }) {
           })}
         </div>
       </div>
+      {cur.detail && (
+        <div style={{ fontSize: 14.5, fontWeight: 600, color: 'var(--gv-ink)', lineHeight: 1.45, marginBottom: 5 }}>{cur.detail}</div>
+      )}
       <div style={{ fontSize: 12, color: 'var(--gv-faint)', marginBottom: 12 }}>{cur.period}</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         {cur.items.length === 0 && <p style={{ color: 'var(--gv-faint)', fontSize: 13, margin: '6px 0' }}>Nothing scheduled in this window.</p>}

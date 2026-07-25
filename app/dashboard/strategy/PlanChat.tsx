@@ -16,7 +16,10 @@ const ACCENT_INK = 'var(--gv-accent-ink)';
 type Msg = { id?: string; role: 'user' | 'agent'; content: string; revised?: boolean };
 type Budget = { messagesLeft: number; revisionsLeft: number };
 
-export default function PlanChat({ domainId }: { domainId: string }) {
+/** `bare` drops the card chrome (background/border/padding) so the chat can sit
+ *  inside another card — on the strategy page it lives at the foot of the
+ *  monthly-brief hero, which already provides the surface. */
+export default function PlanChat({ domainId, bare = false }: { domainId: string; bare?: boolean }) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [budget, setBudget] = useState<Budget | null>(null);
   const [input, setInput] = useState('');
@@ -60,7 +63,12 @@ export default function PlanChat({ domainId }: { domainId: string }) {
   };
 
   return (
-    <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '22px 24px', marginTop: 14 }}>
+    <div
+      className={bare ? undefined : 'gv-card'}
+      style={bare
+        ? {}
+        : { background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '22px 24px', marginTop: 14 }}
+    >
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>
           <div style={{ fontSize: 15, fontWeight: 700 }}>Talk to your strategist</div>
