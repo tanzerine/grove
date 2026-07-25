@@ -16,6 +16,7 @@ import { buildStrategy } from '@/lib/strategy/build';
 import { parseInterview } from '@/lib/strategy/interview';
 import { savePlanContext } from '@/lib/strategy/context-store';
 import { profileSite, type SiteProfile } from '@/lib/pipeline/site-profile';
+import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -32,13 +33,19 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
+  // This route runs an outbound crawl and a strategy LLM call, so it is
+  // cost-bearing and gets the same ceiling as the other crawl endpoints. It was
+  // the only one of them with no limiter at all.
+  const limited = await enforceRateLimit(`interview:${user.id}`, LIMITS.crawl);
+  if (limited) return limited;
+
   const parsed = body.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: 'invalid body' }, { status: 400 });
 
   // ownership check + load profile in one shot
   const { data: domain } = await sb
     .from('domains')
-    .select('id, hostname, posts_per_week, site_profile')
+    .select('id, hostname, posts_per_week, site_profile, verified_at')
     .eq('id', id)
     .eq('user_id', user.id)
     .maybeSingle();
@@ -50,6 +57,23 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     .update({ interview: answers })
     .eq('id', id);
   if (updErr) return NextResponse.json({ error: updErr.message }, { status: 400 });
+
+  // Everything above is a cheap write and stays open: the interview is part of
+  // onboarding, and losing someone's typed answers because of a gate would be
+  // worse than the gate is worth.
+  //
+  // Everything below crawls the customer's site and runs the strategist, so it
+  // requires a VERIFIED domain. Ownership is the check that matters here: the
+  // hostname is attacker-chosen and nothing else on this path constrained it, so
+  // an account could point Grove's crawler at any third party and burn LLM spend
+  // on it. (Production had a full 17-slot strategy built for `google.com` this
+  // way.) Verification is already step 4 of onboarding, so a real customer has
+  // always passed it by the time they answer these questions — only the
+  // "Skip for now" path lands here unverified, and that path has nothing to
+  // legitimately generate yet.
+  if (!(domain as any).verified_at) {
+    return NextResponse.json({ ok: true, strategy_built: false, reason: 'unverified' });
+  }
 
   // Auto-trigger first strategy build (best-effort; failure doesn't block save).
   let strategyBuilt = false;
