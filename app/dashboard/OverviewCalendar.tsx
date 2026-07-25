@@ -26,7 +26,7 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
  * The overview's mini calendar. Client-side only because of two things the
  * server version couldn't do: a real hover card (the chips truncate hard at
  * ~9 chars, and the native `title` tooltip is both slow and clipped by the
- * cell's `overflow: hidden`), and chips that link into the pipeline.
+ * cell's `overflow: hidden`), and an accent stroke on the hovered chip.
  */
 export default function OverviewCalendar({ days }: { days: CalDay[] }) {
   // Hovered chip + the screen rect it occupies. `position: fixed` puts the
@@ -45,7 +45,7 @@ export default function OverviewCalendar({ days }: { days: CalDay[] }) {
             {d.events.map((ev) => (
               <Link
                 key={ev.id}
-                href={`/dashboard/pipeline#post-${ev.id}`}
+                href={`/dashboard/posts/${ev.id}`}
                 onMouseEnter={(e) => {
                   const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
                   setHover({ ev, x: r.left + r.width / 2, y: r.top });
@@ -56,7 +56,9 @@ export default function OverviewCalendar({ days }: { days: CalDay[] }) {
                   setHover({ ev, x: r.left + r.width / 2, y: r.top });
                 }}
                 onBlur={() => setHover((h) => (h?.ev.id === ev.id ? null : h))}
-                style={{ display: 'block', fontSize: 9.5, fontWeight: 600, lineHeight: 1.25, color: ev.color, background: ev.chipBg, borderStyle: ev.line, borderWidth: 1, borderColor: 'rgba(154,160,148,0.5)', borderRadius: 4, padding: '2px 4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textDecoration: 'none', cursor: 'pointer' }}
+                // Hovering swaps the chip's stroke to the accent lime — the one
+                // hit-target cue the grayscale calendar has room for.
+                style={{ display: 'block', fontSize: 9.5, fontWeight: 600, lineHeight: 1.25, color: ev.color, background: ev.chipBg, borderStyle: ev.line, borderWidth: 1, borderColor: hover?.ev.id === ev.id ? 'var(--gv-accent)' : 'rgba(154,160,148,0.5)', borderRadius: 4, padding: '2px 4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textDecoration: 'none', cursor: 'pointer', transition: 'border-color .15s' }}
               >
                 {ev.label}
               </Link>
@@ -81,7 +83,7 @@ export default function OverviewCalendar({ days }: { days: CalDay[] }) {
           </div>
           {/* The whole point of the hover card: the untruncated title. */}
           <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--gv-ink)', lineHeight: 1.4 }}>{hover.ev.label}</div>
-          <div style={{ fontSize: 10.5, color: 'var(--gv-fainter)', marginTop: 6 }}>Click to open in the pipeline →</div>
+          <div style={{ fontSize: 10.5, color: 'var(--gv-fainter)', marginTop: 6 }}>Click to open the article →</div>
         </div>
       )}
     </>
