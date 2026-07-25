@@ -43,7 +43,13 @@ export default async function StrategyPage() {
     .from('strategies').select('*')
     .eq('domain_id', domain.id).eq('active', true)
     .order('month', { ascending: false }).limit(1).maybeSingle();
-  if (!strategy) return <NoStrategy hasInterview={!!domain.interview} />;
+  if (!strategy) return (
+    <NoStrategy
+      hasInterview={!!domain.interview}
+      verified={!!domain.verified_at}
+      domainId={domain.id}
+    />
+  );
 
   let report: MonthlyReport | null = null;
   try {
@@ -439,7 +445,17 @@ function Empty() {
   );
 }
 
-function NoStrategy({ hasInterview }: { hasInterview: boolean }) {
+function NoStrategy({
+  hasInterview,
+  verified,
+  domainId,
+}: { hasInterview: boolean; verified: boolean; domainId: string }) {
+  // The strategist only plans for a domain whose ownership has been proven, so
+  // an unverified site would otherwise sit here with a CTA that can't work.
+  // Point at the thing that actually unblocks it instead.
+  const cta = verified
+    ? { href: '/onboarding/intent', label: hasInterview ? 'Edit intent' : 'Answer 5 questions →' }
+    : { href: `/onboarding/verify?domain=${domainId}`, label: 'Verify domain →' };
   return (
     <>
       <DashHeader title="Strategy" subtitle="the monthly plan your agent works from" />
@@ -447,12 +463,14 @@ function NoStrategy({ hasInterview }: { hasInterview: boolean }) {
         <div style={{ background: 'var(--gv-card)', border: '1px dashed rgba(255,255,255,0.12)', borderRadius: 14, padding: '40px 30px', textAlign: 'center' }}>
           <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>No strategy yet.</h3>
           <p style={{ color: 'var(--gv-dim)', marginTop: 8 }}>
-            {hasInterview
-              ? 'Strategy will build automatically on the 1st of the month, or run a generation to seed it.'
-              : 'Answer a few questions and the strategist will draft this month’s plan.'}
+            {!verified
+              ? 'Verify that you own this domain and the strategist will draft this month’s plan.'
+              : hasInterview
+                ? 'Strategy will build automatically on the 1st of the month, or run a generation to seed it.'
+                : 'Answer a few questions and the strategist will draft this month’s plan.'}
           </p>
-          <Link href="/onboarding/intent" className="gv-btn" style={{ display: 'inline-block', marginTop: 16, border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontWeight: 700, padding: '10px 18px', borderRadius: 10, textDecoration: 'none' }}>
-            {hasInterview ? 'Edit intent' : 'Answer 5 questions →'}
+          <Link href={cta.href} className="gv-btn" style={{ display: 'inline-block', marginTop: 16, border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontWeight: 700, padding: '10px 18px', borderRadius: 10, textDecoration: 'none' }}>
+            {cta.label}
           </Link>
         </div>
       </div>

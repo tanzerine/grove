@@ -28,6 +28,17 @@ export async function POST(req: Request) {
   const { data: domain } = await sb.from('domains').select('*').eq('id', parsed.data.id).single();
   if (!domain) return NextResponse.json({ error: 'not found' }, { status: 404 });
 
+  // Crawling + profiling is an outbound fetch and an LLM call against an
+  // attacker-chosen hostname, so proving ownership is the gate that matters —
+  // owning the domains *row* only means you typed the name in. Same rule as the
+  // interview route; the two are the only on-demand paths into profileSite.
+  if (!domain.verified_at) {
+    return NextResponse.json(
+      { error: 'Verify that you own this domain before crawling it.' },
+      { status: 403 },
+    );
+  }
+
   try {
     const profile = await profileSite(domain.hostname);
     const admin = supabaseAdmin();
