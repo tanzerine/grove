@@ -231,12 +231,15 @@ export default function AnalyticsDashboard({
   const rankTotal = rankDef.reduce((a, b) => a + b.count, 0);
   const rankBands = rankDef.map((b) => ({ ...b, pct: Math.round((b.count / rankTotal) * 100) + '%' }));
 
+  // Same four-color ramp as rank distribution — one accent hue per row so the
+  // citations/funnel cards read as a system, not a wash of solid green.
+  const SERIES_COLORS = ['#3de8bb', '#7fb6e6', '#c9a3e6', '#a374d6'];
   const engines = data.answers
-    ? data.answers.byEngine.map((e) => ({ name: e.name, count: String(e.count), pct: `${e.pct}%` }))
+    ? data.answers.byEngine.map((e, i) => ({ name: e.name, count: String(e.count), pct: `${e.pct}%`, color: SERIES_COLORS[i] ?? SERIES_COLORS[SERIES_COLORS.length - 1] }))
     : [
-        { name: 'ChatGPT', count: '186', pct: '88%' },
-        { name: 'Google AI Overviews', count: '142', pct: '67%' },
-        { name: 'Perplexity', count: '73', pct: '34%' },
+        { name: 'ChatGPT', count: '186', pct: '88%', color: SERIES_COLORS[0] },
+        { name: 'Google AI Overviews', count: '142', pct: '67%', color: SERIES_COLORS[1] },
+        { name: 'Perplexity', count: '73', pct: '34%', color: SERIES_COLORS[2] },
       ];
 
   const funnelDef = data.funnel
@@ -244,16 +247,16 @@ export default function AnalyticsDashboard({
         const f = data.funnel!;
         const rate = (n: number) => (f.clicks > 0 ? `${Math.round((n / f.clicks) * 100)}%` : '0%');
         return [
-          { label: 'Clicks to blog', value: fmtCompact(f.clicks), rate: '100%', pct: '100%', bar: ACCENT },
-          { label: 'Read past 50%', value: fmtCompact(f.read50), rate: rate(f.read50), pct: rate(f.read50), bar: 'rgba(162,255,1,0.7)' },
-          { label: 'Converted (CTA)', value: fmtCompact(f.converted), rate: rate(f.converted), pct: rate(f.converted), bar: 'rgba(162,255,1,0.5)' },
+          { label: 'Clicks to blog', value: fmtCompact(f.clicks), rate: '100%', pct: '100%', bar: SERIES_COLORS[0] },
+          { label: 'Read past 50%', value: fmtCompact(f.read50), rate: rate(f.read50), pct: rate(f.read50), bar: SERIES_COLORS[1] },
+          { label: 'Converted (CTA)', value: fmtCompact(f.converted), rate: rate(f.converted), pct: rate(f.converted), bar: SERIES_COLORS[2] },
         ];
       })()
     : [
-        { label: 'Clicks to blog', value: '48.2k', rate: '100%', pct: '100%', bar: ACCENT },
-        { label: 'Read past 50%', value: '21.7k', rate: '45%', pct: '45%', bar: 'rgba(162,255,1,0.7)' },
-        { label: 'Email captured', value: '3,180', rate: '6.6%', pct: '28%', bar: 'rgba(162,255,1,0.5)' },
-        { label: 'Started trial', value: '742', rate: '1.5%', pct: '14%', bar: 'rgba(162,255,1,0.35)' },
+        { label: 'Clicks to blog', value: '48.2k', rate: '100%', pct: '100%', bar: SERIES_COLORS[0] },
+        { label: 'Read past 50%', value: '21.7k', rate: '45%', pct: '45%', bar: SERIES_COLORS[1] },
+        { label: 'Email captured', value: '3,180', rate: '6.6%', pct: '28%', bar: SERIES_COLORS[2] },
+        { label: 'Started trial', value: '742', rate: '1.5%', pct: '14%', bar: SERIES_COLORS[3] },
       ];
 
   // Marks a card that still shows illustrative numbers while the rest of the
@@ -550,7 +553,7 @@ export default function AnalyticsDashboard({
               <span style={{ fontSize: 11.5, color: ACCENT_INK, fontWeight: 600 }}>{rankTotal} terms</span>
             </div>
             <div style={{ fontSize: 12, color: 'var(--gv-faint)', marginBottom: 18 }}>Keyword positions on Google</div>
-            <div style={{ display: 'flex', height: 12, borderRadius: 99, overflow: 'hidden', marginBottom: 20 }}>
+            <div style={{ display: 'flex', height: 7, borderRadius: 99, overflow: 'hidden', marginBottom: 20 }}>
               {rankBands.map((b) => <span key={b.label} style={{ width: b.pct, background: b.color }} />)}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
@@ -566,7 +569,7 @@ export default function AnalyticsDashboard({
           </div>
 
           {/* answer engine citations */}
-          <div className="gv-card" style={{ background: 'var(--gv-card-grad)', border: '1px solid rgba(162,255,1,0.16)', borderRadius: 18, padding: '20px 22px' }}>
+          <div className="gv-card" style={{ background: 'var(--gv-card-grad)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 18, padding: '20px 22px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 700 }}>{data.answers ? 'Answer-engine referrals' : 'Answer-engine citations'} {sampleTag(!data.answers)}</div>
               {!data.answers && !anyLive && <span style={{ fontSize: 11, color: ACCENT_INK, fontWeight: 600 }}>▲ 41%</span>}
@@ -575,8 +578,11 @@ export default function AnalyticsDashboard({
             <div style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
               {engines.map((e) => (
                 <div key={e.name}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 7 }}><span style={{ color: 'var(--gv-soft)' }}>{e.name}</span><span style={{ fontWeight: 700 }}>{e.count}</span></div>
-                  <div style={{ height: 7, borderRadius: 99, background: 'rgba(255,255,255,0.05)', overflow: 'hidden' }}><div style={{ height: '100%', width: e.pct, borderRadius: 99, background: `linear-gradient(90deg, rgba(162,255,1,0.5), ${ACCENT})` }} /></div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 13, marginBottom: 7 }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--gv-soft)' }}><span style={{ width: 9, height: 9, borderRadius: 3, background: e.color, flexShrink: 0 }} />{e.name}</span>
+                    <span style={{ fontWeight: 700 }}>{e.count}</span>
+                  </div>
+                  <div style={{ height: 7, borderRadius: 99, background: 'rgba(255,255,255,0.05)', overflow: 'hidden' }}><div style={{ height: '100%', width: e.pct, borderRadius: 99, background: e.color }} /></div>
                 </div>
               ))}
             </div>
@@ -594,10 +600,10 @@ export default function AnalyticsDashboard({
               {funnelDef.map((f) => (
                 <div key={f.label}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-                    <span style={{ fontSize: 12.5, color: 'var(--gv-soft)' }}>{f.label}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: 'var(--gv-soft)' }}><span style={{ width: 9, height: 9, borderRadius: 3, background: f.bar, flexShrink: 0 }} />{f.label}</span>
                     <span style={{ fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{f.value} <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--gv-faint)' }}>{f.rate}</span></span>
                   </div>
-                  <div style={{ height: 26, borderRadius: 8, background: 'rgba(255,255,255,0.03)', overflow: 'hidden' }}><div style={{ height: '100%', width: f.pct, borderRadius: 8, background: f.bar }} /></div>
+                  <div style={{ height: 7, borderRadius: 99, background: 'rgba(255,255,255,0.05)', overflow: 'hidden' }}><div style={{ height: '100%', width: f.pct, borderRadius: 99, background: f.bar }} /></div>
                 </div>
               ))}
             </div>
