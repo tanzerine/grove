@@ -31,7 +31,7 @@ export default function PillarsAndCalendar({
   return (
     <>
       {/* ===== CONTENT PILLARS ===== */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 2px 12px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 2px 12px' }}>
         <span style={{ fontSize: 15, fontWeight: 700 }}>Content pillars</span>
         <span style={{ fontSize: 12, color: 'var(--gv-faint)' }}>where the month&apos;s writing is aimed</span>
         {focus && (
@@ -67,6 +67,22 @@ export default function PillarsAndCalendar({
             </button>
           );
         })}
+
+        {/* The comp's grid is four across. A plan with fewer pillars leaves a
+            hole, so the empty slot becomes the way to open one — the strategist
+            chat is what actually edits the plan. */}
+        {pillars.length < 4 && (
+          <a href="#plan-chat" className="gv-pillar"
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center', gap: 9, textAlign: 'left', textDecoration: 'none', background: 'transparent', border: '1px dashed rgba(255,255,255,0.14)', borderRadius: 16, padding: '18px 18px 16px', minHeight: 148, opacity: focus ? 0.45 : 1, transition: 'opacity .2s, border-color .2s' }}>
+            <span style={{ width: 28, height: 28, borderRadius: 9, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.14)', color: 'var(--gv-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="sparkle" size={15} />
+            </span>
+            <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--gv-soft)', lineHeight: 1.25 }}>Add a pillar</span>
+            <span style={{ fontSize: 11.5, color: 'var(--gv-faint)', lineHeight: 1.45 }}>
+              Tell the strategist what else this month should cover and it reworks the plan.
+            </span>
+          </a>
+        )}
       </div>
 
       {/* ===== MONTH CALENDAR ===== */}
