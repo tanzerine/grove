@@ -101,7 +101,9 @@ export default async function Page() {
     <>
       <DashHeader title="Content pipeline" subtitle={subtitle} />
 
-      <div className="gv-body">
+      {/* The comp runs one 1180px column, centred — every band (brief, queue,
+          pipeline rows, stats) shares it, so nothing steps out of line. */}
+      <div className="gv-body" style={{ maxWidth: 1180 }}>
         {/* live status — relocated out of the nav bar */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 14, marginBottom: 16, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.2 }}>
@@ -145,7 +147,7 @@ export default async function Page() {
         )}
 
         {/* QUEUE TOPIC + PUBLISHING SETTINGS — single column, matching the pipeline comp */}
-        <div style={{ maxWidth: 1180 }}>
+        <div>
           <PipelineActions domainId={domain?.id} />
           {domain && <ModeToggle domainId={domain.id} autoPublish={domain.auto_publish ?? false} postsPerWeek={domain.posts_per_week ?? 2} autoPublishFloor={domain.auto_publish_floor ?? 45} />}
 
