@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import LocalTime from './LocalTime';
 import Icon from './gv-icons';
 
@@ -26,6 +26,23 @@ function visuals(status: string, stuck: boolean) {
 export default function PostRow({ p, score, blogSlug }: { p: any; score?: { overall: number; action: string } | null; blogSlug?: string | null }) {
   const r = useRouter();
   const [busy, setBusy] = useState<null | 'retry' | 'delete' | 'regen' | 'approve'>(null);
+
+  // Deep link target: /dashboard/pipeline#post-<id> (the overview calendar links
+  // here). Next's client nav doesn't scroll to a hash that only exists after the
+  // page renders, so do it ourselves and flash the row so it's findable.
+  const rowRef = useRef<HTMLDivElement | null>(null);
+  const [flash, setFlash] = useState(false);
+  useEffect(() => {
+    const check = () => {
+      if (window.location.hash !== `#post-${p.id}`) return;
+      rowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setFlash(true);
+      window.setTimeout(() => setFlash(false), 2400);
+    };
+    check();
+    window.addEventListener('hashchange', check);
+    return () => window.removeEventListener('hashchange', check);
+  }, [p.id]);
   const errorMsg = p.status === 'failed' ? (p.validation?.error ?? 'Unknown error') : null;
   const failedAt = p.validation?.failed_at;
 
@@ -117,7 +134,7 @@ export default function PostRow({ p, score, blogSlug }: { p: any; score?: { over
   );
 
   return (
-    <div className="gv-prow" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 14, padding: '14px 16px' }}>
+    <div ref={rowRef} id={`post-${p.id}`} className="gv-prow" style={{ background: 'var(--gv-card)', border: `1px solid ${flash ? ACCENT : 'var(--gv-line)'}`, borderRadius: 14, padding: '14px 16px', boxShadow: flash ? '0 0 0 3px rgba(162,255,1,0.16)' : 'none', transition: 'border-color .3s, box-shadow .3s', scrollMarginTop: 90 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 13 }}>
         <span style={{ width: 38, height: 38, borderRadius: 10, background: v.accent ? 'rgba(162,255,1,0.1)' : 'rgba(255,255,255,0.04)', border: `1px solid ${v.accent ? 'rgba(162,255,1,0.2)' : 'var(--gv-line)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: v.danger ? 'var(--gv-red)' : v.accent ? ACCENT_INK : 'var(--gv-dim)', flexShrink: 0 }}>
           <Icon name={v.icon} size={18} />
