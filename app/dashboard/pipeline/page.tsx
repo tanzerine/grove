@@ -9,7 +9,6 @@ import { DashHeader } from '../gv-chrome';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
-const band = (s: number) => (s >= 70 ? ACCENT : s >= 40 ? 'var(--gv-amber)' : 'var(--gv-red)');
 
 export default async function Page() {
   const sb = await supabaseServer();
@@ -41,11 +40,6 @@ export default async function Page() {
     return s && (s.faq_count ?? 0) >= 2 && (s.key_takeaways_count ?? 0) >= 3;
   }).length;
   const aeoTotal = publishedPosts.length;
-  const aeoPct = aeoTotal ? Math.round((aeoReadyCount / aeoTotal) * 100) : 0;
-
-  // quality scores chronological → bars + avg
-  const scored = (posts ?? []).filter((p) => scoreByPost.has(p.id)).map((p) => scoreByPost.get(p.id)!.overall).reverse();
-  const qAvg = scored.length ? Math.round(scored.reduce((a, b) => a + b, 0) / scored.length) : 0;
 
   // group the pipeline by stage
   const STUCK_MIN = 3;
@@ -79,13 +73,6 @@ export default async function Page() {
     ...(aeoTotal >= 2 ? [{ value: `${aeoReadyCount} / ${aeoTotal}`, label: 'AI-search ready' }] : []),
     ...(brief.inReview > 0 ? [{ value: String(brief.inReview), label: 'Awaiting review' }] : []),
   ] : [];
-
-  const loop = [
-    { n: '1', title: 'Strategy', sub: 'A monthly plan — goals, KPIs, content pillars per domain.' },
-    { n: '2', title: 'Generation', sub: 'The writer pipeline: research live SERP, draft in your voice.' },
-    { n: '3', title: 'Manager', sub: 'Evaluator scores every draft 0–100 and gates publish.' },
-    { n: '4', title: 'Analytics', sub: 'First-party events feed next month’s strategy.' },
-  ];
 
   const inFlightCount = groups.find((g) => g.key === 'flight')?.items.length ?? 0;
   const reviewCount = groups.find((g) => g.key === 'review')?.items.length ?? 0;
@@ -172,63 +159,6 @@ export default async function Page() {
           )}
         </div>
 
-        {/* STATS ROW — quality, AI-search readiness, the agent loop */}
-        <div className="gv-grid3" style={{ display: 'grid', gridTemplateColumns: aeoTotal >= 2 ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)', gap: 14, marginTop: 26 }}>
-          {/* article quality */}
-          <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '20px 22px' }}>
-            <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-faint)' }}>Article quality · manager scores</div>
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, marginTop: 12 }}>
-              <span style={{ fontSize: 34, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1 }}>{qAvg || '—'}</span>
-              <span style={{ fontSize: 12, color: 'var(--gv-dim)', paddingBottom: 4 }}>avg / 100 · {scored.length} scored</span>
-            </div>
-            {scored.length >= 2 && (
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 66, marginTop: 18 }}>
-                {scored.slice(-12).map((s, i) => (
-                  <span key={i} title={`${s}/100`} style={{ flex: 1, borderRadius: '4px 4px 0 0', background: band(s), height: `${30 + (s / 100) * 70}%`, opacity: 0.92 }} />
-                ))}
-              </div>
-            )}
-            <p style={{ fontSize: 11.5, color: 'var(--gv-faint)', lineHeight: 1.55, margin: '14px 0 0' }}>Every draft is graded 0–100 by the manager agent before it can publish — strategy fit, marketing intent, craft, safety.</p>
-          </div>
-
-          {/* AI-search readiness */}
-          {aeoTotal >= 2 && (
-            <div className="gv-card" style={{ background: 'var(--gv-card-grad)', border: '1px solid rgba(162,255,1,0.16)', borderRadius: 18, padding: '20px 22px' }}>
-              <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-faint)' }}>AI-search readiness</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 14 }}>
-                <div style={{ position: 'relative', width: 66, height: 66, flexShrink: 0 }}>
-                  <svg viewBox="0 0 36 36" style={{ width: 66, height: 66, transform: 'rotate(-90deg)' }}>
-                    <circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--gv-line)" strokeWidth="3.4" />
-                    <circle cx="18" cy="18" r="15.5" fill="none" stroke={ACCENT_INK} strokeWidth="3.4" strokeLinecap="round" strokeDasharray="97.4" strokeDashoffset={(97.4 * (1 - aeoPct / 100)).toFixed(1)} />
-                  </svg>
-                  <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700 }}>{aeoReadyCount}/{aeoTotal}</span>
-                </div>
-                <div>
-                  <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--gv-ink)' }}>{aeoPct}% answer-engine ready</div>
-                  <div style={{ fontSize: 11.5, color: 'var(--gv-dim)', lineHeight: 1.5, marginTop: 4 }}>Published posts with FAQ blocks &amp; key-takeaways structured for AI Overviews &amp; ChatGPT.</div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* the agent loop */}
-          <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '20px 22px' }}>
-            <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-faint)', marginBottom: 16 }}>The agent loop</div>
-            {loop.map((l, i) => (
-              <div key={l.n} style={{ display: 'flex', gap: 13, paddingBottom: 16 }}>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
-                  <span style={{ width: 26, height: 26, borderRadius: 8, background: 'rgba(162,255,1,0.1)', border: '1px solid rgba(162,255,1,0.25)', color: ACCENT_INK, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>{l.n}</span>
-                  {i < loop.length - 1 && <span style={{ flex: 1, width: 1, minHeight: 16, background: 'rgba(162,255,1,0.18)', marginTop: 4 }} />}
-                </div>
-                <div style={{ marginTop: 1 }}>
-                  <div style={{ fontSize: 13.5, fontWeight: 600 }}>{l.title}</div>
-                  <div style={{ fontSize: 11.5, color: 'var(--gv-faint)', marginTop: 2, lineHeight: 1.45 }}>{l.sub}</div>
-                </div>
-              </div>
-            ))}
-            <div style={{ fontSize: 11, color: 'var(--gv-fainter)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 12, display: 'flex', alignItems: 'center', gap: 7 }}><span style={{ color: ACCENT_INK }}>↻</span> Strategy re-reviewed on the 1st of each month</div>
-          </div>
-        </div>
       </div>
     </>
   );
