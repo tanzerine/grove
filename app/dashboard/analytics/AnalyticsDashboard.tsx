@@ -219,14 +219,14 @@ export default function AnalyticsDashboard({
   // Positions 1–3 is the one band worth calling out (page-one, top of search);
   // the rest is a plain grey ramp rather than diluting lime into a second
   // "almost as important" tier.
-  const RANK_COLORS = [ACCENT_INK, '#9a9f99', '#7f8a86', '#3a4640'];
+  const RANK_COLORS = ['#3de8bb', '#7fb6e6', '#c9a3e6', '#a374d6'];
   const rankDef = data.ranking
-    ? data.ranking.bands.map((b, i) => ({ label: b.label, count: b.count, color: RANK_COLORS[i] ?? '#3a4640' }))
+    ? data.ranking.bands.map((b, i) => ({ label: b.label, count: b.count, color: RANK_COLORS[i] ?? '#a374d6' }))
     : [
-        { label: 'Positions 1–3', count: 42, color: ACCENT_INK },
-        { label: 'Positions 4–10', count: 76, color: '#9a9f99' },
-        { label: 'Positions 11–20', count: 58, color: '#7f8a86' },
-        { label: 'Positions 21+', count: 38, color: '#3a4640' },
+        { label: 'Positions 1–3', count: 42, color: '#3de8bb' },
+        { label: 'Positions 4–10', count: 76, color: '#7fb6e6' },
+        { label: 'Positions 11–20', count: 58, color: '#c9a3e6' },
+        { label: 'Positions 21+', count: 38, color: '#a374d6' },
       ];
   const rankTotal = rankDef.reduce((a, b) => a + b.count, 0);
   const rankBands = rankDef.map((b) => ({ ...b, pct: Math.round((b.count / rankTotal) * 100) + '%' }));
@@ -259,7 +259,7 @@ export default function AnalyticsDashboard({
   // Marks a card that still shows illustrative numbers while the rest of the
   // report is live (e.g. GSC connected but no first-party events yet).
   const sampleTag = (isSample: boolean) => (anyLive && isSample
-    ? <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-fainter)', border: '1px solid rgba(15,23,18,0.12)', borderRadius: 999, padding: '3px 8px' }}>sample</span>
+    ? <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-fainter)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 999, padding: '3px 8px' }}>sample</span>
     : null);
 
   return (
@@ -272,7 +272,7 @@ export default function AnalyticsDashboard({
 
         {/* report controls — relocated out of the nav bar */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 14, marginBottom: 18, flexWrap: 'wrap' }}>
-          <div style={{ display: 'inline-flex', padding: 4, background: 'rgba(15,23,18,0.03)', border: '1px solid rgba(15,23,18,0.08)', borderRadius: 999, gap: 3, opacity: pending ? 0.6 : 1, transition: 'opacity .2s' }}>
+          <div style={{ display: 'inline-flex', padding: 4, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 999, gap: 3, opacity: pending ? 0.6 : 1, transition: 'opacity .2s' }}>
             {periodDef.map((p) => {
               const on = period === p.key;
               return (
@@ -282,7 +282,7 @@ export default function AnalyticsDashboard({
           </div>
           <GoogleConnect configured={configured} connected={connected} verified={verified} />
           <AskAgent prompt="/analytics What's actually driving clicks this month?" />
-          <button className="gv-ghost" style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid rgba(15,23,18,0.1)', background: 'rgba(15,23,18,0.02)', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '8px 14px', borderRadius: 10, cursor: 'pointer' }}>
+          <button className="gv-ghost" style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '8px 14px', borderRadius: 10, cursor: 'pointer' }}>
             <Icon name="download" /> Export
           </button>
         </div>
@@ -336,11 +336,11 @@ export default function AnalyticsDashboard({
                 the exact columns GA shows (views / users / engagement / events) */}
             {ga.pages.length > 0 && (
               <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, overflow: 'hidden' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 22px', borderBottom: '1px solid rgba(15,23,18,0.06)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 22px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                   <span style={{ fontSize: 14, fontWeight: 700 }}>Pages by traffic</span>
                   <span style={{ fontSize: 12, color: 'var(--gv-dim)' }}>{ga.pages.length} page{ga.pages.length === 1 ? '' : 's'}</span>
                 </div>
-                <div className="gv-tbl" style={{ display: 'grid', gridTemplateColumns: '1fr 90px 90px 110px 80px', padding: '11px 22px', fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-fainter)', borderBottom: '1px solid rgba(15,23,18,0.04)' }}>
+                <div className="gv-tbl" style={{ display: 'grid', gridTemplateColumns: '1fr 90px 90px 110px 80px', padding: '11px 22px', fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-fainter)', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                   <span>Page</span>
                   <span style={{ textAlign: 'right' }}>Views</span>
                   <span className="gv-cell-off" style={{ textAlign: 'right' }}>Users</span>
@@ -348,7 +348,7 @@ export default function AnalyticsDashboard({
                   <span className="gv-cell-off" style={{ textAlign: 'right' }}>Events</span>
                 </div>
                 {ga.pages.slice(0, 15).map((p, i) => (
-                  <div key={p.title + i} className="gv-row gv-tbl" style={{ display: 'grid', gridTemplateColumns: '1fr 90px 90px 110px 80px', alignItems: 'center', padding: '13px 22px', borderBottom: '1px solid rgba(15,23,18,0.04)' }}>
+                  <div key={p.title + i} className="gv-row gv-tbl" style={{ display: 'grid', gridTemplateColumns: '1fr 90px 90px 110px 80px', alignItems: 'center', padding: '13px 22px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                     <span style={{ minWidth: 0, fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', paddingRight: 16 }}>{p.title}</span>
                     <span style={{ fontSize: 13, fontWeight: 700, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmtCompact(p.views)}</span>
                     <span className="gv-cell-off" style={{ fontSize: 12.5, color: 'var(--gv-dim)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmtCompact(p.activeUsers)}</span>
@@ -417,7 +417,7 @@ export default function AnalyticsDashboard({
               </div>
               <div style={{ display: 'flex', gap: 18 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: 'var(--gv-dim)' }}><span style={{ width: 10, height: 10, borderRadius: 3, background: ACCENT }} />Clicks</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: 'var(--gv-dim)' }}><span style={{ width: 10, height: 10, borderRadius: 3, background: 'rgba(15,23,18,0.22)' }} />Impressions</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: 'var(--gv-dim)' }}><span style={{ width: 10, height: 10, borderRadius: 3, background: 'rgba(255,255,255,0.22)' }} />Impressions</div>
               </div>
             </div>
 
@@ -443,10 +443,10 @@ export default function AnalyticsDashboard({
                   <stop offset="100%" stopColor={ACCENT} stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <line x1="0" y1="40" x2="640" y2="40" stroke="rgba(15,23,18,0.05)" strokeWidth={1} />
-              <line x1="0" y1="100" x2="640" y2="100" stroke="rgba(15,23,18,0.05)" strokeWidth={1} />
-              <line x1="0" y1="160" x2="640" y2="160" stroke="rgba(15,23,18,0.05)" strokeWidth={1} />
-              <path d={iP.line} fill="none" stroke="rgba(15,23,18,0.22)" strokeWidth={2} strokeDasharray="4 5" strokeLinecap="round" />
+              <line x1="0" y1="40" x2="640" y2="40" stroke="rgba(255,255,255,0.05)" strokeWidth={1} />
+              <line x1="0" y1="100" x2="640" y2="100" stroke="rgba(255,255,255,0.05)" strokeWidth={1} />
+              <line x1="0" y1="160" x2="640" y2="160" stroke="rgba(255,255,255,0.05)" strokeWidth={1} />
+              <path d={iP.line} fill="none" stroke="rgba(255,255,255,0.22)" strokeWidth={2} strokeDasharray="4 5" strokeLinecap="round" />
               <path d={cP.area} fill="url(#gvAreaA)" stroke="none" />
               <path d={cP.line} fill="none" stroke={ACCENT_INK} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" />
               <circle cx={cP.last.x.toFixed(1)} cy={cP.last.y.toFixed(1)} r={4.5} fill={ACCENT_INK} stroke="var(--gv-bg)" strokeWidth={2.5} />
@@ -477,7 +477,7 @@ export default function AnalyticsDashboard({
                 ))}
               </div>
             </div>
-            <div style={{ paddingTop: 18, fontSize: 11.5, color: 'var(--gv-faint)', lineHeight: 1.55, borderTop: '1px solid rgba(15,23,18,0.06)', marginTop: 20 }}>
+            <div style={{ paddingTop: 18, fontSize: 11.5, color: 'var(--gv-faint)', lineHeight: 1.55, borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: 20 }}>
               <span style={{ color: ACCENT_INK, fontWeight: 600 }}>Answer engines</span> {data.traffic ? <>drive {answerSharePct}% of clicks to your blog.</> : <>now drive 24% of all clicks — up from 4% a quarter ago.</>}
             </div>
           </div>
@@ -485,21 +485,21 @@ export default function AnalyticsDashboard({
 
         {/* ARTICLES TABLE — every published article when live, sample otherwise */}
         <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, overflow: 'hidden', marginBottom: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, padding: '18px 22px', borderBottom: '1px solid rgba(15,23,18,0.06)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, padding: '18px 22px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 15, fontWeight: 700 }}>{articlesLive ? 'Article performance' : 'Top performing content'}</span>
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                 {(articlesLive ? ['Views', 'Clicks', 'Impressions', 'CTR'] as const : ['Clicks', 'Impressions', 'CTR'] as const).map((t) => {
                   const on = sort === t;
                   return (
-                    <button key={t} onClick={() => setSort(t)} style={{ border: `1px solid ${on ? 'rgba(162,255,1,0.25)' : 'rgba(15,23,18,0.08)'}`, background: on ? 'rgba(162,255,1,0.12)' : 'transparent', color: on ? 'var(--gv-ink)' : 'var(--gv-dim)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '6px 13px', borderRadius: 999, cursor: 'pointer', transition: '.2s' }}>{t}</button>
+                    <button key={t} onClick={() => setSort(t)} style={{ border: `1px solid ${on ? 'rgba(162,255,1,0.25)' : 'rgba(255,255,255,0.08)'}`, background: on ? 'rgba(162,255,1,0.12)' : 'transparent', color: on ? 'var(--gv-ink)' : 'var(--gv-dim)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '6px 13px', borderRadius: 999, cursor: 'pointer', transition: '.2s' }}>{t}</button>
                   );
                 })}
               </div>
             </div>
             <span style={{ fontSize: 12.5, color: 'var(--gv-dim)' }}>{articlesLive ? `${postDef.length} published article${postDef.length === 1 ? '' : 's'}` : 'Sample data'}</span>
           </div>
-          <div className="gv-tbl" style={{ display: 'grid', gridTemplateColumns: tableCols, padding: '11px 22px', fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-fainter)', borderBottom: '1px solid rgba(15,23,18,0.04)' }}>
+          <div className="gv-tbl" style={{ display: 'grid', gridTemplateColumns: tableCols, padding: '11px 22px', fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-fainter)', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
             <span>Post</span>
             {articlesLive && <span style={{ textAlign: 'right' }}>Views</span>}
             <span style={{ textAlign: 'right' }}>Clicks</span><span className="gv-cell-off" style={{ textAlign: 'right' }}>Impressions</span><span className="gv-cell-off" style={{ textAlign: 'right' }}>CTR</span><span className="gv-cell-off" style={{ textAlign: 'right' }}>Avg. pos</span>
@@ -508,7 +508,7 @@ export default function AnalyticsDashboard({
           {postDef.map((p) => {
             const sp = p.spark ? buildPaths(p.spark, 96, 28, 3) : null;
             return (
-              <div key={p.title} className="gv-row gv-tbl" style={{ display: 'grid', gridTemplateColumns: tableCols, alignItems: 'center', padding: '14px 22px', borderBottom: '1px solid rgba(15,23,18,0.04)', cursor: 'pointer' }}>
+              <div key={p.title} className="gv-row gv-tbl" style={{ display: 'grid', gridTemplateColumns: tableCols, alignItems: 'center', padding: '14px 22px', borderBottom: '1px solid rgba(255,255,255,0.04)', cursor: 'pointer' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, paddingRight: 18 }}>
                   <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(162,255,1,0.1)', border: '1px solid rgba(162,255,1,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: ACCENT_INK, flexShrink: 0 }}><Icon name="doc" /></span>
                   <span style={{ minWidth: 0 }}>
@@ -576,11 +576,11 @@ export default function AnalyticsDashboard({
               {engines.map((e) => (
                 <div key={e.name}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 7 }}><span style={{ color: 'var(--gv-soft)' }}>{e.name}</span><span style={{ fontWeight: 700 }}>{e.count}</span></div>
-                  <div style={{ height: 7, borderRadius: 99, background: 'rgba(15,23,18,0.05)', overflow: 'hidden' }}><div style={{ height: '100%', width: e.pct, borderRadius: 99, background: `linear-gradient(90deg, rgba(162,255,1,0.5), ${ACCENT})` }} /></div>
+                  <div style={{ height: 7, borderRadius: 99, background: 'rgba(255,255,255,0.05)', overflow: 'hidden' }}><div style={{ height: '100%', width: e.pct, borderRadius: 99, background: `linear-gradient(90deg, rgba(162,255,1,0.5), ${ACCENT})` }} /></div>
                 </div>
               ))}
             </div>
-            <div style={{ fontSize: 11.5, color: 'var(--gv-faint)', borderTop: '1px solid rgba(15,23,18,0.06)', paddingTop: 14, marginTop: 18 }}>{data.answers ? 'Click-throughs only — Google AI Overviews report as regular Search.' : '75% of published posts are structured for AI Overviews.'}</div>
+            <div style={{ fontSize: 11.5, color: 'var(--gv-faint)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 14, marginTop: 18 }}>{data.answers ? 'Click-throughs only — Google AI Overviews report as regular Search.' : '75% of published posts are structured for AI Overviews.'}</div>
           </div>
 
           {/* conversion funnel */}
@@ -597,7 +597,7 @@ export default function AnalyticsDashboard({
                     <span style={{ fontSize: 12.5, color: 'var(--gv-soft)' }}>{f.label}</span>
                     <span style={{ fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{f.value} <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--gv-faint)' }}>{f.rate}</span></span>
                   </div>
-                  <div style={{ height: 26, borderRadius: 8, background: 'rgba(15,23,18,0.03)', overflow: 'hidden' }}><div style={{ height: '100%', width: f.pct, borderRadius: 8, background: f.bar }} /></div>
+                  <div style={{ height: 26, borderRadius: 8, background: 'rgba(255,255,255,0.03)', overflow: 'hidden' }}><div style={{ height: '100%', width: f.pct, borderRadius: 8, background: f.bar }} /></div>
                 </div>
               ))}
             </div>

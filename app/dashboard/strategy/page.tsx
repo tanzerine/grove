@@ -18,9 +18,9 @@ const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
 // Pillars are peer categories — whichever the domain's strategy happens to
 // have, in no particular order — so no single index deserves the accent.
-// A grey ramp keeps them tellable apart in the allocation bar without
-// implying one pillar matters more than another.
-const PILLAR_COLORS = ['#14181a', '#3d433e', '#6a716b', '#9a9f99', '#c3c7c1', '#dde0da'];
+// A distinct hue per pillar (the .dc comp's teal→purple ramp) keeps them
+// tellable apart in the allocation bar and swimlanes without leaning on lime.
+const PILLAR_COLORS = ['#3de8bb', '#7fb6e6', '#c9a3e6', '#a374d6', '#e0c878', '#8fd3a6'];
 
 type SlotStatus = { status: string; slug: string | null; scheduled_at?: string | null };
 
@@ -120,8 +120,8 @@ export default async function StrategyPage() {
   // grey for both. BOFU (conversion-intent content) keeps the accent: it's
   // the highest-commercial-value stage, a deliberate "significant" call.
   const INTENT: Record<string, { label: string; color: string; border: string }> = {
-    editorial: { label: 'TOFU', color: 'var(--gv-dim)', border: 'rgba(15,23,18,0.2)' },
-    contextual: { label: 'MOFU', color: 'var(--gv-soft)', border: 'rgba(15,23,18,0.28)' },
+    editorial: { label: 'TOFU', color: 'var(--gv-dim)', border: 'rgba(255,255,255,0.2)' },
+    contextual: { label: 'MOFU', color: 'var(--gv-soft)', border: 'rgba(255,255,255,0.28)' },
     conversion: { label: 'BOFU', color: ACCENT_INK, border: 'rgba(162,255,1,0.35)' },
   };
   const itemStatus = (st?: string): { label: string; color: string; now: boolean } => {
@@ -149,8 +149,8 @@ export default async function StrategyPage() {
         intent: intent.label, intentColor: intent.color, intentBorder: intent.border,
         title: slot.topic, pillarColor: PILLAR_COLORS[(pillarIndex.get(slot.pillar_id) ?? 0) % PILLAR_COLORS.length],
         status: is.label, statusColor: is.color,
-        bg: is.now ? 'rgba(162,255,1,0.05)' : 'rgba(15,23,18,0.02)',
-        border: is.now ? 'rgba(162,255,1,0.22)' : 'rgba(15,23,18,0.06)',
+        bg: is.now ? 'rgba(162,255,1,0.05)' : 'rgba(255,255,255,0.02)',
+        border: is.now ? 'rgba(162,255,1,0.22)' : 'rgba(255,255,255,0.06)',
       };
     });
     const state = w < todayWeek ? 'shipped' : w === todayWeek ? 'this week' : 'planned';
@@ -205,7 +205,7 @@ export default async function StrategyPage() {
               <p style={{ fontSize: 16, lineHeight: 1.62, color: 'var(--gv-soft)', margin: '13px 0 0', maxWidth: 720 }}>{heroText}</p>
             </div>
             <div style={{ display: 'flex', gap: 9, flexShrink: 0 }}>
-              <Link href="/onboarding/intent" className="gv-ghost" style={{ border: '1px solid rgba(15,23,18,0.12)', background: 'rgba(15,23,18,0.02)', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '10px 15px', borderRadius: 10, cursor: 'pointer', textDecoration: 'none' }}>Edit goals</Link>
+              <Link href="/onboarding/intent" className="gv-ghost" style={{ border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.02)', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '10px 15px', borderRadius: 10, cursor: 'pointer', textDecoration: 'none' }}>Edit goals</Link>
               <Link href="/dashboard/pipeline" className="gv-btn" style={{ border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '10px 16px', borderRadius: 10, cursor: 'pointer', whiteSpace: 'nowrap', textDecoration: 'none' }}>Open the pipeline →</Link>
             </div>
           </div>
@@ -320,7 +320,7 @@ export default async function StrategyPage() {
               <>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {opportunities.map((o, i) => (
-                    <div key={i} style={{ padding: '13px 15px', borderRadius: 12, background: 'rgba(15,23,18,0.02)', border: '1px solid rgba(15,23,18,0.06)' }}>
+                    <div key={i} style={{ padding: '13px 15px', borderRadius: 12, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                         <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: o.tagColor, background: o.tagBg, borderRadius: 5, padding: '2px 7px' }}>{o.tag}</span>
                         <span style={{ marginLeft: 'auto', fontSize: 11.5, color: 'var(--gv-dim)', fontVariantNumeric: 'tabular-nums' }}>{o.volume}</span>
@@ -395,7 +395,7 @@ function NoStrategy({ hasInterview }: { hasInterview: boolean }) {
     <>
       <DashHeader title="Strategy" subtitle="the monthly plan your agent works from" />
       <div className="gv-body">
-        <div style={{ background: 'var(--gv-card)', border: '1px dashed rgba(15,23,18,0.12)', borderRadius: 14, padding: '40px 30px', textAlign: 'center' }}>
+        <div style={{ background: 'var(--gv-card)', border: '1px dashed rgba(255,255,255,0.12)', borderRadius: 14, padding: '40px 30px', textAlign: 'center' }}>
           <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>No strategy yet.</h3>
           <p style={{ color: 'var(--gv-dim)', marginTop: 8 }}>
             {hasInterview

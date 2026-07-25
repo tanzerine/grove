@@ -10,7 +10,7 @@ export function HeaderRight() {
   return (
     <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14 }}>
       <NavAutopilot />
-      <span style={{ width: 1, height: 26, background: 'rgba(15,23,18,0.08)' }} />
+      <span style={{ width: 1, height: 26, background: 'rgba(255,255,255,0.08)' }} />
       <OnboardingBell />
       <AccountAvatarMenu />
     </div>

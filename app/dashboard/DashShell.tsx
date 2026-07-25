@@ -36,7 +36,7 @@ export default function DashShell({
             <span /><span /><span />
           </button>
           <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 9, fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em', color: 'var(--gv-ink)' }}>
-            <img src="/brand/logo-mark.png" alt="" width={18} height={18} style={{ objectFit: 'contain', flexShrink: 0 }} />
+            <img src="/brand/logo-mark.png" alt="" width={18} height={18} style={{ objectFit: 'contain', flexShrink: 0, filter: 'invert(1)' }} />
             grove
           </Link>
         </div>
@@ -45,10 +45,10 @@ export default function DashShell({
         {/* sidebar */}
         <aside className="gv-side gv-scroll">
           <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '22px 22px 18px' }}>
-            <img src="/brand/logo-mark.png" alt="" width={18} height={18} style={{ objectFit: 'contain', flexShrink: 0 }} />
+            <img src="/brand/logo-mark.png" alt="" width={18} height={18} style={{ objectFit: 'contain', flexShrink: 0, filter: 'invert(1)' }} />
             <span style={{ fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em' }}>grove</span>
             {/* neutral chip, per the comp — the lime reads as an alert here */}
-            <Link href="/dashboard/billing" title="Manage billing" style={{ marginLeft: 'auto', fontSize: 9.5, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-dim)', border: '1px solid rgba(15,23,18,0.14)', borderRadius: 6, padding: '3px 7px' }}>{chrome.plan}</Link>
+            <Link href="/dashboard/billing" title="Manage billing" style={{ marginLeft: 'auto', fontSize: 9.5, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-dim)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 6, padding: '3px 7px' }}>{chrome.plan}</Link>
           </div>
 
           <SideNav badges={badges} isAdmin={chrome.isAdmin} />

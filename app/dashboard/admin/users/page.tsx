@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
 const CARD = 'var(--gv-card)';
-const LINE = 'rgba(15,23,18,0.08)';
+const LINE = 'rgba(255,255,255,0.08)';
 const DIM = 'var(--gv-dim)';
 
 export default async function AdminUsersPage() {
@@ -52,7 +52,7 @@ export default async function AdminUsersPage() {
       <div className="gv-body">
         <div style={{ maxWidth: 1120, margin: '0 auto' }}>
           {!s.tracked && (
-            <div style={{ marginBottom: 18, fontSize: 13, color: 'var(--gv-amber)', background: 'rgba(15,23,18,0.1)', border: '1px solid rgba(15,23,18,0.3)', borderRadius: 10, padding: '10px 14px' }}>
+            <div style={{ marginBottom: 18, fontSize: 13, color: 'var(--gv-amber)', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 10, padding: '10px 14px' }}>
               Time-in-app tracking has no data yet (migration 0019 not applied, or no beats received).
               Until it fills in, activity here is based on sign-ins only.
             </div>
@@ -79,7 +79,7 @@ export default async function AdminUsersPage() {
                       <span style={{ color: 'var(--gv-soft)' }}>{f.label}</span>
                       <span style={{ color: DIM }}>{f.n} · {pct(f.n, maxFunnel)}</span>
                     </div>
-                    <div style={{ height: 6, borderRadius: 99, background: 'rgba(15,23,18,0.05)' }}>
+                    <div style={{ height: 6, borderRadius: 99, background: 'rgba(255,255,255,0.05)' }}>
                       <div style={{ height: '100%', width: `${(f.n / maxFunnel) * 100}%`, borderRadius: 99, background: ACCENT }} />
                     </div>
                   </div>
@@ -97,7 +97,7 @@ export default async function AdminUsersPage() {
                         <span style={{ color: 'var(--gv-soft)' }}>{m.label}</span>
                         <span style={{ color: DIM }}>{n} · {pct(n, s.users.length)}</span>
                       </div>
-                      <div style={{ height: 6, borderRadius: 99, background: 'rgba(15,23,18,0.05)' }}>
+                      <div style={{ height: 6, borderRadius: 99, background: 'rgba(255,255,255,0.05)' }}>
                         <div style={{ height: '100%', width: `${s.users.length ? (n / s.users.length) * 100 : 0}%`, borderRadius: 99, background: statusColor(m.key).fg }} />
                       </div>
                     </div>
@@ -231,9 +231,9 @@ function timeAgo(iso: string | null, now: number): string {
 function statusColor(s: EngagementStatus): { bg: string; fg: string } {
   switch (s) {
     case 'active': return { bg: 'rgba(162,255,1,0.16)', fg: ACCENT_INK };
-    case 'cooling': return { bg: 'rgba(15,23,18,0.16)', fg: 'var(--gv-amber)' };
+    case 'cooling': return { bg: 'rgba(255,255,255,0.16)', fg: 'var(--gv-amber)' };
     case 'dormant': return { bg: 'rgba(255,99,99,0.14)', fg: 'var(--gv-red-text)' };
-    case 'never': return { bg: 'rgba(15,23,18,0.06)', fg: DIM };
+    case 'never': return { bg: 'rgba(255,255,255,0.06)', fg: DIM };
   }
 }
 

@@ -21,13 +21,13 @@ export type OvRow = {
 };
 
 const ST: Record<OvRow['s'], { status: string; color: string; bg: string; border: string; dot: string }> = {
-  publishing: { status: 'Publishing', color: 'var(--gv-ink)', bg: 'rgba(15,23,18,0.06)', border: 'rgba(15,23,18,0.16)', dot: 'var(--gv-ink)' },
-  review: { status: 'In review', color: 'var(--gv-soft)', bg: 'rgba(15,23,18,0.09)', border: 'rgba(15,23,18,0.22)', dot: 'var(--gv-soft)' },
+  publishing: { status: 'Publishing', color: 'var(--gv-ink)', bg: 'rgba(255,255,255,0.06)', border: 'rgba(255,255,255,0.16)', dot: 'var(--gv-ink)' },
+  review: { status: 'In review', color: 'var(--gv-soft)', bg: 'rgba(255,255,255,0.09)', border: 'rgba(255,255,255,0.22)', dot: 'var(--gv-soft)' },
   /* Label colours sit on a tinted chip, which shaves ~0.3 off the ratio — hence
      --gv-soft rather than the muted tiers, and --gv-red-text rather than the
      border-weight --gv-red. The dots keep the lighter tones for hierarchy. */
-  live: { status: 'Live', color: 'var(--gv-soft)', bg: 'rgba(15,23,18,0.04)', border: 'rgba(15,23,18,0.08)', dot: 'var(--gv-dim)' },
-  writing: { status: 'Drafting', color: 'var(--gv-soft)', bg: 'rgba(15,23,18,0.05)', border: 'rgba(15,23,18,0.14)', dot: 'var(--gv-faint)' },
+  live: { status: 'Live', color: 'var(--gv-soft)', bg: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.08)', dot: 'var(--gv-dim)' },
+  writing: { status: 'Drafting', color: 'var(--gv-soft)', bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.14)', dot: 'var(--gv-faint)' },
   failed: { status: 'Failed', color: 'var(--gv-red-text)', bg: 'rgba(201,79,79,0.08)', border: 'rgba(201,79,79,0.22)', dot: 'var(--gv-red)' },
 };
 
@@ -44,8 +44,8 @@ export default function OverviewPipeline({ groups }: { groups: Record<string, Ov
   const cols = '1fr 200px 90px 130px 120px';
 
   return (
-    <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(15,23,18,0.08)', borderRadius: 18, overflow: 'hidden', marginBottom: 14 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, padding: '18px 22px', borderBottom: '1px solid rgba(15,23,18,0.08)' }}>
+    <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 18, overflow: 'hidden', marginBottom: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, padding: '18px 22px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 15, fontWeight: 700 }}>Content pipeline</span>
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
@@ -53,7 +53,7 @@ export default function OverviewPipeline({ groups }: { groups: Record<string, Ov
               const active = tab === t.label;
               return (
                 <button key={t.label} onClick={() => setTab(t.label)}
-                  style={{ border: `1px solid ${active ? 'rgba(15,23,18,0.16)' : 'rgba(15,23,18,0.1)'}`, background: active ? 'rgba(15,23,18,0.06)' : 'transparent', color: active ? 'var(--gv-ink)' : 'var(--gv-dim)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '6px 13px', borderRadius: 999, cursor: 'pointer', transition: '.2s' }}>
+                  style={{ border: `1px solid ${active ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.1)'}`, background: active ? 'rgba(255,255,255,0.06)' : 'transparent', color: active ? 'var(--gv-ink)' : 'var(--gv-dim)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '6px 13px', borderRadius: 999, cursor: 'pointer', transition: '.2s' }}>
                   {t.label} <span style={{ opacity: 0.6 }}>{t.count}</span>
                 </button>
               );
@@ -63,7 +63,7 @@ export default function OverviewPipeline({ groups }: { groups: Record<string, Ov
         <Link href="/dashboard/pipeline" style={{ fontSize: 12.5, color: 'var(--gv-dim)', textDecoration: 'none' }}>View all →</Link>
       </div>
 
-      <div className="gv-tbl" style={{ display: 'grid', gridTemplateColumns: cols, gap: 0, padding: '11px 22px', fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-fainter)', borderBottom: '1px solid rgba(15,23,18,0.05)' }}>
+      <div className="gv-tbl" style={{ display: 'grid', gridTemplateColumns: cols, gap: 0, padding: '11px 22px', fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-fainter)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
         <span>Post</span><span className="gv-cell-off">Target keyword</span><span className="gv-cell-off">Words</span><span>Status</span><span className="gv-cell-off" style={{ textAlign: 'right' }}>Schedule</span>
       </div>
 
@@ -71,9 +71,9 @@ export default function OverviewPipeline({ groups }: { groups: Record<string, Ov
         const st = ST[r.s];
         return (
           <Link key={r.id} href={`/dashboard/posts/${r.id}`} className="gv-row gv-tbl"
-            style={{ display: 'grid', gridTemplateColumns: cols, gap: 0, alignItems: 'center', padding: '15px 22px', borderBottom: '1px solid rgba(15,23,18,0.05)', transition: 'background .15s', cursor: 'pointer', textDecoration: 'none', color: 'inherit' }}>
+            style={{ display: 'grid', gridTemplateColumns: cols, gap: 0, alignItems: 'center', padding: '15px 22px', borderBottom: '1px solid rgba(255,255,255,0.05)', transition: 'background .15s', cursor: 'pointer', textDecoration: 'none', color: 'inherit' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, paddingRight: 18 }}>
-              <span style={{ width: 28, height: 28, borderRadius: 8, background: r.accentIcon ? 'rgba(162,255,1,0.15)' : 'rgba(15,23,18,0.05)', border: `1px solid ${r.accentIcon ? 'rgba(162,255,1,0.4)' : 'rgba(15,23,18,0.12)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: r.accentIcon ? ACCENT_INK : 'var(--gv-dim)', flexShrink: 0 }}>
+              <span style={{ width: 28, height: 28, borderRadius: 8, background: r.accentIcon ? 'rgba(162,255,1,0.15)' : 'rgba(255,255,255,0.05)', border: `1px solid ${r.accentIcon ? 'rgba(162,255,1,0.4)' : 'rgba(255,255,255,0.12)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: r.accentIcon ? ACCENT_INK : 'var(--gv-dim)', flexShrink: 0 }}>
                 <Icon name={r.icon} size={15} />
               </span>
               <span style={{ minWidth: 0 }}>

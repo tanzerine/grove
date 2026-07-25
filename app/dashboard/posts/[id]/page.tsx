@@ -87,12 +87,12 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
   const unusual = (managerOverall !== null && managerOverall < 70) || hasBlockingIssues || !!(readiness && readiness.checks.some((c) => !c.ok));
 
   const statusMeta: Record<string, { label: string; color: string; bg: string; border: string }> = {
-    review: { label: 'In review', color: 'var(--gv-amber)', bg: 'rgba(15,23,18,0.08)', border: 'rgba(15,23,18,0.24)' },
-    scheduled: { label: 'Scheduled', color: 'var(--gv-sky)', bg: 'rgba(15,23,18,0.08)', border: 'rgba(15,23,18,0.24)' },
+    review: { label: 'In review', color: 'var(--gv-amber)', bg: 'rgba(255,255,255,0.08)', border: 'rgba(255,255,255,0.24)' },
+    scheduled: { label: 'Scheduled', color: 'var(--gv-sky)', bg: 'rgba(255,255,255,0.08)', border: 'rgba(255,255,255,0.24)' },
     published: { label: 'Live', color: ACCENT_INK, bg: 'rgba(162,255,1,0.08)', border: 'rgba(162,255,1,0.24)' },
     failed: { label: 'Failed', color: 'var(--gv-red)', bg: 'rgba(201,127,127,0.08)', border: 'rgba(201,127,127,0.24)' },
   };
-  const sm = statusMeta[p.status] ?? { label: p.status, color: 'var(--gv-dim)', bg: 'rgba(15,23,18,0.03)', border: 'rgba(15,23,18,0.1)' };
+  const sm = statusMeta[p.status] ?? { label: p.status, color: 'var(--gv-dim)', bg: 'rgba(255,255,255,0.03)', border: 'rgba(255,255,255,0.1)' };
   const editable = ['review', 'scheduled', 'published'].includes(p.status);
 
   return (
@@ -247,7 +247,7 @@ function ReadinessCard({ r }: { r: Readiness }) {
         ))}
       </div>
       {r.notes.length > 0 && (
-        <div style={{ marginTop: 14, borderTop: '1px solid rgba(15,23,18,0.06)', paddingTop: 12 }}>
+        <div style={{ marginTop: 14, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 12 }}>
           <div style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 7 }}>Worth a look</div>
           <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: 'var(--gv-soft)', lineHeight: 1.65 }}>
             {r.notes.map((t, i) => <li key={i}>{t}</li>)}
@@ -279,11 +279,11 @@ function ManagerCard({ evals }: { evals: EvalRow[] }) {
         <ScoreRing value={overall} />
         <RubricBars scores={latest.scores} />
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: act.color, marginTop: 16, borderTop: '1px solid rgba(15,23,18,0.06)', paddingTop: 13 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: act.color, marginTop: 16, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 13 }}>
         <span style={{ width: 7, height: 7, borderRadius: '50%', background: act.color }} />{act.text}
       </div>
       {issues.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 13, paddingTop: 13, borderTop: '1px solid rgba(15,23,18,0.06)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 13, paddingTop: 13, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
           {issues.slice(0, 6).map((i, idx) => (
             <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 12 }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: SEV_DOT[i.severity] ?? ACCENT, flexShrink: 0 }} />

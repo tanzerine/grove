@@ -80,14 +80,14 @@ export default function GhostPipeline({ domainId, hostname }: { domainId?: strin
             key={i}
             onClick={() => open('generate')}
             disabled={loading}
-            style={{ display: 'flex', alignItems: 'center', gap: 13, textAlign: 'left', padding: '13px 15px', borderRadius: 12, background: 'rgba(15,23,18,0.02)', border: '1px solid var(--gv-line)', cursor: loading ? 'default' : 'pointer', fontFamily: 'inherit', width: '100%' }}
+            style={{ display: 'flex', alignItems: 'center', gap: 13, textAlign: 'left', padding: '13px 15px', borderRadius: 12, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--gv-line)', cursor: loading ? 'default' : 'pointer', fontFamily: 'inherit', width: '100%' }}
           >
-            <span style={{ width: 30, height: 30, borderRadius: 9, background: 'rgba(15,23,18,0.04)', border: '1px solid var(--gv-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gv-dim)', flexShrink: 0 }}>
+            <span style={{ width: 30, height: 30, borderRadius: 9, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--gv-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gv-dim)', flexShrink: 0 }}>
               <Icon name="doc" size={15} />
             </span>
             <span style={{ flex: 1, minWidth: 0 }}>
               {loading ? (
-                <span style={{ display: 'block', height: 13, width: `${70 - i * 8}%`, background: 'rgba(15,23,18,0.07)', borderRadius: 5 }} />
+                <span style={{ display: 'block', height: 13, width: `${70 - i * 8}%`, background: 'rgba(255,255,255,0.07)', borderRadius: 5 }} />
               ) : (
                 <>
                   <span style={{ display: 'block', fontSize: 13.5, fontWeight: 600, color: 'var(--gv-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{idea}</span>

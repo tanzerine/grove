@@ -81,7 +81,7 @@ export default function PlanChat({ domainId }: { domainId: string }) {
             <div key={m.id ?? i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '82%' }}>
               <div style={{
                 padding: '9px 13px', borderRadius: 12, fontSize: 13, lineHeight: 1.55, whiteSpace: 'pre-wrap',
-                background: m.role === 'user' ? 'rgba(162,255,1,0.12)' : 'rgba(15,23,18,0.03)',
+                background: m.role === 'user' ? 'rgba(162,255,1,0.12)' : 'rgba(255,255,255,0.03)',
                 border: `1px solid ${m.role === 'user' ? 'rgba(162,255,1,0.25)' : 'var(--gv-line)'}`,
                 color: 'var(--gv-soft)',
               }}>
@@ -104,7 +104,7 @@ export default function PlanChat({ domainId }: { domainId: string }) {
           placeholder="Ask about the plan, or tell me what to change…"
           disabled={sending}
           style={{
-            flex: 1, background: 'rgba(15,23,18,0.03)', border: '1px solid rgba(15,23,18,0.1)',
+            flex: 1, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)',
             borderRadius: 10, padding: '11px 14px', fontSize: 13, color: 'var(--gv-ink)', fontFamily: 'inherit', outline: 'none',
           }}
         />
