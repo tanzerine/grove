@@ -7,6 +7,7 @@ import { runCoverForPost } from '@/lib/pipeline/cover-image';
 import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
 import type { SiteProfile } from '@/lib/pipeline/site-profile';
 import { canGenerateForUser } from '@/lib/billing';
+import { consumeQuota, releaseQuota, exhaustedMessage } from '@/lib/quota';
 
 export const maxDuration = 300;
 
@@ -57,6 +58,28 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'no_profile' }, { status: 409 });
   }
 
+  // Reserve the whole batch up front. pSEO is the highest-volume generation
+  // path in the app, so letting it through unmetered would undo the quota
+  // everywhere else. Unused reservations are handed back below.
+  const want = parsed.data.pages.length;
+  const reserved = await consumeQuota(user.id, want);
+  if (!reserved.ok) {
+    const { state } = reserved;
+    return NextResponse.json(
+      {
+        error: 'quota_exhausted',
+        message: state.remaining > 0
+          ? `That batch needs ${want} posts but only ${state.remaining} remain in this month's plan.`
+          : exhaustedMessage(state),
+        limit: state.limit,
+        used: state.used,
+        remaining: state.remaining,
+        resets_at: state.resetsAt,
+      },
+      { status: 402 },
+    );
+  }
+
   const admin = supabaseAdmin();
   const created: string[] = [];
   let failed = 0;
@@ -81,6 +104,9 @@ export async function POST(req: Request) {
       failed++;
     }
   }
+
+  // Give back whatever the batch didn't actually produce.
+  if (failed) await releaseQuota(user.id, failed);
 
   // Cover images run after the response so they don't block the batch.
   if (created.length) {

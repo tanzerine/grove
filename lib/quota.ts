@@ -1,0 +1,214 @@
+/**
+ * Monthly post quota — the volume each plan promises, actually enforced.
+ *
+ * `subscriptions.posts_quota` was written by the Stripe webhook on every
+ * checkout and read by absolutely nothing, so all three tiers behaved
+ * identically: the only ceiling on a $29 Starter account was the shared
+ * rate limiter (20 generations/hour ≈ 480/day of full LLM pipeline). Tier
+ * pricing was decorative and the margin exposure was open-ended.
+ *
+ * WHAT COUNTS. Metering happens at the moment AI work is started, not by
+ * counting rows afterwards. No column distinguishes an AI-generated post from
+ * a hand-written draft — `/api/posts/manual` sets `topic` and lands in `review`
+ * exactly like a finished pipeline draft, and pSEO pages carry neither
+ * `research` nor a `generation_log` — so any derived count would either bill
+ * customers for drafts they typed themselves or let the highest-volume path
+ * (pSEO) through free. Reserving at the call site meters exactly the work that
+ * costs money, which is also what `posts_used` / `cycle_resets_at` were added
+ * for and never wired up.
+ *
+ * FAILS OPEN, like lib/ratelimit. A subscription we can't confidently price —
+ * a Stripe price id missing from the env catalogue, an unrecognised plan — is
+ * not enforced, because throttling a paying customer over our own
+ * misconfiguration is far worse than briefly over-delivering. The admin
+ * overview surfaces the billing mismatch separately.
+ *
+ * The cycle is the calendar month (UTC), matching `cycle_resets_at`'s default
+ * and the monthly strategy/report cadence the whole product runs on. It resets
+ * lazily on first use after the boundary — no cron, nothing to fall behind.
+ */
+import { NextResponse } from 'next/server';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { supabaseAdmin } from './supabase/admin';
+import { PLANS, isPlanId, planForPriceId } from './plans';
+
+export type QuotaRow = {
+  plan?: string | null;
+  posts_quota?: number | null;
+  posts_used?: number | null;
+  cycle_resets_at?: string | null;
+  stripe_price_id?: string | null;
+};
+
+export type QuotaState = {
+  /** False when this account must not be throttled (see "fails open" above). */
+  enforced: boolean;
+  limit: number | null;
+  used: number;
+  /** Infinity when unenforced. */
+  remaining: number;
+  exhausted: boolean;
+  /** When the current cycle rolls over — for the "resets on…" message. */
+  resetsAt: string;
+};
+
+const SELECT = 'plan, posts_quota, posts_used, cycle_resets_at, stripe_price_id';
+
+// ── pure decision logic ────────────────────────────────────────────────────
+
+/**
+ * The monthly limit to enforce, or null when it must not be enforced.
+ *
+ * Prefers the stored `posts_quota` over the plan catalogue so a manual override
+ * (a comped account, a bespoke deal) is honoured rather than silently reset to
+ * the tier default on the next check.
+ */
+export function limitFor(row: QuotaRow | null | undefined): number | null {
+  if (!row) return null;
+  // A price id that isn't in the catalogue means Stripe and lib/plans have
+  // drifted. The row's quota is then whatever it happened to hold — often the
+  // schema default of 4 — so enforcing it would throttle a customer who may be
+  // paying for 150. Fail open and let the billing mismatch be fixed.
+  if (row.stripe_price_id && !planForPriceId(row.stripe_price_id)) return null;
+  const q = row.posts_quota;
+  if (typeof q === 'number' && Number.isFinite(q) && q > 0) return Math.floor(q);
+  if (isPlanId(row.plan)) return PLANS[row.plan].postsQuota;
+  return null;
+}
+
+/** Start of the next monthly cycle (UTC). */
+export function nextCycleReset(now: Date = new Date()): string {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)).toISOString();
+}
+
+/** Has the cycle rolled over? An unset/unparseable boundary counts as due. */
+export function cycleExpired(cycleResetsAt: string | null | undefined, now: Date = new Date()): boolean {
+  if (!cycleResetsAt) return true;
+  const t = Date.parse(cycleResetsAt);
+  if (!Number.isFinite(t)) return true;
+  return now.getTime() >= t;
+}
+
+/** Current usage, with any due cycle reset already applied. */
+export function quotaFrom(row: QuotaRow | null | undefined, now: Date = new Date()): QuotaState {
+  const limit = limitFor(row);
+  const expired = cycleExpired(row?.cycle_resets_at, now);
+  const used = expired ? 0 : Math.max(0, Math.floor(row?.posts_used ?? 0));
+  const resetsAt = expired ? nextCycleReset(now) : row!.cycle_resets_at!;
+  if (limit === null) {
+    return { enforced: false, limit: null, used, remaining: Infinity, exhausted: false, resetsAt };
+  }
+  const remaining = Math.max(0, limit - used);
+  return { enforced: true, limit, used, remaining, exhausted: remaining <= 0, resetsAt };
+}
+
+/** The message a customer sees when they run out. */
+export function exhaustedMessage(state: QuotaState): string {
+  const when = new Date(state.resetsAt).toLocaleDateString('en-US', {
+    month: 'long', day: 'numeric', timeZone: 'UTC',
+  });
+  return `You've used all ${state.limit} posts included this month. Your quota resets on ${when} — upgrade your plan for more.`;
+}
+
+// ── stored state ───────────────────────────────────────────────────────────
+
+/** Read-only view of one user's quota. */
+export async function getQuota(userId: string, client?: SupabaseClient): Promise<QuotaState> {
+  const sb = client ?? supabaseAdmin();
+  const { data } = await sb.from('subscriptions').select(SELECT).eq('user_id', userId).maybeSingle();
+  return quotaFrom(data as QuotaRow | null);
+}
+
+/** Batch read for the scheduler, which resolves many owners per tick. */
+export async function quotaForUsers(userIds: string[]): Promise<Map<string, QuotaState>> {
+  const unique = [...new Set(userIds)].filter(Boolean);
+  const out = new Map<string, QuotaState>();
+  if (!unique.length) return out;
+  const sb = supabaseAdmin();
+  const { data } = await sb.from('subscriptions').select(`user_id, ${SELECT}`).in('user_id', unique);
+  for (const row of data ?? []) out.set((row as any).user_id, quotaFrom(row as QuotaRow));
+  return out;
+}
+
+/**
+ * Reserve `n` posts against the cycle, atomically.
+ *
+ * Check-then-increment would let two concurrent generations both pass the check
+ * on the last remaining post, so the write is a compare-and-swap against the
+ * value we read: whoever loses re-reads and re-decides. Unresolved contention
+ * after a few attempts fails open — a customer occasionally getting one extra
+ * post is a far better outcome than a lost race blocking work they paid for.
+ */
+export async function consumeQuota(
+  userId: string,
+  n = 1,
+): Promise<{ ok: boolean; state: QuotaState }> {
+  const sb = supabaseAdmin();
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const { data } = await sb.from('subscriptions').select(SELECT).eq('user_id', userId).maybeSingle();
+    const row = (data ?? null) as QuotaRow | null;
+    const now = new Date();
+    const state = quotaFrom(row, now);
+    if (!state.enforced) return { ok: true, state };
+    if (state.remaining < n) return { ok: false, state };
+
+    const expired = cycleExpired(row?.cycle_resets_at, now);
+    const patch: Record<string, unknown> = expired
+      ? { posts_used: n, cycle_resets_at: nextCycleReset(now) }
+      : { posts_used: state.used + n };
+
+    const base = sb.from('subscriptions').update(patch).eq('user_id', userId);
+    // Compare-and-swap on whichever field this write is racing for: the cycle
+    // boundary when rolling the month over (so exactly one caller resets it),
+    // the counter otherwise (so no increment is lost).
+    const guarded = expired
+      ? (row?.cycle_resets_at
+          ? base.eq('cycle_resets_at', row.cycle_resets_at)
+          : base.is('cycle_resets_at', null))
+      : base.eq('posts_used', row?.posts_used ?? 0);
+
+    const { data: won } = await guarded.select('user_id').maybeSingle();
+    if (won) {
+      const used = state.used + n;
+      const remaining = Math.max(0, (state.limit ?? 0) - used);
+      return { ok: true, state: { ...state, used, remaining, exhausted: remaining <= 0 } };
+    }
+  }
+  return { ok: true, state: await getQuota(userId) };
+}
+
+/**
+ * Hand back reservations whose work failed — the customer got nothing, so the
+ * post shouldn't come out of their month. Best-effort: bookkeeping must never
+ * turn into a second failure on an already-failing path.
+ */
+export async function releaseQuota(userId: string, n = 1): Promise<void> {
+  try {
+    const sb = supabaseAdmin();
+    const { data } = await sb.from('subscriptions').select('posts_used').eq('user_id', userId).maybeSingle();
+    const used = Math.max(0, Math.floor((data as any)?.posts_used ?? 0));
+    await sb.from('subscriptions').update({ posts_used: Math.max(0, used - n) }).eq('user_id', userId);
+  } catch { /* never mask the caller's real error */ }
+}
+
+/**
+ * Route-handler convenience, mirroring enforceRateLimit: reserves the quota and
+ * returns a 402 when there isn't any left, or null when the caller may proceed.
+ *
+ *   const over = await enforceQuota(user.id);
+ *   if (over) return over;
+ */
+export async function enforceQuota(userId: string, n = 1): Promise<NextResponse | null> {
+  const { ok, state } = await consumeQuota(userId, n);
+  if (ok) return null;
+  return NextResponse.json(
+    {
+      error: 'quota_exhausted',
+      message: exhaustedMessage(state),
+      limit: state.limit,
+      used: state.used,
+      resets_at: state.resetsAt,
+    },
+    { status: 402 },
+  );
+}
