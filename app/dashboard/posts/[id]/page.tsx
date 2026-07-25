@@ -175,6 +175,8 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
                 initialMetaTitle={p.meta_title ?? ''}
                 initialMetaDesc={p.meta_description ?? ''}
                 canEdit
+                initialScheduledAt={p.status === 'published' ? null : p.scheduled_at}
+                schedulable={p.status !== 'published'}
                 autoEdit={!p.body_md}
                 belowCanvas={
                   <SocialComposer
