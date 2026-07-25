@@ -5,10 +5,10 @@ import { getActiveDomain } from '@/lib/active-domain';
 import { summarizeMonth, type MonthlyReport } from '@/lib/strategy/review';
 import type { Strategy, Goal, Pillar, PostSlot, KPI } from '@/lib/strategy/build';
 import { horizons } from '@/lib/strategy/context';
+import { strategyBrief } from '@/lib/strategy/brief';
 import Icon from '../gv-icons';
 import { DashHeader } from '../gv-chrome';
 import PlanChat from './PlanChat';
-import AgentLoopStrip from './AgentLoopStrip';
 import PlanningCadence, { type CadenceItem, type CadenceView } from './PlanningCadence';
 import PillarsAndCalendar, { type PillarCard, type CalRow, type Week } from './PillarsAndCalendar';
 
@@ -258,16 +258,7 @@ export default async function StrategyPage() {
   ];
 
   const totalPosts = (posts ?? []).length;
-  const publishedCount = (posts ?? []).filter((p) => p.status === 'published').length;
-  const reviewCount = (posts ?? []).filter((p) => p.status === 'review').length;
-  const inProgressCount = (posts ?? []).filter((p) => ['queued', 'researching', 'writing'].includes(p.status)).length;
   const pastManagerCount = (posts ?? []).filter((p) => ['review', 'scheduled', 'published', 'failed'].includes(p.status)).length;
-  const agentLoopSteps = [
-    { label: 'Strategy', icon: 'strategy', detail: 'You’re here — this plan drives generation & review below.' },
-    { label: 'Generation', icon: 'pen', detail: inProgressCount > 0 ? `${inProgressCount} post${inProgressCount === 1 ? '' : 's'} in the pipeline right now.` : 'Idle — nothing queued at the moment.' },
-    { label: 'Manager', icon: 'manager', detail: reviewCount > 0 ? `${reviewCount} draft${reviewCount === 1 ? '' : 's'} awaiting your review.` : `Grading is caught up — ${publishedCount} posts live.` },
-    { label: 'Analytics', icon: 'analytics', detail: report ? 'Reporting is live — feeding next month’s plan.' : 'Waiting on enough traffic to start reporting.' },
-  ];
   const toolchain = [
     { name: 'Live SERP research', icon: 'search2', runs: `${totalPosts} run${totalPosts === 1 ? '' : 's'}`, desc: 'Crawls search results & competitor posts to find the ranking gaps worth taking.' },
     { name: 'Writer', icon: 'pen', runs: `${totalPosts} draft${totalPosts === 1 ? '' : 's'}`, desc: 'Drafts every post in your brand voice, structured for the target keyword.' },
@@ -275,9 +266,10 @@ export default async function StrategyPage() {
     { name: 'Analytics', icon: 'analytics', runs: 'continuous', desc: 'Reads first-party events to grade the plan and tune next month.' },
   ];
 
-  const heroText = s.notes
-    ? s.notes
-    : `${planMonth}'s plan: ${plan.length} posts across ${(s.pillars ?? []).length} pillars, drafted from last month's results.`;
+  // The hero states the *play* this month is running — deliberately not the
+  // strategist's `direction.month` narrative, which the Planning-cadence card
+  // already prints under "Monthly". One sentence, one job each.
+  const brief = strategyBrief(s);
 
   return (
     <>
@@ -289,12 +281,15 @@ export default async function StrategyPage() {
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 28, flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: 320 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 10.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--gv-dim)' }}>
-                <Icon name="leaf" size={13} /> Marketing agent · monthly brief
+                <Icon name="leaf" size={13} /> Marketing agent · {planMonth} strategy
               </div>
               <h1 style={{ fontWeight: 500, fontSize: 27, lineHeight: 1.3, letterSpacing: '-0.02em', color: 'var(--gv-ink)', margin: '14px 0 0', maxWidth: 720 }}>
-                {s.direction?.month || heroText}
+                {brief.headline}
               </h1>
-              <p style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--gv-dim)', margin: '13px 0 0', maxWidth: 700 }}>{heroText}</p>
+              <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--gv-faint)', margin: '10px 0 0', maxWidth: 700 }}>{brief.summary}</p>
+              {brief.note && (
+                <p style={{ fontSize: 13.5, lineHeight: 1.6, color: 'var(--gv-dim)', margin: '8px 0 0', maxWidth: 700 }}>{brief.note}</p>
+              )}
               {northStar && (
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, marginTop: 16, padding: '10px 14px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 12 }}>
                   <span style={{ display: 'flex', color: 'var(--gv-soft)' }}><Icon name="target" size={16} /></span>
@@ -333,9 +328,6 @@ export default async function StrategyPage() {
             <PlanChat domainId={domain.id} bare />
           </div>
         </section>
-
-        {/* ===== AGENT LOOP STRIP ===== */}
-        <AgentLoopStrip steps={agentLoopSteps} />
 
         {/* ===== PLANNING CADENCE ===== */}
         <PlanningCadence views={cadenceViews} />
