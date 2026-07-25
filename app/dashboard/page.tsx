@@ -9,6 +9,7 @@ import { DashHeader } from './gv-chrome';
 import OverviewPipeline, { type OvRow } from './OverviewPipeline';
 import AskAgent from './AskAgent';
 import GhostPipeline from './GhostPipeline';
+import OverviewCalendar, { type CalDay } from './OverviewCalendar';
 import { getEntitlement } from '@/lib/billing';
 
 // ACCENT is the lime fill/border; ACCENT_INK is the olive to use whenever the
@@ -134,17 +135,16 @@ export default async function OverviewPage() {
   const now = new Date();
   const calYear = now.getFullYear(), calMonthIdx = now.getMonth(), todayNum = now.getDate();
   const calMonth = now.toLocaleString(undefined, { month: 'long', year: 'numeric' });
-  const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const calLegend = (['published', 'scheduled', 'review', 'draft'] as const).map((k) => ({ label: ES[k].name, color: ES[k].color, line: ES[k].line }));
 
-  const eventsByDay: Record<number, { s: keyof typeof ES; label: string }[]> = {};
+  const eventsByDay: Record<number, { id: string; s: keyof typeof ES; label: string }[]> = {};
   for (const p of all) {
     const iso = p.published_at ?? p.scheduled_at;
     if (!iso) continue;
     const d = new Date(iso);
     if (d.getFullYear() !== calYear || d.getMonth() !== calMonthIdx) continue;
     const day = d.getDate();
-    (eventsByDay[day] ??= []).push({ s: categoryFor(p.status), label: p.title ?? p.topic ?? 'Post' });
+    (eventsByDay[day] ??= []).push({ id: p.id, s: categoryFor(p.status), label: p.title ?? p.topic ?? 'Post' });
   }
 
   const firstWeekday = new Date(calYear, calMonthIdx, 1).getDay();
@@ -154,9 +154,10 @@ export default async function OverviewPage() {
   for (let i = 0; i < firstWeekday; i++) cells.push({ num: prevDays - firstWeekday + 1 + i, out: true });
   for (let d = 1; d <= daysInMonth; d++) cells.push({ num: d, out: false });
   while (cells.length % 7 !== 0) cells.push({ num: cells.length - (firstWeekday + daysInMonth) + 1, out: true });
-  const calDays = cells.map((c) => {
+  const calDays: CalDay[] = cells.map((c) => {
     const isToday = !c.out && c.num === todayNum;
-    const evs = (!c.out && eventsByDay[c.num]) ? eventsByDay[c.num].map((e) => ({ label: e.label, full: `${ES[e.s].name} · ${e.label}`, color: ES[e.s].color, chipBg: ES[e.s].chipBg, line: ES[e.s].line })) : [];
+    const when = c.out ? '' : new Date(calYear, calMonthIdx, c.num).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    const evs = (!c.out && eventsByDay[c.num]) ? eventsByDay[c.num].map((e) => ({ id: e.id, label: e.label, status: ES[e.s].name, when, color: ES[e.s].color, chipBg: ES[e.s].chipBg, line: ES[e.s].line })) : [];
     return {
       num: c.num,
       // Today is marked by the lime tint + an olive outline; the numeral itself
@@ -327,25 +328,15 @@ export default async function OverviewPage() {
               <span style={{ marginLeft: 'auto', fontSize: 13, fontWeight: 600 }}>{calMonth}</span>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 6 }}>
-              {weekdays.map((w) => (
-                <div key={w} style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--gv-fainter)', textAlign: 'center', paddingBottom: 2 }}>{w}</div>
-              ))}
-              {calDays.map((d, i) => (
-                <div key={i} style={{ minHeight: 62, minWidth: 0, overflow: 'hidden', borderRadius: 9, background: d.bg, border: `1px solid ${d.border}`, padding: '6px 6px 5px', display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  <span style={{ fontSize: 10.5, fontWeight: 600, color: d.numColor, alignSelf: 'flex-end', fontVariantNumeric: 'tabular-nums' }}>{d.num}</span>
-                  {d.events.map((ev, j) => (
-                    <span key={j} title={ev.full} style={{ display: 'block', fontSize: 9.5, fontWeight: 600, lineHeight: 1.25, color: ev.color, background: ev.chipBg, borderStyle: ev.line, borderWidth: 1, borderColor: 'rgba(154,160,148,0.5)', borderRadius: 4, padding: '2px 4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ev.label}</span>
-                  ))}
-                </div>
-              ))}
-            </div>
+            <OverviewCalendar days={calDays} />
           </div>
 
-          {/* agent panel — sits at the top of its column and stays only as tall
-              as its content (short), rather than stretching to the calendar. */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, alignSelf: 'start' }}>
-            <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 18, padding: '20px 22px' }}>
+          {/* agent panel — stretches to the calendar's height (the grid row
+              sets it), so the two cards in this row bottom out together. The
+              "ask" buttons are pushed to the bottom with margin-top:auto so the
+              slack lands as breathing room, not a ragged edge. */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 18, padding: '20px 22px', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{ width: 30, height: 30, borderRadius: 9, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gv-ink)' }}><Icon name="leaf" /></span>
@@ -389,7 +380,7 @@ export default async function OverviewPage() {
                 </div>
               )}
 
-              <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 8, marginTop: 'auto', paddingTop: 16, flexWrap: 'wrap' }}>
                 <AskAgent prompt="Why is this month lacking new viewers?" label="Ask about my numbers" light />
                 <AskAgent prompt="Improve my low-CTR titles" label="Fix weak titles" light />
               </div>
