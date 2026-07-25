@@ -404,7 +404,7 @@ export default function AnalyticsDashboard({
                 {sp
                   ? <svg viewBox="0 0 120 34" preserveAspectRatio="none" style={{ width: '100%', height: 30, marginTop: 12, overflow: 'visible' }}>
                       <path d={sp.area} fill={k.fill ? 'rgba(75,92,20,0.12)' : 'transparent'} stroke="none" />
-                      <path d={sp.line} fill="none" stroke={ACCENT_INK} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                      <path d={sp.line} fill="none" stroke={ACCENT_INK} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
                     </svg>
                   : <div style={{ height: 30, marginTop: 12 }} />}
               </div>
@@ -463,10 +463,6 @@ export default function AnalyticsDashboard({
                 {chartHover !== null && (
                   <line x1={cP.pts[chartHover].x.toFixed(1)} y1="14" x2={cP.pts[chartHover].x.toFixed(1)} y2="206" stroke="rgba(255,255,255,0.14)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
                 )}
-                <circle cx={cP.last.x.toFixed(1)} cy={cP.last.y.toFixed(1)} r={4.5} fill={ACCENT_INK} stroke="var(--gv-bg)" strokeWidth={2.5} vectorEffect="non-scaling-stroke" />
-                {chartHover !== null && (
-                  <circle cx={cP.pts[chartHover].x.toFixed(1)} cy={cP.pts[chartHover].y.toFixed(1)} r={4.5} fill={ACCENT_INK} stroke="var(--gv-bg)" strokeWidth={2.5} vectorEffect="non-scaling-stroke" />
-                )}
                 {/* invisible wide hit-targets — the visible dots above are too
                     small/sparse to hover precisely at every screen size */}
                 {cP.pts.map((p, i) => (
@@ -474,6 +470,21 @@ export default function AnalyticsDashboard({
                     onMouseEnter={() => setChartHover(i)} onMouseLeave={() => setChartHover((h) => (h === i ? null : h))} style={{ cursor: 'crosshair' }} />
                 ))}
               </svg>
+              {/* SVG <circle> geometry stretches into an oval under
+                  preserveAspectRatio="none" (non-scaling-stroke only fixes the
+                  outline, not the fill shape) — plain HTML dots stay round. */}
+              <span style={{
+                position: 'absolute', left: `${(cP.last.x / 640) * 100}%`, top: `${(cP.last.y / 220) * 100}%`,
+                width: 9, height: 9, transform: 'translate(-50%, -50%)', borderRadius: '50%',
+                background: ACCENT_INK, border: '2.5px solid var(--gv-bg)', pointerEvents: 'none',
+              }} />
+              {chartHover !== null && (
+                <span style={{
+                  position: 'absolute', left: `${(cP.pts[chartHover].x / 640) * 100}%`, top: `${(cP.pts[chartHover].y / 220) * 100}%`,
+                  width: 9, height: 9, transform: 'translate(-50%, -50%)', borderRadius: '50%',
+                  background: ACCENT_INK, border: '2.5px solid var(--gv-bg)', pointerEvents: 'none',
+                }} />
+              )}
               {chartHover !== null && (
                 <div style={{
                   position: 'absolute', left: `${(cP.pts[chartHover].x / 640) * 100}%`, top: `${(cP.pts[chartHover].y / 220) * 100}%`,
