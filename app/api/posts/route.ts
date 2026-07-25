@@ -6,6 +6,7 @@ import { generatePost } from '@/lib/pipeline/generate';
 import { runCoverForPost } from '@/lib/pipeline/cover-image';
 import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
 import { canGenerateForUser } from '@/lib/billing';
+import { enforceQuota, releaseQuota } from '@/lib/quota';
 
 export const maxDuration = 300;
 
@@ -33,14 +34,23 @@ export async function POST(req: Request) {
   const { data: domain } = await sb.from('domains').select('id').eq('id', parsed.data.domain_id).single();
   if (!domain) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
+  // Reserve a post from this month's plan quota before spending anything.
+  const over = await enforceQuota(user.id);
+  if (over) return over;
+
   const { data, error } = await sb.from('posts').insert({
     domain_id: parsed.data.domain_id, status: 'queued', topic: parsed.data.topic,
   }).select('id').single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  if (error) {
+    await releaseQuota(user.id);
+    return NextResponse.json({ error: error.message }, { status: 400 });
+  }
 
   try {
     await generatePost(data.id);
   } catch (e: any) {
+    // The customer got nothing, so the reservation goes back.
+    await releaseQuota(user.id);
     const admin = supabaseAdmin();
     await admin.from('posts').update({
       status: 'failed', validation: { error: String(e?.message ?? e) },

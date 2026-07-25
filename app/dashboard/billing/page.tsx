@@ -1,8 +1,36 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { PLANS, PLAN_IDS, isPlanId, resolvePriceId } from '@/lib/plans';
+import { quotaFrom } from '@/lib/quota';
 import BillingClient from './BillingClient';
 import { DashHeader } from '../gv-chrome';
+
+/** This month's posts used vs included, so the ceiling is visible before it's hit. */
+function QuotaMeter({ used, limit, resetsAt }: { used: number; limit: number; resetsAt: string }) {
+  const pct = Math.min(100, Math.round((used / Math.max(1, limit)) * 100));
+  const fill = pct >= 100 ? 'var(--gv-red-text)' : pct >= 80 ? '#d9a441' : 'var(--gv-accent)';
+  const resets = new Date(resetsAt).toLocaleDateString('en-US', {
+    month: 'long', day: 'numeric', timeZone: 'UTC',
+  });
+  return (
+    <div style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 14, padding: '16px 18px', marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
+        <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--gv-ink)' }}>
+          {used} of {limit} posts used this month
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--gv-faint)' }}>resets {resets}</div>
+      </div>
+      <div style={{ marginTop: 10, height: 6, borderRadius: 999, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+        <div style={{ width: `${pct}%`, height: '100%', background: fill, borderRadius: 999 }} />
+      </div>
+      {pct >= 100 && (
+        <div style={{ marginTop: 9, fontSize: 12.5, color: 'var(--gv-dim)' }}>
+          Generation is paused until the quota resets — upgrade below for more.
+        </div>
+      )}
+    </div>
+  );
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -22,15 +50,22 @@ export default async function BillingPage() {
     stripe_customer_id?: string | null;
     stripe_price_id?: string | null;
     current_period_end?: string | null;
+    posts_quota?: number | null;
+    posts_used?: number | null;
+    cycle_resets_at?: string | null;
   } | null = null;
   try {
     const { data } = await sb
       .from('subscriptions')
-      .select('plan, stripe_status, stripe_customer_id, stripe_price_id, current_period_end')
+      .select('plan, stripe_status, stripe_customer_id, stripe_price_id, current_period_end, posts_quota, posts_used, cycle_resets_at')
       .eq('user_id', user.id)
       .maybeSingle();
     sub = data;
   } catch { /* columns not migrated yet — show plans, no active subscription */ }
+
+  // Usage against this month's allowance. Shown so nobody discovers their
+  // limit by hitting it mid-generation.
+  const quota = quotaFrom(sub);
 
   const status = (sub?.stripe_status as string | null) ?? null;
   const isActive = !!status && ACTIVE_STATUSES.includes(status);
@@ -44,6 +79,9 @@ export default async function BillingPage() {
     <>
       <DashHeader title="Billing" subtitle="Your plan & payments" />
       <div className="gv-body">
+        {isActive && quota.enforced && (
+          <QuotaMeter used={quota.used} limit={quota.limit!} resetsAt={quota.resetsAt} />
+        )}
         <BillingClient
           plans={PLAN_IDS.map((id) => PLANS[id])}
           currentPlan={currentPlan}

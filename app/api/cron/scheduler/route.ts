@@ -46,6 +46,7 @@ import {
 import { materializeDuePlanSlots } from '@/lib/strategy/materialize';
 import { ensureMonthlyStrategy, monthBounds, type EnsureDomain } from '@/lib/strategy/ensure';
 import { entitledUserSet } from '@/lib/billing';
+import { consumeQuota, quotaForUsers, releaseQuota } from '@/lib/quota';
 import { publishToSocials } from '@/lib/social/publish';
 import { syncDomain } from '@/lib/search-console/sync';
 
@@ -139,6 +140,15 @@ export async function GET(req: Request) {
   const entitled = await entitledUserSet((verified ?? []).map((d: any) => d.user_id));
   const entitledDomains = (verified ?? []).filter((d: any) => entitled.has(d.user_id));
   const entitledDomainIds = new Set(entitledDomains.map((d: any) => d.id));
+  // Quota is per SUBSCRIPTION, and a plan's post allowance is shared across all
+  // of that owner's domains — so it's tracked per user, not per domain.
+  const ownerOf = new Map<string, string>(entitledDomains.map((d: any) => [d.id, d.user_id]));
+  const quotas = await quotaForUsers(entitledDomains.map((d: any) => d.user_id));
+  const hasRoomInPlan = (userId: string | undefined) => {
+    if (!userId) return false;
+    const q = quotas.get(userId);
+    return q ? !q.exhausted : true; // unknown subscription → don't throttle
+  };
 
   // 2) drain sizing: measure what a generation actually costs right now from the
   //    logs of recently finished posts, rather than assuming. The estimate is
@@ -185,6 +195,9 @@ export async function GET(req: Request) {
   //     publish date through. This is what actually executes the strategy.
   let materialized = 0;
   for (const d of entitledDomains) {
+    // Don't queue work the plan can't pay for — it would just accumulate
+    // undrainable rows until the cycle rolls over.
+    if (!hasRoomInPlan((d as any).user_id)) continue;
     try {
       const ids = await materializeDuePlanSlots(d.id, { leadHours: 72, limit: 3 });
       materialized += ids.length;
@@ -205,6 +218,8 @@ export async function GET(req: Request) {
 
   let generated = 0;
   let deferred = 0;
+  let overQuota = 0;
+  const exhaustedOwners = new Set<string>();
   for (let i = 0; i < candidates.length; i++) {
     const p = candidates[i];
     if (!hasRoomFor(elapsed(), drainBudgetMs, estimateMs)) {
@@ -213,6 +228,11 @@ export async function GET(req: Request) {
       deferred = candidates.length - i;
       break;
     }
+    // Skip owners already known to be out of plan this tick, so a customer with
+    // a deep queue isn't claimed and un-claimed once per candidate.
+    const ownerId = ownerOf.get(p.domain_id);
+    if (ownerId && exhaustedOwners.has(ownerId)) { overQuota++; continue; }
+
     // Claim atomically. Ticks can overlap once the cron runs more often than a
     // generation takes; the conditional update means only one of them wins a
     // given post, and the seeded log timestamps the claim so a kill mid-run is
@@ -226,10 +246,21 @@ export async function GET(req: Request) {
       .maybeSingle();
     if (!claimed) continue; // another tick (or a manual run) took it
 
+    // Reserve against the owner's plan. Claimed-but-unaffordable goes straight
+    // back to the queue so it's picked up once the cycle rolls over.
+    const reserved = ownerId ? await consumeQuota(ownerId) : { ok: true };
+    if (!reserved.ok) {
+      await sb.from('posts').update({ status: 'queued' }).eq('id', p.id);
+      if (ownerId) exhaustedOwners.add(ownerId);
+      overQuota++;
+      continue;
+    }
+
     try {
       await generatePost(p.id);
       generated++;
     } catch (e: any) {
+      if (ownerId) await releaseQuota(ownerId);
       await sb.from('posts').update({ status: 'failed', validation: { error: String(e?.message ?? e) } }).eq('id', p.id);
     }
   }
@@ -262,6 +293,7 @@ export async function GET(req: Request) {
     materialized,
     generated,
     deferred,
+    over_quota: overQuota,
     gsc_synced: gscSynced,
     // Telemetry for capacity planning — how this tick sized itself.
     capacity: {

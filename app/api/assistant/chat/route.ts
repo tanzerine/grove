@@ -15,6 +15,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
 import { canGenerateForUser } from '@/lib/billing';
+import { consumeQuota, releaseQuota, exhaustedMessage } from '@/lib/quota';
 import { generatePost } from '@/lib/pipeline/generate';
 import { runCoverForPost } from '@/lib/pipeline/cover-image';
 import { getAgentContext } from '@/lib/strategy/context-store';
@@ -143,10 +144,22 @@ export async function POST(req: Request) {
       });
     }
 
+    const reserved = await consumeQuota(user.id);
+    if (!reserved.ok) {
+      return ok({
+        intent, thought: 'Monthly post quota is used up.',
+        reply: exhaustedMessage(reserved.state),
+        links: [{ label: 'Billing', href: '/dashboard/billing' }],
+      });
+    }
+
     const { data: post, error } = await sb.from('posts').insert({
       domain_id, status: 'queued', topic,
     }).select('id').single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    if (error) {
+      await releaseQuota(user.id);
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
 
     // Run the pipeline after the response — the chat stays snappy while the
     // draft works through research → write → quality gate.
@@ -155,6 +168,7 @@ export async function POST(req: Request) {
         await generatePost(post.id);
         await runCoverForPost(post.id);
       } catch (e: any) {
+        await releaseQuota(user.id);
         await supabaseAdmin().from('posts').update({
           status: 'failed', validation: { error: String(e?.message ?? e) },
         }).eq('id', post.id);
@@ -277,17 +291,30 @@ export async function POST(req: Request) {
     const genLimited = await enforceRateLimit(`gen:${user.id}`, LIMITS.generate);
     if (genLimited) return genLimited;
 
+    const reserved = await consumeQuota(user.id);
+    if (!reserved.ok) {
+      return ok({
+        intent, thought: 'Monthly post quota is used up.',
+        reply: exhaustedMessage(reserved.state),
+        links: [{ label: 'Billing', href: '/dashboard/billing' }],
+      });
+    }
+
     // RLS-scoped reset; select back so a non-owned id can't trigger generation.
     const { data: reset } = await sb.from('posts')
       .update({ status: 'queued', validation: null })
       .eq('id', r.post.id).select('id');
-    if (!reset?.length) return ok({ intent, thought: '', reply: 'I couldn\'t reset that post — it\'s unchanged.' });
+    if (!reset?.length) {
+      await releaseQuota(user.id);
+      return ok({ intent, thought: '', reply: 'I couldn\'t reset that post — it\'s unchanged.' });
+    }
 
     after(async () => {
       try {
         await generatePost(r.post.id);
         await runCoverForPost(r.post.id);
       } catch (e: any) {
+        await releaseQuota(user.id);
         await supabaseAdmin().from('posts').update({
           status: 'failed', validation: { error: String(e?.message ?? e) },
         }).eq('id', r.post.id);
