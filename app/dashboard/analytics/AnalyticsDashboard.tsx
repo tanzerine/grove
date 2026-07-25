@@ -25,7 +25,7 @@ function buildPaths(vals: number[], w: number, h: number, pad: number) {
     d += ' C ' + c1x.toFixed(1) + ' ' + c1y.toFixed(1) + ' ' + c2x.toFixed(1) + ' ' + c2y.toFixed(1) + ' ' + p2.x.toFixed(1) + ' ' + p2.y.toFixed(1);
   }
   const area = d + ' L ' + pts[n - 1].x.toFixed(1) + ' ' + (h - pad) + ' L ' + pts[0].x.toFixed(1) + ' ' + (h - pad) + ' Z';
-  return { line: d, area, last: pts[n - 1] };
+  return { line: d, area, last: pts[n - 1], pts };
 }
 
 const fmtCompact = (n: number): string => {
@@ -58,6 +58,7 @@ export default function AnalyticsDashboard({
   // Live accounts default to sorting by Views (the article metric this table
   // exists to surface); the sample view has no views column, so keep Clicks.
   const [sort, setSort] = useState<'Clicks' | 'Impressions' | 'CTR' | 'Views'>(data.articles ? 'Views' : 'Clicks');
+  const [chartHover, setChartHover] = useState<number | null>(null);
   const live = data.live;
   const liveOn = !!live;
   const ga = data.ga;           // whole-site Google Analytics (landing + blog + articles)
@@ -98,6 +99,9 @@ export default function AnalyticsDashboard({
   const chartClicks = liveSeries ? liveSeries.clicks : cur.clicks;
   const chartImpr = liveSeries ? liveSeries.impr : cur.impr.map((v, i) => Math.max(v, cur.clicks[i] + 6));
   const chartLabels = liveSeries ? liveSeries.labels : cur.labels;
+  // Full per-point date when live (sliced carries real dates); sample data only
+  // has the sparse axis labels, so hover falls back to a generic point index.
+  const chartDates = liveSeries ? sliced.map((p) => p.date) : null;
   const cP = buildPaths(chartClicks, 640, 220, 14);
   const iP = buildPaths(chartImpr, 640, 220, 14);
 
@@ -439,21 +443,52 @@ export default function AnalyticsDashboard({
               </div>
             </div>
 
-            <svg viewBox="0 0 640 220" preserveAspectRatio="none" style={{ width: '100%', height: 210, marginTop: 6, overflow: 'visible' }}>
-              <defs>
-                <linearGradient id="gvAreaA" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={ACCENT} stopOpacity={0.34} />
-                  <stop offset="100%" stopColor={ACCENT} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <line x1="0" y1="40" x2="640" y2="40" stroke="rgba(255,255,255,0.05)" strokeWidth={1} />
-              <line x1="0" y1="100" x2="640" y2="100" stroke="rgba(255,255,255,0.05)" strokeWidth={1} />
-              <line x1="0" y1="160" x2="640" y2="160" stroke="rgba(255,255,255,0.05)" strokeWidth={1} />
-              <path d={iP.line} fill="none" stroke="rgba(255,255,255,0.22)" strokeWidth={2} strokeDasharray="4 5" strokeLinecap="round" />
-              <path d={cP.area} fill="url(#gvAreaA)" stroke="none" />
-              <path d={cP.line} fill="none" stroke={ACCENT_INK} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" />
-              <circle cx={cP.last.x.toFixed(1)} cy={cP.last.y.toFixed(1)} r={4.5} fill={ACCENT_INK} stroke="var(--gv-bg)" strokeWidth={2.5} />
-            </svg>
+            <div style={{ position: 'relative', width: '100%', height: 210, marginTop: 6 }}>
+              <svg viewBox="0 0 640 220" preserveAspectRatio="none" style={{ width: '100%', height: '100%', overflow: 'visible', display: 'block' }}>
+                <defs>
+                  <linearGradient id="gvAreaA" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={ACCENT} stopOpacity={0.34} />
+                    <stop offset="100%" stopColor={ACCENT} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                {/* preserveAspectRatio="none" scales x/y independently, so every
+                    stroke needs non-scaling-stroke — otherwise the uneven scale
+                    smears round caps into a flat, calligraphy-pen look. */}
+                <line x1="0" y1="40" x2="640" y2="40" stroke="rgba(255,255,255,0.05)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+                <line x1="0" y1="100" x2="640" y2="100" stroke="rgba(255,255,255,0.05)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+                <line x1="0" y1="160" x2="640" y2="160" stroke="rgba(255,255,255,0.05)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+                <path d={iP.line} fill="none" stroke="rgba(255,255,255,0.22)" strokeWidth={1.5} strokeDasharray="4 5" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                <path d={cP.area} fill="url(#gvAreaA)" stroke="none" />
+                <path d={cP.line} fill="none" stroke={ACCENT_INK} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+                {chartHover !== null && (
+                  <line x1={cP.pts[chartHover].x.toFixed(1)} y1="14" x2={cP.pts[chartHover].x.toFixed(1)} y2="206" stroke="rgba(255,255,255,0.14)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+                )}
+                <circle cx={cP.last.x.toFixed(1)} cy={cP.last.y.toFixed(1)} r={4.5} fill={ACCENT_INK} stroke="var(--gv-bg)" strokeWidth={2.5} vectorEffect="non-scaling-stroke" />
+                {chartHover !== null && (
+                  <circle cx={cP.pts[chartHover].x.toFixed(1)} cy={cP.pts[chartHover].y.toFixed(1)} r={4.5} fill={ACCENT_INK} stroke="var(--gv-bg)" strokeWidth={2.5} vectorEffect="non-scaling-stroke" />
+                )}
+                {/* invisible wide hit-targets — the visible dots above are too
+                    small/sparse to hover precisely at every screen size */}
+                {cP.pts.map((p, i) => (
+                  <rect key={i} x={p.x - (640 / cP.pts.length) / 2} y="0" width={640 / cP.pts.length} height="220" fill="transparent"
+                    onMouseEnter={() => setChartHover(i)} onMouseLeave={() => setChartHover((h) => (h === i ? null : h))} style={{ cursor: 'crosshair' }} />
+                ))}
+              </svg>
+              {chartHover !== null && (
+                <div style={{
+                  position: 'absolute', left: `${(cP.pts[chartHover].x / 640) * 100}%`, top: `${(cP.pts[chartHover].y / 220) * 100}%`,
+                  transform: `translate(${chartHover / (cP.pts.length - 1) > 0.82 ? '-100%' : chartHover / (cP.pts.length - 1) < 0.18 ? '0%' : '-50%'}, -128%)`,
+                  pointerEvents: 'none', background: 'var(--gv-pop)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 9,
+                  padding: '8px 11px', whiteSpace: 'nowrap', boxShadow: '0 10px 26px rgba(0,0,0,0.4)', zIndex: 5,
+                }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gv-ink)' }}>{fmtCompact(chartClicks[chartHover])} <span style={{ fontWeight: 500, color: 'var(--gv-faint)', fontSize: 11 }}>clicks</span></div>
+                  <div style={{ fontSize: 11.5, color: 'var(--gv-dim)', marginTop: 2 }}>{fmtCompact(chartImpr[chartHover])} impressions</div>
+                  {(chartDates?.[chartHover] || chartLabels[chartHover]) && (
+                    <div style={{ fontSize: 10.5, color: 'var(--gv-fainter)', marginTop: 3 }}>{chartDates?.[chartHover] ?? chartLabels[chartHover]}</div>
+                  )}
+                </div>
+              )}
+            </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--gv-fainter)', marginTop: 10 }}>
               {chartLabels.map((lab, i) => <span key={i}>{lab}</span>)}
             </div>
