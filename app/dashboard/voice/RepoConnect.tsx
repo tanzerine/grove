@@ -73,17 +73,13 @@ export default function RepoConnect({
           className="mono"
           style={{
             flex: '1 1 260px', fontSize: 13, padding: '9px 12px', borderRadius: 8,
-            border: '1px solid rgba(255,255,255,0.12)', background: 'var(--paper)', color: 'inherit',
+            border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.03)', color: 'var(--gv-ink)',
           }}
         />
-        <button className="btn btn-primary btn-sm" onClick={sync} disabled={!!busy || !input.trim()}>
+        <button className="gv-btn" onClick={sync} disabled={!!busy || !input.trim()}
+          style={{ border: 'none', background: 'var(--gv-accent)', color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '9px 16px', borderRadius: 9, cursor: 'pointer', opacity: !!busy || !input.trim() ? 0.6 : 1, whiteSpace: 'nowrap' }}>
           {busy === 'sync' ? 'Reading repo…' : repo ? 'Re-sync' : 'Connect & read'}
         </button>
-        {repo && (
-          <button className="btn btn-sm" onClick={disconnect} disabled={!!busy}>
-            {busy === 'disconnect' ? '…' : 'Disconnect'}
-          </button>
-        )}
       </div>
 
       {showToken ? (
@@ -95,23 +91,30 @@ export default function RepoConnect({
           className="mono"
           style={{
             fontSize: 13, padding: '9px 12px', borderRadius: 8,
-            border: '1px solid rgba(255,255,255,0.12)', background: 'var(--paper)', color: 'inherit',
+            border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.03)', color: 'var(--gv-ink)',
           }}
         />
-      ) : (
-        <button
-          onClick={() => setShowToken(true)}
-          style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer', fontSize: 12, color: 'var(--clay)', textDecoration: 'underline' }}
-        >
-          Private repo? Add an access token
-        </button>
-      )}
+      ) : null}
 
-      {syncedAt && (
-        <div className="mono" style={{ fontSize: 11, color: 'var(--clay)' }}>
-          last read {new Date(syncedAt).toLocaleString('en-US')}
-        </div>
-      )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+        {syncedAt && (
+          <span className="mono" style={{ fontSize: 11, color: 'var(--gv-faint)' }}>last read {new Date(syncedAt).toLocaleString('en-US')}</span>
+        )}
+        {repo && (
+          <button onClick={disconnect} disabled={!!busy} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 11.5, color: 'var(--gv-faint)' }}>
+            {busy === 'disconnect' ? '…' : 'Disconnect'}
+          </button>
+        )}
+        {!showToken && (
+          <button
+            onClick={() => setShowToken(true)}
+            style={{ marginLeft: syncedAt || repo ? 'auto' : undefined, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 11, color: 'var(--gv-fainter)', textDecoration: 'underline' }}
+          >
+            Add access token
+          </button>
+        )}
+      </div>
+
       {err && (
         <div style={{ background: 'rgba(201,79,79,0.08)', border: '1px solid rgba(201,79,79,0.3)', color: 'var(--gv-red-text)', padding: '8px 12px', borderRadius: 8, fontSize: 12 }}>
           {err}
