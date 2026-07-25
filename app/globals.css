@@ -223,14 +223,12 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* ---- Responsive grid helpers for dashboard inner pages ---- */
-.r-split { display: grid; grid-template-columns: 1fr 300px; gap: 24px; align-items: start; }
 .r-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
 .r-two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .r-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .r-kv { display: grid; grid-template-columns: 160px 1fr; gap: 12px; }
 .r-goals { display: grid; grid-template-columns: repeat(var(--cols, 3), 1fr); gap: 14px; }
 @media (max-width: 900px) {
-  .r-split { grid-template-columns: 1fr; }
   .r-stats { grid-template-columns: repeat(2, 1fr); }
   .r-cards { grid-template-columns: 1fr 1fr; }
   .r-goals { grid-template-columns: repeat(2, 1fr); }
@@ -889,6 +887,8 @@ html { scroll-behavior: smooth; }
 .gv-tab { transition: background .2s, color .2s; }
 .gv-back { transition: color .2s, gap .2s; }
 .gv-back:hover { color: var(--gv-soft) !important; gap: 9px; }
+.gv-day { transition: border-color .15s; }
+.gv-day:hover { border-color: rgba(255,255,255,0.22) !important; }
 .gv-iconbtn { transition: .2s; }
 .gv-iconbtn:hover { background: rgba(255,255,255,0.06) !important; color: var(--gv-ink) !important; border-color: rgba(255,255,255,0.18) !important; }
 .gv-qrow:hover { background: rgba(255,255,255,0.025) !important; }
