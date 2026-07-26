@@ -6,10 +6,19 @@
  * bulletproof: create the prediction, poll until done, take .output once.
  */
 import Replicate from 'replicate';
+import { record } from './cost-meter';
 
 const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN });
 
 export const MODEL = (process.env.REPLICATE_MODEL ?? 'google/gemini-3.1-pro') as `${string}/${string}`;
+
+/** What one call spent. Nulls mean "the provider didn't say", not "zero". */
+export type LlmUsage = {
+  model: string;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  predictTimeMs: number | null;
+};
 
 export async function llmCall(opts: {
   system: string;
@@ -19,7 +28,7 @@ export async function llmCall(opts: {
   json?: boolean;
   model?: `${string}/${string}`;
   timeoutMs?: number;
-}): Promise<{ text: string }> {
+}): Promise<{ text: string; usage: LlmUsage }> {
   const input: Record<string, unknown> = {
     prompt: opts.user,
     system_prompt: opts.system,
@@ -57,7 +66,36 @@ export async function llmCall(opts: {
   const out = finished.output;
   const text = Array.isArray(out) ? out.join('') : String(out ?? '');
   if (!text.trim()) throw new Error('Replicate returned empty output');
-  return { text };
+  const usage = usageFrom(finished, opts.model ?? MODEL);
+  // Report into the ambient meter, if the caller opened one. This is why the
+  // pipeline's six LLM-spending modules need no signature change to be costed.
+  record(usage);
+  return { text, usage };
+}
+
+/**
+ * Token counts for one call, read from Replicate's `metrics`.
+ *
+ * Read defensively: field names vary by model family and some models report no
+ * token counts at all. A missing count becomes null, never 0 — lib/cost treats
+ * null as "unpriced" and 0 as "free", and quietly reporting a real call as free
+ * is how a cost table becomes confidently wrong.
+ */
+function usageFrom(finished: any, model: string): LlmUsage {
+  const m = finished?.metrics ?? {};
+  const pick = (...keys: string[]): number | null => {
+    for (const k of keys) {
+      const v = m[k];
+      if (typeof v === 'number' && Number.isFinite(v)) return v;
+    }
+    return null;
+  };
+  return {
+    model,
+    inputTokens: pick('input_token_count', 'input_tokens', 'prompt_token_count'),
+    outputTokens: pick('output_token_count', 'output_tokens', 'completion_token_count'),
+    predictTimeMs: typeof m.predict_time === 'number' ? Math.round(m.predict_time * 1000) : null,
+  };
 }
 
 /* ─────────────── strategy LLM call (most capable model, rare) ──────────── */
