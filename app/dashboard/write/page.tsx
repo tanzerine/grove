@@ -1,7 +1,6 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import { getActiveDomain } from '@/lib/active-domain';
-import RichEditor from '../posts/[id]/RichEditor';
-import StartDraft from './StartDraft';
+import WriteSurface from './WriteSurface';
 import { DashHeader } from '../gv-chrome';
 
 export default async function WritePage() {
@@ -10,20 +9,10 @@ export default async function WritePage() {
 
   return (
     <>
-      <DashHeader title="Write" subtitle="a blank page — write it yourself, or start from Idea studio / SEO set on the right. Generate images from the toolbar, then pick when it publishes." />
+      <DashHeader title="Write" subtitle="a blank page — write it yourself, or start from Idea studio / SEO set on the right. Anything grove writes for you opens right here. Generate images from the toolbar, then pick when it publishes." />
       <div className="gv-body" style={{ maxWidth: 1440 }}>
         {domain ? (
-          <RichEditor
-            postId={null}
-            domainId={domain.id}
-            initialBody=""
-            initialTitle=""
-            initialMetaTitle=""
-            initialMetaDesc=""
-            canEdit
-            autoEdit
-            railExtra={<StartDraft domainId={domain.id} hostname={domain.hostname} />}
-          />
+          <WriteSurface domainId={domain.id} hostname={domain.hostname} />
         ) : (
           <p className="lede" style={{ marginTop: 24 }}>Add a domain first to start writing.</p>
         )}

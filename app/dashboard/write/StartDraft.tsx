@@ -1,8 +1,8 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { SearchIntent } from '@/lib/strategy/keywords';
-import type { DraftPhase } from '@/lib/pipeline/progress';
+import { WORKING, type Run } from './use-pipeline-runs';
 import Icon from '../gv-icons';
 import { useUpsell } from '../Upsell';
 
@@ -20,28 +20,32 @@ const PROMPTS = [
 
 type Tab = 'idea' | 'seo';
 
-/** How often the queued card asks the pipeline where a run got to. */
-const POLL_MS = 3000;
+/** Suggestions outlive one editor: loading a draft into the canvas remounts the
+ *  editor (and this rail with it), and re-asking the model for the same list the
+ *  author was reading is both slower and worse. */
+const ideasKey = (domainId: string) => `grove:write-ideas:${domainId}`;
 
-/** One generation this session started, followed until it lands. */
-type Run = {
-  id: string;
-  topic: string;         // what the author asked for
-  title: string | null;  // what grove titled it, once it has a title
-  phase: DraftPhase;
-  label: string;
-  stalled: boolean;      // in flight, but the run has gone quiet
-  hasDraft: boolean;
+type Props = {
+  domainId: string;
+  hostname: string;
+  /** Generations in progress, owned by the page (they outlive this card). */
+  runs: Run[];
+  onQueued: (id: string, topic: string) => void;
+  onDismissRun: (id: string) => void;
+  /** Put a finished draft on the editor next door. */
+  onOpenDraft: (id: string) => void;
+  activeDraftId: string | null;    // the draft currently on the canvas
+  openingId: string | null;        // a draft being fetched into the canvas
+  openError: string | null;
+  onBlankPage?: () => void;        // clear the canvas back to a blank page
 };
-
-const WORKING: DraftPhase[] = ['queued', 'working'];
 
 /**
  * The "Start a draft" card that lives in the Write editor's right rail:
  * Idea studio (grove suggests angles) and SEO set (one page per real search).
  * A blank page is the editor to the left — these are the two assisted ways in.
  */
-export default function StartDraft({ domainId, hostname }: { domainId: string; hostname: string }) {
+export default function StartDraft({ domainId, hostname, runs, onQueued, onDismissRun, onOpenDraft, activeDraftId, openingId, openError, onBlankPage }: Props) {
   const r = useRouter();
   const { gate } = useUpsell();
   const [tab, setTab] = useState<Tab>('idea');
@@ -54,40 +58,6 @@ export default function StartDraft({ domainId, hostname }: { domainId: string; h
   const [busyIdea, setBusyIdea] = useState<string | null>(null);
   const [busyKind, setBusyKind] = useState<'mine' | 'grove' | null>(null);
 
-  // Generations this session handed to the pipeline, newest first. They stay on
-  // screen until the author opens (or dismisses) them — the whole point is that
-  // "grove writes it" can't disappear into the pipeline unannounced.
-  const [runs, setRuns] = useState<Run[]>([]);
-  const liveIds = runs.filter((r) => WORKING.includes(r.phase)).map((r) => r.id).join(',');
-  const liveRef = useRef(liveIds);
-  liveRef.current = liveIds;
-
-  // Follow every in-flight run. Keyed on the live ids (not `runs`) so a poll's
-  // own state update doesn't tear the interval down and restart it.
-  useEffect(() => {
-    if (!liveIds) return;
-    let alive = true;
-    const poll = async () => {
-      const ids = liveRef.current ? liveRef.current.split(',') : [];
-      const seen = await Promise.all(ids.map(async (id) => {
-        try {
-          const res = await fetch(`/api/posts/${id}`);
-          if (!res.ok) return null;
-          const j = await res.json();
-          return { id, phase: j.phase as DraftPhase, label: String(j.label ?? ''), title: j.title ?? null, stalled: !!j.stalled, hasDraft: !!j.hasDraft };
-        } catch { return null; }   // a dropped poll is not an error worth showing
-      }));
-      if (!alive) return;
-      setRuns((prev) => prev.map((r) => {
-        const u = seen.find((s) => s && s.id === r.id);
-        return u ? { ...r, ...u } : r;
-      }));
-    };
-    const t = setInterval(poll, POLL_MS);
-    poll();
-    return () => { alive = false; clearInterval(t); };
-  }, [liveIds]);
-
   // programmatic SEO
   type PseoPage = { keyword: string; title: string; intent: SearchIntent };
   const [seed, setSeed] = useState('');
@@ -97,6 +67,15 @@ export default function StartDraft({ domainId, hostname }: { domainId: string; h
   const [generating, setGenerating] = useState(false);
   const [pseoErr, setPseoErr] = useState<string | null>(null);
 
+  // Restore the last suggestions after a remount. In an effect, not in the
+  // initial state, so the server and the first client render agree.
+  useEffect(() => {
+    try {
+      const cached = sessionStorage.getItem(ideasKey(domainId));
+      if (cached) setIdeas(JSON.parse(cached));
+    } catch { /* no session storage — the list just starts empty */ }
+  }, [domainId]);
+
   async function generate() {
     setThinking(true); setErr(null);
     try {
@@ -105,7 +84,10 @@ export default function StartDraft({ domainId, hostname }: { domainId: string; h
       const res = await fetch(`/api/topics/suggest?${qs}`);
       const j = await res.json().catch(() => ({}));
       const s: string[] = j.suggestions ?? [];
-      if (s.length) setIdeas(s);
+      if (s.length) {
+        setIdeas(s);
+        try { sessionStorage.setItem(ideasKey(domainId), JSON.stringify(s)); } catch { /* non-fatal */ }
+      }
       else setErr('Could not come up with ideas — build your site profile first.');
     } catch { setErr('Something went wrong. Try again.'); }
     setThinking(false);
@@ -144,18 +126,13 @@ export default function StartDraft({ domainId, hostname }: { domainId: string; h
         setErr(j.message ?? j.error ?? 'Could not start that draft. Try again.');
         return;
       }
-      setRuns((prev) => [
-        { id: j.id, topic, title: null, phase: 'queued', label: 'Queued in the pipeline…', stalled: false, hasDraft: false },
-        ...prev.filter((p) => p.id !== j.id),
-      ]);
+      onQueued(j.id as string, topic);
     } catch {
       setErr('Something went wrong. Try again.');
     } finally {
       setBusyIdea(null); setBusyKind(null);
     }
   }
-
-  function dismissRun(id: string) { setRuns((prev) => prev.filter((r) => r.id !== id)); }
 
   async function previewSet() {
     if (!gate('pseo')) return;
@@ -194,16 +171,35 @@ export default function StartDraft({ domainId, hostname }: { domainId: string; h
       <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 13 }}>
         <span style={iconBadge}><Icon name="write" size={15} /></span>
         <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--gv-ink)' }}>Start a draft</span>
-        <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--gv-faint)' }}>assisted</span>
+        {onBlankPage ? (
+          <button onClick={onBlankPage} className="gv-ghost" style={{ marginLeft: 'auto', border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 11, fontWeight: 600, padding: '4px 9px', borderRadius: 8, cursor: 'pointer' }}>
+            Blank page
+          </button>
+        ) : (
+          <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--gv-faint)' }}>assisted</span>
+        )}
       </div>
 
       {runs.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
           {runs.map((run) => (
             <RunCard key={run.id} run={run}
-              onOpen={() => r.push(`/dashboard/posts/${run.id}`)}
-              onDismiss={() => dismissRun(run.id)} />
+              active={run.id === activeDraftId}
+              opening={run.id === openingId}
+              // A finished draft opens in the editor already on screen; one still
+              // in flight (or failed) goes to its post page, which has the live
+              // timeline, the quality score and the retry.
+              onOpen={() => {
+                if (WORKING.includes(run.phase) || run.phase === 'failed') {
+                  r.push(`/dashboard/posts/${run.id}`);
+                  return;
+                }
+                onOpenDraft(run.id);
+              }}
+              onFullPage={() => r.push(`/dashboard/posts/${run.id}`)}
+              onDismiss={() => onDismissRun(run.id)} />
           ))}
+          {openError && <p style={{ ...errText, marginTop: 0 }}>{openError}</p>}
         </div>
       )}
 
@@ -302,22 +298,33 @@ export default function StartDraft({ domainId, hostname }: { domainId: string; h
 /**
  * A draft grove is writing (or has finished writing) for the author, shown in
  * the Write page's rail. This is the receipt for "grove writes it": the work is
- * named, its stage is live, and the finished article is one click away in the
- * editor — nothing silently drops into the pipeline.
+ * named, its stage is live, and the finished article lands in the editor right
+ * next to it — nothing silently drops into the pipeline.
  */
-function RunCard({ run, onOpen, onDismiss }: { run: Run; onOpen: () => void; onDismiss: () => void }) {
+function RunCard({ run, active, opening, onOpen, onFullPage, onDismiss }: {
+  run: Run; active: boolean; opening: boolean;
+  onOpen: () => void; onFullPage: () => void; onDismiss: () => void;
+}) {
   const working = WORKING.includes(run.phase);
   const failed = run.phase === 'failed';
   const name = run.title || run.topic;
   const tone = failed ? 'var(--gv-red)' : working ? 'var(--gv-amber)' : ACCENT_INK;
-  const badge = failed ? 'Failed' : working ? 'In the pipeline' : 'Draft ready';
-  const action = failed ? 'See what happened →' : working ? 'Watch it write →' : 'Open the draft →';
+  const badge = failed ? 'Failed' : working ? 'In the pipeline' : active ? 'On the page' : 'Draft ready';
+  const action = failed ? 'See what happened →'
+    : working ? 'Watch it write →'
+    : opening ? 'Opening…'
+    : active ? 'Open the full post page →'
+    : 'Open it on this page →';
+
+  // The accent fill is reserved for the one state that wants a click: a finished
+  // draft that isn't on the canvas yet.
+  const primary = !working && !failed && !active;
 
   return (
     <div style={{
       padding: '11px 12px', borderRadius: 12,
-      background: working || failed ? 'rgba(255,255,255,0.02)' : 'rgba(162,255,1,0.07)',
-      border: `1px solid ${working || failed ? 'var(--gv-line)' : 'rgba(162,255,1,0.32)'}`,
+      background: primary || active ? 'rgba(162,255,1,0.07)' : 'rgba(255,255,255,0.02)',
+      border: `1px solid ${primary || active ? 'rgba(162,255,1,0.32)' : 'var(--gv-line)'}`,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
         <span className={working ? 'grove-live-dot' : undefined} style={{ color: tone, fontSize: 9, lineHeight: 1 }}>●</span>
@@ -327,13 +334,13 @@ function RunCard({ run, onOpen, onDismiss }: { run: Run; onOpen: () => void; onD
       </div>
       <div style={{ fontSize: 12.5, lineHeight: 1.4, color: 'var(--gv-ink)', fontWeight: 600 }}>{name}</div>
       <div style={{ fontSize: 11.5, lineHeight: 1.45, color: 'var(--gv-dim)', marginTop: 4 }}>
-        {run.label || 'Queued in the pipeline…'}
+        {active ? 'In the editor on this page — click the article to edit it.' : (run.label || 'Queued in the pipeline…')}
         {working && !run.stalled && ' You can keep writing here — it finishes on its own.'}
       </div>
-      <button onClick={onOpen} className={working || failed ? 'gv-ghost' : 'gv-btn'}
-        style={working || failed
-          ? { marginTop: 9, border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, padding: '6px 10px', borderRadius: 8, cursor: 'pointer' }
-          : { marginTop: 9, border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, padding: '6px 10px', borderRadius: 8, cursor: 'pointer' }}>
+      <button onClick={active ? onFullPage : onOpen} disabled={opening} className={primary ? 'gv-btn' : 'gv-ghost'}
+        style={primary
+          ? { marginTop: 9, border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, padding: '6px 10px', borderRadius: 8, cursor: 'pointer' }
+          : { marginTop: 9, border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, padding: '6px 10px', borderRadius: 8, cursor: 'pointer' }}>
         {action}
       </button>
     </div>
