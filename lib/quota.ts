@@ -131,6 +131,62 @@ export async function quotaForUsers(userIds: string[]): Promise<Map<string, Quot
 }
 
 /**
+ * Split one owner's remaining allowance across their domains for planning.
+ *
+ * Two bugs live here, and both showed up on the owner's own account — a Starter
+ * plan (12 posts/month) running two domains at 4 and 3 posts/week:
+ *
+ *  1. The allowance is per SUBSCRIPTION but planning ran per DOMAIN, gated only
+ *     by a boolean "is this owner exhausted?". So every domain planned its full
+ *     cadence against the same 12 posts — ~30 slots between them — and whichever
+ *     domain the loop reached first took the lot.
+ *
+ *  2. `remaining` only falls when a post is actually GENERATED, not when it is
+ *     planned. So each tick cheerfully planned another batch against an
+ *     allowance the previous tick had already committed, and the queue grew far
+ *     past anything the plan could pay for. That is why 8 posts sat `queued`
+ *     and undrainable with posts_used pinned at 12/12.
+ *
+ * Subtracting what's already queued fixes (2); dividing the rest fixes (1).
+ * The remainder goes to the earliest domains, which is stable across ticks —
+ * exact per-domain fairness is `pickQueuedFairly`'s job at drain time, and it
+ * already round-robins. What matters here is only that we never plan work the
+ * allowance can't buy.
+ */
+export function shareAllowance(opts: {
+  /** Quota left this cycle. `Infinity` when the account isn't enforced. */
+  remaining: number;
+  /** Owner's posts already planned but not yet generated. */
+  alreadyQueued: number;
+  /** The owner's domains, in a stable order (created_at ascending). */
+  domainIds: string[];
+  /** Ceiling per domain per tick, so one tick can't plan a whole month. */
+  perDomainCap: number;
+}): Map<string, number> {
+  const { remaining, alreadyQueued, domainIds, perDomainCap } = opts;
+  const out = new Map<string, number>();
+  if (!domainIds.length || perDomainCap <= 0) return out;
+
+  // Unenforced accounts keep today's behaviour: every domain gets the cap.
+  if (!Number.isFinite(remaining)) {
+    for (const id of domainIds) out.set(id, perDomainCap);
+    return out;
+  }
+
+  const budget = Math.max(0, Math.floor(remaining) - Math.max(0, alreadyQueued));
+  const n = domainIds.length;
+  const base = Math.floor(budget / n);
+  let leftover = budget - base * n;
+
+  for (const id of domainIds) {
+    const extra = leftover > 0 ? 1 : 0;
+    leftover -= extra;
+    out.set(id, Math.min(perDomainCap, base + extra));
+  }
+  return out;
+}
+
+/**
  * Reserve `n` posts against the cycle, atomically.
  *
  * Check-then-increment would let two concurrent generations both pass the check
