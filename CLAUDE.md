@@ -115,11 +115,19 @@ Other key surfaces:
   secrets live in Vercel). Migrations in `supabase/migrations/` (0001–0029).
 - History was repaired so 0001–0009 are marked applied; `npm run db:push` applies
   only new ones. **Always run `supabase migration list` first instead of trusting
-  this file** — as of 2026-07-26, **0001–0028 are applied and 0029 is NOT**
-  (verified against the live DB, not just the migration list). 0029
+  this file** — as of 2026-07-26, **0001–0029 are all applied** (verified against
+  `information_schema`, not just the migration list). 0029
   (`strategies.planned_by`) records which model built each plan; the insert in
-  `lib/strategy/ensure.ts` retries without the column so an unapplied 0029
-  degrades to "no diagnostic" rather than "no plan".
+  `lib/strategy/ensure.ts` retries without the column, so an unapplied migration
+  there degrades to "no diagnostic" rather than "no plan".
+- **A migration can reach production without anyone running `db:push` here.**
+  0029 was authored and merged in one session and was already live before that
+  session ever pushed — the column comment matched the migration file verbatim,
+  so it was that file that ran, applied by something outside the session (a
+  Supabase GitHub integration configured in the dashboard, or a concurrent
+  session). Treat merging a migration to `main` as potentially shipping it.
+  Write migrations to be safe on arrival, and always verify live schema state
+  rather than assuming your own `db:push` is the gate.
 - `domains.canonical_blog_base` makes the customer's own URLs canonical
   everywhere (rel=canonical, sitemap, RSS, social). It must also be SET per
   domain — the column existing isn't enough.
