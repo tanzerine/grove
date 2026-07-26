@@ -141,7 +141,7 @@ export async function getOnboarding(sb: SupabaseClient, domain: ActiveDomain): P
     {
       id: 'social', n: 8,
       title: 'Link a social account',
-      desc: 'Auto-post every article to X, LinkedIn or Instagram.',
+      desc: 'Auto-post every article to X or LinkedIn.',
       href: '/dashboard/connections',
       done: socialCount > 0,
       optional: true,

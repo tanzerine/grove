@@ -43,7 +43,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
     .eq('post_id', id)
     .order('attempt', { ascending: true });
 
-  const social = (p.social ?? {}) as { x?: string; linkedin?: string; instagram?: string; disabled?: string[] };
+  const social = (p.social ?? {}) as { x?: string; linkedin?: string; disabled?: string[] };
   const validation = p.validation as { passed?: boolean; issues?: string[]; stats?: Record<string, number>; error?: string } | null;
   // The canvas renders the title itself, so drop the body's own leading H1.
   const bodyHtml = p.body_md ? mdToHtml(stripLeadingH1(p.body_md)) : '';

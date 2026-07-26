@@ -67,27 +67,8 @@ async function postLinkedIn(conn: Connection, req: ShareRequest): Promise<string
   return r.headers.get('x-restli-id') ?? (await r.json())?.id ?? '';
 }
 
-async function postInstagram(conn: Connection, req: ShareRequest): Promise<string> {
-  if (!conn.account_id) throw new Error('Instagram business account id missing — reconnect');
-  if (!req.imageUrl) throw new Error('Instagram requires an image — post has no cover image');
-  const createUrl = new URL(`https://graph.facebook.com/v19.0/${conn.account_id}/media`);
-  createUrl.searchParams.set('image_url', req.imageUrl);
-  createUrl.searchParams.set('caption', req.text);
-  createUrl.searchParams.set('access_token', conn.access_token);
-  const c = await fetch(createUrl, { method: 'POST' });
-  if (!c.ok) throw new Error(`IG container failed: ${await c.text()}`);
-  const creationId = (await c.json())?.id;
-  if (!creationId) throw new Error('IG container returned no id');
-  const pubUrl = new URL(`https://graph.facebook.com/v19.0/${conn.account_id}/media_publish`);
-  pubUrl.searchParams.set('creation_id', creationId);
-  pubUrl.searchParams.set('access_token', conn.access_token);
-  const pub = await fetch(pubUrl, { method: 'POST' });
-  if (!pub.ok) throw new Error(`IG publish failed: ${await pub.text()}`);
-  return (await pub.json())?.id ?? '';
-}
-
 const POSTERS: Record<string, (c: Connection, r: ShareRequest) => Promise<string>> = {
-  x: postX, linkedin: postLinkedIn, instagram: postInstagram,
+  x: postX, linkedin: postLinkedIn,
 };
 
 export type ShareResult = Record<string, { id?: string; at: string; status?: number; error?: string; dry_run?: boolean }>;
@@ -123,7 +104,7 @@ export async function publishToSocials(
 
     if (dry) {
       console.log('[social dry-run]', JSON.stringify({
-        platform: req.platform, url: req.url, text: req.text, imageUrl: req.imageUrl ?? null,
+        platform: req.platform, url: req.url, text: req.text,
       }));
       result[conn.platform] = { at: new Date().toISOString(), dry_run: true };
       continue;

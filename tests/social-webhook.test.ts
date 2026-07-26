@@ -27,7 +27,6 @@ describe('buildWebhookPayload', () => {
     // ready-to-post copy for each network
     expect(p.shares.x.text).toContain('hook line');
     expect(p.shares.linkedin.text).toContain('pro take');
-    expect(p.shares.instagram.imageUrl).toBe('https://img/cover.webp');
   });
 });
 

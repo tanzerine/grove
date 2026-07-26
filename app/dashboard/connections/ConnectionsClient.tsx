@@ -12,7 +12,7 @@ const CONNECT_ERRORS: Record<string, string> = {
 };
 
 export type PlatformView = {
-  id: 'x' | 'linkedin' | 'instagram';
+  id: 'x' | 'linkedin';
   configured: boolean;
   connection: { account_handle: string | null; connected_at: string } | null;
 };
@@ -20,7 +20,6 @@ export type PlatformView = {
 const META: Record<PlatformView['id'], { label: string; blurb: string; color: string }> = {
   x:         { label: 'X',         blurb: 'Auto-posts a hook + link when an article publishes.', color: '#000000' },
   linkedin:  { label: 'LinkedIn',  blurb: 'Shares the article as a LinkedIn post on your profile.', color: '#0A66C2' },
-  instagram: { label: 'Instagram', blurb: 'Posts the cover image + caption (needs an IG Business account).', color: '#C13584' },
 };
 
 export default function ConnectionsClient({

@@ -25,8 +25,7 @@ const patchSchema = z.object({
   social: z.object({
     x: z.string().max(4000).optional(),
     linkedin: z.string().max(3000).optional(),
-    instagram: z.string().max(2200).optional(),
-    disabled: z.array(z.enum(['x', 'linkedin', 'instagram'])).max(3).optional(),
+    disabled: z.array(z.enum(['x', 'linkedin'])).max(2).optional(),
   }).optional(),
 });
 

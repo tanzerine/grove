@@ -5,7 +5,6 @@ const TABS = [
   { id: 'blog', label: 'Blog post' },
   { id: 'x', label: 'X thread' },
   { id: 'li', label: 'LinkedIn' },
-  { id: 'ig', label: 'Instagram' },
 ] as const;
 
 export default function SampleTabs() {
@@ -80,21 +79,6 @@ function SamplePanels({ active }: { active: string }) {
             </>
           }
           stats={<><span><b>214</b> reactions</span><span><b>61</b> comments</span></>}
-        />
-      </div>
-
-      <div className={`sample ${active === 'ig' ? 'on' : ''}`}>
-        <SocialCard
-          name="jordanbuilds"
-          handle="Original audio"
-          platform="Instagram"
-          body={
-            <>
-              <div className="ig-img" />
-              <p>3 onboarding mistakes that quietly kill activation 👇 Save this before your next redesign.</p>
-              <p style={{ color: 'var(--clay)' }}>#saas #productdesign #onboarding #startups</p>
-            </>
-          }
         />
       </div>
     </div>

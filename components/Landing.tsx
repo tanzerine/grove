@@ -908,7 +908,6 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
                       { n: 'Blog post', s: 'Published', c: '#A2FF01EB', dot: '#7c7f77' },
                       { n: 'X thread', s: 'Posted', c: '#d7d9d3', dot: '#7c7f77' },
                       { n: 'LinkedIn', s: 'Posted', c: '#d7d9d3', dot: '#7c7f77' },
-                      { n: 'Instagram', s: 'Queued', c: '#7c7f77', dot: '#565952' },
                     ].map((r) => (
                       <div key={r.n} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#111110', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 9, padding: '8px 12px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>

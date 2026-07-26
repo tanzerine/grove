@@ -59,5 +59,5 @@ vercel --prod
 
 - Subdomain blogs in v1 are served from the grove root (`<slug>.grove.so` or `/b/<slug>`).
   CNAME-to-customer-subdomain support is on the roadmap.
-- Cross-posting to X/LinkedIn/Instagram is generated and stored in `posts.social` —
+- Cross-posting to X/LinkedIn is generated and stored in `posts.social` —
   scheduled-delivery integrations land next.

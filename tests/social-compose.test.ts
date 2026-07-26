@@ -14,7 +14,7 @@ const post: PostForShare = {
   id: 'p1',
   title: 'How we render icons fast',
   slug: 'how-we-render-icons-fast',
-  social: { x: '1. Speed is everything here\n2. second tweet', linkedin: 'A LinkedIn take.', instagram: 'IG caption.' },
+  social: { x: '1. Speed is everything here\n2. second tweet', linkedin: 'A LinkedIn take.' },
   cover_image_url: 'https://img.example.com/cover.png',
 };
 const url = 'https://demo.grove.so/how-we-render-icons-fast';
@@ -122,12 +122,6 @@ describe('composeShare', () => {
     const r = composeShare('linkedin', post, url);
     expect(r.text).toContain('A LinkedIn take.');
     expect(r.text).toContain(url);
-  });
-
-  it('Instagram: carries the cover image', () => {
-    const r = composeShare('instagram', post, url);
-    expect(r.imageUrl).toBe('https://img.example.com/cover.png');
-    expect(r.text).toContain('IG caption.');
   });
 
   it('falls back to the title when no social copy exists', () => {

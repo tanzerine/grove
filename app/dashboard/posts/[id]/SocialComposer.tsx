@@ -11,16 +11,15 @@ import { useMemo, useState } from 'react';
 import { firstTweet, xLen, X_MAX, X_URL_WEIGHT } from '@/lib/social/compose';
 import Icon from '../../gv-icons';
 
-type ChannelKey = 'x' | 'linkedin' | 'instagram';
+type ChannelKey = 'x' | 'linkedin';
 type PublishRecord = { id?: string; at?: string; status?: number; error?: string; dry_run?: boolean };
 
 export type ComposerPlatform = { id: ChannelKey; handle: string | null; connected: boolean };
 
-const LABEL: Record<ChannelKey, string> = { x: 'X', linkedin: 'LinkedIn', instagram: 'Instagram' };
+const LABEL: Record<ChannelKey, string> = { x: 'X', linkedin: 'LinkedIn' };
 const HINT: Record<ChannelKey, string> = {
   x: 'First line becomes the tweet; the link (23 chars on X) is appended. Over 280 is trimmed at a word break.',
   linkedin: 'Posted as-is with the article attached as a link card.',
-  instagram: 'Caption for the cover image. “Link in bio” + URL are appended.',
 };
 
 export default function SocialComposer({
@@ -37,7 +36,7 @@ export default function SocialComposer({
 }) {
   const r = useRouter();
   const [drafts, setDrafts] = useState<Record<ChannelKey, string>>({
-    x: social.x ?? '', linkedin: social.linkedin ?? '', instagram: social.instagram ?? '',
+    x: social.x ?? '', linkedin: social.linkedin ?? '',
   });
   const [auto, setAuto] = useState(autoShare);
   const [off, setOff] = useState<Set<ChannelKey>>(
@@ -51,10 +50,10 @@ export default function SocialComposer({
 
   // Drafts count too: right after generation the copy lives only in local
   // state until router.refresh() lands (and must survive it failing).
-  const hasCopy = !!(social.x || social.linkedin || social.instagram)
-    || !!(drafts.x || drafts.linkedin || drafts.instagram);
+  const hasCopy = !!(social.x || social.linkedin)
+    || !!(drafts.x || drafts.linkedin);
   const dirty = useMemo(
-    () => (['x', 'linkedin', 'instagram'] as ChannelKey[]).some((k) => drafts[k] !== (social[k] ?? '')),
+    () => (['x', 'linkedin'] as ChannelKey[]).some((k) => drafts[k] !== (social[k] ?? '')),
     [drafts, social],
   );
 
@@ -69,7 +68,7 @@ export default function SocialComposer({
         return;
       }
       // Pull the fresh copy straight into the textareas; refresh syncs the rest.
-      if (j.social) setDrafts({ x: j.social.x ?? '', linkedin: j.social.linkedin ?? '', instagram: j.social.instagram ?? '' });
+      if (j.social) setDrafts({ x: j.social.x ?? '', linkedin: j.social.linkedin ?? '' });
       r.refresh();
     } catch {
       setNote({ ok: false, text: "Couldn't write social posts: the request didn't complete — try again." });
@@ -164,7 +163,7 @@ export default function SocialComposer({
   const ghost: React.CSSProperties = { border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.02)', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '7px 13px', borderRadius: 8, cursor: 'pointer' };
   const primary: React.CSSProperties = { ...ghost, border: 'none', background: 'var(--gv-accent)', color: 'var(--gv-on-accent)', fontWeight: 700 };
 
-  const draftedCount = (['x', 'linkedin', 'instagram'] as ChannelKey[]).filter((k) => (drafts[k] ?? '').trim()).length;
+  const draftedCount = (['x', 'linkedin'] as ChannelKey[]).filter((k) => (drafts[k] ?? '').trim()).length;
   const activePf = platforms.find((pf) => pf.id === tab);
   const tabDot = (key: ChannelKey | 'webhook'): string | null => {
     const rec = socialPublished[key];
@@ -212,7 +211,7 @@ export default function SocialComposer({
       {!hasCopy ? (
         <p style={{ fontSize: 13, color: 'var(--gv-dim)', margin: '4px 0', lineHeight: 1.6 }}>
           No channel copy yet. Grove writes a native post for each platform from this article —
-          an X hook, a LinkedIn post, and an Instagram caption — which you can edit before anything goes out.
+          an X hook and a LinkedIn post — which you can edit before anything goes out.
         </p>
       ) : (
         <>
