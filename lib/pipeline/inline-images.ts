@@ -12,17 +12,12 @@
  *
  * Idempotent: skips if body_md already contains 2+ inline images (beyond cover).
  */
-import Replicate from 'replicate';
 import { llmCall } from '../llm';
 import { supabaseAdmin } from '../supabase/admin';
+import { generateIllustration } from '../images/illustration';
+import { ILLUSTRATION_STYLE as STYLE, imageMarkdown } from '../images/prompt';
 
-const FLUX_MODEL = 'black-forest-labs/flux-schnell' as const;
-const BUCKET = process.env.COVER_BUCKET ?? 'post-covers';
 const MAX_INLINE = 2;
-
-const STYLE = `editorial illustration style — clean, modern, minimalist composition,
-soft gradient background, restrained palette of 2-3 muted colors,
-geometric shapes and subtle textures, no text, no people, landscape 16:9`;
 
 type Section = { heading: string; lineIndex: number; snippet: string };
 
@@ -88,73 +83,6 @@ Output ONLY valid JSON, no markdown fences:
   }
 }
 
-async function generateAndUpload(prompt: string): Promise<string | null> {
-  const apiKey = process.env.REPLICATE_API_TOKEN;
-  if (!apiKey) return null;
-
-  let imageBuffer: Uint8Array;
-  try {
-    const replicate = new Replicate({ auth: apiKey });
-    const result = await Promise.race([
-      replicate.run(FLUX_MODEL, {
-        input: {
-          prompt,
-          aspect_ratio: '16:9',
-          output_format: 'webp',
-          output_quality: 85,
-          num_outputs: 1,
-          go_fast: true,
-        },
-      }),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Flux timeout')), 90_000)
-      ),
-    ]);
-
-    const first: any = Array.isArray(result) ? result[0] : result;
-    if (!first) return null;
-
-    if (typeof first.blob === 'function') {
-      const blob = await first.blob();
-      imageBuffer = new Uint8Array(await blob.arrayBuffer());
-    } else if (typeof first.url === 'function' || typeof first === 'string') {
-      const imgUrl = typeof first === 'string' ? first : first.url();
-      const resolvedUrl = typeof imgUrl === 'string' ? imgUrl : (imgUrl?.toString?.() ?? '');
-      const res = await fetch(resolvedUrl);
-      if (!res.ok) return null;
-      imageBuffer = new Uint8Array(await res.arrayBuffer());
-    } else {
-      return null;
-    }
-  } catch (err) {
-    console.error('[inline-images] Flux failed:', err);
-    return null;
-  }
-
-  try {
-    const sb = supabaseAdmin();
-    const { error: bucketErr } = await sb.storage.createBucket(BUCKET, { public: true });
-    if (bucketErr && !bucketErr.message.toLowerCase().includes('already exists')) return null;
-
-    const filename = `inline-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.webp`;
-    const { error: uploadErr } = await sb.storage.from(BUCKET).upload(filename, imageBuffer, {
-      contentType: 'image/webp',
-      cacheControl: '31536000',
-      upsert: false,
-    });
-    if (uploadErr) {
-      console.error('[inline-images] upload failed:', uploadErr.message);
-      return null;
-    }
-
-    const { data: pub } = sb.storage.from(BUCKET).getPublicUrl(filename);
-    return pub?.publicUrl ?? null;
-  } catch (err) {
-    console.error('[inline-images] persist failed:', err);
-    return null;
-  }
-}
-
 function injectInlineImages(
   bodyMd: string,
   insertions: { heading: string; url: string }[],
@@ -173,7 +101,7 @@ function injectInlineImages(
     .sort((a, b) => b.idx - a.idx);
 
   for (const { idx, url, heading } of located) {
-    lines.splice(idx + 1, 0, '', `![${heading}](${url})`, '');
+    lines.splice(idx + 1, 0, '', imageMarkdown(heading, url), '');
   }
 
   return lines.join('\n');
@@ -224,7 +152,7 @@ export async function runInlineImagesForPost(postId: string): Promise<void> {
   // Generate all images in parallel
   const results = await Promise.all(
     chosen.map(async ({ heading, prompt }) => {
-      const url = await generateAndUpload(prompt);
+      const url = await generateIllustration(prompt, { prefix: 'inline' });
       return url ? { heading, url } : null;
     })
   );

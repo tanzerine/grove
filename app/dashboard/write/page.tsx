@@ -10,7 +10,7 @@ export default async function WritePage() {
 
   return (
     <>
-      <DashHeader title="Write" subtitle="a blank page — write it yourself, or start from Idea studio / SEO set on the right" />
+      <DashHeader title="Write" subtitle="a blank page — write it yourself, or start from Idea studio / SEO set on the right. Generate images from the toolbar, then pick when it publishes." />
       <div className="gv-body" style={{ maxWidth: 1440 }}>
         {domain ? (
           <RichEditor

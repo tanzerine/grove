@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { supabaseServer } from '@/lib/supabase/server';
+import { ensurePostSlug } from '@/lib/post-slug';
 
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const sb = await supabaseServer();
@@ -58,5 +59,12 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 
   const { error } = await sb.from('posts').update(updates).eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+  // Anything heading for the public blog needs a slug — hand-written drafts
+  // (Write page → schedule) never got one from the generation pipeline, and
+  // every canonical/sitemap/RSS/social URL is built from it.
+  if (parsed.data.status === 'scheduled' || parsed.data.status === 'published') {
+    await ensurePostSlug(sb, id);
+  }
   return NextResponse.json({ ok: true });
 }

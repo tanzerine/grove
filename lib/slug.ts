@@ -19,3 +19,19 @@ export function postSlug(title: string | null | undefined, fallbackId?: string |
   const id = (fallbackId ?? '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8);
   return id ? `post-${id}` : 'post';
 }
+
+/**
+ * Disambiguate a slug against the ones already taken on the same blog —
+ * `posts (domain_id, slug)` is UNIQUE, so two drafts with the same title (very
+ * likely for hand-written ones: "Untitled draft") would otherwise collide and
+ * fail the write. Falls back to a timestamp suffix rather than looping forever.
+ */
+export function uniqueSlug(base: string, taken: Iterable<string>): string {
+  const used = new Set(taken);
+  if (!used.has(base)) return base;
+  for (let n = 2; n <= 50; n++) {
+    const candidate = `${base}-${n}`;
+    if (!used.has(candidate)) return candidate;
+  }
+  return `${base}-${Date.now().toString(36)}`;
+}

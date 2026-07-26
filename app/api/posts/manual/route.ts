@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { supabaseServer } from '@/lib/supabase/server';
+import { ensurePostSlug } from '@/lib/post-slug';
 
 // Create a blank, human-written draft. Unlike POST /api/posts this does NOT
 // run the AI pipeline or the manager evaluation — it just lands an editable
@@ -9,6 +10,9 @@ const body = z.object({
   domain_id: z.string().uuid(),
   title: z.string().max(160).optional(),
   body_md: z.string().optional(),
+  // Set when the author schedules straight from the Write page — the draft is
+  // created already `scheduled`, and the cron publishes it when its time comes.
+  scheduled_at: z.string().datetime().optional(),
 });
 
 export async function POST(req: Request) {
@@ -24,15 +28,22 @@ export async function POST(req: Request) {
   if (!domain) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
   const title = parsed.data.title?.trim() || 'Untitled draft';
+  const scheduledAt = parsed.data.scheduled_at ?? null;
 
   const { data, error } = await sb.from('posts').insert({
     domain_id: parsed.data.domain_id,
-    status: 'review',          // editable + reviewable, same as a finished AI draft
+    // 'review' = editable + reviewable, same as a finished AI draft. A publish
+    // time the author picked is an explicit decision, so honour it right away.
+    status: scheduledAt ? 'scheduled' : 'review',
     topic: title,
     title,
     body_md: parsed.data.body_md ?? '',
+    scheduled_at: scheduledAt,
   }).select('id').single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  // A scheduled post will be published by the cron, so it needs its public URL
+  // slug now — nothing else assigns one to a hand-written draft.
+  if (scheduledAt) await ensurePostSlug(sb, data.id);
   return NextResponse.json({ id: data.id });
 }
