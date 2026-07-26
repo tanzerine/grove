@@ -11,7 +11,10 @@ import { Markdown } from 'tiptap-markdown';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { stripLeadingH1, withTitleH1 } from '@/lib/article-body';
+import { sanitizeAlt } from '@/lib/images/prompt';
 import Icon from '../../gv-icons';
+import ImageStudio, { type ImageContext } from './ImageStudio';
+import SchedulePicker from './SchedulePicker';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
@@ -24,6 +27,8 @@ type Props = {
   initialMetaTitle: string;
   initialMetaDesc: string;
   canEdit: boolean;
+  initialScheduledAt?: string | null; // current publish time, if the post has one
+  schedulable?: boolean;          // false for a live post (managed from the post header)
   autoEdit?: boolean;             // open straight into edit mode (fresh manual drafts)
   railExtra?: React.ReactNode;   // extra card pinned to the top of the assist rail
   belowCanvas?: React.ReactNode; // rendered under the SEO panel, inside the article column
@@ -47,7 +52,7 @@ function getMd(editor: any): string {
   return editor?.storage?.markdown?.getMarkdown?.() ?? '';
 }
 
-export default function RichEditor({ postId, domainId, initialBody, initialTitle, initialMetaTitle, initialMetaDesc, canEdit, autoEdit, railExtra, belowCanvas }: Props) {
+export default function RichEditor({ postId, domainId, initialBody, initialTitle, initialMetaTitle, initialMetaDesc, canEdit, initialScheduledAt = null, schedulable = true, autoEdit, railExtra, belowCanvas }: Props) {
   const r = useRouter();
   const [editing, setEditing] = useState(!!autoEdit);
   const [dirty, setDirty] = useState(false);
@@ -60,10 +65,13 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
   const [metaDesc, setMetaDesc] = useState(initialMetaDesc);
   const [prompt, setPrompt] = useState('');
   const [cards, setCards] = useState<AssistCard[]>([]);
+  const [imageOpen, setImageOpen] = useState(false);
+  const [scheduledAt, setScheduledAt] = useState<string | null>(initialScheduledAt);
   const baseline = useRef<string>(initialBody);
   const lastInitialBody = useRef<string>(initialBody);
   const promptRef = useRef<HTMLInputElement>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
+  const imageAnchor = useRef<number | null>(null);
   const cid = useRef(1);
 
   const editor = useEditor({
@@ -129,8 +137,14 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
 
   const metaDirty = title !== initialTitle || metaTitle !== initialMetaTitle || metaDesc !== initialMetaDesc;
 
-  async function save() {
-    if (!editor) return;
+  /**
+   * Write the canvas to the post, creating it first if this is still a blank
+   * draft. `extra` carries publish fields (scheduled_at / status) so scheduling
+   * from the editor is one round trip that also saves the words. Returns the
+   * post id, or null when the write failed.
+   */
+  async function persist(extra?: { scheduled_at?: string | null; status?: 'review' | 'scheduled' }): Promise<string | null> {
+    if (!editor) return null;
     setSaving(true);
     const md = getMd(editor);
     // Stored bodies keep the title as their leading H1 (validator, manager
@@ -141,26 +155,54 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
     if (postId == null) {
       const res = await fetch('/api/posts/manual', {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ domain_id: domainId, title: title.trim() || undefined, body_md: storedMd }),
+        body: JSON.stringify({
+          domain_id: domainId,
+          title: title.trim() || undefined,
+          body_md: storedMd,
+          scheduled_at: extra?.scheduled_at ?? undefined,
+        }),
       });
       const j = await res.json().catch(() => ({}));
       setSaving(false);
-      if (res.ok && j.id) { baseline.current = md; setDirty(false); r.push(`/dashboard/posts/${j.id}`); }
-      return;
+      if (!res.ok || !j.id) return null;
+      baseline.current = md;
+      setDirty(false);
+      r.push(`/dashboard/posts/${j.id}`);
+      return j.id as string;
     }
     const res = await fetch(`/api/posts/${postId}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ title, body_md: storedMd, meta_title: metaTitle, meta_description: metaDesc }),
+      body: JSON.stringify({ title, body_md: storedMd, meta_title: metaTitle, meta_description: metaDesc, ...extra }),
     });
     setSaving(false);
-    if (res.ok) {
-      baseline.current = md;
-      setDirty(false);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 1800);
-      r.refresh();
-    }
+    if (!res.ok) return null;
+    baseline.current = md;
+    setDirty(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1800);
+    r.refresh();
+    return postId;
+  }
+
+  async function save() { await persist(); }
+
+  // Scheduling always saves first: the author means "publish what I'm looking
+  // at", and a published post that's missing the last paragraph is a bug.
+  async function schedule(iso: string) {
+    // A scheduled post publishes unattended, so it needs a real title — the
+    // slug, canonical URL and every share link are derived from it.
+    if (!title.trim()) throw new Error('Give the draft a title before scheduling it.');
+    const id = await persist({ scheduled_at: iso, status: 'scheduled' });
+    if (!id) throw new Error('Could not save the draft — try again.');
+    setScheduledAt(iso);
+    setEditing(false);
+  }
+
+  async function unschedule() {
+    const id = await persist({ scheduled_at: null, status: 'review' });
+    if (!id) throw new Error('Could not update the draft — try again.');
+    setScheduledAt(null);
   }
 
   async function done() {
@@ -248,6 +290,37 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
   }
   function dismissCard(id: string) { patchCard(id, { status: 'dismissed' }); }
 
+  // ── in-canvas image generation ──
+  // What the picture should be about, read at the moment the author asks: the
+  // section they're writing in (nearest heading above the cursor), anything
+  // they selected, and the title. The insert position is captured here too —
+  // they'll keep typing while the image renders.
+  function imageContext(): ImageContext {
+    if (!editor) return { title };
+    const { from, to } = editor.state.selection;
+    imageAnchor.current = to;
+    let heading = '';
+    editor.state.doc.nodesBetween(0, Math.max(1, from), (node) => {
+      if (node.type.name === 'heading') heading = node.textContent;
+    });
+    const selection = from === to ? '' : editor.state.doc.textBetween(from, to, ' ');
+    return { title, heading, selection: selection.slice(0, 1200) };
+  }
+
+  async function insertImage(image: { url: string; alt: string }) {
+    if (!editor) return;
+    if (!editing) setEditing(true);
+    editor.setEditable(true);
+    const at = Math.min(imageAnchor.current ?? editor.state.doc.content.size, editor.state.doc.content.size);
+    // An image *node*, not markdown text: tiptap-markdown serializes it back to
+    // `![alt](url)` on save, the same shape the pipeline's inline images use.
+    editor.chain().focus().setTextSelection(at).setImage({ src: image.url, alt: sanitizeAlt(image.alt) }).run();
+    setDirty(getMd(editor) !== baseline.current);
+    // A generated image costs money — persist it immediately rather than
+    // leaving it to be lost with an unsaved draft.
+    if (postId != null) await persist();
+  }
+
   function submitPrompt() {
     const t = prompt.trim();
     if (!t) return;
@@ -278,6 +351,14 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
           <button onClick={() => setFocusMode((f) => !f)} className="gv-ghost" style={ghostBtn}>
             {focusMode ? 'Exit focus' : 'Focus'}
           </button>
+        )}
+        {canEdit && schedulable && (
+          <SchedulePicker
+            scheduledAt={scheduledAt}
+            disabled={saving}
+            onSchedule={schedule}
+            onClear={unschedule}
+          />
         )}
         {editing ? (
           <>
@@ -327,11 +408,22 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
                 <ToolBtn on={editor?.isActive('bulletList')} onClick={() => editor?.chain().focus().toggleBulletList().run()}><Icon name="pipeline" size={15} /></ToolBtn>
                 <ToolBtn on={editor?.isActive('orderedList')} onClick={() => editor?.chain().focus().toggleOrderedList().run()}>1.</ToolBtn>
                 <ToolBtn on={editor?.isActive('link')} onClick={setLink}><Icon name="link" size={15} /></ToolBtn>
+                <ToolBtn on={imageOpen} onClick={() => setImageOpen((o) => !o)}><Icon name="image" size={15} /></ToolBtn>
                 <span style={{ flex: 1 }} />
                 <button onClick={() => promptRef.current?.focus()} className="gv-btn" style={{ display: 'flex', alignItems: 'center', gap: 7, height: 30, padding: '0 13px', borderRadius: 8, border: 'none', background: 'rgba(162,255,1,0.14)', color: ACCENT_INK, fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>
                   <Icon name="sparkle" size={13} /> Ask grove
                 </button>
               </div>
+            )}
+
+            {/* image generation, inserted at the cursor */}
+            {canEdit && imageOpen && (
+              <ImageStudio
+                domainId={domainId}
+                contextOf={imageContext}
+                onInsert={insertImage}
+                onClose={() => setImageOpen(false)}
+              />
             )}
 
             {/* writing canvas — the title is the article's first line, like the rendered post */}

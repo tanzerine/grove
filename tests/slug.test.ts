@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { postSlug } from '../lib/slug';
+import { postSlug, uniqueSlug } from '../lib/slug';
 
 const ID = '4f9b2c1a-3d5e-4f6a-8b7c-9d0e1f2a3b4c';
 
@@ -38,5 +38,23 @@ describe('postSlug', () => {
 
   it('keeps mixed KO/EN titles on their ASCII part', () => {
     expect(postSlug('커피 브루잉 Guide 2026', ID)).toBe('guide-2026');
+  });
+});
+
+describe('uniqueSlug', () => {
+  it('keeps a free slug as-is', () => {
+    expect(uniqueSlug('cold-brew', ['iced-latte'])).toBe('cold-brew');
+  });
+
+  it('suffixes a taken slug, and keeps counting', () => {
+    expect(uniqueSlug('untitled-draft', ['untitled-draft'])).toBe('untitled-draft-2');
+    expect(uniqueSlug('untitled-draft', ['untitled-draft', 'untitled-draft-2'])).toBe('untitled-draft-3');
+  });
+
+  it('falls back to a timestamp suffix past the retry ceiling', () => {
+    const taken = ['base', ...Array.from({ length: 49 }, (_, i) => `base-${i + 2}`)];
+    const out = uniqueSlug('base', taken);
+    expect(out.startsWith('base-')).toBe(true);
+    expect(taken).not.toContain(out);
   });
 });

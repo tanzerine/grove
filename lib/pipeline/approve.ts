@@ -8,6 +8,7 @@
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '../supabase/admin';
+import { ensurePostSlug } from '../post-slug';
 import { publishToSocials } from '../social/publish';
 import { runSocialAdapter } from './writer';
 
@@ -15,6 +16,11 @@ export async function approveAndPublish(
   sb: SupabaseClient,
   id: string,
 ): Promise<{ ok: boolean; social_result: Record<string, unknown> | null; error?: string }> {
+  // Hand-written drafts (Write page) have no slug until something publishes
+  // them — without this the live URL, canonical, sitemap and share links all
+  // point at a slug-less path. No-op for pipeline posts, which already have one.
+  await ensurePostSlug(sb, id);
+
   const { error } = await sb
     .from('posts')
     .update({ status: 'published', published_at: new Date().toISOString() })
