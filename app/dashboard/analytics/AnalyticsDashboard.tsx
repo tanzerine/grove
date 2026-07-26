@@ -67,6 +67,20 @@ export default function AnalyticsDashboard({
   // from "sample view" to "synced".
   const anyLive = liveOn || !!data.traffic || !!data.funnel || !!data.articles;
 
+  // ILLUSTRATIVE NUMBERS ARE OPT-IN, AND OFF ON EVERY LOAD.
+  //
+  // They used to be the default fallback for every empty section, so a brand-new
+  // account opened "Performance report" to 48.2k clicks, ▲312%, and six invented
+  // article titles — presented in the headline as *their* content's performance.
+  // The `sample` chip meant to label those cards was itself gated on `anyLive`,
+  // so the one account that most needed the warning (a fresh one, nothing live)
+  // was the only account that never saw it.
+  //
+  // The illustrative view earns its keep in demos, so it survives — but a
+  // customer's own report must contain only their own data unless they
+  // deliberately ask otherwise, and every card the sample fills is chipped.
+  const [sampleOn, setSampleOn] = useState(false);
+
   // ── real trend series, sliced to the selected period ────────────────────────
   // gsc_daily gives up to 90 days oldest→newest; 12mo just shows what we have.
   const periodDays: Record<PeriodKey, number> = { '7d': 7, '30d': 30, '90d': 90, '12mo': 365 };
@@ -96,6 +110,9 @@ export default function AnalyticsDashboard({
     '12mo': { clicks: [4, 6, 9, 12, 16, 20, 27, 34, 42, 51, 60, 72], impr: [15, 20, 26, 33, 40, 48, 57, 66, 74, 82, 90, 98], labels: ['Jul', '', 'Sep', '', 'Nov', '', 'Jan', '', 'Mar', '', 'May', ''], c: '486k', cd: '▲ 1,180%', im: '12.4M', ctr: '3.9%' },
   };
   const cur = series[period];
+  // No Search Console history and no sample requested → the chart draws nothing
+  // rather than an invented growth curve.
+  const chartEmpty = !liveSeries && !sampleOn;
   const chartClicks = liveSeries ? liveSeries.clicks : cur.clicks;
   const chartImpr = liveSeries ? liveSeries.impr : cur.impr.map((v, i) => Math.max(v, cur.clicks[i] + 6));
   const chartLabels = liveSeries ? liveSeries.labels : cur.labels;
@@ -142,12 +159,11 @@ export default function AnalyticsDashboard({
   };
   const clicksLiveDelta = pctDelta('clicks');
   // live account without enough daily history: show no delta rather than a fake one
-  const clicksDelta = liveSeries ? (clicksLiveDelta?.text ?? '') : liveOn ? '' : cur.cd;
+  const clicksDelta = liveSeries ? (clicksLiveDelta?.text ?? '') : liveOn || !sampleOn ? '' : cur.cd;
 
-  const kpiClicks = liveOn ? fmtCompact(live!.clicks) : cur.c;
-  const kpiImpr = liveOn ? fmtCompact(live!.impressions) : cur.im;
-  const kpiCtr = liveOn ? `${(live!.ctr * 100).toFixed(1)}%` : cur.ctr;
-  const headlineClicks = liveOn ? fmtCompact(live!.clicks) : cur.c;
+  const kpiClicks = liveOn ? fmtCompact(live!.clicks) : sampleOn ? cur.c : '—';
+  const kpiImpr = liveOn ? fmtCompact(live!.impressions) : sampleOn ? cur.im : '—';
+  const kpiCtr = liveOn ? `${(live!.ctr * 100).toFixed(1)}%` : sampleOn ? cur.ctr : '—';
 
   // ── KPI cards — live accounts get real sparklines + real deltas; the sample
   // view (labeled as such in the header) keeps illustrative shapes ────────────
@@ -162,27 +178,43 @@ export default function AnalyticsDashboard({
         { icon: 'target', label: 'Avg. position', value: live!.avgPosition ? live!.avgPosition.toFixed(1) : '—', delta: posDelta()?.text ?? '', up: posDelta()?.up ?? true, spark: liveSpark('position'), fill: false },
         { icon: 'spark', label: data.answers ? 'AI referrals' : 'AI citations', value: data.answers ? fmtCompact(data.answers.total) : '—', delta: '', up: true, spark: null, fill: true },
       ]
-    : [
+    : sampleOn
+    ? [
         { icon: 'rankings', label: 'Organic clicks', value: '48.2k', delta: '▲ 312%', up: true, spark: [12, 15, 14, 19, 22, 21, 27, 31, 30, 38, 44, 52], fill: true },
         { icon: 'eye', label: 'Impressions', value: '1.2M', delta: '▲ 38%', up: true, spark: [40, 44, 42, 49, 53, 52, 58, 63, 62, 69, 74, 80], fill: false },
         { icon: 'cursor', label: 'Avg. CTR', value: '4.0%', delta: '▲ 0.6pt', up: true, spark: [28, 30, 29, 33, 31, 35, 34, 38, 37, 40, 39, 42], fill: false },
         { icon: 'target', label: 'Avg. position', value: '4.2', delta: '▲ from 18', up: true, spark: [62, 58, 55, 49, 44, 40, 33, 28, 22, 17, 12, 9], fill: false },
         { icon: 'spark', label: data.answers ? 'AI referrals' : 'AI citations', value: data.answers ? fmtCompact(data.answers.total) : '401', delta: data.answers ? '' : '▲ 41%', up: true, spark: [8, 10, 12, 16, 15, 22, 28, 30, 36, 42, 48, 57], fill: true },
+      ]
+    // Nothing measured yet: the cards keep their shape (so the page doesn't
+    // reflow the moment data lands) but state plainly that there's no number.
+    : [
+        { icon: 'rankings', label: 'Organic clicks', value: '—', delta: '', up: true, spark: null, fill: true },
+        { icon: 'eye', label: 'Impressions', value: '—', delta: '', up: true, spark: null, fill: false },
+        { icon: 'cursor', label: 'Avg. CTR', value: '—', delta: '', up: true, spark: null, fill: false },
+        { icon: 'target', label: 'Avg. position', value: '—', delta: '', up: true, spark: null, fill: false },
+        { icon: 'spark', label: data.answers ? 'AI referrals' : 'AI citations', value: data.answers ? fmtCompact(data.answers.total) : '—', delta: '', up: true, spark: null, fill: true },
       ];
 
   // ── traffic sources (conic donut) ──────────────────────────────────────────
   const SOURCE_COLORS = [ACCENT, 'var(--gv-sky)', 'var(--gv-dim)', 'var(--gv-fainter)'];
   const sourceDef = data.traffic
     ? data.traffic.sources.map((s, i) => ({ name: s.name, pct: s.pct, color: SOURCE_COLORS[i] ?? 'var(--gv-fainter)' }))
-    : [
+    : sampleOn
+    ? [
         { name: 'Google Search', pct: 58, color: ACCENT_INK },
         { name: 'Answer engines', pct: 24, color: 'var(--gv-sky)' },
         { name: 'Direct', pct: 11, color: 'var(--gv-dim)' },
         { name: 'Social + referral', pct: 7, color: 'var(--gv-fainter)' },
-      ];
+      ]
+    : [];
   const answerSharePct = data.traffic ? (data.traffic.sources.find((s) => s.key === 'answer')?.pct ?? 0) : 24;
   let acc = 0;
-  const donutGradient = 'conic-gradient(' + sourceDef.map((s) => { const start = acc; acc += s.pct; return `${s.color} ${start}% ${acc}%`; }).join(', ') + ')';
+  // An empty source list would emit `conic-gradient()` — invalid CSS, which
+  // paints nothing at all. Fall back to a flat inert ring.
+  const donutGradient = sourceDef.length
+    ? 'conic-gradient(' + sourceDef.map((s) => { const start = acc; acc += s.pct; return `${s.color} ${start}% ${acc}%`; }).join(', ') + ')'
+    : 'rgba(255,255,255,0.05)';
 
   // ── articles table ──────────────────────────────────────────────────────────
   // Live accounts see EVERY published article (GSC clicks/impressions merged
@@ -214,7 +246,7 @@ export default function AnalyticsDashboard({
           up: true,
           spark: null,
         }))
-    : samplePosts;
+    : sampleOn ? samplePosts : [];
   // Live: Post | Views | Clicks | Impressions | CTR | Avg pos (every article).
   // Sample keeps the illustrative 30-day trend sparkline column.
   const tableCols = articlesLive ? '1fr 90px 100px 120px 80px 90px' : '1fr 110px 120px 80px 90px 110px';
@@ -226,25 +258,30 @@ export default function AnalyticsDashboard({
   const RANK_COLORS = ['#3de8bb', '#7fb6e6', '#c9a3e6', '#a374d6'];
   const rankDef = data.ranking
     ? data.ranking.bands.map((b, i) => ({ label: b.label, count: b.count, color: RANK_COLORS[i] ?? '#a374d6' }))
-    : [
+    : sampleOn
+    ? [
         { label: 'Positions 1–3', count: 42, color: '#3de8bb' },
         { label: 'Positions 4–10', count: 76, color: '#7fb6e6' },
         { label: 'Positions 11–20', count: 58, color: '#c9a3e6' },
         { label: 'Positions 21+', count: 38, color: '#a374d6' },
-      ];
+      ]
+    : [];
   const rankTotal = rankDef.reduce((a, b) => a + b.count, 0);
-  const rankBands = rankDef.map((b) => ({ ...b, pct: Math.round((b.count / rankTotal) * 100) + '%' }));
+  // Guard the divide: an empty band list would make every width NaN%.
+  const rankBands = rankDef.map((b) => ({ ...b, pct: (rankTotal ? Math.round((b.count / rankTotal) * 100) : 0) + '%' }));
 
   // Same four-color ramp as rank distribution — one accent hue per row so the
   // citations/funnel cards read as a system, not a wash of solid green.
   const SERIES_COLORS = ['#3de8bb', '#7fb6e6', '#c9a3e6', '#a374d6'];
   const engines = data.answers
     ? data.answers.byEngine.map((e, i) => ({ name: e.name, count: String(e.count), pct: `${e.pct}%`, color: SERIES_COLORS[i] ?? SERIES_COLORS[SERIES_COLORS.length - 1] }))
-    : [
+    : sampleOn
+    ? [
         { name: 'ChatGPT', count: '186', pct: '88%', color: SERIES_COLORS[0] },
         { name: 'Google AI Overviews', count: '142', pct: '67%', color: SERIES_COLORS[1] },
         { name: 'Perplexity', count: '73', pct: '34%', color: SERIES_COLORS[2] },
-      ];
+      ]
+    : [];
 
   const funnelDef = data.funnel
     ? (() => {
@@ -256,18 +293,28 @@ export default function AnalyticsDashboard({
           { label: 'Converted (CTA)', value: fmtCompact(f.converted), rate: rate(f.converted), pct: rate(f.converted), bar: SERIES_COLORS[2] },
         ];
       })()
-    : [
+    : sampleOn
+    ? [
         { label: 'Clicks to blog', value: '48.2k', rate: '100%', pct: '100%', bar: SERIES_COLORS[0] },
         { label: 'Read past 50%', value: '21.7k', rate: '45%', pct: '45%', bar: SERIES_COLORS[1] },
         { label: 'Email captured', value: '3,180', rate: '6.6%', pct: '28%', bar: SERIES_COLORS[2] },
         { label: 'Started trial', value: '742', rate: '1.5%', pct: '14%', bar: SERIES_COLORS[3] },
-      ];
+      ]
+    : [];
 
-  // Marks a card that still shows illustrative numbers while the rest of the
-  // report is live (e.g. GSC connected but no first-party events yet).
-  const sampleTag = (isSample: boolean) => (anyLive && isSample
+  // Marks a card that is showing illustrative numbers. Keyed off `sampleOn`,
+  // not `anyLive` — the chip has to appear on EVERY invented figure, and the
+  // account with nothing live is precisely the one that needs it most.
+  const sampleTag = (isSample: boolean) => (sampleOn && isSample
     ? <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-fainter)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 999, padding: '3px 8px' }}>sample</span>
     : null);
+
+  /** Card-body placeholder for a section with nothing measured and no sample. */
+  const noData = (label: string) => (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 120, padding: '28px 14px', textAlign: 'center', fontSize: 12.5, color: 'var(--gv-faint)', lineHeight: 1.6 }}>
+      {label}
+    </div>
+  );
 
   return (
     <>
@@ -298,18 +345,36 @@ export default function AnalyticsDashboard({
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 22 }}>
           <div>
             <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.025em', margin: 0 }}>Performance report</h1>
-            <p style={{ fontSize: 14, color: 'var(--gv-dim)', margin: '6px 0 0' }}>Over the {curP.range}, your content earned <span style={{ color: 'var(--gv-ink)', fontWeight: 600 }}>{headlineClicks} clicks</span>
-              {data.answers
-                ? <> and <span style={{ color: 'var(--gv-ink)', fontWeight: 600 }}>{data.answers.total.toLocaleString()} answer-engine referrals</span>.</>
-                : anyLive
-                  ? <>.</>
-                  : <> and was quoted <span style={{ color: 'var(--gv-ink)', fontWeight: 600 }}>{curP.cites} times</span> by answer engines.</>}</p>
+            {/* The headline states numbers ONLY when they are the customer's own.
+                With nothing measured it says so — it never borrows a figure from
+                the illustrative set, which is how "your content earned 48,210
+                clicks" came to greet accounts that had published nothing. */}
+            <p style={{ fontSize: 14, color: 'var(--gv-dim)', margin: '6px 0 0' }}>
+              {anyLive ? (
+                <>Over the {curP.range}, your content earned <span style={{ color: 'var(--gv-ink)', fontWeight: 600 }}>{fmtCompact(live?.clicks ?? 0)} clicks</span>
+                  {data.answers
+                    ? <> and <span style={{ color: 'var(--gv-ink)', fontWeight: 600 }}>{data.answers.total.toLocaleString()} answer-engine referrals</span>.</>
+                    : <>.</>}</>
+              ) : sampleOn ? (
+                <>Example of what this report looks like once your blog is compounding. <span style={{ color: 'var(--gv-soft)', fontWeight: 600 }}>These are not your numbers.</span></>
+              ) : (
+                <>No performance data yet. Connect Search Console and publish your first articles — measurements land here as they come in.</>
+              )}
+            </p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--gv-faint)' }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: ACCENT_INK, animation: 'gvPulse 2.4s ease-in-out infinite' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, color: 'var(--gv-faint)', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            {anyLive && <span style={{ width: 7, height: 7, borderRadius: '50%', background: ACCENT_INK, animation: 'gvPulse 2.4s ease-in-out infinite' }} />}
             {anyLive
               ? <>Synced from Search Console &amp; first-party events · {syncedAgo}</>
-              : <>Sample view — connect Google to see your numbers</>}
+              : <>Nothing measured yet · connect Google to start</>}
+            {!anyLive && (
+              <button
+                onClick={() => setSampleOn((v) => !v)}
+                style={{ border: `1px solid ${sampleOn ? 'rgba(162,255,1,0.25)' : 'rgba(255,255,255,0.1)'}`, background: sampleOn ? 'rgba(162,255,1,0.1)' : 'transparent', color: sampleOn ? 'var(--gv-ink)' : 'var(--gv-dim)', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, padding: '5px 12px', borderRadius: 999, cursor: 'pointer', transition: '.2s' }}
+              >
+                {sampleOn ? 'Hide sample data' : 'Preview with sample data'}
+              </button>
+            )}
           </div>
         </div>
 
@@ -443,6 +508,12 @@ export default function AnalyticsDashboard({
               </div>
             </div>
 
+            {chartEmpty ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: 210, marginTop: 6, border: '1px dashed rgba(255,255,255,0.08)', borderRadius: 12, padding: '0 24px', textAlign: 'center', fontSize: 12.5, color: 'var(--gv-faint)', lineHeight: 1.6 }}>
+                Search Console hasn’t reported any days yet.<br />Your clicks and impressions will plot here.
+              </div>
+            ) : (
+            <>
             <div style={{ position: 'relative', width: '100%', height: 210, marginTop: 6 }}>
               <svg viewBox="0 0 640 220" preserveAspectRatio="none" style={{ width: '100%', height: '100%', overflow: 'visible', display: 'block' }}>
                 <defs>
@@ -503,32 +574,40 @@ export default function AnalyticsDashboard({
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--gv-fainter)', marginTop: 10 }}>
               {chartLabels.map((lab, i) => <span key={i}>{lab}</span>)}
             </div>
+            </>
+            )}
           </div>
 
           {/* traffic sources */}
           <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '22px 24px', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 700 }}>Traffic sources {sampleTag(!data.traffic)}</div>
             <div style={{ fontSize: 12, color: 'var(--gv-faint)', margin: '3px 0 16px' }}>Where the clicks came from</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 22, flexWrap: 'wrap' }}>
-              <div style={{ position: 'relative', width: 132, height: 132, flexShrink: 0, borderRadius: '50%', background: donutGradient }}>
-                <div style={{ position: 'absolute', inset: 19, borderRadius: '50%', background: 'var(--gv-card)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1 }}>{data.traffic ? fmtCompact(data.traffic.total) : (liveOn ? fmtCompact(live!.clicks) : cur.c)}</span>
-                  <span style={{ fontSize: 10, color: 'var(--gv-faint)', marginTop: 3 }}>{data.traffic ? 'total visits' : 'total clicks'}</span>
-                </div>
-              </div>
-              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {sourceDef.map((s) => (
-                  <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                    <span style={{ width: 9, height: 9, borderRadius: 3, background: s.color, flexShrink: 0 }} />
-                    <span style={{ fontSize: 12.5, color: 'var(--gv-soft)', flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.name}</span>
-                    <span style={{ fontSize: 12.5, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{s.pct}%</span>
+            {sourceDef.length === 0 ? (
+              noData('No visits recorded yet. Once readers arrive, this splits them by source.')
+            ) : (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 22, flexWrap: 'wrap' }}>
+                  <div style={{ position: 'relative', width: 132, height: 132, flexShrink: 0, borderRadius: '50%', background: donutGradient }}>
+                    <div style={{ position: 'absolute', inset: 19, borderRadius: '50%', background: 'var(--gv-card)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                      <span style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1 }}>{data.traffic ? fmtCompact(data.traffic.total) : (liveOn ? fmtCompact(live!.clicks) : cur.c)}</span>
+                      <span style={{ fontSize: 10, color: 'var(--gv-faint)', marginTop: 3 }}>{data.traffic ? 'total visits' : 'total clicks'}</span>
+                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
-            <div style={{ paddingTop: 18, fontSize: 11.5, color: 'var(--gv-faint)', lineHeight: 1.55, borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: 20 }}>
-              <span style={{ color: ACCENT_INK, fontWeight: 600 }}>Answer engines</span> {data.traffic ? <>drive {answerSharePct}% of clicks to your blog.</> : <>now drive 24% of all clicks — up from 4% a quarter ago.</>}
-            </div>
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {sourceDef.map((s) => (
+                      <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                        <span style={{ width: 9, height: 9, borderRadius: 3, background: s.color, flexShrink: 0 }} />
+                        <span style={{ fontSize: 12.5, color: 'var(--gv-soft)', flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.name}</span>
+                        <span style={{ fontSize: 12.5, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{s.pct}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ paddingTop: 18, fontSize: 11.5, color: 'var(--gv-faint)', lineHeight: 1.55, borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: 20 }}>
+                  <span style={{ color: ACCENT_INK, fontWeight: 600 }}>Answer engines</span> {data.traffic ? <>drive {answerSharePct}% of clicks to your blog.</> : <>now drive 24% of all clicks — up from 4% a quarter ago.</>}
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -546,7 +625,7 @@ export default function AnalyticsDashboard({
                 })}
               </div>
             </div>
-            <span style={{ fontSize: 12.5, color: 'var(--gv-dim)' }}>{articlesLive ? `${postDef.length} published article${postDef.length === 1 ? '' : 's'}` : 'Sample data'}</span>
+            <span style={{ fontSize: 12.5, color: 'var(--gv-dim)' }}>{articlesLive ? `${postDef.length} published article${postDef.length === 1 ? '' : 's'}` : sampleOn ? 'Sample data' : 'Nothing published yet'}</span>
           </div>
           <div className="gv-tbl" style={{ display: 'grid', gridTemplateColumns: tableCols, padding: '11px 22px', fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-fainter)', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
             <span>Post</span>
@@ -582,7 +661,7 @@ export default function AnalyticsDashboard({
               </div>
             );
           })}
-          {articlesLive && postDef.length === 0 && (
+          {postDef.length === 0 && (
             <div style={{ padding: '28px 22px', textAlign: 'center', fontSize: 13, color: 'var(--gv-faint)' }}>
               No published articles yet — they’ll appear here as the pipeline ships them.
             </div>
@@ -596,43 +675,55 @@ export default function AnalyticsDashboard({
           <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '20px 22px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 700 }}>Ranking distribution {sampleTag(!data.ranking)}</div>
-              <span style={{ fontSize: 11.5, color: ACCENT_INK, fontWeight: 600 }}>{rankTotal} terms</span>
+              {rankBands.length > 0 && <span style={{ fontSize: 11.5, color: ACCENT_INK, fontWeight: 600 }}>{rankTotal} terms</span>}
             </div>
             <div style={{ fontSize: 12, color: 'var(--gv-faint)', marginBottom: 18 }}>Keyword positions on Google</div>
-            <div style={{ display: 'flex', height: 7, borderRadius: 99, overflow: 'hidden', marginBottom: 20 }}>
-              {rankBands.map((b) => <span key={b.label} style={{ width: b.pct, background: b.color }} />)}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
-              {rankBands.map((b) => (
-                <div key={b.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ width: 9, height: 9, borderRadius: 3, background: b.color, flexShrink: 0 }} />
-                  <span style={{ fontSize: 12.5, color: 'var(--gv-soft)', flex: 1 }}>{b.label}</span>
-                  <span style={{ fontSize: 12.5, color: 'var(--gv-faint)', fontVariantNumeric: 'tabular-nums' }}>{b.pct}</span>
-                  <span style={{ fontSize: 13, fontWeight: 700, width: 34, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{b.count}</span>
+            {rankBands.length === 0 ? (
+              noData('No ranking keywords yet. Articles typically start appearing within a few weeks of publishing.')
+            ) : (
+              <>
+                <div style={{ display: 'flex', height: 7, borderRadius: 99, overflow: 'hidden', marginBottom: 20 }}>
+                  {rankBands.map((b) => <span key={b.label} style={{ width: b.pct, background: b.color }} />)}
                 </div>
-              ))}
-            </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
+                  {rankBands.map((b) => (
+                    <div key={b.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ width: 9, height: 9, borderRadius: 3, background: b.color, flexShrink: 0 }} />
+                      <span style={{ fontSize: 12.5, color: 'var(--gv-soft)', flex: 1 }}>{b.label}</span>
+                      <span style={{ fontSize: 12.5, color: 'var(--gv-faint)', fontVariantNumeric: 'tabular-nums' }}>{b.pct}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, width: 34, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{b.count}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
 
           {/* answer engine citations */}
           <div className="gv-card" style={{ background: 'var(--gv-card-grad)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 18, padding: '20px 22px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 700 }}>{data.answers ? 'Answer-engine referrals' : 'Answer-engine citations'} {sampleTag(!data.answers)}</div>
-              {!data.answers && !anyLive && <span style={{ fontSize: 11, color: ACCENT_INK, fontWeight: 600 }}>▲ 41%</span>}
+              {!data.answers && sampleOn && <span style={{ fontSize: 11, color: ACCENT_INK, fontWeight: 600 }}>▲ 41%</span>}
             </div>
             <div style={{ fontSize: 12, color: 'var(--gv-faint)', margin: '3px 0 18px' }}>{data.answers ? 'Visits that came from an answer engine' : 'Times grove content was quoted'}</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
-              {engines.map((e) => (
-                <div key={e.name}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 13, marginBottom: 7 }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--gv-soft)' }}><span style={{ width: 9, height: 9, borderRadius: 3, background: e.color, flexShrink: 0 }} />{e.name}</span>
-                    <span style={{ fontWeight: 700 }}>{e.count}</span>
-                  </div>
-                  <div style={{ height: 7, borderRadius: 99, background: 'rgba(255,255,255,0.05)', overflow: 'hidden' }}><div style={{ height: '100%', width: e.pct, borderRadius: 99, background: e.color }} /></div>
+            {engines.length === 0 ? (
+              noData('No answer-engine referrals yet. ChatGPT, Perplexity and AI Overviews show up here as they cite you.')
+            ) : (
+              <>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
+                  {engines.map((e) => (
+                    <div key={e.name}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 13, marginBottom: 7 }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--gv-soft)' }}><span style={{ width: 9, height: 9, borderRadius: 3, background: e.color, flexShrink: 0 }} />{e.name}</span>
+                        <span style={{ fontWeight: 700 }}>{e.count}</span>
+                      </div>
+                      <div style={{ height: 7, borderRadius: 99, background: 'rgba(255,255,255,0.05)', overflow: 'hidden' }}><div style={{ height: '100%', width: e.pct, borderRadius: 99, background: e.color }} /></div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <div style={{ fontSize: 11.5, color: 'var(--gv-faint)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 14, marginTop: 18 }}>{data.answers ? 'Click-throughs only — Google AI Overviews report as regular Search.' : '75% of published posts are structured for AI Overviews.'}</div>
+                <div style={{ fontSize: 11.5, color: 'var(--gv-faint)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 14, marginTop: 18 }}>{data.answers ? 'Click-throughs only — Google AI Overviews report as regular Search.' : '75% of published posts are structured for AI Overviews.'}</div>
+              </>
+            )}
           </div>
 
           {/* conversion funnel */}
@@ -642,6 +733,7 @@ export default function AnalyticsDashboard({
               <span style={{ fontSize: 11.5, color: 'var(--gv-faint)' }}>{curP.short}</span>
             </div>
             <div style={{ fontSize: 12, color: 'var(--gv-faint)', marginBottom: 18 }}>From a click to a signup</div>
+            {funnelDef.length === 0 ? noData('No reader journeys tracked yet. This fills in once articles are live and being read.') : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
               {funnelDef.map((f) => (
                 <div key={f.label}>
@@ -653,6 +745,7 @@ export default function AnalyticsDashboard({
                 </div>
               ))}
             </div>
+            )}
           </div>
         </div>
 
