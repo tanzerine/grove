@@ -222,7 +222,12 @@ export async function GET(req: Request) {
   const exhaustedOwners = new Set<string>();
   for (let i = 0; i < candidates.length; i++) {
     const p = candidates[i];
-    if (!hasRoomFor(elapsed(), drainBudgetMs, estimateMs)) {
+    // The first candidate always gets a go: at the top of a tick the whole
+    // budget is unspent, so declining to start anything would waste the entire
+    // invocation. That also means a bad duration estimate can only ever cost
+    // throughput, never halt the loop outright — the failure mode that a
+    // mis-measured estimate caused once already.
+    if (generated > 0 && !hasRoomFor(elapsed(), drainBudgetMs, estimateMs)) {
       // Out of time — everything still untouched stays queued and leads the
       // next tick (pickQueuedFairly's ordering rotates who goes first).
       deferred = candidates.length - i;

@@ -166,21 +166,49 @@ export function postsPerTick(
 
 // ── measuring real generation cost ─────────────────────────────────────────
 
-export type LogLike = ({ ts?: number } | null)[] | null | undefined;
+export type LogLike = ({ ts?: number; step?: string } | null)[] | null | undefined;
 
-function timestamps(log: LogLike): number[] {
+/**
+ * The steps that run inside `generatePost`.
+ *
+ * A post's generation_log is NOT a record of one generation: /api/cron/images
+ * keeps appending `cover_image` and `inline_images` entries for days after the
+ * article was written. Measuring first-to-last entry therefore reports the age
+ * of the post, not the cost of generating it — real logs in production span
+ * ~150 seconds of pipeline followed by six days of image backfill.
+ */
+const PIPELINE_STEPS = new Set([
+  'queued', 'site_profile', 'research', 'topic_refiner', 'writer', 'manager', 'persist',
+]);
+
+/**
+ * Longest a single generation could plausibly take. A generation is bounded by
+ * the function ceiling, so anything above this is a measurement artefact rather
+ * than a slow article — discard it instead of letting it poison the estimate.
+ */
+export const MAX_PLAUSIBLE_GENERATION_MS = 20 * 60_000;
+
+function timestamps(log: LogLike, steps?: Set<string>): number[] {
   if (!Array.isArray(log)) return [];
   return log
+    .filter((e) => !steps || (e && typeof e.step === 'string' && steps.has(e.step)))
     .map((e) => (e && typeof e.ts === 'number' ? e.ts : NaN))
     .filter((n) => Number.isFinite(n) && n > 0);
 }
 
-/** End-to-end wall time of a finished generation, from its own log. */
+/**
+ * Wall time of a finished generation, measured over the pipeline steps only.
+ *
+ * Returns null for anything unmeasurable or implausible, so a bad sample is
+ * dropped rather than skewing the drain — an over-estimate here stops the tick
+ * from starting any work at all.
+ */
 export function generationDurationMs(log: LogLike): number | null {
-  const ts = timestamps(log);
+  const ts = timestamps(log, PIPELINE_STEPS);
   if (ts.length < 2) return null;
   const d = Math.max(...ts) - Math.min(...ts);
-  return d > 0 ? d : null;
+  if (d <= 0 || d > MAX_PLAUSIBLE_GENERATION_MS) return null;
+  return d;
 }
 
 /**
