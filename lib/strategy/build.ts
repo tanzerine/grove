@@ -15,7 +15,7 @@
 import { strategyLlmCall, extractJson } from '../llm';
 import type { SiteProfile } from '../pipeline/site-profile';
 import { interviewSummary, type InterviewAnswers } from './interview';
-import { assignPublishDates } from './schedule';
+import { assignPublishDates, slotsForRemainder } from './schedule';
 import { titleTokens } from '../related-posts';
 import { gatherKeywordDemand, formatDemandForPrompt } from './keywords';
 import { monthlySlots } from '../plans';
@@ -155,7 +155,14 @@ function digestReport(r: MonthlyReport): string {
 
 export async function buildStrategy(input: BuildStrategyInput): Promise<Strategy> {
   const { month, postsPerWeek, profile, interview, prevStrategy, prevReport, progressMd, alreadyCovered } = input;
-  const monthlyPostCount = monthlySlots(postsPerWeek, input.monthlyQuota);
+  // The cadence and the plan allowance set the size; the calendar sets the
+  // ceiling. A plan built mid-month can only reach as far as the month still
+  // goes, so it's pro-rated to the days left instead of promising articles that
+  // could only be dated in the past (see schedule.slotsForRemainder).
+  const monthlyPostCount = Math.min(
+    monthlySlots(postsPerWeek, input.monthlyQuota),
+    slotsForRemainder(postsPerWeek, month),
+  );
   const isFirstMonth = !prevStrategy && !prevReport?.totals?.views;
 
   // VALIDATED DEMAND — pull real search phrases (free, via Google Autocomplete)
