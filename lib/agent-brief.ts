@@ -20,7 +20,10 @@ export type BriefStats = {
   inReview: number;
   inFlight: number;                // queued / researching / writing
   nextScheduledAt: string | null;
-  topPost: { title: string; views: number } | null;
+  // `id` lets the dashboard find the post itself (its generation topic makes a
+  // better cluster seed than the headline). Optional so the pure-text callers
+  // and their fixtures don't have to carry it.
+  topPost: { id?: string; title: string; views: number } | null;
 };
 
 export async function getBriefStats(domainId: string, hostname: string): Promise<BriefStats> {
@@ -60,7 +63,7 @@ export async function getBriefStats(domainId: string, hostname: string): Promise
     inReview,
     inFlight,
     nextScheduledAt: (nextSched as any)?.data?.scheduled_at ?? null,
-    topPost: top && top.views > 0 ? { title: top.title, views: top.views } : null,
+    topPost: top && top.views > 0 ? { id: top.post_id, title: top.title, views: top.views } : null,
   };
 }
 

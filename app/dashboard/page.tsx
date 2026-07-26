@@ -8,6 +8,8 @@ import Icon from './gv-icons';
 import { DashHeader } from './gv-chrome';
 import OverviewPipeline, { type OvRow } from './OverviewPipeline';
 import AskAgent from './AskAgent';
+import AgentInsight from './AgentInsight';
+import { clusterSeedFromTitle } from '@/lib/cluster-seed';
 import GhostPipeline from './GhostPipeline';
 import OverviewCalendar, { type CalDay } from './OverviewCalendar';
 import DashSearch from './DashSearch';
@@ -186,11 +188,24 @@ export default async function OverviewPage() {
     ? 'I’m working through your plan — researching, drafting, and holding finished drafts for your sign-off.'
     : 'Ready to go. Queue your first topic (or flip on autopilot) and I’ll start researching and drafting right away.';
   // Real insight from the data we have (top performer / review backlog) — or null.
+  // Each variant carries the action it promises: the cluster line is only shown
+  // when we can actually build one (seed + domain), so the CTA is never a claim
+  // the panel can't honour.
+  const hub = brief?.topPost ? all.find((p) => p.id === brief!.topPost!.id) : null;
+  const clusterSeed = brief?.topPost
+    ? clusterSeedFromTitle(hub?.topic || brief.topPost.title)
+    : '';
+  const cluster = domain && brief?.topPost && clusterSeed
+    ? { domainId: domain.id, seed: clusterSeed, hubTitle: brief.topPost.title }
+    : null;
   const agentInsight = brief?.topPost
-    ? `“${brief.topPost.title}” is your top performer with ${brief.topPost.views} read${brief.topPost.views === 1 ? '' : 's'} — grove can build a content cluster around it.`
+    ? `“${brief.topPost.title}” is your top performer with ${brief.topPost.views} read${brief.topPost.views === 1 ? '' : 's'}${cluster ? ' — grove can build a content cluster around it.' : ' — worth doubling down on in this month’s plan.'}`
     : inReview.length
     ? `${inReview.length} draft${inReview.length === 1 ? '' : 's'} ${inReview.length === 1 ? 'is' : 'are'} ready — approving keeps your publishing cadence on track.`
     : null;
+  const insightAction = !cluster && inReview.length
+    ? { label: `Review ${inReview.length} draft${inReview.length === 1 ? '' : 's'} →`, href: '/dashboard/pipeline' }
+    : undefined;
   const flight = inPipeline.filter((p) => ['queued', 'researching', 'writing'].includes(p.status));
   const agentItems: { icon: string; title: string; detail: string; attn: boolean; action?: { label: string; href: string } }[] = [];
   if (inReview.length) agentItems.push({ icon: 'eye', title: `${inReview.length} draft${inReview.length === 1 ? '' : 's'} need review`, detail: 'Approve to let autopilot publish them', attn: true, action: { label: 'Review', href: '/dashboard/pipeline' } });
@@ -376,13 +391,7 @@ export default async function OverviewPage() {
               </div>
 
               {agentInsight && (
-                <div style={{ marginTop: 18, padding: '14px 15px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: SAGE, marginBottom: 8 }}><span style={{ display: 'flex' }}><Icon name="answers" /></span> Agent insight</div>
-                  <div style={{ fontSize: 12.5, color: 'var(--gv-soft)', lineHeight: 1.55 }}>{agentInsight}</div>
-                  <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                    <Link href="/dashboard/strategy" className="gv-btn" style={{ border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, padding: '7px 13px', borderRadius: 8, cursor: 'pointer', textDecoration: 'none' }}>Review plan</Link>
-                  </div>
-                </div>
+                <AgentInsight text={agentInsight} cluster={cluster} action={insightAction} />
               )}
 
               <div style={{ display: 'flex', gap: 8, marginTop: 'auto', paddingTop: 16, flexWrap: 'wrap' }}>
