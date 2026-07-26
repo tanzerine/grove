@@ -64,6 +64,7 @@ export default function PlanChat({ domainId, bare = false }: { domainId: string;
   const [budget, setBudget] = useState<Budget | null>(null);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [open, setOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -83,8 +84,16 @@ export default function PlanChat({ domainId, bare = false }: { domainId: string;
   }, [domainId]);
 
   useEffect(() => {
-    if (showHistory) scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [messages, sending, showHistory]);
+    if (open && showHistory) scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
+  }, [messages, sending, open, showHistory]);
+
+  // Links that point at the chat (#plan-chat) expect it open on arrival.
+  useEffect(() => {
+    const openOnHash = () => { if (window.location.hash === '#plan-chat') setOpen(true); };
+    openOnHash();
+    window.addEventListener('hashchange', openOnHash);
+    return () => window.removeEventListener('hashchange', openOnHash);
+  }, []);
 
   const send = async () => {
     const message = input.trim();
@@ -117,21 +126,39 @@ export default function PlanChat({ domainId, bare = false }: { domainId: string;
         ? {}
         : { background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '22px 24px', marginTop: 14 }}
     >
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-        <div>
-          <div style={{ fontSize: 15, fontWeight: 700 }}>Talk to your strategist</div>
-          <div style={{ fontSize: 12.5, color: 'var(--gv-faint)', marginTop: 3 }}>
-            Ask why the plan looks this way, or tell it what to change — e.g. &ldquo;add two more conversion posts&rdquo;.
-          </div>
-        </div>
+      {/* The whole strategist thread is a disclosure: closed it costs one row,
+          open it's a full conversation. Closed is the default — the plan, not
+          the chat about it, is what the page is for. */}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="gv-btn"
+        style={{
+          display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: 0,
+          background: 'none', border: 'none', color: 'inherit', fontFamily: 'inherit', cursor: 'pointer', textAlign: 'left',
+        }}
+      >
+        <span style={{ display: 'flex', color: 'var(--gv-dim)', transform: open ? 'rotate(-90deg)' : 'rotate(90deg)', transition: 'transform .18s' }}>
+          <Icon name="arrow" size={14} />
+        </span>
+        <span style={{ minWidth: 0 }}>
+          <span style={{ display: 'block', fontSize: 15, fontWeight: 700 }}>Talk to your strategist</span>
+          <span style={{ display: 'block', fontSize: 12.5, color: 'var(--gv-faint)', marginTop: 3 }}>
+            {open
+              ? 'Ask why the plan looks this way, or tell it what to change.'
+              : messages.length > 0
+                ? `${messages.length} message${messages.length === 1 ? '' : 's'} in this month’s thread`
+                : 'Ask why the plan looks this way, or tell it what to change.'}
+          </span>
+        </span>
         {budget && (
-          <span style={{ fontSize: 11.5, color: budget.revisionsLeft > 0 ? 'var(--gv-dim)' : 'var(--gv-red)', whiteSpace: 'nowrap' }}>
-            {budget.revisionsLeft} plan change{budget.revisionsLeft === 1 ? '' : 's'} left this month
+          <span style={{ marginLeft: 'auto', fontSize: 11.5, color: budget.revisionsLeft > 0 ? 'var(--gv-dim)' : 'var(--gv-red)', whiteSpace: 'nowrap' }}>
+            {budget.revisionsLeft} plan change{budget.revisionsLeft === 1 ? '' : 's'} left
           </span>
         )}
-      </div>
+      </button>
 
-      {messages.length > 0 && (
+      {open && messages.length > 0 && (
         <div style={{ margin: '16px 0 0' }}>
           {earlier.length > 0 && (
             <button
@@ -170,7 +197,7 @@ export default function PlanChat({ domainId, bare = false }: { domainId: string;
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+      <div style={{ display: open ? 'flex' : 'none', gap: 8, marginTop: 14 }}>
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
