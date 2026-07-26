@@ -185,7 +185,9 @@ the strategy's `notes` field so it can hold the writer to the explicit
 - `lib/analytics/track.ts`, `lib/analytics/summarize.ts` — analytics.
 - `app/api/track/route.ts` — public ingest endpoint.
 - `app/b/[slug]/[post]/page.tsx` — inline tracker beacon.
-- `app/api/cron/monthly-strategy/route.ts` — the loop.
+- `app/api/cron/strategy/route.ts` — the loop. Hourly, ONE domain per
+  invocation: planning needs the whole function to itself (see the route's
+  docstring for why sharing a tick silently demoted it to the workhorse model).
 - `app/api/cron/weekly-digest/route.ts` — weekly progress heartbeat + owner digest.
 
 All four layers are independent enough to evolve separately; the strategy

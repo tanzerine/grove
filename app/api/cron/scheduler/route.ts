@@ -50,7 +50,6 @@ import {
   shouldSyncGsc,
 } from '@/lib/pipeline/capacity';
 import { materializeDuePlanSlots } from '@/lib/strategy/materialize';
-import { ensureMonthlyStrategy, monthBounds, type EnsureDomain } from '@/lib/strategy/ensure';
 import { entitledUserSet } from '@/lib/billing';
 import { consumeQuota, quotaForUsers, releaseQuota, shareAllowance } from '@/lib/quota';
 import { publishToSocials } from '@/lib/social/publish';
@@ -174,29 +173,16 @@ export async function GET(req: Request) {
   const syncGsc = shouldSyncGsc(new Date(), schedulerTicksPerDay());
   const drainBudgetMs = Math.max(0, budgetMs - (syncGsc ? GSC_RESERVE_MS : 0));
 
-  // 2b) SELF-HEAL the monthly strategy: if the run on the 1st was killed (LLM
-  //     timeout, platform limit), the loop used to stay dead until the NEXT 1st
-  //     — no re-evaluation, no new slots, no new posts. Build at most one
-  //     missing current-month strategy per tick, and only when doing so still
-  //     leaves room to generate something afterwards.
-  let strategyHealed = 0;
-  const monthDate = monthBounds().thisMonth.toISOString().slice(0, 10);
-  const { data: haveStrategy } = await sb
-    .from('strategies').select('domain_id')
-    .eq('month', monthDate).eq('active', true);
-  const covered = new Set((haveStrategy ?? []).map((r: any) => r.domain_id));
-  const missing = entitledDomains.find(
-    (d: any) => !covered.has(d.id) && d.site_profile?.business?.name,
-  );
-  const healBudgetMs = 120_000;
-  if (missing && hasRoomFor(elapsed(), drainBudgetMs, healBudgetMs + estimateMs)) {
-    try {
-      const res = await ensureMonthlyStrategy(missing as EnsureDomain, { llmTimeoutMs: healBudgetMs });
-      if (res === 'created') strategyHealed = 1;
-    } catch (e) {
-      console.error('[scheduler] strategy self-heal failed:', (missing as any).id, e);
-    }
-  }
+  // 2b) Strategy self-heal used to live here, squeezed into a 120s slice of
+  //     this tick. That slice was below strategyLlmCall's minimum budget, so
+  //     every heal silently planned on the workhorse instead of the strategy
+  //     model — the tier was effectively off for all automated builds.
+  //
+  //     It now has its own cron (/api/cron/strategy, hourly at :45) with the
+  //     whole invocation to itself, which is the only way the planner gets the
+  //     ~3-4 minutes it needs. Healing still happens every hour; it just no
+  //     longer competes with the drain, and this tick keeps its full budget for
+  //     generation.
 
   // 2c) materialize plan → posts: turn active-strategy slots that are due
   //     (within the lead window) into queued posts, carrying their planned
@@ -341,7 +327,7 @@ export async function GET(req: Request) {
     published: due?.length ?? 0,
     social_fanout: socialFanout,
     reclaimed,
-    strategy_healed: strategyHealed,
+    // strategy_healed moved to /api/cron/strategy — see 2b.
     materialized,
     generated,
     deferred,

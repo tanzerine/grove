@@ -2,12 +2,16 @@
  * ensureMonthlyStrategy — build + persist the current month's strategy for one
  * domain, if an active one doesn't already exist.
  *
- * Extracted from the monthly cron so it has two callers:
- *   - /api/cron/monthly-strategy on the 1st (the normal path)
- *   - /api/cron/scheduler daily (self-heal: if the monthly run was killed by a
- *     timeout or an LLM outage, the loop recovers within a day instead of
- *     staying dead until the 1st of the NEXT month — which is exactly the
- *     failure mode that stalled month 2 in production)
+ * Callers:
+ *   - /api/cron/strategy — hourly, ONE domain per invocation with the whole
+ *     function to itself. That isolation is the point: planning needs ~3-4
+ *     uninterrupted minutes, and every earlier caller squeezed it into a slice
+ *     of a shared tick, which silently demoted it to the workhorse model.
+ *   - the onboarding/interview paths, where a human is waiting on a plan.
+ *
+ * Because the hourly route rebuilds anything missing for the current month, it
+ * is also the self-heal: a month that starts with a failed build recovers
+ * within the hour rather than staying dead until the 1st of the next one.
  *
  * Idempotent: an existing active strategy for (domain, current month) short-
  * circuits to 'exists'. Safe to call every tick.
@@ -135,7 +139,8 @@ export async function ensureMonthlyStrategy(
 
   await sb.from('strategies').update({ active: false })
     .eq('domain_id', domain.id).eq('active', true);
-  await sb.from('strategies').insert({
+
+  const row = {
     domain_id: domain.id,
     month: monthDate,
     source: strategy.source,
@@ -148,7 +153,15 @@ export async function ensureMonthlyStrategy(
     prev_review: report,
     notes: strategy.notes,
     active: true,
-  });
+  };
+
+  // planned_by lands in migration 0029. Until that's applied the column doesn't
+  // exist and including it would fail the whole insert — losing the plan to
+  // save a diagnostic. Write it when we can, drop it when we can't.
+  const { error: insertErr } = await sb
+    .from('strategies')
+    .insert({ ...row, planned_by: strategy.planned_by ?? null });
+  if (insertErr) await sb.from('strategies').insert(row);
 
   // Refresh the plan memo the chat + downstream prompts read.
   await savePlanContext(domain.id, strategy, domain.hostname);

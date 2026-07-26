@@ -75,37 +75,64 @@ const STRATEGY_MODEL = (
 ) as `${string}/${string}`;
 
 // Opus needs real wall-clock time to finish (~3-4 min for a full plan). When
-// the caller's budget is too tight for it to complete — the crons run on a
-// ~120s/domain slice under Vercel's 300s ceiling — attempting Opus just burns
-// the whole budget timing out before we fall back to the workhorse anyway. So
-// below this threshold we skip Opus entirely and go straight to the workhorse:
-// same result the timeout+fallback produced, but ~2 min faster and without
-// spending a doomed (and billed) Opus prediction on every single build. Opus
-// still runs where it can actually land (interactive plan revisions, 240s).
+// the caller's budget is too tight for it to complete, attempting Opus just
+// burns that budget timing out before we fall back to the workhorse anyway — so
+// below this threshold we skip it and go straight to the workhorse.
+//
+// THE TRAP THIS SET. Every automated caller passed 120_000 — the monthly cron's
+// LLM_TIMEOUT_MS and the scheduler's healBudgetMs — which is below the
+// threshold. So 100% of automated strategy builds silently ran on the cheap
+// workhorse, and the only path that ever reached Opus was an interactive plan
+// revision. The product's most expensive promise was switched off by an
+// inequality, with no signal anywhere: no log line, no column, nothing.
+//
+// The threshold is still right — a doomed call helps nobody. What was wrong was
+// the callers. Strategy now runs on its own cron with the whole invocation to
+// itself (see /api/cron/strategy), so it can pass a budget Opus can actually
+// land in. `planned_by` on the result records which model really ran, so this
+// can never again be invisible.
 const STRATEGY_MIN_BUDGET_MS = 180_000;
+
+/** What a strategy call needs, so callers can't accidentally under-budget it. */
+export const STRATEGY_BUDGET_MS = 240_000;
+
+export type StrategyCallResult = {
+  text: string;
+  /** The model that actually produced this text — Opus, or the fallback. */
+  model: string;
+  /** True when the top tier was skipped or failed and the workhorse answered. */
+  fellBack: boolean;
+};
 
 export async function strategyLlmCall(opts: {
   system: string;
   user: string;
   maxTokens?: number;
   timeoutMs?: number;   // callers on a tight function budget (crons) pass a lower cap
-}): Promise<{ text: string }> {
-  const timeoutMs = opts.timeoutMs ?? 240_000;   // Opus is slower; default fits an interactive call
+}): Promise<StrategyCallResult> {
+  const timeoutMs = opts.timeoutMs ?? STRATEGY_BUDGET_MS;
   const maxTokens = opts.maxTokens ?? 4500;
 
   if (timeoutMs < STRATEGY_MIN_BUDGET_MS) {
-    // Not enough time for Opus to finish — don't waste the call, just use the
-    // workhorse directly.
-    return llmCall({ ...opts, maxTokens, timeoutMs });
+    // Not enough time for Opus to finish — don't waste the call. Loud, because
+    // this silently disabled the strategy tier for months.
+    console.warn(
+      `[strategyLlmCall] budget ${timeoutMs}ms < ${STRATEGY_MIN_BUDGET_MS}ms — ` +
+      `skipping ${STRATEGY_MODEL}, planning on ${MODEL}`,
+    );
+    const { text } = await llmCall({ ...opts, maxTokens, timeoutMs });
+    return { text, model: MODEL, fellBack: true };
   }
 
   try {
-    return await llmCall({ ...opts, model: STRATEGY_MODEL, maxTokens, timeoutMs });
+    const { text } = await llmCall({ ...opts, model: STRATEGY_MODEL, maxTokens, timeoutMs });
+    return { text, model: STRATEGY_MODEL, fellBack: false };
   } catch (err) {
     // The loop must never stall on a single provider hiccup: fall back to the
     // workhorse model rather than leaving a domain without a plan.
     console.error('[strategyLlmCall] falling back to main model:', err);
-    return llmCall(opts);
+    const { text } = await llmCall(opts);
+    return { text, model: MODEL, fellBack: true };
   }
 }
 
