@@ -69,6 +69,10 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
   const [scheduledAt, setScheduledAt] = useState<string | null>(initialScheduledAt);
   const baseline = useRef<string>(initialBody);
   const lastInitialBody = useRef<string>(initialBody);
+  // Last title/meta the server gave us. This — not the props — is the yardstick
+  // for "unsaved" and what Discard reverts to, so new server values (a
+  // regenerate) don't light up every field as unsaved.
+  const syncedMeta = useRef({ title: initialTitle, metaTitle: initialMetaTitle, metaDesc: initialMetaDesc });
   const promptRef = useRef<HTMLInputElement>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const imageAnchor = useRef<number | null>(null);
@@ -89,7 +93,15 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
     // leading `# Title` is stripped here and re-attached on save.
     content: stripLeadingH1(initialBody), // tiptap-markdown parses markdown content
     onCreate: ({ editor }) => { baseline.current = getMd(editor); },
-    onUpdate: ({ editor }) => { setDirty(getMd(editor) !== baseline.current); },
+    onUpdate: ({ editor }) => {
+      // The canvas is only editable in edit mode, so an update while it ISN'T
+      // can't be the author: it's a plugin normalising the doc just after load,
+      // or our own re-sync below. Re-baseline instead of flagging it unsaved —
+      // a phantom "dirty" here would block every later re-sync (they refuse to
+      // clobber unsaved work) and leave a regenerated article invisible.
+      if (!editor.isEditable) { baseline.current = getMd(editor); setDirty(false); return; }
+      setDirty(getMd(editor) !== baseline.current);
+    },
     editorProps: {
       attributes: { class: 'prose', style: 'outline:none; max-width:none;' },
     },
@@ -111,6 +123,20 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
     baseline.current = getMd(editor);
     setDirty(false);
   }, [initialBody, editor, editing, dirty]);
+
+  // Same re-sync for the title and meta fields. They're the visible half of a
+  // regenerate: a rewritten article arrives with a new title, and without this
+  // the canvas keeps showing the old one over the new body — then writes it back
+  // over the new one on the next save.
+  useEffect(() => {
+    const last = syncedMeta.current;
+    if (initialTitle === last.title && initialMetaTitle === last.metaTitle && initialMetaDesc === last.metaDesc) return;
+    syncedMeta.current = { title: initialTitle, metaTitle: initialMetaTitle, metaDesc: initialMetaDesc };
+    if (editing || dirty) return;   // never clobber unsaved work
+    setTitle(initialTitle);
+    setMetaTitle(initialMetaTitle);
+    setMetaDesc(initialMetaDesc);
+  }, [initialTitle, initialMetaTitle, initialMetaDesc, editing, dirty]);
 
   // Fresh manual drafts land in edit mode — drop the cursor where writing
   // starts: the title if it's still blank, otherwise the end of the body.
@@ -135,7 +161,9 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
     return () => window.removeEventListener('resize', fit);
   }, [title]);
 
-  const metaDirty = title !== initialTitle || metaTitle !== initialMetaTitle || metaDesc !== initialMetaDesc;
+  const metaDirty = title !== syncedMeta.current.title
+    || metaTitle !== syncedMeta.current.metaTitle
+    || metaDesc !== syncedMeta.current.metaDesc;
 
   /**
    * Write the canvas to the post, creating it first if this is still a blank
@@ -178,6 +206,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
     setSaving(false);
     if (!res.ok) return null;
     baseline.current = md;
+    syncedMeta.current = { title, metaTitle, metaDesc };
     setDirty(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 1800);
@@ -214,9 +243,9 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
     if (!editor) return;
     if ((dirty || metaDirty) && !confirm('Discard your changes since the last save?')) return;
     editor.commands.setContent(baseline.current);   // baseline is the last-saved markdown
-    setTitle(initialTitle);
-    setMetaTitle(initialMetaTitle);
-    setMetaDesc(initialMetaDesc);
+    setTitle(syncedMeta.current.title);
+    setMetaTitle(syncedMeta.current.metaTitle);
+    setMetaDesc(syncedMeta.current.metaDesc);
     setDirty(false);
     setEditing(false);
   }

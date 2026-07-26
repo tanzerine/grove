@@ -15,13 +15,21 @@ export default function PostActions({
     setBusy(null);
     r.refresh();
   }
+  // "Regenerate" on a finished draft means a NEW article, so it asks for a
+  // fresh run; a failed post resumes from the step that broke instead, which is
+  // both cheaper and what the button means there.
   async function retry() {
+    const rewrite = status !== 'failed';
+    if (rewrite && !confirm('Rewrite this article from scratch? This replaces the current draft.')) return;
     setBusy('retry');
-    const res = await fetch(`/api/posts/${id}/retry`, { method: 'POST' });
+    const res = await fetch(`/api/posts/${id}/retry`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ mode: rewrite ? 'fresh' : 'resume' }),
+    });
     setBusy(null);
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
-      alert(`Retry failed: ${j.error ?? 'unknown'}`);
+      alert(`${rewrite ? 'Regenerate' : 'Retry'} failed: ${j.error ?? 'unknown'}`);
     }
     r.refresh();
   }
@@ -71,7 +79,10 @@ export default function PostActions({
       )}
       {(status === 'failed' || status === 'review' || status === 'scheduled' || status === 'published') && (
         <button className="gv-tool" style={tool} onClick={retry} disabled={!!busy}>
-          <Icon name="refresh" size={14} /> {busy === 'retry' ? 'Regenerating…' : 'Regenerate'}
+          <Icon name="refresh" size={14} />
+          {status === 'failed'
+            ? (busy === 'retry' ? 'Retrying…' : 'Retry')
+            : (busy === 'retry' ? 'Regenerating…' : 'Regenerate')}
         </button>
       )}
       {!hasCover && (status === 'review' || status === 'published' || status === 'scheduled') && (
