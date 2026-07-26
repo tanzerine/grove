@@ -11,10 +11,11 @@
  * retries the model call internally, and runInlineImagesForPost is idempotent
  * (it no-ops when images are already present), so this is safe to run often.
  *
- * Runs once a day (Vercel Hobby caps crons at daily) at an hour offset from the
- * scheduler, with the full 300s budget to itself. Immediate needs are covered
- * by the after() paths on create/retry and the manual "Generate cover" button;
- * this drains any backlog and catches posts whose after() never ran.
+ * Runs hourly at :30 (see vercel.json) — offset from the scheduler's :00 so the
+ * two 300s functions never fire together — with the full budget to itself.
+ * Immediate needs are covered by the after() paths on create/retry and the
+ * manual "Generate cover" button; this drains any backlog and catches posts
+ * whose after() never ran.
  *
  * Guarded by CRON_SECRET.
  */

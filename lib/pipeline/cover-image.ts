@@ -20,8 +20,11 @@
  * It does NOT accept output_format — passing it makes the prediction fail,
  * which is why covers silently stopped generating. Keep the input minimal.
  *
- * Returns null on any failure — the article still publishes without a cover,
- * caller logs the reason.
+ * Never throws — the article still publishes without a cover. On failure it
+ * returns the REASON alongside the null (see CoverResult), which the caller
+ * writes into generation_log. That matters: the previous bare `null` meant a
+ * missing cover showed up as "no image generated" and the actual provider
+ * error only ever reached a serverless console.
  */
 import Replicate from 'replicate';
 import { llmCall } from '../llm';
@@ -43,6 +46,26 @@ export type Cover = {
   url: string;
   credit: { name: string; source: string; model: string };
 };
+
+/**
+ * Why a cover didn't happen.
+ *
+ * This exists because the old `Cover | null` return threw the reason away: a
+ * failure `console.error`'d into a serverless log nobody reads and surfaced in
+ * `generation_log` as the uninformative "no image generated". Posts sat without
+ * covers and the only way to find out why was to reproduce it by hand.
+ *
+ * `stage` says which part gave up, `reason` carries the provider's actual
+ * error text — the thing that was missing.
+ */
+export type CoverFailure = {
+  stage: 'config' | 'model' | 'storage';
+  reason: string;
+};
+
+export type CoverResult =
+  | { cover: Cover; failure?: undefined }
+  | { cover: null; failure: CoverFailure };
 
 const STYLE = `clean modern editorial illustration, restrained muted palette of 2-3 colors,
 soft tasteful lighting, generous negative space, landscape composition,
@@ -174,7 +197,7 @@ export async function runCoverForPost(postId: string, opts: { force?: boolean } 
   if (!title) { await appendLog(postId, 'cover_image', 'fail', 'no title'); return; }
 
   try {
-    const cover = await fetchCoverImage({
+    const { cover, failure } = await fetchCoverImage({
       title,
       industry: biz.industry ?? '',
       businessName: biz.name ?? '',
@@ -184,7 +207,14 @@ export async function runCoverForPost(postId: string, opts: { force?: boolean } 
     });
     if (!cover) {
       await bumpAttempts();
-      await appendLog(postId, 'cover_image', 'done', `no image generated (attempt ${attempts + 1}/${MAX_COVER_ATTEMPTS})`);
+      // Log the provider's own words. "no image generated" told us nothing and
+      // cost a round of manual reproduction every time a cover went missing.
+      await appendLog(
+        postId,
+        'cover_image',
+        'fail',
+        `${failure.stage}: ${failure.reason} (attempt ${attempts + 1}/${MAX_COVER_ATTEMPTS})`,
+      );
       return;
     }
 
@@ -225,13 +255,15 @@ async function toImageBytes(first: any): Promise<Uint8Array | null> {
 export async function fetchCoverImage(
   input: string | PromptInput,
   industryArg = '',
-): Promise<Cover | null> {
+): Promise<CoverResult> {
   // Back-compat: callers used to pass (title, industry). Normalize to PromptInput.
   const promptInput: PromptInput = typeof input === 'string'
     ? { title: input, industry: industryArg }
     : input;
   const apiKey = process.env.REPLICATE_API_TOKEN;
-  if (!apiKey) return null;
+  if (!apiKey) {
+    return { cover: null, failure: { stage: 'config', reason: 'REPLICATE_API_TOKEN is not set' } };
+  }
 
   const replicate = new Replicate({ auth: apiKey });
   const prompt = await composePrompt(promptInput);
@@ -249,6 +281,9 @@ export async function fetchCoverImage(
   // article with no cover forever. Retry a few times before giving up.
   let imageBuffer: Uint8Array | null = null;
   const ATTEMPTS = 3;
+  // Keep the last error: it is the only description of WHY the model refused,
+  // and it used to die in a console nobody reads.
+  let lastModelError = 'unknown error';
   for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
     try {
       const result = await Promise.race([
@@ -262,12 +297,18 @@ export async function fetchCoverImage(
       imageBuffer = await toImageBytes(first);
       if (imageBuffer) break;
       throw new Error('unrecognized model output shape');
-    } catch (err) {
+    } catch (err: any) {
+      lastModelError = String(err?.message ?? err);
       console.error(`[cover-image] ${IMAGE_MODEL} attempt ${attempt}/${ATTEMPTS} failed:`, err);
       if (attempt < ATTEMPTS) await new Promise((r) => setTimeout(r, 2000 * attempt));
     }
   }
-  if (!imageBuffer) return null;
+  if (!imageBuffer) {
+    return {
+      cover: null,
+      failure: { stage: 'model', reason: `${IMAGE_MODEL} failed ${ATTEMPTS}x — ${lastModelError}` },
+    };
+  }
 
   // 3. Upload to Supabase Storage for permanent URL
   try {
@@ -277,7 +318,7 @@ export async function fetchCoverImage(
     const { error: bucketErr } = await sb.storage.createBucket(BUCKET, { public: true });
     if (bucketErr && !bucketErr.message.toLowerCase().includes('already exists')) {
       console.error('[cover-image] Failed to create/verify bucket:', bucketErr.message);
-      return null;
+      return { cover: null, failure: { stage: 'storage', reason: `bucket "${BUCKET}": ${bucketErr.message}` } };
     }
 
     const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.webp`;
@@ -288,24 +329,28 @@ export async function fetchCoverImage(
     });
     if (uploadErr) {
       console.error('[cover-image] Supabase upload failed:', uploadErr.message);
-      return null;
+      return { cover: null, failure: { stage: 'storage', reason: `upload: ${uploadErr.message}` } };
     }
 
     const { data: pub } = sb.storage.from(BUCKET).getPublicUrl(filename);
-    if (!pub?.publicUrl) return null;
+    if (!pub?.publicUrl) {
+      return { cover: null, failure: { stage: 'storage', reason: 'upload succeeded but no public URL was returned' } };
+    }
 
     const modelLabel = IMAGE_MODEL.split('/').pop() || IMAGE_MODEL;
     return {
-      url: pub.publicUrl,
-      credit: {
-        name: `AI-generated via ${modelLabel}`,
-        source: modelLabel,
-        model: IMAGE_MODEL,
+      cover: {
+        url: pub.publicUrl,
+        credit: {
+          name: `AI-generated via ${modelLabel}`,
+          source: modelLabel,
+          model: IMAGE_MODEL,
+        },
       },
     };
-  } catch (err) {
+  } catch (err: any) {
     console.error('[cover-image] persist failed:', err);
-    return null;
+    return { cover: null, failure: { stage: 'storage', reason: String(err?.message ?? err) } };
   }
 }
 
