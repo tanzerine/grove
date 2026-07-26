@@ -10,6 +10,7 @@ import { gatherContext } from './research-context';
 import { refineTopic } from './topic-refiner';
 import { repoKbPrompt, type RepoKnowledge } from './repo-knowledge';
 import { appendLog, resetLog } from './log';
+import { runMetered, summarize, describeCost } from '../cost-meter';
 import { evaluateDraft, composeRewriteInstructions, holdForReview, resolvePublishFloor } from './manager';
 import { toManagerDraft } from './draft-adapter';
 import { postSlug } from '../slug';
@@ -92,7 +93,29 @@ async function failAt(postId: string, step: any, err: any, keepLive = false) {
   throw err;
 }
 
+/**
+ * Generate one post, metering what it spends.
+ *
+ * The meter is opened here and read at the end rather than threaded through
+ * each step: every LLM call inside this scope reports itself (see
+ * lib/cost-meter), so site-profile, topic-refiner, writer, manager and the
+ * image prompter stay free of any billing concern.
+ */
 export async function generatePost(postId: string, opts: GenerateOptions = {}) {
+  const { calls } = await runMetered(() => generatePostInner(postId, opts));
+  const cost = summarize(calls);
+  // Best-effort: a post is not worth failing over its own accounting.
+  if (cost.calls > 0) {
+    try {
+      await appendLog(postId, 'persist', 'done', `cost · ${describeCost(cost)}`, {
+        model: Object.keys(cost.byModel).join(', ') || 'unknown',
+        costUsd: cost.unpriced === cost.calls ? null : cost.totalUsd,
+      });
+    } catch { /* accounting must never break the pipeline */ }
+  }
+}
+
+async function generatePostInner(postId: string, opts: GenerateOptions = {}) {
   const { fresh = false, keepLive = false } = opts;
   const sb = supabaseAdmin();
   await resetLog(postId);
