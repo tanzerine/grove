@@ -49,6 +49,53 @@ export const PLANS: Record<PlanId, Plan> = {
 
 export const PLAN_IDS = Object.keys(PLANS) as PlanId[];
 
+/**
+ * Weeks in a month, as the strategist counts them when spreading a monthly
+ * publishing plan. Shared with lib/strategy/build so the cadence a customer
+ * picks and the number of slots that plan produces can't drift apart.
+ */
+export const WEEKS_PER_MONTH = 4.3;
+
+/**
+ * Highest weekly cadence a monthly allowance can sustain.
+ *
+ * Cadence (per week) and quota (per month) don't divide evenly, and they used
+ * to be set independently: a Starter account on the default 3/week produced
+ * round(3 × 4.3) = 13 planned slots against an allowance of 12, so one slot was
+ * deferred as over-quota every single month. Worse, nothing stopped a Starter
+ * customer choosing 7/week — 30 slots against those same 12.
+ *
+ * Rounded UP, deliberately. The floor (2/week for Starter) would plan only 9
+ * posts against an allowance of 12 and under-deliver by a quarter; the ceiling
+ * plans slightly over and lets `monthlySlots` trim the tail back to exactly the
+ * allowance, so the customer gets every post they paid for and no more.
+ */
+export function maxPostsPerWeekForQuota(postsQuota: number): number {
+  if (!Number.isFinite(postsQuota) || postsQuota <= 0) return 1;
+  return Math.max(1, Math.ceil(postsQuota / WEEKS_PER_MONTH));
+}
+
+/** Highest weekly cadence a plan allows. */
+export function maxPostsPerWeek(plan: PlanId): number {
+  return maxPostsPerWeekForQuota(PLANS[plan].postsQuota);
+}
+
+/**
+ * How many slots a month's publishing plan should hold.
+ *
+ * The cadence sets the shape, the monthly allowance sets the ceiling. Planning
+ * past the allowance only manufactures work the drain will refuse, so the plan
+ * is trimmed to what the customer can actually be given. A null quota means
+ * "not enforced" (see lib/quota) and leaves the cadence alone.
+ */
+export function monthlySlots(postsPerWeek: number, postsQuota?: number | null): number {
+  const fromCadence = Math.max(4, Math.round(postsPerWeek * WEEKS_PER_MONTH));
+  if (typeof postsQuota !== 'number' || !Number.isFinite(postsQuota) || postsQuota <= 0) {
+    return fromCadence;
+  }
+  return Math.min(fromCadence, Math.floor(postsQuota));
+}
+
 export const BILLING_INTERVALS: BillingInterval[] = ['month', 'year'];
 
 /** Annual commitment discount, applied to the monthly list price. */

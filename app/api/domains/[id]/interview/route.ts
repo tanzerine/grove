@@ -17,6 +17,7 @@ import { parseInterview } from '@/lib/strategy/interview';
 import { savePlanContext } from '@/lib/strategy/context-store';
 import { profileSite, type SiteProfile } from '@/lib/pipeline/site-profile';
 import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
+import { getQuota } from '@/lib/quota';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -107,6 +108,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       const strategy = await buildStrategy({
         month: monthLabel,
         postsPerWeek: (domain as any).posts_per_week ?? 4,
+        // Plan only as far as the owner's allowance reaches.
+        monthlyQuota: (await getQuota(user.id, sb)).limit,
         profile,
         interview: parseInterview(answers),
         prevStrategy: null,

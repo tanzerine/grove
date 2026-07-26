@@ -14,8 +14,15 @@ function floorHint(v: number): string {
 }
 
 export default function ModeToggle({
-  domainId, autoPublish, postsPerWeek, autoPublishFloor = 45,
-}: { domainId: string; autoPublish: boolean; postsPerWeek: number; autoPublishFloor?: number }) {
+  domainId, autoPublish, postsPerWeek, autoPublishFloor = 45, maxPostsPerWeek = null,
+}: {
+  domainId: string;
+  autoPublish: boolean;
+  postsPerWeek: number;
+  autoPublishFloor?: number;
+  /** Plan ceiling on cadence; null when the account isn't quota-enforced. */
+  maxPostsPerWeek?: number | null;
+}) {
   const r = useRouter();
   const [auto, setAuto] = useState(autoPublish);
   const [freq, setFreq] = useState(postsPerWeek);
@@ -54,14 +61,24 @@ export default function ModeToggle({
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           {[1, 2, 3, 5, 7].map((n) => {
             const active = freq === n;
+            // Above the plan's ceiling the server would refuse the write, so
+            // show it as unavailable rather than letting them pick and fail.
+            const overPlan = maxPostsPerWeek !== null && n > maxPostsPerWeek;
             return (
-              <button key={n} disabled={saving} onClick={() => { setFreq(n); save({ posts_per_week: n }); }}
-                style={{ width: 28, height: 28, borderRadius: 8, border: `1px solid ${active ? ACCENT : 'rgba(255,255,255,0.1)'}`, background: active ? ACCENT : 'transparent', color: active ? 'var(--gv-on-accent)' : 'var(--gv-soft)', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+              <button key={n} disabled={saving || overPlan}
+                title={overPlan ? `Your plan allows up to ${maxPostsPerWeek} a week — upgrade to publish more often.` : undefined}
+                onClick={() => { setFreq(n); save({ posts_per_week: n }); }}
+                style={{ width: 28, height: 28, borderRadius: 8, border: `1px solid ${active ? ACCENT : 'rgba(255,255,255,0.1)'}`, background: active ? ACCENT : 'transparent', color: active ? 'var(--gv-on-accent)' : 'var(--gv-soft)', fontSize: 12, fontWeight: 700, cursor: overPlan ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: overPlan ? 0.35 : 1 }}>
                 {n}
               </button>
             );
           })}
           <span style={{ fontSize: 12, color: 'var(--gv-faint)', marginLeft: 2 }}>/ week</span>
+          {maxPostsPerWeek !== null && (
+            <span style={{ fontSize: 11.5, color: 'var(--gv-fainter)', marginLeft: 4 }}>
+              (max {maxPostsPerWeek} on your plan)
+            </span>
+          )}
         </div>
         <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--gv-faint)', textAlign: 'right', maxWidth: 240 }}>{modeHint}</span>
       </div>

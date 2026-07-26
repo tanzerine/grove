@@ -6,6 +6,9 @@ import PostRow from '../PostRow';
 import ModeToggle from '../ModeToggle';
 import Icon from '../gv-icons';
 import { DashHeader } from '../gv-chrome';
+import { getQuota } from '@/lib/quota';
+import { canGenerateForUser } from '@/lib/billing';
+import { maxPostsPerWeekForQuota } from '@/lib/plans';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
@@ -14,6 +17,19 @@ export default async function Page() {
   const sb = await supabaseServer();
   const { data: domains } = await sb.from('domains').select('*').limit(1);
   const domain = domains?.[0];
+
+  // Cadence choices are bounded by the plan's monthly allowance, so the picker
+  // can grey out what this account can't have instead of letting them pick it
+  // and take a 400 back. A null limit means "not enforced" — leave it open.
+  // Only shown for an account with a live plan — without one, generation is
+  // blocked by entitlement anyway and the stored quota is just a schema default.
+  const { data: { user } } = await sb.auth.getUser();
+  const [quota, entitled] = user
+    ? await Promise.all([getQuota(user.id, sb), canGenerateForUser(user.id, sb)])
+    : [null, false];
+  const maxCadence = entitled && quota?.limit != null
+    ? maxPostsPerWeekForQuota(quota.limit)
+    : null;
   const { data: posts } = await sb
     .from('posts').select('*').eq('domain_id', domain?.id).order('created_at', { ascending: false }).limit(40);
 
@@ -136,7 +152,7 @@ export default async function Page() {
         {/* QUEUE TOPIC + PUBLISHING SETTINGS — single column, matching the pipeline comp */}
         <div>
           <PipelineActions domainId={domain?.id} />
-          {domain && <ModeToggle domainId={domain.id} autoPublish={domain.auto_publish ?? false} postsPerWeek={domain.posts_per_week ?? 2} autoPublishFloor={domain.auto_publish_floor ?? 45} />}
+          {domain && <ModeToggle domainId={domain.id} autoPublish={domain.auto_publish ?? false} postsPerWeek={domain.posts_per_week ?? 2} autoPublishFloor={domain.auto_publish_floor ?? 45} maxPostsPerWeek={maxCadence} />}
 
           {/* PIPELINE — grouped rows: in flight / needs review / scheduled / published / needs attention */}
           {groups.map((g) => (

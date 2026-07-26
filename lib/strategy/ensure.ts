@@ -17,6 +17,7 @@ import { buildStrategy, type Strategy } from './build';
 import { summarizeMonth } from './review';
 import { parseInterview } from './interview';
 import { getAgentContext, savePlanContext } from './context-store';
+import { getQuota } from '../quota';
 import type { SiteProfile } from '../pipeline/site-profile';
 
 export type EnsureResult = 'created' | 'exists' | 'no_profile';
@@ -27,6 +28,8 @@ export type EnsureDomain = {
   posts_per_week: number | null;
   site_profile: SiteProfile | null;
   interview: unknown;
+  /** Owner — used to look up the plan allowance the calendar is capped to. */
+  user_id?: string | null;
 };
 
 export function monthBounds(now = new Date()) {
@@ -77,9 +80,14 @@ export async function ensureMonthlyStrategy(
   // The rolling weekly log — how the season actually went, week by week.
   const ctx = await getAgentContext(domain.id);
 
+  // Cap the calendar at what the owner's plan actually includes — planning past
+  // it just manufactures slots the drain will refuse as over-quota.
+  const monthlyQuota = domain.user_id ? (await getQuota(domain.user_id)).limit : null;
+
   const strategy = await buildStrategy({
     month: monthLabel,
     postsPerWeek: domain.posts_per_week ?? 4,
+    monthlyQuota,
     profile,
     interview: parseInterview(domain.interview as any),
     prevStrategy: (prev as any) as Strategy | null,
