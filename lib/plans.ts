@@ -16,6 +16,20 @@ export type Plan = {
   name: string;
   priceUsd: number;        // monthly list price, for display only
   postsQuota: number;      // posts / month this tier grants
+  /**
+   * Domains this tier may connect; `null` = unlimited.
+   *
+   * This used to exist ONLY as prose in `features` below — "1 domain", "Up to
+   * 3 domains" — with no check anywhere in the codebase. `POST /api/domains`
+   * inserted unconditionally, so a $29 Starter account could connect as many
+   * sites as it liked. That made the domain count decorative on all three
+   * tiers and left Growth with no capability a Starter customer couldn't
+   * already help themselves to.
+   *
+   * Keep this in step with the `features` copy — the string is what the
+   * customer is promised, this is what they get.
+   */
+  domainLimit: number | null;
   blurb: string;
   features: string[];
 };
@@ -26,6 +40,7 @@ export const PLANS: Record<PlanId, Plan> = {
     name: 'Starter',
     priceUsd: 29,
     postsQuota: 12,
+    domainLimit: 1,
     blurb: 'For a single site finding its footing.',
     features: ['12 posts / month', '1 domain', 'Full SEO pipeline', 'Email support'],
   },
@@ -34,6 +49,7 @@ export const PLANS: Record<PlanId, Plan> = {
     name: 'Growth',
     priceUsd: 79,
     postsQuota: 40,
+    domainLimit: 3,
     blurb: 'For sites compounding traffic month over month.',
     features: ['40 posts / month', 'Up to 3 domains', 'Social auto-publish', 'Search Console insights'],
   },
@@ -42,6 +58,7 @@ export const PLANS: Record<PlanId, Plan> = {
     name: 'Agency',
     priceUsd: 199,
     postsQuota: 150,
+    domainLimit: null,
     blurb: 'For teams running blogs at scale.',
     features: ['150 posts / month', 'Unlimited domains', 'Priority pipeline', 'Priority support'],
   },
@@ -94,6 +111,74 @@ export function monthlySlots(postsPerWeek: number, postsQuota?: number | null): 
     return fromCadence;
   }
   return Math.min(fromCadence, Math.floor(postsQuota));
+}
+
+/* ───────────────────────────── domain allowance ─────────────────────────── */
+
+/**
+ * Statuses that entitle an account to its plan's domain ceiling.
+ *
+ * `past_due` is included deliberately. Existing domains are grandfathered
+ * either way (see canAddDomain — this gates ADDING, never keeping), so the only
+ * question is whether a customer mid-card-retry may connect another site.
+ * Demoting them to the entry ceiling over a payment Stripe is still retrying is
+ * punitive for no gain.
+ */
+const DOMAIN_LIMIT_STATUSES = new Set(['active', 'trialing', 'past_due']);
+
+export type DomainLimitRow = {
+  plan?: string | null;
+  stripe_status?: string | null;
+  stripe_price_id?: string | null;
+};
+
+/**
+ * SERVER-ONLY (reads the Stripe price catalogue from env).
+ *
+ * How many domains this subscription may connect; `null` means "don't
+ * enforce". Same failure philosophy as lib/quota's `limitFor`: when Stripe and
+ * our catalogue have drifted we decline to enforce at all, because blocking a
+ * paying customer over our own misconfiguration is worse than briefly
+ * over-delivering.
+ *
+ * An account with no live subscription gets the entry ceiling rather than
+ * `null`: onboarding connects exactly one site, and every paid tier sells the
+ * second one, so "unlimited until you pay us" is the wrong default.
+ */
+export function domainLimitFor(row: DomainLimitRow | null | undefined): number | null {
+  if (!row) return PLANS.starter.domainLimit;
+  if (row.stripe_price_id && !planForPriceId(row.stripe_price_id)) return null;
+  const status = (row.stripe_status ?? '').toLowerCase();
+  if (!DOMAIN_LIMIT_STATUSES.has(status)) return PLANS.starter.domainLimit;
+  if (isPlanId(row.plan)) return PLANS[row.plan].domainLimit;
+  return PLANS.starter.domainLimit;
+}
+
+/**
+ * May this account connect one more domain?
+ *
+ * Note what this deliberately does NOT do: it never asks whether the account is
+ * already over its ceiling in a way that would remove anything. Accounts that
+ * accumulated domains while this was unenforced keep every one of them and keep
+ * publishing — they simply can't add another until they upgrade. Taking a live
+ * blog away from a paying customer to correct our own past permissiveness is
+ * not a trade worth making.
+ */
+export function canAddDomain(limit: number | null, currentCount: number): boolean {
+  if (limit === null) return true;
+  return currentCount < limit;
+}
+
+/** Human-readable ceiling for UI copy: "1 domain" / "3 domains" / "unlimited". */
+export function describeDomainLimit(limit: number | null): string {
+  if (limit === null) return 'unlimited domains';
+  return `${limit} domain${limit === 1 ? '' : 's'}`;
+}
+
+/** The cheapest plan that allows `count` domains, or null if none does. */
+export function smallestPlanForDomains(count: number): PlanId | null {
+  const ordered = PLAN_IDS.slice().sort((a, b) => PLANS[a].priceUsd - PLANS[b].priceUsd);
+  return ordered.find((id) => canAddDomain(PLANS[id].domainLimit, count - 1)) ?? null;
 }
 
 export const BILLING_INTERVALS: BillingInterval[] = ['month', 'year'];

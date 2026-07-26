@@ -52,7 +52,7 @@ import {
 import { materializeDuePlanSlots } from '@/lib/strategy/materialize';
 import { ensureMonthlyStrategy, monthBounds, type EnsureDomain } from '@/lib/strategy/ensure';
 import { entitledUserSet } from '@/lib/billing';
-import { consumeQuota, quotaForUsers, releaseQuota } from '@/lib/quota';
+import { consumeQuota, quotaForUsers, releaseQuota, shareAllowance } from '@/lib/quota';
 import { publishToSocials } from '@/lib/social/publish';
 import { syncDomain } from '@/lib/search-console/sync';
 
@@ -60,6 +60,10 @@ export const maxDuration = 300;
 
 /** Sampled from recent finished posts to size the drain. */
 const DURATION_SAMPLE_SIZE = 20;
+
+/** Ceiling on how many plan slots one domain may turn into posts in one tick,
+ *  so a single tick can't materialize a whole month of a plan at once. */
+const MATERIALIZE_PER_TICK = 3;
 
 export async function GET(req: Request) {
   if (!isCronAuthorized(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
@@ -150,11 +154,6 @@ export async function GET(req: Request) {
   // of that owner's domains — so it's tracked per user, not per domain.
   const ownerOf = new Map<string, string>(entitledDomains.map((d: any) => [d.id, d.user_id]));
   const quotas = await quotaForUsers(entitledDomains.map((d: any) => d.user_id));
-  const hasRoomInPlan = (userId: string | undefined) => {
-    if (!userId) return false;
-    const q = quotas.get(userId);
-    return q ? !q.exhausted : true; // unknown subscription → don't throttle
-  };
 
   // 2) drain sizing: measure what a generation actually costs right now from the
   //    logs of recently finished posts, rather than assuming. The estimate is
@@ -203,12 +202,48 @@ export async function GET(req: Request) {
   //     (within the lead window) into queued posts, carrying their planned
   //     publish date through. This is what actually executes the strategy.
   let materialized = 0;
+
+  // What each owner has already committed: posts planned but not yet generated.
+  // `remaining` only falls when a post is GENERATED, so without subtracting
+  // this the loop re-plans against the same allowance every tick and the queue
+  // grows past anything the plan can pay for.
+  const { data: pendingQueued } = await sb
+    .from('posts').select('domain_id').eq('status', 'queued').limit(500);
+  const queuedByOwner = new Map<string, number>();
+  for (const p of pendingQueued ?? []) {
+    const owner = ownerOf.get((p as any).domain_id);
+    if (owner) queuedByOwner.set(owner, (queuedByOwner.get(owner) ?? 0) + 1);
+  }
+
+  // Divide each owner's remaining allowance across THEIR domains. The allowance
+  // is per subscription; planning is per domain. Gating on a bare "is this owner
+  // exhausted?" let whichever domain came first spend the whole plan.
+  const domainsByOwner = new Map<string, string[]>();
+  for (const d of entitledDomains) {
+    const owner = (d as any).user_id;
+    const list = domainsByOwner.get(owner) ?? [];
+    list.push(d.id);
+    domainsByOwner.set(owner, list);
+  }
+  const planBudget = new Map<string, number>();
+  for (const [owner, ids] of domainsByOwner) {
+    const q = quotas.get(owner);
+    const shares = shareAllowance({
+      remaining: q ? q.remaining : Infinity,   // unknown subscription → don't throttle
+      alreadyQueued: queuedByOwner.get(owner) ?? 0,
+      domainIds: ids,
+      perDomainCap: MATERIALIZE_PER_TICK,
+    });
+    for (const [id, n] of shares) planBudget.set(id, n);
+  }
+
   for (const d of entitledDomains) {
     // Don't queue work the plan can't pay for — it would just accumulate
     // undrainable rows until the cycle rolls over.
-    if (!hasRoomInPlan((d as any).user_id)) continue;
+    const allowed = planBudget.get(d.id) ?? 0;
+    if (allowed <= 0) continue;
     try {
-      const ids = await materializeDuePlanSlots(d.id, { leadHours: 72, limit: 3 });
+      const ids = await materializeDuePlanSlots(d.id, { leadHours: 72, limit: allowed });
       materialized += ids.length;
     } catch { /* one domain failing must not stall the tick */ }
   }
