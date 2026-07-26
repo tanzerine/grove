@@ -112,19 +112,71 @@ describe('postsPerTick', () => {
 });
 
 describe('generationDurationMs', () => {
-  it('measures a run end to end from its log', () => {
-    expect(generationDurationMs([{ ts: 1_000 }, { ts: 4_000 }, { ts: 9_000 }])).toBe(8_000);
+  const t = (s: number) => 1_700_000_000_000 + s * 1_000;
+
+  it('measures a run end to end over its pipeline steps', () => {
+    expect(generationDurationMs([
+      { ts: t(0), step: 'queued' },
+      { ts: t(12), step: 'research' },
+      { ts: t(149), step: 'persist' },
+    ])).toBe(149_000);
+  });
+
+  it('ignores image backfill appended days later', () => {
+    // Regression: /api/cron/images keeps appending cover_image / inline_images
+    // entries for days, so first-to-last measured the AGE of the post (~6 days
+    // in production), not its cost. The estimate blew past the tick budget and
+    // the drain stopped starting any work at all.
+    const log = [
+      { ts: t(0), step: 'queued' },
+      { ts: t(33), step: 'writer' },
+      { ts: t(149), step: 'persist' },
+      { ts: t(62_492), step: 'cover_image' },      // next day
+      { ts: t(148_000), step: 'inline_images' },   // two days later
+      { ts: t(520_000), step: 'inline_images' },   // six days later
+    ];
+    expect(generationDurationMs(log)).toBe(149_000);
+  });
+
+  it('discards an implausibly long sample rather than trusting it', () => {
+    expect(generationDurationMs([
+      { ts: t(0), step: 'queued' },
+      { ts: t(60 * 60), step: 'persist' }, // an hour of "pipeline" is not real
+    ])).toBeNull();
   });
 
   it('returns null when there is nothing to measure', () => {
     expect(generationDurationMs([])).toBeNull();
     expect(generationDurationMs(null)).toBeNull();
-    expect(generationDurationMs([{ ts: 1_000 }])).toBeNull();
-    expect(generationDurationMs([{ ts: 5_000 }, { ts: 5_000 }])).toBeNull();
+    expect(generationDurationMs([{ ts: t(0), step: 'queued' }])).toBeNull();
+    expect(generationDurationMs([{ ts: t(5), step: 'queued' }, { ts: t(5), step: 'persist' }])).toBeNull();
   });
 
-  it('ignores malformed entries', () => {
-    expect(generationDurationMs([{ ts: 1_000 }, null, {}, { ts: 3_000 }])).toBe(2_000);
+  it('ignores malformed and unrecognised entries', () => {
+    expect(generationDurationMs([
+      { ts: t(0), step: 'queued' },
+      null,
+      {},
+      { ts: t(9) },                       // no step — not a known pipeline entry
+      { ts: t(3), step: 'persist' },
+    ])).toBe(3_000);
+  });
+});
+
+describe('drain sizing against real measurements', () => {
+  it('fits several articles per tick at the observed ~150s cost', () => {
+    // Production p80 is ~150s; a 300s tick less the GSC reserve is 240s.
+    const budget = tickBudgetMs(300);
+    expect(postsPerTick(budget, 150_000, GSC_RESERVE_MS)).toBe(1);
+    // ...and an hourly cron turns that into 24/day rather than 3.
+    expect(capacityReport({ ticksPerDay: 24, postsPerTick: 1, committedPerMonth: 150 }).postsPerMonth).toBe(720);
+  });
+
+  it('never sizes a tick to zero work from a poisoned estimate', () => {
+    // Even if a sample slips through, the scheduler always attempts its first
+    // candidate; this asserts the estimate itself can no longer be day-scale.
+    const sixDays = 6 * 24 * 3_600_000;
+    expect(estimateGenerationMs([sixDays].filter((n) => n <= 20 * 60_000))).toBe(DEFAULT_GENERATION_MS);
   });
 });
 
