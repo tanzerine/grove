@@ -4,13 +4,30 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { generatePost } from '@/lib/pipeline/generate';
 import { runCoverForPost } from '@/lib/pipeline/cover-image';
+import { seedLog } from '@/lib/pipeline/log';
 import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
 import { canGenerateForUser } from '@/lib/billing';
 import { enforceQuota, releaseQuota } from '@/lib/quota';
 
 export const maxDuration = 300;
 
-const body = z.object({ domain_id: z.string().uuid(), topic: z.string().min(3) });
+const body = z.object({
+  domain_id: z.string().uuid(),
+  topic: z.string().min(3),
+  /**
+   * How long the caller is willing to hold the request open.
+   *
+   *   wait  (default) — the pipeline runs inside the request; the response
+   *                     means the draft is finished. Every existing caller.
+   *   queue           — the response comes back as soon as the post exists,
+   *                     and the pipeline runs after it. A full generation is
+   *                     minutes long, so a UI that awaits `wait` shows a
+   *                     spinner until the platform times the request out —
+   *                     which is why the Write page asks to be told the id
+   *                     up front and follows the run with GET /api/posts/[id].
+   */
+  mode: z.enum(['wait', 'queue']).optional(),
+});
 
 export async function POST(req: Request) {
   const sb = await supabaseServer();
@@ -38,23 +55,54 @@ export async function POST(req: Request) {
   const over = await enforceQuota(user.id);
   if (over) return over;
 
+  const queue = parsed.data.mode === 'queue';
+
   const { data, error } = await sb.from('posts').insert({
-    domain_id: parsed.data.domain_id, status: 'queued', topic: parsed.data.topic,
+    domain_id: parsed.data.domain_id,
+    // A queued run is claimed here, exactly the way the scheduler claims one:
+    // 'researching' + a seeded log. The cron's drain only claims rows still
+    // sitting in 'queued', so this is what stops it starting a second
+    // generation of the same post while ours runs — and if the platform kills
+    // us mid-article the log stops moving, which the same cron recognises as
+    // stranded and puts back in the queue. Either way the post finishes.
+    status: queue ? 'researching' : 'queued',
+    topic: parsed.data.topic,
+    ...(queue ? { generation_log: seedLog() } : {}),
   }).select('id').single();
   if (error) {
     await releaseQuota(user.id);
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  try {
-    await generatePost(data.id);
-  } catch (e: any) {
+  /** Mark the run as failed and hand the plan slot back. */
+  const abandon = async (e: any) => {
     // The customer got nothing, so the reservation goes back.
     await releaseQuota(user.id);
     const admin = supabaseAdmin();
     await admin.from('posts').update({
       status: 'failed', validation: { error: String(e?.message ?? e) },
     }).eq('id', data.id);
+  };
+
+  if (queue) {
+    // The whole pipeline moves after the response. `after()` keeps the function
+    // alive up to maxDuration to finish this — unlike a bare floating promise,
+    // which dies the moment the response is returned.
+    after(async () => {
+      try {
+        await generatePost(data.id);
+        await runCoverForPost(data.id);
+      } catch (e) {
+        await abandon(e);
+      }
+    });
+    return NextResponse.json({ id: data.id, queued: true });
+  }
+
+  try {
+    await generatePost(data.id);
+  } catch (e: any) {
+    await abandon(e);
     return NextResponse.json({ id: data.id, error: 'generation failed' }, { status: 500 });
   }
 

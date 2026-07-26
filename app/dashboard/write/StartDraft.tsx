@@ -1,7 +1,8 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { SearchIntent } from '@/lib/strategy/keywords';
+import type { DraftPhase } from '@/lib/pipeline/progress';
 import Icon from '../gv-icons';
 import { useUpsell } from '../Upsell';
 
@@ -18,6 +19,22 @@ const PROMPTS = [
 ];
 
 type Tab = 'idea' | 'seo';
+
+/** How often the queued card asks the pipeline where a run got to. */
+const POLL_MS = 3000;
+
+/** One generation this session started, followed until it lands. */
+type Run = {
+  id: string;
+  topic: string;         // what the author asked for
+  title: string | null;  // what grove titled it, once it has a title
+  phase: DraftPhase;
+  label: string;
+  stalled: boolean;      // in flight, but the run has gone quiet
+  hasDraft: boolean;
+};
+
+const WORKING: DraftPhase[] = ['queued', 'working'];
 
 /**
  * The "Start a draft" card that lives in the Write editor's right rail:
@@ -36,6 +53,40 @@ export default function StartDraft({ domainId, hostname }: { domainId: string; h
   const [err, setErr] = useState<string | null>(null);
   const [busyIdea, setBusyIdea] = useState<string | null>(null);
   const [busyKind, setBusyKind] = useState<'mine' | 'grove' | null>(null);
+
+  // Generations this session handed to the pipeline, newest first. They stay on
+  // screen until the author opens (or dismisses) them — the whole point is that
+  // "grove writes it" can't disappear into the pipeline unannounced.
+  const [runs, setRuns] = useState<Run[]>([]);
+  const liveIds = runs.filter((r) => WORKING.includes(r.phase)).map((r) => r.id).join(',');
+  const liveRef = useRef(liveIds);
+  liveRef.current = liveIds;
+
+  // Follow every in-flight run. Keyed on the live ids (not `runs`) so a poll's
+  // own state update doesn't tear the interval down and restart it.
+  useEffect(() => {
+    if (!liveIds) return;
+    let alive = true;
+    const poll = async () => {
+      const ids = liveRef.current ? liveRef.current.split(',') : [];
+      const seen = await Promise.all(ids.map(async (id) => {
+        try {
+          const res = await fetch(`/api/posts/${id}`);
+          if (!res.ok) return null;
+          const j = await res.json();
+          return { id, phase: j.phase as DraftPhase, label: String(j.label ?? ''), title: j.title ?? null, stalled: !!j.stalled, hasDraft: !!j.hasDraft };
+        } catch { return null; }   // a dropped poll is not an error worth showing
+      }));
+      if (!alive) return;
+      setRuns((prev) => prev.map((r) => {
+        const u = seen.find((s) => s && s.id === r.id);
+        return u ? { ...r, ...u } : r;
+      }));
+    };
+    const t = setInterval(poll, POLL_MS);
+    poll();
+    return () => { alive = false; clearInterval(t); };
+  }, [liveIds]);
 
   // programmatic SEO
   type PseoPage = { keyword: string; title: string; intent: SearchIntent };
@@ -71,15 +122,40 @@ export default function StartDraft({ domainId, hostname }: { domainId: string; h
     setBusyIdea(null); setBusyKind(null);
   }
 
+  /**
+   * Hand the idea to the pipeline. `mode: 'queue'` answers with the post id as
+   * soon as the row exists instead of holding the request open for the whole
+   * generation — awaiting the full run left this button reading "Queuing…"
+   * until the platform timed the request out, and then walked the author to
+   * /dashboard with no word of what had happened to their article.
+   */
   async function groveWrites(topic: string) {
     if (!gate('write')) return;
-    setBusyIdea(topic); setBusyKind('grove');
-    await fetch('/api/posts', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ domain_id: domainId, topic }),
-    });
-    r.push('/dashboard');
+    setBusyIdea(topic); setBusyKind('grove'); setErr(null);
+    try {
+      const res = await fetch('/api/posts', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ domain_id: domainId, topic, mode: 'queue' }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok || !j.id) {
+        // 402 (no subscription / quota spent) and 429 both send a sentence
+        // worth reading — show it rather than a generic failure.
+        setErr(j.message ?? j.error ?? 'Could not start that draft. Try again.');
+        return;
+      }
+      setRuns((prev) => [
+        { id: j.id, topic, title: null, phase: 'queued', label: 'Queued in the pipeline…', stalled: false, hasDraft: false },
+        ...prev.filter((p) => p.id !== j.id),
+      ]);
+    } catch {
+      setErr('Something went wrong. Try again.');
+    } finally {
+      setBusyIdea(null); setBusyKind(null);
+    }
   }
+
+  function dismissRun(id: string) { setRuns((prev) => prev.filter((r) => r.id !== id)); }
 
   async function previewSet() {
     if (!gate('pseo')) return;
@@ -120,6 +196,16 @@ export default function StartDraft({ domainId, hostname }: { domainId: string; h
         <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--gv-ink)' }}>Start a draft</span>
         <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--gv-faint)' }}>assisted</span>
       </div>
+
+      {runs.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+          {runs.map((run) => (
+            <RunCard key={run.id} run={run}
+              onOpen={() => r.push(`/dashboard/posts/${run.id}`)}
+              onDismiss={() => dismissRun(run.id)} />
+          ))}
+        </div>
+      )}
 
       <div style={tabRow}>
         {([['idea', 'Idea studio'], ['seo', 'SEO set']] as const).map(([k, label]) => {
@@ -209,6 +295,47 @@ export default function StartDraft({ domainId, hostname }: { domainId: string; h
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * A draft grove is writing (or has finished writing) for the author, shown in
+ * the Write page's rail. This is the receipt for "grove writes it": the work is
+ * named, its stage is live, and the finished article is one click away in the
+ * editor — nothing silently drops into the pipeline.
+ */
+function RunCard({ run, onOpen, onDismiss }: { run: Run; onOpen: () => void; onDismiss: () => void }) {
+  const working = WORKING.includes(run.phase);
+  const failed = run.phase === 'failed';
+  const name = run.title || run.topic;
+  const tone = failed ? 'var(--gv-red)' : working ? 'var(--gv-amber)' : ACCENT_INK;
+  const badge = failed ? 'Failed' : working ? 'In the pipeline' : 'Draft ready';
+  const action = failed ? 'See what happened →' : working ? 'Watch it write →' : 'Open the draft →';
+
+  return (
+    <div style={{
+      padding: '11px 12px', borderRadius: 12,
+      background: working || failed ? 'rgba(255,255,255,0.02)' : 'rgba(162,255,1,0.07)',
+      border: `1px solid ${working || failed ? 'var(--gv-line)' : 'rgba(162,255,1,0.32)'}`,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+        <span className={working ? 'grove-live-dot' : undefined} style={{ color: tone, fontSize: 9, lineHeight: 1 }}>●</span>
+        <span style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700, color: tone }}>{badge}</span>
+        <button onClick={onDismiss} aria-label="Dismiss" title="Hide this — the draft stays in your pipeline"
+          style={{ marginLeft: 'auto', border: 'none', background: 'none', color: 'var(--gv-faint)', fontFamily: 'inherit', fontSize: 13, lineHeight: 1, cursor: 'pointer', padding: 2 }}>×</button>
+      </div>
+      <div style={{ fontSize: 12.5, lineHeight: 1.4, color: 'var(--gv-ink)', fontWeight: 600 }}>{name}</div>
+      <div style={{ fontSize: 11.5, lineHeight: 1.45, color: 'var(--gv-dim)', marginTop: 4 }}>
+        {run.label || 'Queued in the pipeline…'}
+        {working && !run.stalled && ' You can keep writing here — it finishes on its own.'}
+      </div>
+      <button onClick={onOpen} className={working || failed ? 'gv-ghost' : 'gv-btn'}
+        style={working || failed
+          ? { marginTop: 9, border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, padding: '6px 10px', borderRadius: 8, cursor: 'pointer' }
+          : { marginTop: 9, border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, padding: '6px 10px', borderRadius: 8, cursor: 'pointer' }}>
+        {action}
+      </button>
     </div>
   );
 }
