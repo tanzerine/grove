@@ -10,6 +10,8 @@ import OverviewPipeline, { type OvRow } from './OverviewPipeline';
 import AskAgent from './AskAgent';
 import GhostPipeline from './GhostPipeline';
 import OverviewCalendar, { type CalDay } from './OverviewCalendar';
+import DashSearch from './DashSearch';
+import type { SearchablePost } from '@/lib/post-search';
 import { getEntitlement } from '@/lib/billing';
 
 // ACCENT is the lime fill/border; ACCENT_INK is the olive to use whenever the
@@ -84,6 +86,14 @@ export default async function OverviewPage() {
   const { data: posts } = await sb
     .from('posts').select('*').eq('domain_id', domain?.id).order('created_at', { ascending: false }).limit(60);
   const all = posts ?? [];
+
+  // Seed for the search bar: the recent slice, minus body_md and the other
+  // heavy columns — never ship whole articles to the client for a typeahead.
+  const searchSeed: SearchablePost[] = all.map((p) => ({
+    id: p.id, title: p.title, topic: p.topic, slug: p.slug,
+    meta_description: p.meta_description, status: p.status,
+    published_at: p.published_at, scheduled_at: p.scheduled_at, created_at: p.created_at,
+  }));
 
   let brief: BriefStats | null = null;
   if (domain) { try { brief = await getBriefStats(domain.id, domain.hostname); } catch { /* optional */ } }
@@ -257,15 +267,11 @@ export default async function OverviewPage() {
       <DashHeader title="Overview" subtitle={`${domain?.hostname ?? 'grove.ai'} · ${domain?.auto_publish ? 'autopilot active' : 'manual mode'}`} />
 
       <div className="gv-body" style={{ maxWidth: 1680 }}>
-        {/* search — relocated out of the nav bar */}
+        {/* search — relocated out of the nav bar. The recent posts this page
+            already loaded seed instant local matches; the bar queries the full
+            archive over /api/posts/search as you type. */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: 240, maxWidth: 420, display: 'flex', alignItems: 'center', gap: 9, background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '9px 13px' }}>
-            <span style={{ color: 'var(--gv-fainter)', display: 'flex' }}><Icon name="search" size={16} /></span>
-            <input placeholder="Search posts, keywords, domains…" style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: 'var(--gv-ink)', fontSize: 13, fontFamily: 'inherit', minWidth: 0 }} />
-            {/* --gv-soft, not --gv-dim/--gv-fainter — this chip sits on the
-                search bar's own tint, which shaves ~0.3 off the ratio. */}
-            <span style={{ fontSize: 10.5, color: 'var(--gv-soft)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 5, padding: '1px 6px' }}>⌘K</span>
-          </div>
+          <DashSearch seed={searchSeed} />
         </div>
         {/* greeting */}
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 22 }}>
