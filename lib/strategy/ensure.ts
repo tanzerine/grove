@@ -18,9 +18,45 @@ import { summarizeMonth } from './review';
 import { parseInterview } from './interview';
 import { getAgentContext, savePlanContext } from './context-store';
 import { getQuota } from '../quota';
-import type { SiteProfile } from '../pipeline/site-profile';
+import { blankProfile, type SiteProfile } from '../pipeline/site-profile';
 
 export type EnsureResult = 'created' | 'exists' | 'no_profile';
+
+export type EnsureOptions = {
+  /** Cap for the planning LLM call — crons run on a 300s budget. */
+  llmTimeoutMs?: number;
+  /**
+   * Plan even with no usable site profile, from a hostname-only one.
+   *
+   * The crawl can fail for reasons the customer can't fix (Cloudflare, a
+   * provider blip, a site that isn't up yet), and treating that as "no plan"
+   * cost them the whole month. Set by the paths where a human is waiting on a
+   * plan and has just told us their intent — which is the better input anyway.
+   */
+  profileFallback?: boolean;
+  /**
+   * Rebuild over this month's active strategy instead of short-circuiting on
+   * it. Set when the owner has just changed what they want: the latest intent
+   * wins, and the crons keep their idempotent default.
+   */
+  replaceActive?: boolean;
+};
+
+/**
+ * The profile a build should plan from, or null when it must not run.
+ *
+ * A profile whose business has no name never came back from a real crawl, so it
+ * carries nothing the strategist can use beyond the hostname — which is exactly
+ * what the fallback supplies.
+ */
+export function planningProfile(
+  site: SiteProfile | null | undefined,
+  hostname: string,
+  fallback = false,
+): SiteProfile | null {
+  if (site?.business?.name) return site;
+  return fallback ? blankProfile(hostname) : null;
+}
 
 export type EnsureDomain = {
   id: string;
@@ -40,7 +76,7 @@ export function monthBounds(now = new Date()) {
 
 export async function ensureMonthlyStrategy(
   domain: EnsureDomain,
-  opts: { llmTimeoutMs?: number } = {},
+  opts: EnsureOptions = {},
 ): Promise<EnsureResult> {
   const sb = supabaseAdmin();
   const { thisMonth, prevMonth } = monthBounds();
@@ -54,10 +90,10 @@ export async function ensureMonthlyStrategy(
     .eq('month', monthDate)
     .eq('active', true)
     .maybeSingle();
-  if (existing) return 'exists';
+  if (existing && !opts.replaceActive) return 'exists';
 
-  const profile = domain.site_profile;
-  if (!profile?.business?.name) return 'no_profile';
+  const profile = planningProfile(domain.site_profile, domain.hostname, opts.profileFallback);
+  if (!profile) return 'no_profile';
 
   const { data: prev } = await sb
     .from('strategies')

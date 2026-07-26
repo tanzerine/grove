@@ -9,6 +9,7 @@ import { strategyBrief } from '@/lib/strategy/brief';
 import Icon from '../gv-icons';
 import { DashHeader } from '../gv-chrome';
 import PlanChat from './PlanChat';
+import BuildPlanNow from './BuildPlanNow';
 import PlanningCadence, { type CadenceItem, type CadenceView } from './PlanningCadence';
 import PillarsAndCalendar, { type PillarCard, type CalRow, type Week } from './PillarsAndCalendar';
 
@@ -448,6 +449,10 @@ function NoStrategy({
   const cta = verified
     ? { href: '/onboarding/intent', label: hasInterview ? 'Edit intent' : 'Answer 5 questions →' }
     : { href: `/onboarding/verify?domain=${domainId}`, label: 'Verify domain →' };
+  // Answers on file and nothing to show means the build that runs with the
+  // interview didn't land (failed crawl, LLM blip). That's a retry, not a
+  // month-long wait — which is what this page used to tell people.
+  const canBuildNow = verified && hasInterview;
   return (
     <>
       <DashHeader title="Strategy" subtitle="the monthly plan your agent works from" />
@@ -458,12 +463,21 @@ function NoStrategy({
             {!verified
               ? 'Verify that you own this domain and the strategist will draft this month’s plan.'
               : hasInterview
-                ? 'Strategy will build automatically on the 1st of the month, or run a generation to seed it.'
+                ? 'Your answers are saved — the strategist just hasn’t drafted the plan yet. Build it now, it takes about a minute.'
                 : 'Answer a few questions and the strategist will draft this month’s plan.'}
           </p>
-          <Link href={cta.href} className="gv-btn" style={{ display: 'inline-block', marginTop: 16, border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontWeight: 700, padding: '10px 18px', borderRadius: 10, textDecoration: 'none' }}>
-            {cta.label}
-          </Link>
+          {canBuildNow ? (
+            <>
+              <BuildPlanNow domainId={domainId} />
+              <Link href={cta.href} style={{ display: 'inline-block', marginTop: 12, fontSize: 12.5, color: 'var(--gv-dim)' }}>
+                or change your answers first
+              </Link>
+            </>
+          ) : (
+            <Link href={cta.href} className="gv-btn" style={{ display: 'inline-block', marginTop: 16, border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontWeight: 700, padding: '10px 18px', borderRadius: 10, textDecoration: 'none' }}>
+              {cta.label}
+            </Link>
+          )}
         </div>
       </div>
     </>

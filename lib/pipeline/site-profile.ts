@@ -334,7 +334,7 @@ export async function profileSite(hostname: string): Promise<SiteProfile> {
 
   // Always include the homepage even if empty
   if (!pages.length) {
-    return emptyProfile(hostname, [], false, false, branding);
+    return blankProfile(hostname, [], false, false, branding);
   }
 
   const crawledUrls = pages.map((p) => p.url);
@@ -406,7 +406,7 @@ ${corpus}`,
   try {
     parsed = extractJson(text);
   } catch {
-    return emptyProfile(hostname, crawledUrls, hasBlog, hasPricing, branding);
+    return blankProfile(hostname, crawledUrls, hasBlog, hasPricing, branding);
   }
 
   try {
@@ -435,11 +435,18 @@ ${corpus}`,
       meta: { has_blog: hasBlog, has_pricing: hasPricing, pages_crawled: crawledUrls },
     };
   } catch {
-    return emptyProfile(hostname, crawledUrls, hasBlog, hasPricing, branding);
+    return blankProfile(hostname, crawledUrls, hasBlog, hasPricing, branding);
   }
 }
 
-function emptyProfile(hostname: string, crawled: string[] = [], hasBlog = false, hasPricing = false, branding: BrandColors | null = null): SiteProfile {
+/**
+ * A profile with nothing filled in but the hostname.
+ *
+ * Also the answer when there is no crawl to work from at all: the strategist can
+ * still plan from the owner's own interview answers, and a plan built on their
+ * stated intent beats making them wait a month for one.
+ */
+export function blankProfile(hostname: string, crawled: string[] = [], hasBlog = false, hasPricing = false, branding: BrandColors | null = null): SiteProfile {
   return {
     business: {
       name: hostname, industry: 'unknown', description: '',

@@ -1,9 +1,14 @@
 /**
  * POST /api/domains/[id]/interview
  *
- * Saves owner interview answers and, if no active strategy exists for the
- * current month, immediately runs `buildStrategy` so the dashboard isn't
- * empty when the owner lands on /dashboard/strategy.
+ * Saves owner interview answers and builds this month's strategy on the spot,
+ * so the owner lands on /dashboard/strategy with a real plan.
+ *
+ * Answering these five questions IS the request for a plan, so the build is
+ * unconditional for a verified domain: no site profile (a crawl that failed, a
+ * site that isn't up yet) falls back to planning from the answers alone rather
+ * than leaving the owner to wait for the 1st of next month. If the strategist
+ * itself fails, the response says so and /dashboard/strategy offers a retry.
  *
  * Idempotent: re-saving updates the row + replaces the active strategy for
  * this month (the system trusts the latest owner intent).
@@ -12,12 +17,9 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { supabaseServer } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { buildStrategy } from '@/lib/strategy/build';
-import { parseInterview } from '@/lib/strategy/interview';
-import { savePlanContext } from '@/lib/strategy/context-store';
+import { ensureMonthlyStrategy } from '@/lib/strategy/ensure';
 import { profileSite, type SiteProfile } from '@/lib/pipeline/site-profile';
 import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
-import { getQuota } from '@/lib/quota';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -76,18 +78,20 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     return NextResponse.json({ ok: true, strategy_built: false, reason: 'unverified' });
   }
 
-  // Auto-trigger first strategy build (best-effort; failure doesn't block save).
+  // Build this month's plan now. Answering these questions IS the owner asking
+  // for a plan, so it must not end with them on an empty strategy page being
+  // told to wait for the 1st — the failure is reported back instead, and the
+  // page offers to try again.
   let strategyBuilt = false;
+  let reason: string | undefined;
   try {
     const admin = supabaseAdmin();
     let profile = (domain as any).site_profile as SiteProfile | null;
 
     // The profile is crawled fire-and-forget after verification, so on a fresh
     // signup it's usually NOT ready yet by the time the owner finishes the
-    // interview. Build it synchronously here so the very first strategy is
-    // always generated — the owner should land on /dashboard/strategy with a
-    // real plan, not an empty page. (Ongoing rebuilds happen only on the 1st,
-    // via the monthly-strategy cron.)
+    // interview. Crawl it here, synchronously, so the first plan is grounded in
+    // their real site — but a crawl that fails is no longer fatal (below).
     if (!profile?.business?.name) {
       try {
         const built = await profileSite((domain as any).hostname);
@@ -100,45 +104,32 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       }
     }
 
-    if (profile?.business?.name) {
-      const now = new Date();
-      const thisMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-      const monthLabel = thisMonth.toISOString().slice(0, 7);
-
-      const strategy = await buildStrategy({
-        month: monthLabel,
-        postsPerWeek: (domain as any).posts_per_week ?? 4,
-        // Plan only as far as the owner's allowance reaches.
-        monthlyQuota: (await getQuota(user.id, sb)).limit,
-        profile,
-        interview: parseInterview(answers),
-        prevStrategy: null,
-        prevReport: null,
-      });
-
-      // Replace active strategy for this month
-      await admin.from('strategies').update({ active: false })
-        .eq('domain_id', id).eq('active', true);
-      await admin.from('strategies').insert({
-        domain_id: id,
-        month: thisMonth.toISOString().slice(0, 10),
-        source: strategy.source,
-        goals: strategy.goals,
-        kpis: strategy.kpis,
-        pillars: strategy.pillars,
-        publishing_plan: strategy.publishing_plan,
-        direction: strategy.direction ?? null,
+    // One builder for every path that produces a month's plan (this route, the
+    // monthly cron, the scheduler's self-heal), so they can't drift.
+    //
+    // `profileFallback` is what makes this unconditional: a crawl that failed
+    // used to mean no strategy at all, which left the owner exactly where this
+    // bug was reported from — five questions answered, nothing to show, and a
+    // month to wait. Their answers are the intent that matters; plan from those.
+    // `replaceActive` because re-answering means the latest intent wins.
+    const result = await ensureMonthlyStrategy(
+      {
+        id,
+        hostname: (domain as any).hostname,
+        posts_per_week: (domain as any).posts_per_week ?? null,
+        site_profile: profile,
         interview: answers,
-        notes: strategy.notes,
-        active: true,
-      });
-      await savePlanContext(id, strategy, (domain as any).hostname);
-      strategyBuilt = true;
-    }
+        user_id: user.id,
+      },
+      { replaceActive: true, profileFallback: true },
+    );
+    strategyBuilt = result === 'created';
+    if (!strategyBuilt) reason = result;
   } catch (err) {
     console.error('[interview] strategy build failed:', err);
-    // We still return ok — the owner's answers are saved.
+    // The owner's answers are saved either way — but say that it failed.
+    reason = 'build_failed';
   }
 
-  return NextResponse.json({ ok: true, strategy_built: strategyBuilt });
+  return NextResponse.json({ ok: true, strategy_built: strategyBuilt, ...(reason ? { reason } : {}) });
 }
