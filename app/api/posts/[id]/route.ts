@@ -2,6 +2,34 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { supabaseServer } from '@/lib/supabase/server';
 import { ensurePostSlug } from '@/lib/post-slug';
+import { draftProgress } from '@/lib/pipeline/progress';
+
+/**
+ * Where this post is, for a client following a generation it just started
+ * (the Write page's queued card). Deliberately small — the article body isn't
+ * in the payload, only whether there is one — because this is polled every few
+ * seconds while the author waits.
+ */
+export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const sb = await supabaseServer();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+
+  const { id } = await ctx.params;
+  // RLS is the ownership gate: another tenant's post is simply invisible here.
+  const { data: p, error } = await sb
+    .from('posts').select('id, status, title, topic, body_md, generation_log')
+    .eq('id', id).maybeSingle();
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  if (!p) return NextResponse.json({ error: 'not found' }, { status: 404 });
+
+  return NextResponse.json({
+    id: p.id,
+    status: p.status,
+    title: p.title || p.topic || null,
+    ...draftProgress(p as any),
+  });
+}
 
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const sb = await supabaseServer();
