@@ -60,7 +60,12 @@ export default function PostRow({ p, score, blogSlug }: { p: any; score?: { over
   }
   async function regenerate() {
     if (busy) return; if (!confirm('Rewrite this article from scratch? This replaces the current draft.')) return; setBusy('regen');
-    const res = await fetch(`/api/posts/${p.id}/retry`, { method: 'POST' });
+    // mode:'fresh' is what makes this a rewrite — without it the pipeline
+    // reuses the persisted draft and re-scores the same words (see regrade).
+    const res = await fetch(`/api/posts/${p.id}/retry`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ mode: 'fresh' }),
+    });
     setBusy(null);
     if (!res.ok) { const j = await res.json().catch(() => ({})); alert(`Regenerate failed: ${j.error ?? 'unknown'}`); }
     r.refresh();

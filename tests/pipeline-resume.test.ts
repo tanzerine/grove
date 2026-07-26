@@ -49,3 +49,26 @@ describe('resumeState', () => {
     expect(resumeState(post).reuseDraft).toBe(false);
   });
 });
+
+// A "rewrite from scratch" on a finished post used to reuse the persisted draft,
+// re-score it and write the same words back — the button looked broken because
+// nothing about the article changed. `fresh` is what separates the two intents.
+describe('resumeState(post, fresh)', () => {
+  const finished = {
+    research: { brief: { title: 't', format: 'guide' }, context: { primary: [] } },
+    body_md: DRAFT,
+  };
+
+  it('reuses nothing on a complete post when a fresh rewrite is asked for', () => {
+    expect(resumeState(finished, true)).toEqual({ reuseResearch: false, reuseDraft: false });
+  });
+
+  it('still resumes that same post by default', () => {
+    expect(resumeState(finished)).toEqual({ reuseResearch: true, reuseDraft: true });
+    expect(resumeState(finished, false)).toEqual({ reuseResearch: true, reuseDraft: true });
+  });
+
+  it('is a no-op on a post with nothing to reuse', () => {
+    expect(resumeState({}, true)).toEqual({ reuseResearch: false, reuseDraft: false });
+  });
+});

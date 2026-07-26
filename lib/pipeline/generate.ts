@@ -24,14 +24,37 @@ export type ResumeState = { reuseResearch: boolean; reuseDraft: boolean };
  * draft is reusable only when research is (the manager + validator need the
  * context). This is what lets a retry fire from the stage that actually failed
  * instead of re-drafting, re-managing, and re-imaging work that succeeded.
+ *
+ * `fresh` is the other intent entirely: the reader asked for a NEW article, so
+ * nothing is reused even though a finished draft is sitting right there.
+ * Without it a "rewrite from scratch" on a completed post reuses the draft,
+ * re-scores it, and persists the same words back — which reads as the button
+ * doing nothing at all.
  */
-export function resumeState(post: { research?: any; body_md?: string | null }): ResumeState {
+export function resumeState(
+  post: { research?: any; body_md?: string | null },
+  fresh = false,
+): ResumeState {
+  if (fresh) return { reuseResearch: false, reuseDraft: false };
   const research = post?.research;
   const reuseResearch = !!(research && research.brief && research.context);
   const draft = (post?.body_md ?? '').trim();
   const reuseDraft = reuseResearch && draft.length > 200;
   return { reuseResearch, reuseDraft };
 }
+
+export type GenerateOptions = {
+  /** Rewrite from scratch — ignore any persisted research/draft. */
+  fresh?: boolean;
+  /**
+   * The post is live. Every public surface filters on `status = 'published'`,
+   * so demoting the row while a full pipeline runs would 404 the article (and
+   * poison the CDN) for minutes. With this set the row keeps its published
+   * status and its slug all the way through, and the new words swap in at the
+   * end.
+   */
+  keepLive?: boolean;
+};
 
 /**
  * Retry a transient pipeline step a couple of times before giving up. LLM
@@ -56,17 +79,21 @@ async function withRetry<T>(fn: () => Promise<T>, label: string, attempts = 2): 
   throw lastErr;
 }
 
-async function failAt(postId: string, step: any, err: any) {
+async function failAt(postId: string, step: any, err: any, keepLive = false) {
   const msg = String(err?.message ?? err);
   await appendLog(postId, step, 'fail', msg);
   const sb = supabaseAdmin();
+  // A live article stays live: a failed rewrite must not strand it in 'failed',
+  // which would pull it off the blog. The error is still recorded.
   await sb.from('posts').update({
-    status: 'failed', validation: { error: msg, failed_at: step },
+    ...(keepLive ? {} : { status: 'failed' }),
+    validation: { error: msg, failed_at: step },
   }).eq('id', postId);
   throw err;
 }
 
-export async function generatePost(postId: string) {
+export async function generatePost(postId: string, opts: GenerateOptions = {}) {
+  const { fresh = false, keepLive = false } = opts;
   const sb = supabaseAdmin();
   await resetLog(postId);
   await appendLog(postId, 'queued', 'done');
@@ -89,18 +116,25 @@ export async function generatePost(postId: string) {
 
   // If a prior run already persisted research and/or a draft, resume from the
   // stage that actually failed instead of redoing expensive work.
-  const { reuseResearch, reuseDraft } = resumeState(post as any);
+  const { reuseResearch, reuseDraft } = resumeState(post as any, fresh);
+
+  /** In-flight progress status ('researching'/'writing'), skipped for a live
+   *  rewrite so the article keeps serving while it's being rewritten. */
+  const setWorking = async (status: 'researching' | 'writing') => {
+    if (keepLive) return;
+    await sb.from('posts').update({ status }).eq('id', postId);
+  };
 
   // 1. SITE PROFILE (lazy)
   let profile: SiteProfile = domain.site_profile;
   if (!profile?.business?.name) {
-    await sb.from('posts').update({ status: 'researching' }).eq('id', postId);
+    await setWorking('researching');
     await appendLog(postId, 'site_profile', 'start', `crawling ${domain.hostname}`);
     try {
       profile = await profileSite(domain.hostname);
       await sb.from('domains').update({ site_profile: profile }).eq('id', domain.id);
       await appendLog(postId, 'site_profile', 'done', profile.business.name);
-    } catch (e) { await failAt(postId, 'site_profile', e); return; }
+    } catch (e) { await failAt(postId, 'site_profile', e, keepLive); return; }
   }
 
   // 2 + 3. RESEARCH + TOPIC REFINER
@@ -113,7 +147,7 @@ export async function generatePost(postId: string) {
     await appendLog(postId, 'research', 'done', 'reused prior research');
     await appendLog(postId, 'topic_refiner', 'done', `${brief.format}: ${brief.title} (reused)`);
   } else {
-    await sb.from('posts').update({ status: 'researching' }).eq('id', postId);
+    await setWorking('researching');
     await appendLog(postId, 'research', 'start',
       `Tavily for "${topic}"${targetKeyword ? ` + keyword "${targetKeyword}"` : ''}`);
     try {
@@ -121,16 +155,16 @@ export async function generatePost(postId: string) {
       await appendLog(postId, 'research', 'done',
         `${context.primary.length} primary, ${context.competitor.length} competitor, ${context.pain.length} pain` +
         `${context.serp.subtopics.length ? `, ${context.serp.subtopics.length} SERP subtopics` : ''}`);
-    } catch (e) { await failAt(postId, 'research', e); return; }
+    } catch (e) { await failAt(postId, 'research', e, keepLive); return; }
 
     await appendLog(postId, 'topic_refiner', 'start', 'picking angle + title');
     try {
       brief = await withRetry(() => refineTopic(topic, profile, context, targetKeyword, repoKb), 'topic_refiner');
       await appendLog(postId, 'topic_refiner', 'done', `${brief.format}: ${brief.title}`);
-    } catch (e) { await failAt(postId, 'topic_refiner', e); return; }
+    } catch (e) { await failAt(postId, 'topic_refiner', e, keepLive); return; }
 
+    await setWorking('writing');
     await sb.from('posts').update({
-      status: 'writing',
       research: {
         topic, brief,
         primary: context.primary.map((s) => ({ url: s.url, title: s.title })),
@@ -161,10 +195,10 @@ export async function generatePost(postId: string) {
       writer = await withRetry(
         () => runWriter({ brief, profile, context, kb, hostname: domain.hostname }), 'writer');
       await appendLog(postId, 'writer', 'done', `${writer.blog_post.split(/\s+/).length} words`);
-    } catch (e) { await failAt(postId, 'writer', e); return; }
+    } catch (e) { await failAt(postId, 'writer', e, keepLive); return; }
 
     if (!writer.blog_post || writer.blog_post.length < 200) {
-      await failAt(postId, 'writer', new Error(`writer returned ${writer.blog_post.length} chars`));
+      await failAt(postId, 'writer', new Error(`writer returned ${writer.blog_post.length} chars`), keepLive);
       return;
     }
 
@@ -272,22 +306,28 @@ export async function generatePost(postId: string) {
   const nextStatus: 'review' | 'scheduled' = canAutoPublish ? 'scheduled' : 'review';
   const scheduled_at = plannedAt ?? (canAutoPublish ? nextPublishSlot(domain.posts_per_week) : null);
 
+  // Rewriting a live article swaps the words in place: it stays published, at
+  // the same URL. A new title would otherwise mint a new slug and move a page
+  // that already has links and search equity pointed at it.
+  const liveSlug = (post as any).slug as string | null;
+
   try {
     await sb.from('posts').update({
-      status: nextStatus,
-      title, slug,
+      status: keepLive ? 'published' : nextStatus,
+      title, slug: keepLive && liveSlug ? liveSlug : slug,
       body_md: writer.blog_post,
       meta_title: writer.meta_title,
       meta_description: writer.meta_description,
       social: null,
       validation,
-      scheduled_at,
+      scheduled_at: keepLive ? plannedAt : scheduled_at,
     }).eq('id', postId);
     await sb.from('topic_memory').insert({ domain_id: domain.id, keyword: topic });
     await appendLog(postId, 'persist', 'done',
-      `→ ${nextStatus}${fatalConcern ? ' (gated — needs your review)' : ''} · ` +
+      `→ ${keepLive ? 'published (rewritten in place)' : nextStatus}` +
+      `${!keepLive && fatalConcern ? ' (gated — needs your review)' : ''} · ` +
       (validation.passed ? 'validator clean' : `${validation.issues.length} validator flags`));
-  } catch (e) { await failAt(postId, 'persist', e); return; }
+  } catch (e) { await failAt(postId, 'persist', e, keepLive); return; }
 
   // NOTE: cover image is intentionally NOT triggered here.
   // It's scheduled by the API route via Next's after() so it actually runs
