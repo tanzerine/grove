@@ -18,6 +18,7 @@ import { interviewSummary, type InterviewAnswers } from './interview';
 import { assignPublishDates } from './schedule';
 import { titleTokens } from '../related-posts';
 import { gatherKeywordDemand, formatDemandForPrompt } from './keywords';
+import { monthlySlots } from '../plans';
 import type { MonthlyReport } from './review';
 
 export { assignPublishDates };   // re-exported for back-compat
@@ -99,6 +100,10 @@ export type BuildStrategyInput = {
   progressMd?: string | null;       // rolling weekly log (agent_context.progress_md)
   alreadyCovered?: string[];        // topic_memory keywords — don't re-propose these
   llmTimeoutMs?: number;            // cap for the planning call (crons run on a 300s budget)
+  // This month's plan allowance. The cadence sets the shape of the calendar,
+  // this caps how much of it we actually plan — slots past the allowance would
+  // only be deferred as over-quota. Omit (or null) to plan on cadence alone.
+  monthlyQuota?: number | null;
 };
 
 /**
@@ -150,7 +155,7 @@ function digestReport(r: MonthlyReport): string {
 
 export async function buildStrategy(input: BuildStrategyInput): Promise<Strategy> {
   const { month, postsPerWeek, profile, interview, prevStrategy, prevReport, progressMd, alreadyCovered } = input;
-  const monthlyPostCount = Math.max(4, Math.round(postsPerWeek * 4.3));
+  const monthlyPostCount = monthlySlots(postsPerWeek, input.monthlyQuota);
   const isFirstMonth = !prevStrategy && !prevReport?.totals?.views;
 
   // VALIDATED DEMAND — pull real search phrases (free, via Google Autocomplete)

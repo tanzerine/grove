@@ -20,6 +20,7 @@
  */
 import { strategyLlmCall, fastLlmCall, llmCall, extractJson } from '../llm';
 import { normalizeStrategy, type Strategy } from './build';
+import { monthlySlots } from '../plans';
 
 export const PLAN_CHAT_LIMITS = {
   messagesPerMonth: 40,    // total owner messages (questions are near-free, this stops abuse)
@@ -113,8 +114,9 @@ export async function reviseStrategy(opts: {
   hostname: string;
   postsPerWeek: number;
   lockedSlotIds?: string[];    // slots with a post already drafted/published
+  monthlyQuota?: number | null; // plan allowance; the revision can't exceed it
 }): Promise<RevisionOutcome> {
-  const { current, instruction, hostname, postsPerWeek, lockedSlotIds = [] } = opts;
+  const { current, instruction, hostname, postsPerWeek, lockedSlotIds = [], monthlyQuota = null } = opts;
 
   const system = `You are the strategist agent for the ${hostname} blog. The owner
 wants to change the ACTIVE monthly plan. Apply their instruction as a surgical
@@ -143,7 +145,7 @@ OUTPUT: ONE raw JSON object, no markdown:
   const parsed = extractJson<{ reply?: string; strategy?: Strategy }>(text);
   if (!parsed.strategy) throw new Error('reviseStrategy: no strategy in response');
 
-  const merged = mergeRevision(current, parsed.strategy, { postsPerWeek, lockedSlotIds });
+  const merged = mergeRevision(current, parsed.strategy, { postsPerWeek, lockedSlotIds, monthlyQuota });
   return {
     reply: (parsed.reply ?? 'Done — the plan has been updated.').trim(),
     strategy: merged,
@@ -160,9 +162,9 @@ OUTPUT: ONE raw JSON object, no markdown:
 export function mergeRevision(
   current: Strategy,
   proposed: Strategy,
-  opts: { postsPerWeek: number; lockedSlotIds?: string[] },
+  opts: { postsPerWeek: number; lockedSlotIds?: string[]; monthlyQuota?: number | null },
 ): Strategy {
-  const { postsPerWeek, lockedSlotIds = [] } = opts;
+  const { postsPerWeek, lockedSlotIds = [], monthlyQuota = null } = opts;
   const currentById = new Map((current.publishing_plan ?? []).map((s) => [s.id, s]));
 
   let plan = (proposed.publishing_plan ?? []).map((slot) => {
@@ -178,13 +180,17 @@ export function mergeRevision(
     if (original && !proposedIds.has(id)) plan = [original, ...plan];
   }
 
-  const monthlyPostCount = Math.max(4, Math.round(postsPerWeek * 4.3));
-  // Allow the owner to ask for a bigger month, but never more than 2x the
-  // plan quota — the cap is the spend guarantee, the chat can't lift it.
-  const maxSlots = Math.min(
-    Math.max(monthlyPostCount, plan.length),
-    monthlyPostCount * 2,
-  );
+  // The owner can ask for a bigger month, but never past what their plan
+  // includes — this is the spend guarantee, and the chat can't lift it. With no
+  // enforceable allowance the old cadence-relative headroom (up to 2x) stands.
+  const monthlyPostCount = monthlySlots(postsPerWeek, monthlyQuota);
+  const quotaBound = typeof monthlyQuota === 'number' && monthlyQuota > 0;
+  // Never below the locked count: trimming to the allowance must not orphan a
+  // slot whose post is already drafted or live (a month's plan can legitimately
+  // sit above the allowance if it was built before the cap existed).
+  const maxSlots = quotaBound
+    ? Math.max(monthlyPostCount, lockedSlotIds.length)
+    : Math.min(Math.max(monthlyPostCount, plan.length), monthlyPostCount * 2);
 
   return normalizeStrategy(
     { ...proposed, publishing_plan: plan },

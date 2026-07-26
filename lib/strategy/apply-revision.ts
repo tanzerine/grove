@@ -8,6 +8,7 @@
 import { supabaseAdmin } from '../supabase/admin';
 import { PLAN_CHAT_LIMITS, reviseStrategy } from './plan-chat';
 import { savePlanContext } from './context-store';
+import { getQuota } from '../quota';
 import type { Strategy } from './build';
 
 export type PlanChatBudget = { messagesLeft: number; revisionsLeft: number };
@@ -70,12 +71,21 @@ export async function applyPlanRevision(opts: {
     .filter((p: any) => p.status !== 'failed')
     .map((p: any) => p.slot_id as string);
 
+  // The owner can reshape the month, but not buy themselves a bigger one — the
+  // revised plan is capped at the allowance like every other plan. Resolved
+  // here so both chat surfaces get it without threading it through each call.
+  const { data: ownerRow } = await admin
+    .from('domains').select('user_id').eq('id', domainId).maybeSingle();
+  const ownerId = (ownerRow as { user_id?: string } | null)?.user_id;
+  const monthlyQuota = ownerId ? (await getQuota(ownerId)).limit : null;
+
   const outcome = await reviseStrategy({
     current: strategyFromRow(strategyRow),
     instruction: opts.instruction,
     hostname: opts.hostname,
     postsPerWeek: opts.postsPerWeek,
     lockedSlotIds,
+    monthlyQuota,
   });
 
   // Swap the active strategy row: deactivate old, insert revised.

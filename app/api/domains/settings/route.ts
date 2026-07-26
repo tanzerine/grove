@@ -6,6 +6,9 @@ import { isPublicHttpUrl } from '@/lib/net/ssrf';
 import { normalizeCanonicalBase, normalizeBlogHostname, appBase } from '@/lib/seo';
 import { deriveBrandColors } from '@/lib/blog-theme';
 import { attachProjectDomain, detachProjectDomain, cnameHint, type DomainAttachResult } from '@/lib/vercel/domains';
+import { getQuota } from '@/lib/quota';
+import { canGenerateForUser } from '@/lib/billing';
+import { maxPostsPerWeekForQuota } from '@/lib/plans';
 
 const HEX = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
@@ -41,6 +44,35 @@ export async function PATCH(req: Request) {
 
   const { domain_id, ...updates } = parsed.data;
   const patch: Record<string, unknown> = { ...updates };
+
+  // Cadence is capped by the plan's monthly allowance. Nothing stopped a
+  // Starter account (12 posts/month) asking for 7/week — 30 planned slots the
+  // drain would refuse as over-quota, so the calendar promised the customer
+  // more than three times what they could actually be given. An allowance we
+  // can't price (see lib/quota) isn't capped, same fail-open rule.
+  if (updates.posts_per_week !== undefined) {
+    // Only an account with a live plan has a cadence ceiling. Without one the
+    // entitlement gate already blocks generation outright, and `posts_quota`
+    // still holds the schema default of 4 — capping on that would tell someone
+    // evaluating the product that "your plan includes 4 posts a month".
+    const [{ limit }, entitled] = await Promise.all([
+      getQuota(user.id, sb),
+      canGenerateForUser(user.id, sb),
+    ]);
+    if (entitled && limit !== null) {
+      const max = maxPostsPerWeekForQuota(limit);
+      if (updates.posts_per_week > max) {
+        return NextResponse.json(
+          {
+            error: 'cadence_over_plan',
+            message: `Your plan includes ${limit} posts a month, which is up to ${max} a week. Upgrade to publish more often.`,
+            max_posts_per_week: max,
+          },
+          { status: 400 },
+        );
+      }
+    }
+  }
 
   // Canonical base: normalize (force https shape, strip trailing slash) and
   // store null when cleared or unparseable — a garbage base must never leak
