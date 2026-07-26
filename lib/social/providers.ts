@@ -9,7 +9,7 @@
  * Redirect URI to register on each platform:
  *   {NEXT_PUBLIC_APP_URL}/api/social/{platform}/callback
  */
-export type Platform = 'x' | 'linkedin' | 'instagram';
+export type Platform = 'x' | 'linkedin';
 
 export type ProviderConfig = {
   id: Platform;
@@ -24,7 +24,7 @@ export type ProviderConfig = {
   clientSecret?: string;
 };
 
-export const PLATFORMS: Platform[] = ['x', 'linkedin', 'instagram'];
+export const PLATFORMS: Platform[] = ['x', 'linkedin'];
 
 export function getProvider(platform: Platform): ProviderConfig {
   switch (platform) {
@@ -52,20 +52,6 @@ export function getProvider(platform: Platform): ProviderConfig {
         tokenBasicAuth: false,
         clientId: process.env.LINKEDIN_CLIENT_ID,
         clientSecret: process.env.LINKEDIN_CLIENT_SECRET,
-      };
-    case 'instagram':
-      // Instagram content publishing runs through the Facebook Graph API and
-      // requires an IG Business/Creator account linked to a FB Page.
-      return {
-        id: 'instagram',
-        label: 'Instagram',
-        authUrl: 'https://www.facebook.com/v19.0/dialog/oauth',
-        tokenUrl: 'https://graph.facebook.com/v19.0/oauth/access_token',
-        scopes: ['instagram_basic', 'instagram_content_publish', 'pages_show_list', 'business_management'],
-        usesPKCE: false,
-        tokenBasicAuth: false,
-        clientId: process.env.FACEBOOK_APP_ID,
-        clientSecret: process.env.FACEBOOK_APP_SECRET,
       };
   }
 }

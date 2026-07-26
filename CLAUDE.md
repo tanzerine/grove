@@ -126,7 +126,7 @@ Other key surfaces:
 - `GROVE_BLOG_ROOT_DOMAIN` — when set, blogs serve at `{slug}.{root}` (needs wildcard
   DNS + Vercel wildcard domain); unset → `/b/{slug}` paths.
 - `SOCIAL_TOKEN_KEY` — AES key for stored OAuth tokens (unset = plaintext fallback,
-  dev only). `X_/LINKEDIN_/FACEBOOK_` client creds gate the social Connect buttons.
+  dev only). `X_/LINKEDIN_` client creds gate the social Connect buttons.
 - `RESEND_API_KEY` — weekly digest emails (degrades gracefully if unset).
 - `CRON_SECRET` — guards `/api/cron/*`.
 - `VERCEL_API_TOKEN` / `VERCEL_PROJECT_ID` / `VERCEL_TEAM_ID` — auto-attach a

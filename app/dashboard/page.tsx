@@ -226,7 +226,6 @@ export default async function OverviewPage() {
         { name: 'Blog post', dot: ACCENT_INK, color: ACCENT_INK, state: 'Published' },
         { name: 'X thread', ...chState('x') },
         { name: 'LinkedIn', ...chState('linkedin') },
-        { name: 'Instagram', ...chState('instagram') },
       ]
     : [];
 
@@ -399,7 +398,7 @@ export default async function OverviewPage() {
             <div style={{ fontSize: 12, color: 'var(--gv-faint)', marginBottom: 18 }}>One brief, every channel</div>
             {channels.length === 0 ? (
               <div style={{ fontSize: 12.5, color: 'var(--gv-faint)', lineHeight: 1.6 }}>
-                Once your first post publishes, its X / LinkedIn / Instagram variants show up here.{' '}
+                Once your first post publishes, its X / LinkedIn variants show up here.{' '}
                 <Link href="/dashboard/connections" style={{ color: 'var(--gv-dim)', textDecoration: 'underline' }}>Connect channels →</Link>
               </div>
             ) : (

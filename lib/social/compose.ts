@@ -7,7 +7,7 @@ import { blogHomeUrl, blogPostUrl, canonicalBaseFor } from '../seo';
 
 // `disabled` lists channels the owner switched off for this post's
 // publish-time fan-out (an explicit per-channel "Post now" still works).
-export type SocialCopy = { x?: string; linkedin?: string; instagram?: string; disabled?: string[] } | null;
+export type SocialCopy = { x?: string; linkedin?: string; disabled?: string[] } | null;
 
 export type PostForShare = {
   id: string;
@@ -30,9 +30,8 @@ export type DomainForShare = {
 
 export type ShareRequest = {
   platform: Platform;
-  text: string;            // tweet text / LinkedIn commentary / IG caption
+  text: string;            // tweet text / LinkedIn commentary
   url: string;             // canonical blog URL
-  imageUrl?: string | null;
 };
 
 export function isDryRun(): boolean {
@@ -67,10 +66,6 @@ export function firstTweet(thread?: string): string {
 export function normalizeXCopy(raw?: string): string {
   const tweet = firstTweet(raw).replace(/\s*🧵\s*$/u, '').trim();
   return clampX(tweet, X_MAX - X_URL_WEIGHT - 2);
-}
-
-export function clamp(s: string, n: number): string {
-  return s.length <= n ? s : s.slice(0, n - 1).trimEnd() + '…';
 }
 
 /* ───────────── X character accounting ─────────────
@@ -124,15 +119,7 @@ export function composeShare(platform: Platform, post: PostForShare, url: string
     // The URL costs X_URL_WEIGHT no matter how long it prints; '\n\n' costs 2.
     return { platform, url, text: `${clampX(base, X_MAX - X_URL_WEIGHT - 2)}\n\n${url}` };
   }
-  if (platform === 'linkedin') {
-    const base = post.social?.linkedin || post.title || '';
-    return { platform, url, text: `${base}\n\n${url}` };
-  }
-  // instagram
-  const base = post.social?.instagram || post.title || '';
-  return {
-    platform, url,
-    text: clamp(`${base}\n\nRead more — link in bio.\n${url}`, 2100),
-    imageUrl: post.cover_image_url,
-  };
+  // linkedin
+  const base = post.social?.linkedin || post.title || '';
+  return { platform, url, text: `${base}\n\n${url}` };
 }

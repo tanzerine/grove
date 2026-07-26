@@ -5,7 +5,7 @@ const PLANS = [
   { name: 'Starter', mo: 29, yr: 23, desc: 'For the solo founder finally starting the blog.', cta: 'Start free trial', primary: false,
     features: ['4 posts / month', '1 domain', 'Auto-publish + SSL + sitemap', 'Brand voice profiling', 'Review queue'] },
   { name: 'Growth', mo: 79, yr: 63, desc: 'For founders who want content to actually compound.', cta: 'Start free trial', primary: true,
-    features: ['16 posts / month', '1 domain', 'Cross-post to X, LinkedIn & Instagram', 'Ranking analytics dashboard', 'Full auto-pilot mode', 'Priority research sources'] },
+    features: ['16 posts / month', '1 domain', 'Cross-post to X & LinkedIn', 'Ranking analytics dashboard', 'Full auto-pilot mode', 'Priority research sources'] },
   { name: 'Agency', mo: 199, yr: 159, desc: 'For teams running content across client sites.', cta: 'Talk to us', primary: false,
     features: ['10 sites, 8 posts each', 'Everything in Growth', 'Per-client brand voices', 'White-label blog & embed', 'Shared team workspace'] },
 ];

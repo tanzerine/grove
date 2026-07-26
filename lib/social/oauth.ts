@@ -57,18 +57,6 @@ export function buildAuthUrl(platform: Platform, state: string, challenge?: stri
 export async function exchangeCode(platform: Platform, code: string, verifier?: string): Promise<TokenResponse> {
   const p = getProvider(platform);
 
-  // Facebook/Instagram uses a GET token endpoint with query params.
-  if (platform === 'instagram') {
-    const url = new URL(p.tokenUrl);
-    url.searchParams.set('client_id', p.clientId ?? '');
-    url.searchParams.set('client_secret', p.clientSecret ?? '');
-    url.searchParams.set('redirect_uri', redirectUri(platform));
-    url.searchParams.set('code', code);
-    const r = await fetch(url, { method: 'GET' });
-    if (!r.ok) throw new Error(`token exchange failed (${platform}): ${await r.text()}`);
-    return (await r.json()) as TokenResponse;
-  }
-
   const body = new URLSearchParams({
     grant_type: 'authorization_code',
     code,
@@ -117,12 +105,12 @@ export async function refreshAccessToken(platform: Platform, refreshToken: strin
 // Refresh a bit ahead of the real expiry so a token can't lapse mid-request.
 export const TOKEN_SKEW_MS = 120_000;
 export function tokenExpired(expires_at: string | null, now = Date.now()): boolean {
-  if (!expires_at) return false; // null = long-lived (LinkedIn 60d / IG), never auto-refreshed
+  if (!expires_at) return false; // null = long-lived (LinkedIn 60d), never auto-refreshed
   return new Date(expires_at).getTime() - TOKEN_SKEW_MS <= now;
 }
 
 // Refresh + persist rotated tokens for one connection. Only meaningful when it
-// carries a refresh token (X does; LinkedIn/IG here don't).
+// carries a refresh token (X does; LinkedIn here doesn't).
 export async function refreshConnection(domainId: string, conn: Connection): Promise<Connection> {
   if (!conn.refresh_token) return conn;
   const tok = await refreshAccessToken(conn.platform, conn.refresh_token);
@@ -165,21 +153,13 @@ export async function fetchAccount(platform: Platform, accessToken: string): Pro
       const j = await r.json();
       return { id: j?.data?.id, handle: j?.data?.username ? `@${j.data.username}` : undefined };
     }
-    if (platform === 'linkedin') {
-      const r = await fetch('https://api.linkedin.com/v2/userinfo', {
-        headers: { authorization: `Bearer ${accessToken}` },
-      });
-      const j = await r.json();
-      // member URN used as the post author
-      return { id: j?.sub ? `urn:li:person:${j.sub}` : undefined, handle: j?.name };
-    }
-    // instagram: resolve the IG business account behind the user's first page
-    const pages = await fetch(
-      `https://graph.facebook.com/v19.0/me/accounts?fields=instagram_business_account,name&access_token=${accessToken}`,
-    ).then((r) => r.json());
-    const page = (pages?.data ?? []).find((p: any) => p.instagram_business_account?.id);
-    const igId = page?.instagram_business_account?.id;
-    return { id: igId, handle: page?.name };
+    // linkedin
+    const r = await fetch('https://api.linkedin.com/v2/userinfo', {
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    const j = await r.json();
+    // member URN used as the post author
+    return { id: j?.sub ? `urn:li:person:${j.sub}` : undefined, handle: j?.name };
   } catch {
     return {};
   }

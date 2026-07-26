@@ -19,7 +19,7 @@ export const maxDuration = 120;
 // Optional body: { platforms: ['x'] } shares only those channels ('webhook'
 // included). No body (or empty list) keeps the fan-out-everywhere behavior.
 const bodySchema = z.object({
-  platforms: z.array(z.enum(['x', 'linkedin', 'instagram', 'webhook'])).min(1).optional(),
+  platforms: z.array(z.enum(['x', 'linkedin', 'webhook'])).min(1).optional(),
 });
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {

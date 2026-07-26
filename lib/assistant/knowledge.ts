@@ -83,9 +83,9 @@ Either way, drafts the AI manager flags with concerns always route to human revi
   {
     id: 'social',
     title: 'Auto-posting to social',
-    keywords: ['social', 'twitter', ' x ', 'linkedin', 'instagram', 'webhook', 'share', '소셜', '공유'],
+    keywords: ['social', 'twitter', ' x ', 'linkedin', 'webhook', 'share', '소셜', '공유'],
     href: '/dashboard/connections',
-    body: `Dashboard → Connections links X, LinkedIn or Instagram via OAuth; once connected, Grove composes and posts a share for each published article. No social account? Add an outbound webhook instead and Grove will POST each published article's link + summary to it (Zapier/Make/Slack-friendly).`,
+    body: `Dashboard → Connections links X or LinkedIn via OAuth; once connected, Grove composes and posts a share for each published article. No social account? Add an outbound webhook instead and Grove will POST each published article's link + summary to it (Zapier/Make/Slack-friendly).`,
   },
   {
     id: 'quality',

@@ -359,7 +359,7 @@ function parseSections(text: string) {
 
 /* ─────────────────────────── ON-DEMAND SOCIAL ─────────────────────────── */
 
-export type SocialOutput = { x: string; linkedin: string; instagram: string };
+export type SocialOutput = { x: string; linkedin: string };
 
 /**
  * Parse the social adapter's LLM output. Primary format is JSON (via the
@@ -379,7 +379,7 @@ export function parseSocialOutput(text: string): SocialOutput {
     let cur: string | null = null;
     const buf: string[] = [];
     for (const line of text.split('\n')) {
-      const m = line.match(/^[\s*_`>#]*-{2,}\s*(x|linkedin|instagram)\s*-{2,}[\s*_`]*$/i);
+      const m = line.match(/^[\s*_`>#]*-{2,}\s*(x|linkedin)\s*-{2,}[\s*_`]*$/i);
       if (m) {
         if (cur) parsed[cur] = buf.join('\n').trim();
         cur = m[1].toLowerCase();
@@ -390,8 +390,8 @@ export function parseSocialOutput(text: string): SocialOutput {
     out = parsed;
   }
   const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
-  const result = { x: str(out.x), linkedin: str(out.linkedin), instagram: str(out.instagram) };
-  if (!result.x && !result.linkedin && !result.instagram) {
+  const result = { x: str(out.x), linkedin: str(out.linkedin) };
+  if (!result.x && !result.linkedin) {
     throw new Error(`social adapter returned no channel copy. First 200 chars: ${text.slice(0, 200)}`);
   }
   return result;
@@ -412,15 +412,14 @@ export async function runSocialAdapter(
 ARTICLE BODY:
 ${article.body_md.slice(0, 8000)}
 
-TASK: Adapt the article above into native posts for X, LinkedIn, and Instagram.
+TASK: Adapt the article above into native posts for X and LinkedIn.
 Each platform gets its own treatment — no copy-paste between them.
 Write for ${business.name}'s audience: ${business.target_audience}.
 
 Return JSON only — no prose before or after it:
 {
   "x": "ONE single tweet — NOT a thread. A sharp hook plus the article's core insight, on one line. HARD LIMIT: under 200 characters (under 100 if writing in Korean/CJK — X counts those double). No numbering, no thread emoji, no URL — the article link is appended automatically",
-  "linkedin": "1500–2200 chars, story-led, line breaks every 1–2 sentences, no hashtag spam, end with a question",
-  "instagram": "under 2200 chars, hook-driven, 3–5 hashtags at the end"
+  "linkedin": "1500–2200 chars, story-led, line breaks every 1–2 sentences, no hashtag spam, end with a question"
 }`;
   const { text } = await llmCall({ system, user, json: true, maxTokens: 3000 });
   const out = parseSocialOutput(text);
