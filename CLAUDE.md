@@ -55,7 +55,16 @@ throughput, change the cron schedule — not the code.** Every figure follows
 automatically, including the oversold-capacity flag on the admin overview
 (`lib/anomaly.ts`), which compares sold plan quota against deliverable capacity.
 Set `GROVE_TICK_BUDGET_MS` when the plan's real function ceiling is below the
-route's declared `maxDuration` (Vercel Hobby caps at 60s regardless).
+route's declared `maxDuration` (Vercel Hobby caps at 60s regardless; on the
+current Pro account the declared 300s is honoured, so leave it unset).
+
+The account is on **Vercel Pro**, so sub-daily crons are allowed: the scheduler
+runs hourly and `/api/cron/images` at :30 (offset so the two 300s functions
+don't fire together). That's ~47 posts/day of headroom. Phases that don't need
+every tick opt out — the Search Console sync runs on one tick a day
+(`shouldSyncGsc`), handing its reserve back to generation on the other 23. If
+you ever need more, `*/15 * * * *` is the next step and every figure follows.
+Measured generation cost is ~138s p80, so roughly 2 articles fit per tick.
 
 Other key surfaces:
 - `lib/agent-brief.ts` — plain-English weekly brief on the dashboard home.

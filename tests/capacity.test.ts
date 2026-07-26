@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   DEFAULT_GENERATION_MS,
   GSC_RESERVE_MS,
+  GSC_SYNC_HOUR_UTC,
   MAX_POSTS_PER_TICK,
   TICK_SAFETY_MS,
   capacityReport,
@@ -15,6 +16,7 @@ import {
   resolveTickBudgetMs,
   schedulerCron,
   schedulerTicksPerDay,
+  shouldSyncGsc,
   tickBudgetMs,
   ticksPerDay,
 } from '../lib/pipeline/capacity';
@@ -58,6 +60,38 @@ describe('schedulerCron', () => {
       .crons.find((c) => c.path === '/api/cron/scheduler');
     expect(schedulerCron()).toBe(configured!.schedule);
     expect(schedulerTicksPerDay()).toBe(ticksPerDay(configured!.schedule));
+  });
+
+  it('is configured for enough ticks to serve the top plan', () => {
+    // The whole point of the capacity work: one Agency subscription sells 150
+    // posts/month, which a once-daily tick could never deliver. Guard the
+    // schedule itself so a revert to daily fails here rather than in support.
+    expect(schedulerTicksPerDay()).toBeGreaterThanOrEqual(24);
+  });
+
+  it('keeps the two hourly crons off the same minute', () => {
+    // Both are 300s functions; firing them together doubles peak load for no
+    // reason. Offsetting them is deliberate, so assert it.
+    const crons = (vercelConfig as { crons: { path: string; schedule: string }[] }).crons;
+    const minuteOf = (p: string) => crons.find((c) => c.path === p)!.schedule.split(' ')[0];
+    expect(minuteOf('/api/cron/scheduler')).not.toBe(minuteOf('/api/cron/images'));
+  });
+});
+
+describe('shouldSyncGsc', () => {
+  const at = (hour: number) => new Date(Date.UTC(2026, 6, 26, hour, 0, 0));
+
+  it('syncs on one tick a day when the cron is sub-daily', () => {
+    expect(shouldSyncGsc(at(GSC_SYNC_HOUR_UTC), 24)).toBe(true);
+    expect(shouldSyncGsc(at(GSC_SYNC_HOUR_UTC + 1), 24)).toBe(false);
+    expect(shouldSyncGsc(at(0), 24)).toBe(false);
+  });
+
+  it('always syncs when there is only one tick in the day', () => {
+    // A daily cron may land on any hour; gating it by hour would mean the
+    // feedback signal simply never refreshes.
+    expect(shouldSyncGsc(at(9), 1)).toBe(true);
+    expect(shouldSyncGsc(at(23), 1)).toBe(true);
   });
 });
 
@@ -164,12 +198,25 @@ describe('generationDurationMs', () => {
 });
 
 describe('drain sizing against real measurements', () => {
-  it('fits several articles per tick at the observed ~150s cost', () => {
-    // Production p80 is ~150s; a 300s tick less the GSC reserve is 240s.
+  // Measured over 33 production generations: p80 138s, avg 117s, max 157s.
+  const OBSERVED_P80_MS = 138_000;
+
+  it('fits more articles on the ticks that skip the Search Console sync', () => {
     const budget = tickBudgetMs(300);
-    expect(postsPerTick(budget, 150_000, GSC_RESERVE_MS)).toBe(1);
-    // ...and an hourly cron turns that into 24/day rather than 3.
-    expect(capacityReport({ ticksPerDay: 24, postsPerTick: 1, committedPerMonth: 150 }).postsPerMonth).toBe(720);
+    // The one daily sync tick holds 45s back...
+    expect(postsPerTick(budget, OBSERVED_P80_MS, GSC_RESERVE_MS)).toBe(1);
+    // ...the other 23 spend the whole invocation on generation.
+    expect(postsPerTick(budget, OBSERVED_P80_MS, 0)).toBe(2);
+  });
+
+  it('clears the top plan with room to spare on the hourly schedule', () => {
+    // 23 generation-only ticks at 2 + 1 sync tick at 1 = 47/day.
+    const perDay = 23 * 2 + 1;
+    const r = capacityReport({ ticksPerDay: perDay, postsPerTick: 1, committedPerMonth: 150 });
+    expect(r.postsPerMonth).toBe(1410);
+    expect(r.oversubscribed).toBe(false);
+    // The ceiling that started all this was 90/month — less than one Agency plan.
+    expect(r.postsPerMonth).toBeGreaterThan(90 * 15);
   });
 
   it('never sizes a tick to zero work from a poisoned estimate', () => {

@@ -18,10 +18,15 @@
  *
  *   posts/day = ticks per day (vercel.json) × posts per tick (maxDuration)
  *
- * — so moving this cron from daily to hourly multiplies throughput by 24 with no
- * change to this file. lib/pipeline/capacity holds the arithmetic and reports
- * deliverable capacity against sold quota so overselling surfaces on the admin
- * overview instead of as silent under-delivery.
+ * — so the move from daily to hourly (once the account reached Vercel Pro, which
+ * rejects sub-daily crons on Hobby) multiplied throughput ~24x without touching
+ * this file. lib/pipeline/capacity holds the arithmetic and reports deliverable
+ * capacity against sold quota so overselling surfaces on the admin overview
+ * instead of as silent under-delivery.
+ *
+ * Phases that don't need every tick say so: the Search Console sync runs on one
+ * tick a day (Google reports daily), which hands its reserve back to generation
+ * on the other 23.
  *
  * Guarded by CRON_SECRET — Vercel sends it as a Bearer token automatically.
  */
@@ -42,6 +47,7 @@ import {
   isStranded,
   resolveTickBudgetMs,
   schedulerTicksPerDay,
+  shouldSyncGsc,
 } from '@/lib/pipeline/capacity';
 import { materializeDuePlanSlots } from '@/lib/strategy/materialize';
 import { ensureMonthlyStrategy, monthBounds, type EnsureDomain } from '@/lib/strategy/ensure';
@@ -164,7 +170,10 @@ export async function GET(req: Request) {
     .filter((n): n is number => n !== null);
   const estimateMs = estimateGenerationMs(samples);
   // The drain must leave the tail phases (Search Console) room to run.
-  const drainBudgetMs = Math.max(0, budgetMs - GSC_RESERVE_MS);
+  // Only the tick that will actually sync Search Console has to hold budget
+  // back for it — the other 23 spend the whole invocation on generation.
+  const syncGsc = shouldSyncGsc(new Date(), schedulerTicksPerDay());
+  const drainBudgetMs = Math.max(0, budgetMs - (syncGsc ? GSC_RESERVE_MS : 0));
 
   // 2b) SELF-HEAL the monthly strategy: if the run on the 1st was killed (LLM
   //     timeout, platform limit), the loop used to stay dead until the NEXT 1st
@@ -278,16 +287,19 @@ export async function GET(req: Request) {
   //    loop's real-world feedback signal — impressions/position per page —
   //    that the strategist reads on its next monthly planning call. It runs in
   //    the budget the drain was told to leave alone, so a deep queue can no
-  //    longer starve it.
+  //    longer starve it. Google reports at daily granularity, so this runs on
+  //    one tick a day rather than on every one of them.
   let gscSynced = 0;
-  const { data: gscDomains } = await sb
-    .from('domains').select('id').not('gsc_refresh_token', 'is', null);
-  for (const d of gscDomains ?? []) {
-    if (elapsed() >= budgetMs) break;
-    try {
-      const res = await syncDomain(d.id);
-      if (res.ok) gscSynced++;
-    } catch { /* a GSC outage must not stall the tick */ }
+  if (syncGsc) {
+    const { data: gscDomains } = await sb
+      .from('domains').select('id').not('gsc_refresh_token', 'is', null);
+    for (const d of gscDomains ?? []) {
+      if (elapsed() >= budgetMs) break;
+      try {
+        const res = await syncDomain(d.id);
+        if (res.ok) gscSynced++;
+      } catch { /* a GSC outage must not stall the tick */ }
+    }
   }
 
   return NextResponse.json({

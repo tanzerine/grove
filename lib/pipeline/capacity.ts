@@ -40,6 +40,19 @@ export const TICK_SAFETY_MS = 15_000;
 // first thing to go. Reserve room the drain may never spend.
 export const GSC_RESERVE_MS = 45_000;
 
+// Search Console publishes at daily granularity, so there is nothing to gain
+// from syncing it more than once a day. On a sub-daily schedule the sync runs
+// on the tick at this UTC hour and every other tick gets its reserve back to
+// spend on generation.
+export const GSC_SYNC_HOUR_UTC = 4;
+
+/** Should this tick spend time on the Search Console sync? */
+export function shouldSyncGsc(now: Date, ticksPerDayCount: number): boolean {
+  // On a once-daily schedule the sole tick must do it, whatever hour it lands on.
+  if (ticksPerDayCount <= 1) return true;
+  return now.getUTCHours() === GSC_SYNC_HOUR_UTC;
+}
+
 // Used until enough real generations have been observed to measure.
 export const DEFAULT_GENERATION_MS = 90_000;
 
