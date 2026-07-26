@@ -7,6 +7,7 @@ import { entitlementFrom } from '@/lib/billing';
 import { ACTIVE_DOMAIN_COOKIE } from '@/lib/active-domain';
 import { getOnboarding, EMPTY_ONBOARDING } from '@/lib/onboarding/checklist';
 import { getActivity, EMPTY_ACTIVITY } from '@/lib/notifications/feed';
+import { pipelineCounts } from '@/lib/pipeline/counts';
 import DashShell from './DashShell';
 import ActivityPing from './ActivityPing';
 import type { Chrome } from './chrome-context';
@@ -28,16 +29,24 @@ export default async function DashLayout({ children }: { children: React.ReactNo
   const verified = domains?.find((d) => d.verified_at);
   const active = (wanted && domains?.find((d) => d.id === wanted)) || verified || domains?.[0] || null;
 
-  // Nav badges — small, best-effort counts (never block render on failure).
+  // Nav badge — best-effort (never block render on failure).
+  //
+  // Scoped to the ACTIVE site and counting only what needs the owner
+  // personally. It used to sum every non-terminal post across every domain
+  // they own, so an account with one site holding 1 draft for review and
+  // another holding 15 queued saw "16" in the nav while the pipeline page for
+  // the site they were actually looking at said "1 waiting on you".
+  //
+  // Queued and scheduled posts are the agent working, not a to-do; they belong
+  // in the pipeline view, not in an alarm. lib/pipeline/counts is the single
+  // definition every surface now shares.
   const badges: Record<string, number> = {};
   try {
-    const domainIds = (domains ?? []).map((d) => d.id);
-    if (domainIds.length) {
+    if (active?.id) {
       const { data: posts } = await sb
-        .from('posts').select('status,domain_id').in('domain_id', domainIds);
-      const inPipeline = (posts ?? []).filter((p) =>
-        !['published', 'failed', 'archived'].includes((p as any).status)).length;
-      if (inPipeline) badges.pipeline = inPipeline;
+        .from('posts').select('status,created_at').eq('domain_id', active.id);
+      const { needsYou } = pipelineCounts(posts ?? []);
+      if (needsYou) badges.pipeline = needsYou;
     }
   } catch { /* badges are optional */ }
 

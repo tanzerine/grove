@@ -10,6 +10,7 @@ import { DashHeader } from '../gv-chrome';
 import { getQuota } from '@/lib/quota';
 import { canGenerateForUser } from '@/lib/billing';
 import { maxPostsPerWeekForQuota } from '@/lib/plans';
+import { WORKING, isStuck } from '@/lib/pipeline/counts';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
@@ -60,11 +61,11 @@ export default async function Page() {
   }).length;
   const aeoTotal = publishedPosts.length;
 
-  // group the pipeline by stage
-  const STUCK_MIN = 3;
-  const isStuck = (p: any) => ['queued', 'researching', 'writing'].includes(p.status) && (Date.now() - new Date(p.created_at).getTime()) / 60000 > STUCK_MIN;
+  // Group the pipeline by stage. The stuck rule and the status buckets come
+  // from lib/pipeline/counts so this page and the nav badge can't drift apart
+  // — they used to, and disagreed by an order of magnitude.
   const groupsDef = [
-    { key: 'flight', label: 'In flight', color: ACCENT_INK, test: (p: any) => ['queued', 'researching', 'writing'].includes(p.status) && !isStuck(p) },
+    { key: 'flight', label: 'In flight', color: ACCENT_INK, test: (p: any) => WORKING.includes(p.status) && !isStuck(p) },
     { key: 'review', label: 'Needs your review', color: 'var(--gv-amber)', test: (p: any) => p.status === 'review' },
     { key: 'scheduled', label: 'Scheduled', color: 'var(--gv-dim)', test: (p: any) => p.status === 'scheduled' },
     { key: 'live', label: 'Published', color: ACCENT_INK, test: (p: any) => p.status === 'published' },
