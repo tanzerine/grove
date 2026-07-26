@@ -9,6 +9,7 @@
  * is visually distinct from the onboarding checklist.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { pipelineCounts } from '../pipeline/counts';
 
 export type ActivityKind = 'writing' | 'review' | 'scheduled' | 'published' | 'failed';
 
@@ -79,6 +80,11 @@ export async function getActivity(sb: SupabaseClient, domain: ActiveDomain): Pro
     .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
     .slice(0, 8);
 
-  const attentionCount = items.filter((i) => i.kind === 'review' || i.kind === 'failed').length;
-  return { items, attentionCount };
+  // Same definition of "needs you" the nav badge and the pipeline page use, so
+  // the bell can't contradict them. Computed over the fetched rows rather than
+  // the 8 shown, so the dot doesn't under-report just because the feed is
+  // capped — but note this window is the 25 most recent posts, which is a feed,
+  // not a full census. lib/pipeline/counts owns the rule either way.
+  const { needsYou } = pipelineCounts(rows);
+  return { items, attentionCount: needsYou };
 }
