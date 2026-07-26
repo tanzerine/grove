@@ -6,8 +6,11 @@
  *   4. drain the 'queued' bucket by generating drafts
  *   5. refresh Search Console snapshots
  *
- * Cover + inline image backfill lives in its own cron (/api/cron/images) so it
- * isn't starved by the generation drain above.
+ * A freshly generated draft gets its cover in step 4, right after it's written,
+ * whenever the tick can still afford one — otherwise the owner opens a
+ * just-finished draft and finds it blank until the next image cron. The
+ * BACKFILL (covers that didn't fit, inline images) still lives in its own cron
+ * (/api/cron/images) so it isn't starved by the generation drain.
  *
  * THROUGHPUT. The drain used to generate a hardcoded 3 posts per tick, which on
  * a once-daily cron capped the entire platform at ~90 posts/month — less than a
@@ -37,6 +40,7 @@ import { generatePost } from '@/lib/pipeline/generate';
 import { pickQueuedFairly } from '@/lib/pipeline/drain-order';
 import { runSocialAdapter } from '@/lib/pipeline/writer';
 import { seedLog } from '@/lib/pipeline/log';
+import { runCoverForPost } from '@/lib/pipeline/cover-image';
 import {
   GSC_RESERVE_MS,
   MAX_POSTS_PER_TICK,
@@ -63,6 +67,17 @@ const DURATION_SAMPLE_SIZE = 20;
 /** Ceiling on how many plan slots one domain may turn into posts in one tick,
  *  so a single tick can't materialize a whole month of a plan at once. */
 const MATERIALIZE_PER_TICK = 3;
+
+/**
+ * Wall-clock to reserve for one inline cover before starting it.
+ *
+ * A cover is an LLM art-direction call plus an image render plus an upload —
+ * measured at roughly a minute, with internal retries that can push it further.
+ * Budgeting generously means a tight tick simply skips the cover and leaves it
+ * to /api/cron/images, which is the correct trade: the article is already
+ * written and saved, and overrunning here would cost the NEXT article instead.
+ */
+const COVER_COST_MS = 75_000;
 
 export async function GET(req: Request) {
   if (!isCronAuthorized(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
@@ -249,6 +264,7 @@ export async function GET(req: Request) {
   let generated = 0;
   let deferred = 0;
   let overQuota = 0;
+  let coversInline = 0;
   const exhaustedOwners = new Set<string>();
   for (let i = 0; i < candidates.length; i++) {
     const p = candidates[i];
@@ -294,15 +310,32 @@ export async function GET(req: Request) {
     try {
       await generatePost(p.id);
       generated++;
+      // Give the fresh draft its cover NOW if there's room for one. Covers were
+      // left entirely to /api/cron/images, which runs on the half hour, so an
+      // autopilot draft reached `review` with no image and kept it for up to an
+      // hour — the owner opening a just-finished draft always saw a blank one.
+      //
+      // Strictly best-effort: it runs only when the tick can afford it, and a
+      // failure never touches the article, which is already written and saved.
+      // Anything skipped here is exactly what the images cron is for.
+      if (hasRoomFor(elapsed(), drainBudgetMs, COVER_COST_MS)) {
+        try {
+          await runCoverForPost(p.id);
+          coversInline++;
+        } catch (e) {
+          console.error('[scheduler] inline cover failed:', p.id, e);
+        }
+      }
     } catch (e: any) {
       if (ownerId) await releaseQuota(ownerId);
       await sb.from('posts').update({ status: 'failed', validation: { error: String(e?.message ?? e) } }).eq('id', p.id);
     }
   }
 
-  // NOTE: cover + inline image backfill lives in its own cron (/api/cron/images)
-  // now — it was being starved here by the generation drain above. This tick
-  // stays focused on strategy → generation → publishing.
+  // NOTE: the cover BACKFILL still lives in its own cron (/api/cron/images) —
+  // it was being starved here by the generation drain. What runs above is only
+  // the just-generated post's own cover, when the tick has room; the cron
+  // remains the safety net for everything that didn't fit.
 
   // 4) refresh Search Console snapshots for connected domains. This is the
   //    loop's real-world feedback signal — impressions/position per page —
@@ -330,6 +363,7 @@ export async function GET(req: Request) {
     // strategy_healed moved to /api/cron/strategy — see 2b.
     materialized,
     generated,
+    covers_inline: coversInline,
     deferred,
     over_quota: overQuota,
     gsc_synced: gscSynced,
