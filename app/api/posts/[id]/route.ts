@@ -6,19 +6,24 @@ import { draftProgress } from '@/lib/pipeline/progress';
 
 /**
  * Where this post is, for a client following a generation it just started
- * (the Write page's queued card). Deliberately small — the article body isn't
- * in the payload, only whether there is one — because this is polled every few
- * seconds while the author waits.
+ * (the Write page's queued card). Deliberately small — the article body is left
+ * out — because this is polled every few seconds while the author waits.
+ *
+ * `?content=1` adds the draft itself, which is how the Write page loads a
+ * finished article into the editor already on screen instead of navigating to
+ * the post route. One request per open, not per poll.
  */
-export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const sb = await supabaseServer();
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
   const { id } = await ctx.params;
+  const withContent = new URL(req.url).searchParams.get('content') === '1';
   // RLS is the ownership gate: another tenant's post is simply invisible here.
   const { data: p, error } = await sb
-    .from('posts').select('id, status, title, topic, body_md, generation_log')
+    .from('posts')
+    .select('id, status, title, topic, body_md, meta_title, meta_description, scheduled_at, generation_log')
     .eq('id', id).maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   if (!p) return NextResponse.json({ error: 'not found' }, { status: 404 });
@@ -28,6 +33,19 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     status: p.status,
     title: p.title || p.topic || null,
     ...draftProgress(p as any),
+    ...(withContent ? {
+      post: {
+        id: p.id,
+        status: p.status,
+        // The editor's own title field — not the topic fallback above, which
+        // would silently become the article's real title on the next save.
+        title: p.title ?? '',
+        body_md: p.body_md ?? '',
+        meta_title: p.meta_title ?? '',
+        meta_description: p.meta_description ?? '',
+        scheduled_at: p.scheduled_at ?? null,
+      },
+    } : {}),
   });
 }
 

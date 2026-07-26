@@ -32,6 +32,12 @@ type Props = {
   autoEdit?: boolean;             // open straight into edit mode (fresh manual drafts)
   railExtra?: React.ReactNode;   // extra card pinned to the top of the assist rail
   belowCanvas?: React.ReactNode; // rendered under the SEO panel, inside the article column
+  /**
+   * Told whenever the canvas gains or loses unsaved work. The Write page uses
+   * it to know whether swapping the editor over to a finished draft would throw
+   * away something the author typed.
+   */
+  onDirtyChange?: (dirty: boolean) => void;
 };
 
 // A grove-assist request + its result, rendered in the right rail feed.
@@ -52,7 +58,7 @@ function getMd(editor: any): string {
   return editor?.storage?.markdown?.getMarkdown?.() ?? '';
 }
 
-export default function RichEditor({ postId, domainId, initialBody, initialTitle, initialMetaTitle, initialMetaDesc, canEdit, initialScheduledAt = null, schedulable = true, autoEdit, railExtra, belowCanvas }: Props) {
+export default function RichEditor({ postId, domainId, initialBody, initialTitle, initialMetaTitle, initialMetaDesc, canEdit, initialScheduledAt = null, schedulable = true, autoEdit, railExtra, belowCanvas, onDirtyChange }: Props) {
   const r = useRouter();
   const [editing, setEditing] = useState(!!autoEdit);
   const [dirty, setDirty] = useState(false);
@@ -164,6 +170,9 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
   const metaDirty = title !== syncedMeta.current.title
     || metaTitle !== syncedMeta.current.metaTitle
     || metaDesc !== syncedMeta.current.metaDesc;
+
+  // Report unsaved work to whoever owns this editor (see `onDirtyChange`).
+  useEffect(() => { onDirtyChange?.(dirty || metaDirty); }, [dirty, metaDirty, onDirtyChange]);
 
   /**
    * Write the canvas to the post, creating it first if this is still a blank
