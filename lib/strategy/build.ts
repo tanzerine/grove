@@ -88,6 +88,14 @@ export type Strategy = {
   publishing_plan: PostSlot[];
   direction?: Direction;
   notes: string;                    // "vs. last month, we're..."
+  /**
+   * Replicate model id that actually produced this plan.
+   *
+   * Persisted to strategies.planned_by. Exists so "is the strategy tier really
+   * being used?" is a query rather than a code read — the answer was silently
+   * "no" for every automated build until the budget bug in lib/llm was found.
+   */
+  planned_by?: string;
 };
 
 export type BuildStrategyInput = {
@@ -316,10 +324,12 @@ Produce the new strategy as JSON:
 
 publishing_plan should contain exactly ${monthlyPostCount} slots, distributed across pillars in proportion to each pillar's importance.`;
 
-  const { text } = await strategyLlmCall({ system, user, maxTokens: 4500, timeoutMs: input.llmTimeoutMs });
+  const { text, model } = await strategyLlmCall({ system, user, maxTokens: 4500, timeoutMs: input.llmTimeoutMs });
   const parsed = extractJson<Strategy>(text);
 
-  return normalizeStrategy(parsed, { month, source, maxSlots: monthlyPostCount, postsPerWeek });
+  const strategy = normalizeStrategy(parsed, { month, source, maxSlots: monthlyPostCount, postsPerWeek });
+  strategy.planned_by = model;
+  return strategy;
 }
 
 /**

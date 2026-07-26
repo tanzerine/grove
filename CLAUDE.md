@@ -58,13 +58,21 @@ Set `GROVE_TICK_BUDGET_MS` when the plan's real function ceiling is below the
 route's declared `maxDuration` (Vercel Hobby caps at 60s regardless; on the
 current Pro account the declared 300s is honoured, so leave it unset).
 
-The account is on **Vercel Pro**, so sub-daily crons are allowed: the scheduler
-runs hourly and `/api/cron/images` at :30 (offset so the two 300s functions
-don't fire together). That's ~47 posts/day of headroom. Phases that don't need
-every tick opt out — the Search Console sync runs on one tick a day
-(`shouldSyncGsc`), handing its reserve back to generation on the other 23. If
-you ever need more, `*/15 * * * *` is the next step and every figure follows.
-Measured generation cost is ~138s p80, so roughly 2 articles fit per tick.
+The account is on **Vercel Pro**, so sub-daily crons are allowed. Three hourly
+300s functions, offset so they never fire together: the scheduler at :00,
+`/api/cron/images` at :30, `/api/cron/strategy` at :45. That's ~47 posts/day of
+headroom. Phases that don't need every tick opt out — the Search Console sync
+runs on one tick a day (`shouldSyncGsc`), handing its reserve back to
+generation on the other 23. If you ever need more, `*/15 * * * *` is the next
+step and every figure follows. Measured generation cost is ~138s p80, so
+roughly 2 articles fit per tick.
+
+**Work that needs a big uninterrupted slice gets its own cron.** Both images and
+strategy were starved when they shared a tick with the generation drain, and
+strategy's failure was silent: squeezed into 120s, it sat under
+`strategyLlmCall`'s minimum budget and every automated plan was quietly built by
+the cheap workhorse instead of the strategy model. If you add a step that needs
+minutes rather than seconds, give it a route, not a slice.
 
 Other key surfaces:
 - `lib/agent-brief.ts` — plain-English weekly brief on the dashboard home.
@@ -104,13 +112,14 @@ Other key surfaces:
 ## Supabase
 
 - Project ref `lojgijnjagaozrrpjlbj`. CLI is linked locally (no `.env` in repo —
-  secrets live in Vercel). Migrations in `supabase/migrations/` (0001–0026).
+  secrets live in Vercel). Migrations in `supabase/migrations/` (0001–0029).
 - History was repaired so 0001–0009 are marked applied; `npm run db:push` applies
   only new ones. **Always run `supabase migration list` first instead of trusting
-  this file** — as of 2026-07-13, **0001–0026 are all applied** (0018
-  canonical_blog_base, 0024 ga4, 0025 auto_publish_floor, 0026
-  custom_blog_hostname included — verified against the live DB, not just the
-  migration list).
+  this file** — as of 2026-07-26, **0001–0028 are applied and 0029 is NOT**
+  (verified against the live DB, not just the migration list). 0029
+  (`strategies.planned_by`) records which model built each plan; the insert in
+  `lib/strategy/ensure.ts` retries without the column so an unapplied 0029
+  degrades to "no diagnostic" rather than "no plan".
 - `domains.canonical_blog_base` makes the customer's own URLs canonical
   everywhere (rel=canonical, sitemap, RSS, social). It must also be SET per
   domain — the column existing isn't enough.
