@@ -94,6 +94,22 @@
   function bgFor(s) { var h = 0, i; for (i = 0; i < (s || '').length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return BGS[h % BGS.length]; }
   function initial(t) { return ((t || '◆').trim()[0] || '◆').toUpperCase(); }
 
+  /* Article typography, served by grove at /article.css.
+     The embed used to inject the article body bare — no wrapper, no rules for
+     h2/p/ul/blockquote/table — so on any host with a CSS reset (Tailwind's
+     preflight, typically) headings lost their size and lists lost their
+     markers. Linking grove's own stylesheet means the customer doesn't have to
+     reimplement it, and an update reaches every embed at once. */
+  var ARTICLE_LINK_ID = 'grove-article-css';
+  function injectArticleCss() {
+    if (document.getElementById(ARTICLE_LINK_ID)) return;
+    var l = document.createElement('link');
+    l.id = ARTICLE_LINK_ID;
+    l.rel = 'stylesheet';
+    l.href = ORIGIN + '/article.css';
+    document.head.appendChild(l);
+  }
+
   var STYLE_ID = 'grove-embed-style';
   function injectStyle(accent) {
     if (document.getElementById(STYLE_ID)) return;
@@ -223,7 +239,7 @@
             '<div><span class="gv-badge">' + esc(a.genre || 'Article') + '</span></div>' +
             '<h1 class="gv-art-title">' + esc(a.title) + '</h1>' +
             '<div class="gv-art-meta">' + (a.author ? 'By ' + esc(a.author) + ' · ' : '') + fmtDate(a.published_at) + '</div>' +
-            cover + (a.html || '');
+            cover + '<div class="grove-article">' + (a.html || '') + '</div>';
           root.querySelector('.gv-back').addEventListener('click', function () { location.hash = ''; });
           track(a.post_id, a.domain_id, root);
           window.scrollTo({ top: root.getBoundingClientRect().top + window.scrollY - 20, behavior: 'smooth' });
@@ -347,6 +363,7 @@
     });
     if (!any) return;
     injectStyle(accent);
+    injectArticleCss();
     targets.forEach(function (t) {
       document.querySelectorAll(t[0]).forEach(function (el) { t[1](el, host); });
     });
