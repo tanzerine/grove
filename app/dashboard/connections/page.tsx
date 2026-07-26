@@ -1,4 +1,5 @@
 import { supabaseServer } from '@/lib/supabase/server';
+import { getActiveDomain } from '@/lib/active-domain';
 import { PLATFORMS, isConfigured } from '@/lib/social/providers';
 import ConnectionsClient, { type PlatformView } from './ConnectionsClient';
 import { DashHeader } from '../gv-chrome';
@@ -10,9 +11,10 @@ export default async function ConnectionsPage() {
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return null;
 
-  const { data: domain } = await sb
-    .from('domains').select('id, auto_social, social_webhook_url, social_webhook_secret').eq('user_id', user.id)
-    .order('created_at', { ascending: false }).limit(1).maybeSingle();
+  // Same rule as every other site-scoped page: the switcher decides. Picking the
+  // newest domain here meant a two-site account connected social accounts to
+  // whichever site they weren't looking at.
+  const domain = await getActiveDomain(sb);
 
   if (!domain) {
     return (

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { supabaseServer } from '@/lib/supabase/server';
+import { getActiveDomain } from '@/lib/active-domain';
 import { getBriefStats, composeBrief, nextAction, type BriefStats } from '@/lib/agent-brief';
 import PipelineActions from '../PipelineActions';
 import PostRow from '../PostRow';
@@ -15,8 +16,10 @@ const ACCENT_INK = 'var(--gv-accent-ink)';
 
 export default async function Page() {
   const sb = await supabaseServer();
-  const { data: domains } = await sb.from('domains').select('*').limit(1);
-  const domain = domains?.[0];
+  // The site the switcher is pointing at — NOT "whichever domain row comes back
+  // first", which is what this used to do: an account with two sites saw the
+  // wrong pipeline, with the other site's hostname in the header to prove it.
+  const domain = await getActiveDomain(sb);
 
   // Cadence choices are bounded by the plan's monthly allowance, so the picker
   // can grey out what this account can't have instead of letting them pick it
