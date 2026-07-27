@@ -92,6 +92,11 @@ export type EventMap = {
    *  a confirmation email, which is where public signups silently die. */
   signed_up: { method: AuthMethod; confirmation_required: boolean };
   signed_in: { method: AuthMethod };
+  /** They clicked the confirmation link and got through the email wall. Pairs
+   *  with `signed_up{confirmation_required:true}` to give that wall a
+   *  completion rate — the number that decides whether email signup is safe to
+   *  launch on. No properties: the identity is the whole signal. */
+  email_confirmed: Record<string, never>;
   /** Only reasons we can name — never the raw credential or error text. */
   sign_in_failed: { reason: 'wrong_password' | 'other' };
 
@@ -196,6 +201,7 @@ export type EventProps<K extends EventName> = EventMap[K];
 const EVENT_NAME_SET = {
   signed_up: true,
   signed_in: true,
+  email_confirmed: true,
   sign_in_failed: true,
   onboarding_step_viewed: true,
   domain_submitted: true,

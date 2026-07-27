@@ -33,11 +33,25 @@ export default function AuthForm() {
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState<null | 'google' | 'email'>(null);
 
+  /**
+   * Where Supabase should send the browser back to after Google consent or
+   * after an emailed confirmation link. Both flows return with a `?code=`
+   * that only /auth/callback knows how to exchange for a session, so they
+   * must share this — a link that lands anywhere else leaves the user
+   * looking at a page that silently drops their code.
+   *
+   * Built from the live origin rather than NEXT_PUBLIC_APP_URL so preview
+   * deploys and localhost send people back to themselves.
+   */
+  function callbackUrl(): string {
+    return `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
+  }
+
   async function withGoogle() {
     setErr(null);
     setNotice(null);
     setBusy('google');
-    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
+    const redirectTo = callbackUrl();
     const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo } });
     if (error) {
       setErr(error.message);
@@ -67,7 +81,19 @@ export default function AuthForm() {
 
     // 2. Sign-in failed on bad credentials — the account may not exist yet, so
     //    attempt to create it. This is what makes the single surface work.
-    const signUp = await sb.auth.signUp({ email, password: pw });
+    // emailRedirectTo is what makes the confirmation link land somewhere that
+    // can actually finish the job. Without it Supabase falls back to the
+    // project's Site URL, which for this project has pointed at dead hosts
+    // (grove.so, grove-red.vercel.app) — so every confirmation link would dead-
+    // end and the account, already created, would be unreachable forever.
+    // Pointing at /auth/callback also means confirming SIGNS THEM IN and drops
+    // them straight into onboarding, instead of asking them to come back and
+    // type the password again.
+    const signUp = await sb.auth.signUp({
+      email,
+      password: pw,
+      options: { emailRedirectTo: callbackUrl() },
+    });
     const d2 = afterCreate({ hasSession: !!signUp.data.session, error: signUp.error });
     setBusy(null);
     switch (d2.step) {
@@ -80,7 +106,9 @@ export default function AuthForm() {
         // find a confirmation email. The gap between this and the next
         // `signed_in` is the signup funnel's real drop-off.
         captureClient('signed_up', { method: 'email', confirmation_required: true });
-        return setNotice('Account created — check your email to confirm it, then come back and sign in.');
+        // No longer "come back and sign in" — emailRedirectTo sends the link to
+        // /auth/callback, which exchanges the code and lands them signed in.
+        return setNotice(`Account created — check ${email} and click the link to finish. It signs you straight in.`);
       case 'wrong-password':
         captureClient('sign_in_failed', { reason: 'wrong_password' });
         return setErr('That email already has an account, but the password is wrong. Try again, or reset it.');
