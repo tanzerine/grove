@@ -72,6 +72,7 @@ export default async function DashLayout({ children }: { children: React.ReactNo
   try { activity = await getActivity(sb, active); } catch { /* feed is optional */ }
 
   const chrome: Chrome = {
+    userId: user.id,
     email: user.email ?? null,
     isAdmin: isAdminEmail(user.email),
     plan,

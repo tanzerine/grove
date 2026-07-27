@@ -13,3 +13,4 @@ tsconfig.tsbuildinfo
 supabase/.temp/
 supabase/.branches/
 .env*
+.env.local

@@ -6,6 +6,7 @@ import { type Activity, EMPTY_ACTIVITY } from '@/lib/notifications/feed';
 export type ChromeDomain = { id: string; hostname: string; verified_at: string | null };
 
 export type Chrome = {
+  userId: string | null;
   email: string | null;
   isAdmin: boolean;
   plan: string;
@@ -31,7 +32,7 @@ export function useChrome(): Chrome {
   const c = useContext(Ctx);
   if (!c) {
     // Safe fallback so a stray render never throws.
-    return { email: null, isAdmin: false, plan: 'Free', entitled: false, activeHostname: null, activeId: null, activeAutoPublish: false, domains: [], onboarding: EMPTY_ONBOARDING, activity: EMPTY_ACTIVITY };
+    return { userId: null, email: null, isAdmin: false, plan: 'Free', entitled: false, activeHostname: null, activeId: null, activeAutoPublish: false, domains: [], onboarding: EMPTY_ONBOARDING, activity: EMPTY_ACTIVITY };
   }
   return c;
 }

@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import GroveMark from '@/components/GroveMark';
+import posthog from 'posthog-js';
 
 function OnboardInner() {
   const router = useRouter();
@@ -31,6 +32,7 @@ function OnboardInner() {
       return setErr(j.error ?? 'Failed to create domain');
     }
     const { id } = await res.json();
+    posthog.capture('domain_submitted', { domain_id: id });
     router.replace(`/onboarding/verify?domain=${id}`);
   }
 

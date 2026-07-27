@@ -5,6 +5,7 @@ import type { SearchIntent } from '@/lib/strategy/keywords';
 import { WORKING, type Run } from './use-pipeline-runs';
 import Icon from '../gv-icons';
 import { useUpsell } from '../Upsell';
+import posthog from 'posthog-js';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
@@ -126,6 +127,7 @@ export default function StartDraft({ domainId, hostname, runs, onQueued, onDismi
         setErr(j.message ?? j.error ?? 'Could not start that draft. Try again.');
         return;
       }
+      posthog.capture('ai_draft_queued', { topic, domain_id: domainId });
       onQueued(j.id as string, topic);
     } catch {
       setErr('Something went wrong. Try again.');
@@ -160,7 +162,10 @@ export default function StartDraft({ domainId, hostname, runs, onQueued, onDismi
         body: JSON.stringify({ domain_id: domainId, pages }),
       });
       const j = await res.json().catch(() => ({}));
-      if (res.ok && j.created > 0) { r.push('/dashboard'); return; }
+      if (res.ok && j.created > 0) {
+        posthog.capture('pseo_set_generated', { page_count: j.created, domain_id: domainId });
+        r.push('/dashboard'); return;
+      }
       setPseoErr('Generation failed — no pages were created.');
     } catch { setPseoErr('Something went wrong. Try again.'); }
     setGenerating(false);

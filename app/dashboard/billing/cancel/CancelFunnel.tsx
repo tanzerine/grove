@@ -3,6 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { RefundReason } from '@/lib/refunds';
+import posthog from 'posthog-js';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
@@ -35,6 +36,7 @@ export default function CancelFunnel({ reasons, plan }: { reasons: RefundReason[
       const j = await res.json().catch(() => ({}));
       return setErr(j.error ?? 'Something went wrong. Please try again.');
     }
+    posthog.capture('refund_requested', { reason, plan: plan ?? undefined });
     setDone(true);
   }
 
