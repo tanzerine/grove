@@ -103,7 +103,7 @@ describe('summarize', () => {
 
   it('handles an empty run', () => {
     const s = summarize([]);
-    expect(s).toEqual({ totalUsd: 0, calls: 0, unpriced: 0, inputTokens: 0, outputTokens: 0, byModel: {} });
+    expect(s).toEqual({ totalUsd: 0, calls: 0, unpriced: 0, inputTokens: 0, outputTokens: 0, byModel: {}, estimated: false });
   });
 
   it('renders a log line a human can read', () => {
@@ -116,6 +116,30 @@ describe('summarize', () => {
   it('says so in the log line when something went unpriced', () => {
     const line = describeCost(summarize([call('mystery/model', null)]));
     expect(line).toContain('1 unpriced');
+  });
+
+  it('marks an estimated total so it cannot pass as measured', () => {
+    // The first production run showed the workhorse reporting no token counts,
+    // so tokens are estimated from length (~±25%). A bare "$0.0182" would
+    // invite someone to price plans off a figure that precise. It must not.
+    const estimated = { ...call('google/gemini-3.1-pro', 0.0182, 14200, 5100), estimated: true };
+    const line = describeCost(summarize([estimated]));
+    expect(line.startsWith('~$')).toBe(true);
+    expect(line).toContain('est. tokens');
+  });
+
+  it('leaves a measured total unmarked', () => {
+    const line = describeCost(summarize([call('google/gemini-3.1-pro', 0.0182, 14200, 5100)]));
+    expect(line.startsWith('$')).toBe(true);
+    expect(line).not.toContain('est. tokens');
+  });
+
+  it('flags the whole run as estimated if any single call was', () => {
+    const s = summarize([
+      call('google/gemini-3.1-pro', 0.01),
+      { ...call('google/gemini-3.1-pro', 0.01), estimated: true },
+    ]);
+    expect(s.estimated).toBe(true);
   });
 });
 

@@ -18,6 +18,8 @@ export type LlmUsage = {
   inputTokens: number | null;
   outputTokens: number | null;
   predictTimeMs: number | null;
+  /** True when token counts were derived from length, not reported. */
+  estimated?: boolean;
 };
 
 export async function llmCall(opts: {
@@ -66,7 +68,10 @@ export async function llmCall(opts: {
   const out = finished.output;
   const text = Array.isArray(out) ? out.join('') : String(out ?? '');
   if (!text.trim()) throw new Error('Replicate returned empty output');
-  const usage = usageFrom(finished, opts.model ?? MODEL);
+  const usage = usageFrom(finished, opts.model ?? MODEL, {
+    promptChars: (opts.system?.length ?? 0) + (opts.user?.length ?? 0),
+    outputChars: text.length,
+  });
   // Report into the ambient meter, if the caller opened one. This is why the
   // pipeline's six LLM-spending modules need no signature change to be costed.
   record(usage);
@@ -74,14 +79,32 @@ export async function llmCall(opts: {
 }
 
 /**
- * Token counts for one call, read from Replicate's `metrics`.
+ * Token counts for one call.
  *
- * Read defensively: field names vary by model family and some models report no
- * token counts at all. A missing count becomes null, never 0 — lib/cost treats
- * null as "unpriced" and 0 as "free", and quietly reporting a real call as free
- * is how a cost table becomes confidently wrong.
+ * Preferred source is Replicate's `metrics`, read defensively because field
+ * names vary by model family. But the first production run showed the workhorse
+ * (google/gemini-3.1-pro) reporting no token counts at all —
+ *
+ *     cost · $0.0000 · 5 calls · 0 in / 0 out · 5 unpriced
+ *
+ * — so every generation was correctly flagged unpriced and told us nothing.
+ * "Honest and useless" is still useless when the whole point is to price the
+ * plans.
+ *
+ * So when the provider stays silent we ESTIMATE from character count, and mark
+ * the call `estimated` so the two can never be confused. ~4 chars/token is
+ * crude and runs maybe ±25% on English prose, but a figure that's roughly right
+ * answers "is Agency's margin thin?" and a null answers nothing. Everything
+ * downstream carries the marker through to the log line, which renders `~$0.02`
+ * rather than `$0.02`.
  */
-function usageFrom(finished: any, model: string): LlmUsage {
+const CHARS_PER_TOKEN = 4;
+
+function usageFrom(
+  finished: any,
+  model: string,
+  fallback: { promptChars: number; outputChars: number },
+): LlmUsage {
   const m = finished?.metrics ?? {};
   const pick = (...keys: string[]): number | null => {
     for (const k of keys) {
@@ -90,13 +113,29 @@ function usageFrom(finished: any, model: string): LlmUsage {
     }
     return null;
   };
+
+  const reportedIn = pick('input_token_count', 'input_tokens', 'prompt_token_count');
+  const reportedOut = pick('output_token_count', 'output_tokens', 'completion_token_count');
+  const measured = reportedIn !== null || reportedOut !== null;
+
+  // One-time visibility into what this model actually reports, so the key names
+  // above can be corrected instead of guessed at again.
+  if (!measured && !loggedMetricShape.has(model)) {
+    loggedMetricShape.add(model);
+    console.warn(`[llm] ${model} reported no token counts; metrics keys: ${Object.keys(m).join(', ') || '(none)'} — estimating from length`);
+  }
+
   return {
     model,
-    inputTokens: pick('input_token_count', 'input_tokens', 'prompt_token_count'),
-    outputTokens: pick('output_token_count', 'output_tokens', 'completion_token_count'),
+    inputTokens: measured ? reportedIn : Math.ceil(fallback.promptChars / CHARS_PER_TOKEN),
+    outputTokens: measured ? reportedOut : Math.ceil(fallback.outputChars / CHARS_PER_TOKEN),
     predictTimeMs: typeof m.predict_time === 'number' ? Math.round(m.predict_time * 1000) : null,
+    estimated: !measured,
   };
 }
+
+/** Models we've already warned about, so the log isn't spammed every call. */
+const loggedMetricShape = new Set<string>();
 
 /* ─────────────── strategy LLM call (most capable model, rare) ──────────── */
 // Planning is the highest-leverage LLM step in the loop — a bad plan wastes a
