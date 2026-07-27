@@ -4,6 +4,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { exchangeCode, storeConnection } from '@/lib/search-console/client';
 import { ensurePropertyOnConnect } from '@/lib/search-console/setup';
 import { ensureGa4OnConnect } from '@/lib/ga4/setup';
+import { captureServer } from '@/lib/analytics/capture-server';
 
 /**
  * Google OAuth callback. Like the social callback, returns a tiny page that
@@ -71,5 +72,8 @@ export async function GET(req: Request) {
     return finish({ error: 'connect_failed' });
   }
 
+  // Captured server-side because the browser only ever sees the popup's
+  // postMessage — the connection itself completes here.
+  await captureServer(user.id, 'search_console_connected', { domain_id: domain.id });
   return finish({ ok: true });
 }

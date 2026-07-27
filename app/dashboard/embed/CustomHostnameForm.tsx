@@ -1,6 +1,6 @@
 'use client';
-
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { captureClient } from '@/lib/analytics/capture-client';
 
 /**
  * Sets domains.custom_blog_hostname and then WATCHES the setup complete:
@@ -85,8 +85,14 @@ export default function CustomHostnameForm({
     if (res?.ok) {
       setState('saved');
       setTimeout(() => setState('idle'), 2000);
-      if (value.trim()) startPolling();
-      else setStatus(null); // cleared — back to the grove-hosted URLs
+      // Only a set counts, not a clear — this measures adoption of the
+      // custom-hostname feature, and an empty value is the customer undoing it.
+      if (value.trim()) {
+        captureClient('custom_hostname_set', { domain_id: domainId });
+        startPolling();
+      } else {
+        setStatus(null); // cleared — back to the grove-hosted URLs
+      }
     } else {
       const body = await res?.json().catch(() => null);
       setError(body?.error ?? 'could not save — try again');

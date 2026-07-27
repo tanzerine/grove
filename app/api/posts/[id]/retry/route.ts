@@ -4,7 +4,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { generatePost } from '@/lib/pipeline/generate';
 import { runCoverForPost } from '@/lib/pipeline/cover-image';
 import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
-import { canGenerateForUser } from '@/lib/billing';
+import { enforceEntitlement } from '@/lib/billing';
 import { enforceQuota, releaseQuota } from '@/lib/quota';
 
 export const maxDuration = 300;
@@ -31,12 +31,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (limited) return limited;
 
   // Cost-bearing generation is a paid feature: no live subscription, no LLM run.
-  if (!(await canGenerateForUser(user.id, sb))) {
-    return NextResponse.json(
-      { error: 'payment_required', message: 'An active subscription is required to generate content.' },
-      { status: 402 },
-    );
-  }
+  const blocked = await enforceEntitlement(user.id, 'retry', sb);
+  if (blocked) return blocked;
 
   const parsed = body.safeParse(await req.json().catch(() => ({})));
   const fresh = parsed.success && parsed.data.mode === 'fresh';

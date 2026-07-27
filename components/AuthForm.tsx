@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import GroveMark from '@/components/GroveMark';
 import { afterSignIn, afterCreate } from '@/lib/auth/flow';
+import { captureClient } from '@/lib/analytics/capture-client';
 
 /**
  * One auth surface — no separate sign-up. The user enters an email + password
@@ -54,9 +55,13 @@ export default function AuthForm() {
     // 1. Try to sign in.
     const signIn = await sb.auth.signInWithPassword({ email, password: pw });
     const d1 = afterSignIn(signIn.error);
-    if (d1.step === 'signed-in') return router.replace(next);
+    if (d1.step === 'signed-in') {
+      captureClient('signed_in', { method: 'email' });
+      return router.replace(next);
+    }
     if (d1.step === 'error') {
       setBusy(null);
+      captureClient('sign_in_failed', { reason: 'other' });
       return setErr(d1.message);
     }
 
@@ -67,12 +72,20 @@ export default function AuthForm() {
     setBusy(null);
     switch (d2.step) {
       case 'onboard':
+        captureClient('signed_up', { method: 'email', confirmation_required: false });
         return router.replace(next);
       case 'confirm-email':
+        // The single most important number at launch: everyone who reaches
+        // this branch has created an account but cannot use it until they
+        // find a confirmation email. The gap between this and the next
+        // `signed_in` is the signup funnel's real drop-off.
+        captureClient('signed_up', { method: 'email', confirmation_required: true });
         return setNotice('Account created — check your email to confirm it, then come back and sign in.');
       case 'wrong-password':
+        captureClient('sign_in_failed', { reason: 'wrong_password' });
         return setErr('That email already has an account, but the password is wrong. Try again, or reset it.');
       case 'error':
+        captureClient('sign_in_failed', { reason: 'other' });
         return setErr(d2.message);
     }
   }

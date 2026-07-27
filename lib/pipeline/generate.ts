@@ -14,6 +14,7 @@ import { runMetered, summarize, describeCost } from '../cost-meter';
 import { evaluateDraft, composeRewriteInstructions, holdForReview, resolvePublishFloor } from './manager';
 import { toManagerDraft } from './draft-adapter';
 import { postSlug } from '../slug';
+import { captureServer } from '../analytics/capture-server';
 import { nextPublishSlot } from '../strategy/schedule';
 import type { Strategy, PostSlot } from '../strategy/build';
 
@@ -102,17 +103,80 @@ async function failAt(postId: string, step: any, err: any, keepLive = false) {
  * image prompter stay free of any billing concern.
  */
 export async function generatePost(postId: string, opts: GenerateOptions = {}) {
-  const { calls } = await runMetered(() => generatePostInner(postId, opts));
-  const cost = summarize(calls);
-  // Best-effort: a post is not worth failing over its own accounting.
-  if (cost.calls > 0) {
-    try {
-      await appendLog(postId, 'persist', 'done', `cost · ${describeCost(cost)}`, {
-        model: Object.keys(cost.byModel).join(', ') || 'unknown',
-        costUsd: cost.unpriced === cost.calls ? null : cost.totalUsd,
-      });
-    } catch { /* accounting must never break the pipeline */ }
+  // Analytics wraps the OUTER function, not the inner one, so every caller is
+  // covered by construction: the dashboard's POST /api/posts, the cron drain
+  // that produces most of the platform's volume, and retries. Instrumenting
+  // the route instead would have measured only the hand-triggered minority.
+  const startedAt = Date.now();
+  try {
+    const { calls } = await runMetered(() => generatePostInner(postId, opts));
+    const cost = summarize(calls);
+    // Best-effort: a post is not worth failing over its own accounting.
+    if (cost.calls > 0) {
+      try {
+        await appendLog(postId, 'persist', 'done', `cost · ${describeCost(cost)}`, {
+          model: Object.keys(cost.byModel).join(', ') || 'unknown',
+          costUsd: cost.unpriced === cost.calls ? null : cost.totalUsd,
+        });
+      } catch { /* accounting must never break the pipeline */ }
+    }
+    await reportGeneration(postId, startedAt, null);
+  } catch (e) {
+    await reportGeneration(postId, startedAt, e);
+    throw e; // the pipeline's own error contract is unchanged
   }
+}
+
+/**
+ * Send the generation outcome to PostHog.
+ *
+ * Reads the row back rather than threading ids down through the pipeline: the
+ * owner id and the manager's verdict are both already persisted by the time we
+ * get here, and one small select is nothing beside a ~138s generation. It also
+ * keeps generatePostInner — which is the part that does the real work —
+ * completely free of analytics concerns.
+ *
+ * Wrapped in its own try/catch on top of captureServer's: captureServer can't
+ * throw, but this Supabase read can, and a metrics lookup must never be the
+ * reason a finished article is reported as failed.
+ */
+async function reportGeneration(postId: string, startedAt: number, err: unknown): Promise<void> {
+  try {
+    const sb = supabaseAdmin();
+    const { data } = await sb
+      .from('posts')
+      .select('domain_id, validation, domains(user_id)')
+      .eq('id', postId)
+      .maybeSingle();
+    if (!data) return;
+
+    const userId = (data as any).domains?.user_id as string | undefined;
+    if (!userId) return;
+    const domainId = ((data as any).domain_id as string) ?? '';
+    const duration_ms = Date.now() - startedAt;
+    const validation = (data as any).validation ?? {};
+
+    if (err) {
+      await captureServer(userId, 'post_generation_failed', {
+        post_id: postId,
+        domain_id: domainId,
+        // failAt records which of the five steps threw; anything else failed
+        // outside a step boundary and is genuinely unknown.
+        step: String(validation.failed_at ?? 'unknown'),
+        duration_ms,
+      });
+      return;
+    }
+
+    const manager = validation.manager ?? {};
+    await captureServer(userId, 'post_generation_succeeded', {
+      post_id: postId,
+      domain_id: domainId,
+      duration_ms,
+      manager_score: typeof manager.overall === 'number' ? manager.overall : null,
+      manager_action: manager.action ?? null,
+    });
+  } catch { /* analytics is observational — never let it alter the outcome */ }
 }
 
 async function generatePostInner(postId: string, opts: GenerateOptions = {}) {

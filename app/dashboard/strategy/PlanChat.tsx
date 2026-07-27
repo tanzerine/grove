@@ -10,6 +10,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Icon from '../gv-icons';
+import { captureClient } from '@/lib/analytics/capture-client';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
@@ -110,6 +111,9 @@ export default function PlanChat({ domainId, bare = false }: { domainId: string;
       const d = await res.json();
       if (!res.ok) throw new Error(d?.error ?? 'request failed');
       setMessages((m) => [...m, { role: 'agent', content: d.reply, revised: d.revised }]);
+      // `revised` separates "asked the agent a question" from "changed the
+      // plan" — only the second one is the feature actually being used.
+      captureClient('strategy_chat_message_sent', { domain_id: domainId, revised: !!d.revised });
       if (d.budget) setBudget(d.budget);
       if (d.revised) router.refresh();   // plan changed — re-render the whole page from the new row
     } catch {

@@ -3,8 +3,10 @@ export const dynamic = 'force-dynamic';
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import GroveMark from '@/components/GroveMark';
+import StepView from '../StepView';
+import { captureClient } from '@/lib/analytics/capture-client';
 
-type Domain = { id: string; hostname: string; verify_token: string; verified_at: string | null };
+type Domain ={ id: string; hostname: string; verify_token: string; verified_at: string | null };
 
 const DIM = 'var(--gv-dim)';
 const MONO = 'DM Mono, ui-monospace, monospace';
@@ -30,8 +32,22 @@ function VerifyInner() {
     });
     const j = await r.json();
     setPolling(false);
-    if (j.ok) router.replace('/dashboard');
-    else setMsg(j.reason ?? 'Not verified yet — try again in a minute.');
+    const via = (j.via ?? null) as 'dns' | 'meta' | 'http' | null;
+    captureClient('domain_verify_attempted', { domain_id: id, ok: !!j.ok, via });
+    if (j.ok) {
+      // `already: true` means the domain was verified on an earlier attempt and
+      // this call was a no-op, so counting it would inflate conversions with
+      // repeat visits to a page the user has already cleared.
+      if (!j.already) {
+        captureClient('domain_verified', { domain_id: id, via });
+        // Verification is the last required step — everything after it is the
+        // dashboard. This is the activation moment worth measuring signup against.
+        captureClient('onboarding_completed', { domain_id: id });
+      }
+      router.replace('/dashboard');
+    } else {
+      setMsg(j.reason ?? 'Not verified yet — try again in a minute.');
+    }
   }
 
   if (!d) return <main className="gv-onb"><div className="gv-onb-in" style={{ maxWidth: 780, color: DIM }}>Loading…</div></main>;
@@ -43,6 +59,7 @@ function VerifyInner() {
 
   return (
     <main className="gv-onb">
+      <StepView step="verify" />
       <GroveMark />
       <div className="gv-auth-glow" aria-hidden><span className="b1" /><span className="b2" /></div>
       <div className="gv-onb-in" style={{ maxWidth: 780 }}>

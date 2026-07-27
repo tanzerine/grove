@@ -11,6 +11,7 @@ import { supabaseAdmin } from '../supabase/admin';
 import { ensurePostSlug } from '../post-slug';
 import { publishToSocials } from '../social/publish';
 import { runSocialAdapter } from './writer';
+import { captureServer } from '../analytics/capture-server';
 
 export async function approveAndPublish(
   sb: SupabaseClient,
@@ -26,6 +27,18 @@ export async function approveAndPublish(
     .update({ status: 'published', published_at: new Date().toISOString() })
     .eq('id', id);
   if (error) return { ok: false, social_result: null, error: error.message };
+
+  // Captured here rather than in the two calling routes precisely because this
+  // function exists to stop the pipeline UI and the assistant from drifting —
+  // the same reasoning applies to the metric. `scheduled: false` because this
+  // path is only ever reached by a person clicking approve; the cron publishes
+  // its own way. The client is user-scoped, so it can tell us whose action it is.
+  try {
+    const { data: auth } = await sb.auth.getUser();
+    if (auth.user) {
+      await captureServer(auth.user.id, 'post_published', { post_id: id, scheduled: false });
+    }
+  } catch { /* never let analytics fail a publish that already succeeded */ }
 
   // Auto-share on publish: the cron only covers *scheduled* posts, so manual
   // approvals fan out here. Best-effort — a flaky social API must never make an

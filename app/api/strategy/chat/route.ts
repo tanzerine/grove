@@ -21,7 +21,7 @@ import {
   answerPlanQuestion,
 } from '@/lib/strategy/plan-chat';
 import { planChatBudget, applyPlanRevision } from '@/lib/strategy/apply-revision';
-import { canGenerateForUser } from '@/lib/billing';
+import { enforceEntitlement } from '@/lib/billing';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -78,12 +78,8 @@ export async function POST(req: Request) {
   if (limited) return limited;
 
   // Cost-bearing generation is a paid feature: no live subscription, no LLM run.
-  if (!(await canGenerateForUser(user.id))) {
-    return NextResponse.json(
-      { error: 'payment_required', message: 'An active subscription is required to generate content.' },
-      { status: 402 },
-    );
-  }
+  const blocked = await enforceEntitlement(user.id, 'strategy_chat');
+  if (blocked) return blocked;
 
   const budget = await planChatBudget(domain_id);
   if (budget.messagesLeft <= 0) {

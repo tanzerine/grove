@@ -82,7 +82,7 @@ function WidgetPreview() {
   );
 }
 
-export default function EmbedTabs({ blogSnippet, widgetSnippet }: { blogSnippet: string; widgetSnippet: string }) {
+export default function EmbedTabs({ blogSnippet, widgetSnippet, domainId }: { blogSnippet: string; widgetSnippet: string; domainId?: string | null }) {
   const [tab, setTab] = useState<Tab>('full');
   const def = TABS.find((t) => t.key === tab) ?? TABS[0];
   const snippet = tab === 'full' ? blogSnippet : widgetSnippet;
@@ -116,7 +116,11 @@ export default function EmbedTabs({ blogSnippet, widgetSnippet }: { blogSnippet:
       <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <span style={{ fontSize: 11, color: 'var(--gv-faint)', fontFamily: "'SF Mono', ui-monospace, monospace" }}>snippet</span>
-          <CopySnippet snippet={snippet} />
+          <CopySnippet
+            snippet={snippet}
+            mode={tab === 'full' ? 'blog' : 'widget'}
+            domainId={domainId ?? undefined}
+          />
         </div>
         <pre style={{ margin: 0, padding: '14px 16px', fontSize: 12, lineHeight: 1.6, color: 'var(--gv-soft)', fontFamily: "'SF Mono', ui-monospace, monospace", whiteSpace: 'pre-wrap', wordBreak: 'break-all', background: '#0d0e0b' }}>{snippet}</pre>
       </div>

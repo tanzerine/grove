@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { INTERVIEW, type InterviewAnswers } from '@/lib/strategy/interview';
 import GroveMark from '@/components/GroveMark';
+import StepView from '../StepView';
+import { captureClient } from '@/lib/analytics/capture-client';
 
 const DIM = 'var(--gv-dim)';
 
@@ -57,11 +59,15 @@ export default function IntentPage() {
       setErr(j?.error ?? 'Failed to save');
       return;
     }
+    // `skip` is tracked because a skipped interview produces a weaker strategy
+    // — if most customers skip, that is a product finding, not a stat.
+    captureClient('strategy_interview_completed', { domain_id: domainId, skipped: skip });
     router.replace('/dashboard/strategy');
   }
 
   return (
     <main className="gv-onb">
+      <StepView step="intent" />
       <GroveMark />
       <div className="gv-auth-glow" aria-hidden><span className="b1" /><span className="b2" /></div>
       <div className="gv-onb-in" style={{ maxWidth: 720 }}>

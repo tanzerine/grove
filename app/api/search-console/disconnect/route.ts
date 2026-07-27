@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
 import { clearConnection } from '@/lib/search-console/client';
+import { captureServer } from '@/lib/analytics/capture-server';
 
 export async function POST() {
   const sb = await supabaseServer();
@@ -13,5 +14,6 @@ export async function POST() {
   if (!domain) return NextResponse.json({ error: 'no_domain' }, { status: 404 });
 
   await clearConnection(domain.id);
+  await captureServer(user.id, 'search_console_disconnected', { domain_id: domain.id });
   return NextResponse.json({ ok: true });
 }

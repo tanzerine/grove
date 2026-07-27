@@ -58,6 +58,7 @@ import { entitledUserSet } from '@/lib/billing';
 import { consumeQuota, quotaForUsers, releaseQuota, shareAllowance } from '@/lib/quota';
 import { publishToSocials } from '@/lib/social/publish';
 import { syncDomain } from '@/lib/search-console/sync';
+import { captureServer } from '@/lib/analytics/capture-server';
 
 export const maxDuration = 300;
 
@@ -101,6 +102,12 @@ export async function GET(req: Request) {
     await sb.from('posts').update({ status: 'published', published_at: now }).eq('id', p.id);
 
     const domain = (p as any).domains;
+    // Autopilot publishing is the product's whole promise, so it has to appear
+    // in the same series as manual approvals — `scheduled` is what separates
+    // "the agent shipped this" from "a person clicked approve".
+    if (domain?.user_id) {
+      await captureServer(domain.user_id, 'post_published', { post_id: p.id, scheduled: true });
+    }
     if (!domain?.auto_social) continue;
     try {
       // generate the social copy on demand if it wasn't created earlier

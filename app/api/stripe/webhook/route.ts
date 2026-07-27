@@ -3,7 +3,7 @@ import type Stripe from 'stripe';
 import { getStripe } from '@/lib/stripe';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { PLANS, planForPriceId } from '@/lib/plans';
-import { getPostHogClient } from '@/lib/posthog-server';
+import { captureServer } from '@/lib/analytics/capture-server';
 
 // MUST be the Node runtime: signature verification needs the raw request body
 // and Stripe's crypto. Edge would mangle the body and break verification.
@@ -120,15 +120,14 @@ export async function POST(req: Request) {
           const f = subFields(sub);
           await applySubscription(admin, { ...f, userId: userId || f.userId, customerId: customerId || f.customerId });
 
-          if (userId || f.userId) {
-            const ph = getPostHogClient();
-            ph.capture({
-              distinctId: (userId || f.userId)!,
-              event: 'subscription_activated',
-              properties: { plan: planForPriceId(f.priceId) ?? undefined, interval: session.metadata?.interval },
-            });
-            await ph.flush();
-          }
+          // captureServer cannot throw, which matters more here than anywhere
+          // else in the codebase: this call sits inside the handler's try, and
+          // the idempotency row is already written, so a rejection would 500 →
+          // Stripe retries → the retry short-circuits as a duplicate.
+          await captureServer((userId || f.userId)!, 'subscription_activated', {
+            plan: planForPriceId(f.priceId) ?? undefined,
+            interval: session.metadata?.interval,
+          });
         }
         break;
       }
@@ -146,13 +145,9 @@ export async function POST(req: Request) {
         await applySubscription(admin, { ...f, status: 'canceled' });
 
         if (f.userId) {
-          const ph = getPostHogClient();
-          ph.capture({
-            distinctId: f.userId,
-            event: 'subscription_canceled',
-            properties: { plan: planForPriceId(f.priceId) ?? undefined },
+          await captureServer(f.userId, 'subscription_canceled', {
+            plan: planForPriceId(f.priceId) ?? undefined,
           });
-          await ph.flush();
         }
         break;
       }

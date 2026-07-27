@@ -5,6 +5,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import GroveMark from '@/components/GroveMark';
+import StepView from '../StepView';
 
 const DIM = 'var(--gv-dim)';
 
@@ -106,6 +107,7 @@ function AboutInner() {
 
   return (
     <main className="gv-onb">
+      <StepView step="about" />
       <GroveMark />
       <div className="gv-auth-glow" aria-hidden>
         <span className="b1" />

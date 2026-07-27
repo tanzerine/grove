@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import type { BillingInterval, Plan, PlanId } from '@/lib/plans';
 import { ANNUAL_DISCOUNT, formatUsd, monthlyPriceUsd, yearlyPriceUsd } from '@/lib/plans';
-import posthog from 'posthog-js';
+import { captureClient } from '@/lib/analytics/capture-client';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
@@ -48,7 +48,7 @@ export default function BillingClient({
   async function choose(plan: PlanId) {
     setErr(null);
     setBusy(plan);
-    posthog.capture('plan_selected', { plan, interval });
+    captureClient('plan_selected', { plan, interval });
     const url = await post('/api/billing/checkout', { plan, interval });
     if (url) window.location.href = url;
     else setBusy(null);
@@ -57,6 +57,9 @@ export default function BillingClient({
   async function manage() {
     setErr(null);
     setBusy('manage');
+    // Opening the portal precedes most cancellations and every card update, so
+    // it's an early churn signal that lands before Stripe tells us anything.
+    captureClient('billing_portal_opened', {});
     const url = await post('/api/billing/portal');
     if (url) window.location.href = url;
     else setBusy(null);

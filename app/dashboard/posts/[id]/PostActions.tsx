@@ -2,7 +2,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import Icon from '../../gv-icons';
-import posthog from 'posthog-js';
+import { captureClient } from '@/lib/analytics/capture-client';
 
 export default function PostActions({
   id, status, published, publicUrl, hasCover, hasInlineImages, children,
@@ -12,7 +12,7 @@ export default function PostActions({
 
   async function approve() {
     setBusy('approve');
-    posthog.capture('post_approved', { post_id: id });
+    captureClient('post_approved', { post_id: id });
     await fetch(`/api/posts/${id}/approve`, { method: 'POST' });
     setBusy(null);
     r.refresh();
@@ -23,7 +23,7 @@ export default function PostActions({
   async function retry() {
     const rewrite = status !== 'failed';
     if (rewrite && !confirm('Rewrite this article from scratch? This replaces the current draft.')) return;
-    posthog.capture('post_regenerated', { post_id: id, mode: rewrite ? 'fresh' : 'resume' });
+    captureClient('post_regenerated', { post_id: id, mode: rewrite ? 'fresh' : 'resume' });
     setBusy('retry');
     const res = await fetch(`/api/posts/${id}/retry`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
@@ -60,7 +60,7 @@ export default function PostActions({
 
   async function del() {
     if (!confirm('Delete this post?')) return;
-    posthog.capture('post_deleted', { post_id: id, post_status: status });
+    captureClient('post_deleted', { post_id: id, post_status: status });
     setBusy('delete');
     await fetch(`/api/posts/${id}`, { method: 'DELETE' });
     r.replace('/dashboard');

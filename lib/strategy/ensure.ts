@@ -23,6 +23,7 @@ import { parseInterview } from './interview';
 import { getAgentContext, savePlanContext } from './context-store';
 import { getQuota } from '../quota';
 import { blankProfile, type SiteProfile } from '../pipeline/site-profile';
+import { captureServer } from '../analytics/capture-server';
 
 export type EnsureResult = 'created' | 'exists' | 'no_profile';
 
@@ -165,6 +166,18 @@ export async function ensureMonthlyStrategy(
 
   // Refresh the plan memo the chat + downstream prompts read.
   await savePlanContext(domain.id, strategy, domain.hostname);
+
+  // `planned_by` is the whole point of capturing this: a plan silently built by
+  // the cheap workhorse instead of the strategy model is the exact failure that
+  // went unnoticed before (see ARCHITECTURE / migration 0029), and it is
+  // invisible in the product itself. Here it becomes a chart.
+  if (domain.user_id) {
+    await captureServer(domain.user_id, 'strategy_built', {
+      domain_id: domain.id,
+      source: strategy.source === 'interview' ? 'interview' : 'inferred',
+      planned_by: strategy.planned_by ?? null,
+    });
+  }
 
   return 'created';
 }
