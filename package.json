@@ -26,6 +26,8 @@
     "@tiptap/starter-kit": "^2.27.2",
     "marked": "^15.0.5",
     "next": "^15.5.5",
+    "posthog-js": "^1.407.2",
+    "posthog-node": "^5.46.1",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "replicate": "^1.0.1",

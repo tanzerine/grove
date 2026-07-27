@@ -7,6 +7,7 @@ import SiteSwitcher from './SiteSwitcher';
 import AssistantPanel from './AssistantPanel';
 import { ChromeProvider, type Chrome } from './chrome-context';
 import { UpsellProvider } from './Upsell';
+import PostHogIdentify from './PostHogIdentify';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
@@ -28,6 +29,7 @@ export default function DashShell({
 
   return (
     <ChromeProvider value={chrome}>
+      <PostHogIdentify />
       <UpsellProvider>
       <div className={`gv-app ${open ? 'nav-open' : ''}`}>
         {/* mobile top chrome */}

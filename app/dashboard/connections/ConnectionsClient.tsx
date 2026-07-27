@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import posthog from 'posthog-js';
 
 const CONNECT_ERRORS: Record<string, string> = {
   not_configured: "That platform isn't set up yet — its API keys are missing from the environment.",
@@ -80,6 +81,7 @@ export default function ConnectionsClient({
       try { popupRef.current?.close(); } catch { /* noop */ }
       setConnecting(null);
       if (d.ok) {
+        posthog.capture('social_account_connected', { platform: d.platform });
         setFlash({ ok: true, text: `Connected ${META[d.platform as PlatformView['id']]?.label ?? d.platform}.` });
         r.refresh();
       } else {

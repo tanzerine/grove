@@ -8,6 +8,7 @@ import { seedLog } from '@/lib/pipeline/log';
 import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
 import { canGenerateForUser } from '@/lib/billing';
 import { enforceQuota, releaseQuota } from '@/lib/quota';
+import { getPostHogClient } from '@/lib/posthog-server';
 
 export const maxDuration = 300;
 
@@ -83,6 +84,14 @@ export async function POST(req: Request) {
       status: 'failed', validation: { error: String(e?.message ?? e) },
     }).eq('id', data.id);
   };
+
+  const ph = getPostHogClient();
+  ph.capture({
+    distinctId: user.id,
+    event: 'post_generation_started',
+    properties: { post_id: data.id, domain_id: parsed.data.domain_id, mode: queue ? 'queue' : 'wait' },
+  });
+  await ph.flush();
 
   if (queue) {
     // The whole pipeline moves after the response. `after()` keeps the function

@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: { serverActions: { bodySizeLimit: '2mb' } },
+  skipTrailingSlashRedirect: true,
   // Covers + inline images live in Supabase Storage. Serving them through
   // next/image (and lib/image-cdn.ts for markdown-rendered bodies) puts them
   // behind Vercel's image CDN, so blog traffic stops draining Supabase egress
@@ -15,6 +16,22 @@ const nextConfig = {
   // mismatch from silently shipping again. ESLint stays non-blocking.
   typescript: { ignoreBuildErrors: false },
   eslint: { ignoreDuringBuilds: true },
+  async rewrites() {
+    return [
+      {
+        source: '/ingest/static/:path*',
+        destination: 'https://us-assets.i.posthog.com/static/:path*',
+      },
+      {
+        source: '/ingest/array/:path*',
+        destination: 'https://us-assets.i.posthog.com/array/:path*',
+      },
+      {
+        source: '/ingest/:path*',
+        destination: 'https://us.i.posthog.com/:path*',
+      },
+    ];
+  },
   async headers() {
     return [
       {

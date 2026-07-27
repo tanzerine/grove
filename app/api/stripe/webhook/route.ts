@@ -3,6 +3,7 @@ import type Stripe from 'stripe';
 import { getStripe } from '@/lib/stripe';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { PLANS, planForPriceId } from '@/lib/plans';
+import { getPostHogClient } from '@/lib/posthog-server';
 
 // MUST be the Node runtime: signature verification needs the raw request body
 // and Stripe's crypto. Edge would mangle the body and break verification.
@@ -118,6 +119,16 @@ export async function POST(req: Request) {
           const sub = await getStripe().subscriptions.retrieve(subId);
           const f = subFields(sub);
           await applySubscription(admin, { ...f, userId: userId || f.userId, customerId: customerId || f.customerId });
+
+          if (userId || f.userId) {
+            const ph = getPostHogClient();
+            ph.capture({
+              distinctId: (userId || f.userId)!,
+              event: 'subscription_activated',
+              properties: { plan: planForPriceId(f.priceId) ?? undefined, interval: session.metadata?.interval },
+            });
+            await ph.flush();
+          }
         }
         break;
       }
@@ -133,6 +144,16 @@ export async function POST(req: Request) {
         // Mark canceled; keep the record for history. (No enforcement yet, so
         // we don't zero the quota — that's the deliberate plumbing-only scope.)
         await applySubscription(admin, { ...f, status: 'canceled' });
+
+        if (f.userId) {
+          const ph = getPostHogClient();
+          ph.capture({
+            distinctId: f.userId,
+            event: 'subscription_canceled',
+            properties: { plan: planForPriceId(f.priceId) ?? undefined },
+          });
+          await ph.flush();
+        }
         break;
       }
       default:
