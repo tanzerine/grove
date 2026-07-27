@@ -59,7 +59,9 @@ export default async function DashLayout({ children }: { children: React.ReactNo
   let entitled = false;
   try {
     const { data: sub } = await sb
-      .from('subscriptions').select('plan, stripe_status').eq('user_id', user.id).maybeSingle();
+      // `*` so entitlementFrom sees `comped` (0030) — a comped account must
+      // not have its cost-bearing UI actions greyed out.
+      .from('subscriptions').select('*').eq('user_id', user.id).maybeSingle();
     const isActive = sub?.stripe_status && ['active', 'trialing', 'past_due'].includes(sub.stripe_status);
     if (isActive && sub?.plan) plan = sub.plan.charAt(0).toUpperCase() + sub.plan.slice(1);
     entitled = entitlementFrom(sub).canGenerate;

@@ -38,6 +38,8 @@ export type QuotaRow = {
   posts_used?: number | null;
   cycle_resets_at?: string | null;
   stripe_price_id?: string | null;
+  /** Not metered at all — internal/dogfooding/comped. See migration 0030. */
+  comped?: boolean | null;
 };
 
 export type QuotaState = {
@@ -52,7 +54,21 @@ export type QuotaState = {
   resetsAt: string;
 };
 
-const SELECT = 'plan, posts_quota, posts_used, cycle_resets_at, stripe_price_id';
+/**
+ * `*`, deliberately, rather than naming the columns.
+ *
+ * Naming them means a column this file expects but the database hasn't got yet
+ * (0030's `comped`, before it is applied) fails the whole query. `data` comes
+ * back null, `limitFor(null)` returns "not enforced", and every customer on the
+ * platform is silently unmetered — the single worst outcome this module has.
+ * A star select just omits what isn't there, so a missing column reads as
+ * `undefined` and the guard falls through to today's behaviour.
+ *
+ * Same reasoning as getActiveDomain, which selects `*` so it stayed safe
+ * before the gsc_* columns landed. Subscription rows are tiny; this costs
+ * nothing worth measuring.
+ */
+const SELECT = '*';
 
 // ── pure decision logic ────────────────────────────────────────────────────
 
@@ -65,6 +81,11 @@ const SELECT = 'plan, posts_quota, posts_used, cycle_resets_at, stripe_price_id'
  */
 export function limitFor(row: QuotaRow | null | undefined): number | null {
   if (!row) return null;
+  // Checked FIRST, before posts_quota is even read. That ordering is the whole
+  // design: the Stripe webhook keeps posts_quota faithfully in sync with the
+  // plan on every event, and a comped account simply isn't measured against
+  // it — so the override can't be clobbered by a renewal.
+  if (row.comped) return null;
   // A price id that isn't in the catalogue means Stripe and lib/plans have
   // drifted. The row's quota is then whatever it happened to hold — often the
   // schema default of 4 — so enforcing it would throttle a customer who may be
@@ -125,7 +146,7 @@ export async function quotaForUsers(userIds: string[]): Promise<Map<string, Quot
   const out = new Map<string, QuotaState>();
   if (!unique.length) return out;
   const sb = supabaseAdmin();
-  const { data } = await sb.from('subscriptions').select(`user_id, ${SELECT}`).in('user_id', unique);
+  const { data } = await sb.from('subscriptions').select(SELECT).in('user_id', unique);
   for (const row of data ?? []) out.set((row as any).user_id, quotaFrom(row as QuotaRow));
   return out;
 }

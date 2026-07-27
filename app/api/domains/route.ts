@@ -33,7 +33,9 @@ export async function POST(req: Request) {
   try {
     const [{ data: sub }, { count }] = await Promise.all([
       sb.from('subscriptions')
-        .select('plan, stripe_status, stripe_price_id')
+        // `*` so `comped` (0030) is included without the query failing before
+        // the migration lands — domainLimitFor reads it to lift the ceiling.
+        .select('*')
         .eq('user_id', user.id)
         .maybeSingle(),
       sb.from('domains')
