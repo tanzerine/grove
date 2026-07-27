@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import GroveEmbed from '@/components/GroveEmbed';
 import { ANNUAL_DISCOUNT, PLANS, formatUsd, monthlyPriceUsd, yearlyPriceUsd } from '@/lib/plans';
 
 /* Faithful port of the "Grove Landing" design comp (dark / accent #A2FF01,
@@ -254,7 +255,7 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
   ];
 
   const footcols = [
-    { head: 'Product', links: [['Agents', '#agents'], ['Platform', '#platform'], ['Pricing', '#pricing'], ['FAQ', '#faq']] },
+    { head: 'Product', links: [['Agents', '#agents'], ['Platform', '#platform'], ['Pricing', '#pricing'], ['Blog', '/blog'], ['FAQ', '#faq']] },
     { head: 'Legal', links: [['Privacy', '/privacy'], ['Terms', '/terms']] },
   ];
 
@@ -284,6 +285,7 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
             <a className="gv-link" href="#agents" style={{ color: '#9a9d97', textDecoration: 'none' }}>Agents</a>
             <a className="gv-link" href="#platform" style={{ color: '#9a9d97', textDecoration: 'none' }}>Platform</a>
             <a className="gv-link" href="#pricing" style={{ color: '#9a9d97', textDecoration: 'none' }}>Pricing</a>
+            <a className="gv-link" href="/blog" style={{ color: '#9a9d97', textDecoration: 'none' }}>Blog</a>
             <a className="gv-link" href="#faq" style={{ color: '#9a9d97', textDecoration: 'none' }}>FAQ</a>
           </div>
           <a className="gv-btn" href={startHref} style={{ ...ctaBtn, background: '#f4f4f2', color: '#0a0a0a', padding: '0 18px', borderRadius: 8, textDecoration: 'none' }}>{loggedIn ? 'Dashboard' : 'Get Started'}</a>
@@ -1147,6 +1149,25 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* FROM THE BLOG — grove's own embed, on grove's own landing page. This
+          section is the product running against itself: same public/embed.js a
+          customer pastes, same host API, themed by data-theme rather than by
+          anything written here. If it looks wrong, fix embed.js. */}
+      <section id="blog" style={{ padding: '30px 24px 40px', maxWidth: 1120, margin: '0 auto' }}>
+        <div className="gv-r" style={{ maxWidth: 620, marginBottom: 30 }}>
+          <div style={eyebrow}>Dogfood</div>
+          <h2 style={h2Style}>Our blog runs on grove.</h2>
+          <p style={leadStyle}>
+            These posts weren&rsquo;t written for this page — the agent researched, wrote and
+            published them to our own domain. What you see below is the same embed snippet
+            we hand you, rendering the same feed.
+          </p>
+        </div>
+        <div className="gv-r">
+          <GroveEmbed mode="widget" count={3} blogUrl="/blog" />
         </div>
       </section>
 

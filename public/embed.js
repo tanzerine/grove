@@ -20,6 +20,13 @@
      data-blog-url   widget only — where "Read the blog →" + cards link (default /blog)
      data-accent     accent color. Default: the brand color grove extracted from
                      your homepage (returned by the API), else #4e9e6a.
+     data-theme      light (default) | dark | auto (follows prefers-color-scheme).
+                     Surfaces, text and article typography all follow — a dark
+                     site needs no CSS of its own.
+     data-host       pin the domain to look up instead of auto-detecting
+                     window.location.hostname. Use it on staging/preview URLs
+                     and localhost, where the live hostname isn't the one that
+                     owns the blog.
 */
 (function () {
   var ORIGIN =
@@ -110,42 +117,65 @@
     document.head.appendChild(l);
   }
 
+  /* Every surface color resolves through a custom property, so a host page can
+     drop the embed onto a dark background without forking this file:
+     data-theme="dark" (or "auto") is the whole configuration. The article
+     stylesheet is themed through the same switch — its --ga-* properties are
+     declared on .grove-article, which lives inside the mount root. */
+  var DARK_VARS = '--gv-surface:#111110;--gv-line:rgba(255,255,255,0.13);--gv-ink:#f4f4f2;--gv-muted:#9a9d97;--gv-on-accent:#0a0a09';
+  var DARK_ARTICLE = '--ga-ink:#f4f4f2;--ga-clay:#9a9d97;--ga-line:rgba(255,255,255,0.13);--ga-paper:#151614;--ga-bone:#151614';
+
+  /* Theme is per-mount (one page can hold a light widget and a dark blog), so
+     it rides on the root's class rather than the shared stylesheet. */
+  function themeClass(root) {
+    var t = (root.getAttribute('data-theme') || '').toLowerCase();
+    return t === 'dark' ? ' gv-dark' : t === 'auto' ? ' gv-auto' : '';
+  }
+
   var STYLE_ID = 'grove-embed-style';
   function injectStyle(accent) {
     if (document.getElementById(STYLE_ID)) return;
     var s = document.createElement('style');
     s.id = STYLE_ID;
     s.textContent = [
-      '.gv{--gv-accent:' + accent + ';--gv-line:#e6e2d6;--gv-ink:#1a2e1f;--gv-muted:#7a8a7d;color:var(--gv-ink);}',
+      '.gv{--gv-accent:' + accent + ';--gv-surface:#fff;--gv-line:#e6e2d6;--gv-ink:#1a2e1f;--gv-muted:#7a8a7d;--gv-on-accent:#fff;color:var(--gv-ink);}',
+      '.gv.gv-dark{' + DARK_VARS + '}',
+      '.gv.gv-dark .grove-article{' + DARK_ARTICLE + '}',
+      '@media(prefers-color-scheme:dark){.gv.gv-auto{' + DARK_VARS + '}.gv.gv-auto .grove-article{' + DARK_ARTICLE + '}}',
       '.gv *{box-sizing:border-box}',
       '.gv a{text-decoration:none;color:inherit}',
       '.gv-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:22px}',
       '.gv-h{font-size:13px;font-weight:600}',
       '.gv-kicker{font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gv-accent);margin-bottom:6px}',
       '.gv-link{font-family:ui-monospace,monospace;font-size:12px;color:var(--gv-accent)}',
-      '.gv-search{width:230px;max-width:60vw;padding:9px 14px;border:1px solid var(--gv-line);border-radius:999px;font:inherit;font-size:14px;outline:none}',
+      '.gv-search{width:230px;max-width:60vw;padding:9px 14px;border:1px solid var(--gv-line);border-radius:999px;font:inherit;font-size:14px;outline:none;background:var(--gv-surface);color:var(--gv-ink)}',
       '.gv-search:focus{border-color:var(--gv-accent);box-shadow:0 0 0 3px rgba(78,158,106,.15);box-shadow:0 0 0 3px color-mix(in srgb,var(--gv-accent) 15%,transparent)}',
       '.gv-chips{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 22px}',
-      '.gv-chip{font-family:ui-monospace,monospace;font-size:12px;padding:6px 14px;border-radius:999px;border:1px solid var(--gv-line);background:#fff;cursor:pointer;color:var(--gv-ink)}',
+      '.gv-chip{font-family:ui-monospace,monospace;font-size:12px;padding:6px 14px;border-radius:999px;border:1px solid var(--gv-line);background:var(--gv-surface);cursor:pointer;color:var(--gv-ink)}',
       '.gv-chip:hover{border-color:var(--gv-accent);color:var(--gv-accent)}',
-      '.gv-chip.on{background:var(--gv-accent);color:#fff;border-color:var(--gv-accent)}',
+      '.gv-chip.on{background:var(--gv-accent);color:var(--gv-on-accent);border-color:var(--gv-accent)}',
       '.gv-badge{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--gv-accent);background:rgba(78,158,106,.10);background:color-mix(in srgb,var(--gv-accent) 10%,transparent);border-radius:999px;padding:3px 9px}',
       '.gv-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}',
-      '.gv-card{display:flex;flex-direction:column;background:#fff;border:1px solid var(--gv-line);border-radius:14px;overflow:hidden;transition:transform .16s,box-shadow .16s,border-color .16s}',
+      '.gv-card{display:flex;flex-direction:column;background:var(--gv-surface);border:1px solid var(--gv-line);border-radius:14px;overflow:hidden;transition:transform .16s,box-shadow .16s,border-color .16s}',
       '.gv-card:hover{transform:translateY(-3px);border-color:var(--gv-accent);box-shadow:0 16px 34px -20px rgba(26,46,31,.28)}',
-      '.gv-cover{height:160px;background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:700;color:rgba(26,46,31,.28)}',
+      // The no-cover placeholder tint rides on --gv-ph rather than an inline
+      // background, so a theme can restyle it. On dark it is mixed down into
+      // the surface — the raw pastels are painfully bright on a black page.
+      '.gv-cover{height:160px;background:var(--gv-ph,#eef0ea);background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:700;color:rgba(26,46,31,.28)}',
+      '.gv.gv-dark .gv-cover,.gv.gv-dark .gv-feat-media{background-color:#1b1c19;background-color:color-mix(in srgb,var(--gv-ph) 16%,#111110);color:rgba(255,255,255,.34)}',
+      '@media(prefers-color-scheme:dark){.gv.gv-auto .gv-cover,.gv.gv-auto .gv-feat-media{background-color:#1b1c19;background-color:color-mix(in srgb,var(--gv-ph) 16%,#111110);color:rgba(255,255,255,.34)}}',
       '.gv-cardbody{padding:16px 18px 18px;display:flex;flex-direction:column;flex:1}',
       '.gv-title{font-size:18px;font-weight:600;line-height:1.25;margin:10px 0 0}',
       '.gv-ex{font-size:13.5px;color:var(--gv-muted);line-height:1.55;margin:8px 0 0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}',
       '.gv-byline{font-family:ui-monospace,monospace;font-size:11.5px;color:var(--gv-muted);margin-top:14px}',
-      '.gv-feat{display:grid;grid-template-columns:1.05fr 1fr;background:#fff;border:1px solid var(--gv-line);border-radius:18px;overflow:hidden;margin-bottom:26px;transition:transform .16s,box-shadow .16s,border-color .16s}',
+      '.gv-feat{display:grid;grid-template-columns:1.05fr 1fr;background:var(--gv-surface);border:1px solid var(--gv-line);border-radius:18px;overflow:hidden;margin-bottom:26px;transition:transform .16s,box-shadow .16s,border-color .16s}',
       '.gv-feat:hover{transform:translateY(-3px);border-color:var(--gv-accent);box-shadow:0 20px 48px -24px rgba(26,46,31,.32)}',
-      '.gv-feat-media{min-height:320px;background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;font-size:88px;font-weight:700;color:rgba(26,46,31,.26)}',
+      '.gv-feat-media{min-height:320px;background:var(--gv-ph,#eef0ea);background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;font-size:88px;font-weight:700;color:rgba(26,46,31,.26)}',
       '.gv-feat-body{padding:34px 36px;display:flex;flex-direction:column;justify-content:center}',
       '.gv-feat-title{font-size:30px;font-weight:700;line-height:1.12;margin:14px 0 0}',
       '.gv-pager{display:flex;justify-content:center;align-items:center;gap:14px;margin-top:40px}',
-      '.gv-pg{font-family:ui-monospace,monospace;font-size:13px;color:var(--gv-accent);background:#fff;border:1px solid var(--gv-line);border-radius:999px;padding:8px 16px;cursor:pointer}',
-      '.gv-pg[disabled]{color:#c2c2bb;cursor:default}',
+      '.gv-pg{font-family:ui-monospace,monospace;font-size:13px;color:var(--gv-accent);background:var(--gv-surface);border:1px solid var(--gv-line);border-radius:999px;padding:8px 16px;cursor:pointer}',
+      '.gv-pg[disabled]{color:var(--gv-muted);opacity:.55;cursor:default}',
       '.gv-empty{padding:60px 0;text-align:center;color:var(--gv-muted);font-size:14px}',
       '.gv-back{font-family:ui-monospace,monospace;font-size:12px;color:var(--gv-accent);display:inline-block;margin-bottom:18px;cursor:pointer}',
       '.gv-art-title{font-size:clamp(28px,4.2vw,44px);font-weight:700;line-height:1.15;letter-spacing:-.02em;margin:6px 0 10px}',
@@ -170,7 +200,7 @@
   function cardHTML(p, href) {
     var cover = p.cover_image_url
       ? '<div class="gv-cover" style="background-image:url(' + esc(p.cover_image_url) + ')"></div>'
-      : '<div class="gv-cover" style="background:' + bgFor(p.slug) + '">' + esc(initial(p.title)) + '</div>';
+      : '<div class="gv-cover" style="--gv-ph:' + bgFor(p.slug) + '">' + esc(initial(p.title)) + '</div>';
     var foot = p.author ? esc(p.author) : ((p.read_minutes || 5) + ' min read');
     return '<a class="gv-card" href="' + esc(href) + '">' + cover +
       '<div class="gv-cardbody">' +
@@ -189,7 +219,7 @@
     getJSON(api(host, '?limit=' + count)).then(function (d) {
       var posts = d.posts || [];
       if (!posts.length) return;
-      root.className = 'gv';
+      root.className = 'gv' + themeClass(root);
       applyBranding(root, d.branding);
       root.innerHTML =
         '<div class="gv-head"><div>' +
@@ -204,7 +234,7 @@
 
   /* ───────────────────────── full blog mode ───────────────────────── */
   function mountBlog(root, host) {
-    root.className = 'gv';
+    root.className = 'gv' + themeClass(root);
     root.innerHTML = '<div class="gv-empty">Loading…</div>';
     var HASH = '#grove/';
     // Hybrid mode: when data-article-base is set, cards link to the customer's
@@ -271,9 +301,9 @@
           '<a class="gv-feat" href="' + esc(href(feat.slug)) + '">' +
             (feat.cover_image_url
               ? '<div class="gv-feat-media" style="background-image:url(' + esc(feat.cover_image_url) + ')"></div>'
-              : '<div class="gv-feat-media" style="background:' + bgFor(feat.slug) + '">' + esc(initial(feat.title)) + '</div>') +
+              : '<div class="gv-feat-media" style="--gv-ph:' + bgFor(feat.slug) + '">' + esc(initial(feat.title)) + '</div>') +
             '<div class="gv-feat-body">' +
-              '<div><span class="gv-badge" style="background:var(--gv-accent);color:#fff">★ Featured</span> ' +
+              '<div><span class="gv-badge" style="background:var(--gv-accent);color:var(--gv-on-accent)">★ Featured</span> ' +
               '<span class="gv-badge">' + esc(feat.genre || 'Article') + '</span></div>' +
               '<div class="gv-feat-title">' + esc(feat.title) + '</div>' +
               (feat.excerpt ? '<div class="gv-ex" style="font-size:15px;-webkit-line-clamp:3">' + esc(feat.excerpt) + '</div>' : '') +
@@ -335,7 +365,7 @@
   /* ───────────────────────── legacy simple list ───────────────────────── */
   function mountFeed(root, host) {
     getJSON(api(host, '?limit=12')).then(function (d) {
-      root.className = 'gv';
+      root.className = 'gv' + themeClass(root);
       applyBranding(root, d.branding);
       root.innerHTML =
         '<div class="gv-kicker">From the ' + esc(d.domain || '') + ' blog</div>' +
@@ -345,10 +375,17 @@
     }).catch(function () {});
   }
 
-  function mount() {
-    var host = window.location.hostname;
-    if (!host || host === 'localhost') return;
+  /* Which domain's blog this mount shows. Auto-detection is right on the
+     customer's own site, but wrong everywhere the site is served from a host
+     that doesn't own the blog — preview deploys, staging, localhost — where the
+     lookup 404s and the section renders empty. data-host pins it. */
+  function hostFor(root) {
+    var pinned = (root.getAttribute('data-host') || '').trim()
+      .replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+    return pinned || window.location.hostname;
+  }
 
+  function mount() {
     var targets = [
       ['[id^="grove-widget"],[data-grove-widget]', mountWidget],
       ['[id^="grove-blog"],[data-grove-blog]', mountBlog],
@@ -365,7 +402,11 @@
     injectStyle(accent);
     injectArticleCss();
     targets.forEach(function (t) {
-      document.querySelectorAll(t[0]).forEach(function (el) { t[1](el, host); });
+      document.querySelectorAll(t[0]).forEach(function (el) {
+        var host = hostFor(el);
+        if (!host || host === 'localhost') return; // nothing to look up
+        t[1](el, host);
+      });
     });
   }
 

@@ -87,7 +87,18 @@ Other key surfaces:
 - `lib/social/` — OAuth posting (X/LinkedIn/IG) + outbound webhook fallback.
 - `public/embed.js` — the customer-facing embed. Modes: `#grove-blog` (full blog
   SPA), `#grove-widget` (teaser), `#grove-feed` (legacy). `data-article-base`,
-  `data-accent`, `data-count`, `data-blog-url`.
+  `data-accent`, `data-count`, `data-blog-url`, `data-theme` (light|dark|auto),
+  `data-host` (pin the domain instead of auto-detecting — previews and localhost
+  don't own a blog). Every surface color must resolve through a `--gv-*`
+  property or dark mode half-applies; `tests/embed-theme.test.ts` enforces it.
+- **grove eats its own dogfood**: `/blog` (`app/blog/page.tsx`) and the landing's
+  "Our blog runs on grove" section mount that same embed via
+  `components/GroveEmbed.tsx`, against grove's own `trygroveai.com` domain row.
+  Deliberately no bespoke CSS there — a rendering bug is a bug in embed.js, so
+  fix it upstream. NOTE: load embed.js with `next/script` (`afterInteractive`),
+  never a bare `<script async>` — the bare tag can beat hydration and React
+  then deletes the mounted DOM. The cards point at the grove-hosted articles
+  (`data-article-base`) so they stay crawlable.
 - `app/dashboard/QualityCharts.tsx` — ScoreRing / RubricBars / QualityColumns;
   `bandColor()` is the single source for score-band colors (≥70 moss, ≥40 amber, else red).
 
