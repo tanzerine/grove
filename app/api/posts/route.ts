@@ -6,9 +6,9 @@ import { generatePost } from '@/lib/pipeline/generate';
 import { runCoverForPost } from '@/lib/pipeline/cover-image';
 import { seedLog } from '@/lib/pipeline/log';
 import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
-import { canGenerateForUser } from '@/lib/billing';
+import { enforceEntitlement } from '@/lib/billing';
 import { enforceQuota, releaseQuota } from '@/lib/quota';
-import { getPostHogClient } from '@/lib/posthog-server';
+import { captureServer } from '@/lib/analytics/capture-server';
 
 export const maxDuration = 300;
 
@@ -39,12 +39,8 @@ export async function POST(req: Request) {
   if (limited) return limited;
 
   // Cost-bearing generation is a paid feature: no live subscription, no LLM run.
-  if (!(await canGenerateForUser(user.id, sb))) {
-    return NextResponse.json(
-      { error: 'payment_required', message: 'An active subscription is required to generate content.' },
-      { status: 402 },
-    );
-  }
+  const blocked = await enforceEntitlement(user.id, 'generate', sb);
+  if (blocked) return blocked;
 
   const parsed = body.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: 'invalid' }, { status: 400 });
@@ -85,13 +81,11 @@ export async function POST(req: Request) {
     }).eq('id', data.id);
   };
 
-  const ph = getPostHogClient();
-  ph.capture({
-    distinctId: user.id,
-    event: 'post_generation_started',
-    properties: { post_id: data.id, domain_id: parsed.data.domain_id, mode: queue ? 'queue' : 'wait' },
+  await captureServer(user.id, 'post_generation_started', {
+    post_id: data.id,
+    domain_id: parsed.data.domain_id,
+    mode: queue ? 'queue' : 'wait',
   });
-  await ph.flush();
 
   if (queue) {
     // The whole pipeline moves after the response. `after()` keeps the function

@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import posthog from 'posthog-js';
+import { captureClient } from '@/lib/analytics/capture-client';
 
 const CONNECT_ERRORS: Record<string, string> = {
   not_configured: "That platform isn't set up yet — its API keys are missing from the environment.",
@@ -81,7 +81,7 @@ export default function ConnectionsClient({
       try { popupRef.current?.close(); } catch { /* noop */ }
       setConnecting(null);
       if (d.ok) {
-        posthog.capture('social_account_connected', { platform: d.platform });
+        captureClient('social_account_connected', { platform: d.platform });
         setFlash({ ok: true, text: `Connected ${META[d.platform as PlatformView['id']]?.label ?? d.platform}.` });
         r.refresh();
       } else {
@@ -133,6 +133,9 @@ export default function ConnectionsClient({
   async function disconnect(pf: string) {
     setBusy(pf);
     await fetch(`/api/social/${pf}/disconnect`, { method: 'POST' });
+    // The mirror of social_account_connected — without it, "connected accounts"
+    // only ever goes up and churn out of the integration is invisible.
+    captureClient('social_account_disconnected', { platform: pf });
     setBusy(null);
     r.refresh();
   }

@@ -58,7 +58,7 @@ export default async function Page() {
             </div>
 
             {/* STEP 2: EMBEDS */}
-            <EmbedTabs blogSnippet={blogSnippet} widgetSnippet={widgetSnippet} />
+            <EmbedTabs blogSnippet={blogSnippet} widgetSnippet={widgetSnippet} domainId={domain?.id ?? null} />
 
             {/* STEP 3: CUSTOMIZE */}
             {domain && (

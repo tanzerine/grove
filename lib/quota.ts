@@ -31,6 +31,7 @@ import { NextResponse } from 'next/server';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from './supabase/admin';
 import { PLANS, isPlanId, planForPriceId } from './plans';
+import { captureServer } from './analytics/capture-server';
 
 export type QuotaRow = {
   plan?: string | null;
@@ -278,6 +279,10 @@ export async function releaseQuota(userId: string, n = 1): Promise<void> {
 export async function enforceQuota(userId: string, n = 1): Promise<NextResponse | null> {
   const { ok, state } = await consumeQuota(userId, n);
   if (ok) return null;
+  // The upgrade moment, captured where it actually happens. A customer who
+  // hits this repeatedly is either ready for a bigger plan or about to churn,
+  // and those two look identical without the event.
+  await captureServer(userId, 'quota_exhausted', { limit: state.limit, used: state.used });
   return NextResponse.json(
     {
       error: 'quota_exhausted',

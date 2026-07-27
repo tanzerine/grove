@@ -3,7 +3,8 @@ export const dynamic = 'force-dynamic';
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import GroveMark from '@/components/GroveMark';
-import posthog from 'posthog-js';
+import StepView from '../StepView';
+import { captureClient } from '@/lib/analytics/capture-client';
 
 function OnboardInner() {
   const router = useRouter();
@@ -28,16 +29,20 @@ function OnboardInner() {
     setBusy(false);
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
-      if (j.reason === 'domain_limit' && j.upgradeName) setUpsell({ name: j.upgradeName });
+      if (j.reason === 'domain_limit' && j.upgradeName) {
+        setUpsell({ name: j.upgradeName });
+        captureClient('domain_limit_hit', { upgrade_to: j.upgradeName });
+      }
       return setErr(j.error ?? 'Failed to create domain');
     }
     const { id } = await res.json();
-    posthog.capture('domain_submitted', { domain_id: id });
+    captureClient('domain_submitted', { domain_id: id });
     router.replace(`/onboarding/verify?domain=${id}`);
   }
 
   return (
     <main className="gv-onb">
+      <StepView step="domain" />
       <GroveMark />
       <div className="gv-auth-glow" aria-hidden><span className="b1" /><span className="b2" /></div>
       <div className="gv-onb-in" style={{ maxWidth: 520 }}>

@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { supabaseServer } from '@/lib/supabase/server';
 import { createIllustration } from '@/lib/images/illustration';
 import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
+import { captureServer } from '@/lib/analytics/capture-server';
 
 export const maxDuration = 120;
 
@@ -50,5 +51,6 @@ export async function POST(req: Request) {
       { status: 502 },
     );
   }
+  await captureServer(user.id, 'illustration_generated', { domain_id: parsed.data.domain_id });
   return NextResponse.json(image);
 }

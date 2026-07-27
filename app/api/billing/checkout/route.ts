@@ -5,7 +5,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import { getStripe, stripeConfigured } from '@/lib/stripe';
 import { isBillingInterval, isPlanId, priceIdFor } from '@/lib/plans';
 import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
-import { getPostHogClient } from '@/lib/posthog-server';
+import { captureServer } from '@/lib/analytics/capture-server';
 
 // Stripe's SDK needs the Node runtime (not edge).
 export const runtime = 'nodejs';
@@ -92,13 +92,7 @@ export async function POST(req: Request) {
       subscription_data: { metadata: { userId: user.id, plan } },
     });
 
-    const ph = getPostHogClient();
-    ph.capture({
-      distinctId: user.id,
-      event: 'checkout_started',
-      properties: { plan, interval },
-    });
-    await ph.flush();
+    await captureServer(user.id, 'checkout_started', { plan, interval });
 
     return NextResponse.json({ url: session.url });
   } catch (e) {

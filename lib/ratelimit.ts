@@ -14,6 +14,8 @@
  */
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from './supabase/admin';
+import { captureServer } from './analytics/capture-server';
+import { parseRateBucket } from './analytics/events';
 
 export const LIMITS = {
   generate: { limit: 20, windowSec: 3600 }, // full article pipeline (LLM-heavy)
@@ -58,6 +60,12 @@ export async function enforceRateLimit(
 ): Promise<NextResponse | null> {
   const r = await rateLimit(bucket, opts);
   if (r.ok) return null;
+  // Captured at the choke point rather than at each of the nineteen call
+  // sites: this is the moment a customer wanted to do something and the
+  // platform said no, and instrumenting it here means a route added later
+  // reports its friction without anyone remembering to wire it up.
+  const { bucket: kind, userId } = parseRateBucket(bucket);
+  await captureServer(userId, 'rate_limited', { bucket: kind });
   return NextResponse.json(
     { error: 'Too many requests — slow down and try again shortly.' },
     { status: 429, headers: { 'retry-after': String(r.retryAfterSec ?? opts.windowSec) } },

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
 import { runCoverForPost } from '@/lib/pipeline/cover-image';
 import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
+import { captureServer } from '@/lib/analytics/capture-server';
 
 export const maxDuration = 120;
 
@@ -23,5 +24,6 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
 
   // Manual regenerate: force a fresh image even if one already exists.
   await runCoverForPost(id, { force: true });
+  await captureServer(user.id, 'post_cover_regenerated', { post_id: id });
   return NextResponse.json({ ok: true });
 }

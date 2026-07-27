@@ -6,7 +6,7 @@ import { generateProgrammaticPage, type PseoPageSpec } from '@/lib/pseo';
 import { runCoverForPost } from '@/lib/pipeline/cover-image';
 import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
 import type { SiteProfile } from '@/lib/pipeline/site-profile';
-import { canGenerateForUser } from '@/lib/billing';
+import { enforceEntitlement } from '@/lib/billing';
 import { consumeQuota, releaseQuota, exhaustedMessage } from '@/lib/quota';
 
 export const maxDuration = 300;
@@ -39,12 +39,8 @@ export async function POST(req: Request) {
   if (limited) return limited;
 
   // Cost-bearing generation is a paid feature: no live subscription, no LLM run.
-  if (!(await canGenerateForUser(user.id, sb))) {
-    return NextResponse.json(
-      { error: 'payment_required', message: 'An active subscription is required to generate content.' },
-      { status: 402 },
-    );
-  }
+  const blocked = await enforceEntitlement(user.id, 'pseo_generate', sb);
+  if (blocked) return blocked;
 
   const parsed = body.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: 'invalid' }, { status: 400 });

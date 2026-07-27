@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { supabaseServer } from '@/lib/supabase/server';
 import { reviseSection } from '@/lib/pipeline/revise';
 import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
-import { canGenerateForUser } from '@/lib/billing';
+import { enforceEntitlement } from '@/lib/billing';
+import { captureServer } from '@/lib/analytics/capture-server';
 
 export const maxDuration = 60;
 
@@ -22,12 +23,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (limited) return limited;
 
   // Cost-bearing generation is a paid feature: no live subscription, no LLM run.
-  if (!(await canGenerateForUser(user.id, sb))) {
-    return NextResponse.json(
-      { error: 'payment_required', message: 'An active subscription is required to generate content.' },
-      { status: 402 },
-    );
-  }
+  const blocked = await enforceEntitlement(user.id, 'revise', sb);
+  if (blocked) return blocked;
 
   const parsed = body.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: 'invalid' }, { status: 400 });
@@ -41,6 +38,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   try {
     const revised = await reviseSection({ ...parsed.data, profile });
     if (!revised) return NextResponse.json({ ok: false, error: 'empty result' }, { status: 502 });
+    await captureServer(user.id, 'post_section_revised', { post_id: id });
     return NextResponse.json({ ok: true, revised });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: String(e?.message ?? e) }, { status: 500 });

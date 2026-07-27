@@ -11,8 +11,10 @@
  * must not grant LLM spend. Reading/editing existing posts stays free; this
  * gate covers creation of new AI work only.
  */
+import { NextResponse } from 'next/server';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from './supabase/admin';
+import { captureServer } from './analytics/capture-server';
 
 export type SubscriptionRow = {
   plan?: string | null;
@@ -65,6 +67,37 @@ export async function getEntitlement(
 
 export async function canGenerateForUser(userId: string, client?: SupabaseClient): Promise<boolean> {
   return (await getEntitlement(userId, client)).canGenerate;
+}
+
+/**
+ * Route-handler convenience, mirroring `enforceQuota` and `enforceRateLimit`:
+ * returns a 402 when the account may not run cost-bearing work, or null when
+ * it may.
+ *
+ *   const blocked = await enforceEntitlement(user.id, 'generate', sb);
+ *   if (blocked) return blocked;
+ *
+ * Six routes had this same check-and-402 block copy-pasted, which meant the
+ * paywall's wording and status code could drift apart route by route, and there
+ * was nowhere to observe it from. `feature` names what the customer was trying
+ * to do, so the event distinguishes someone blocked from a full article
+ * generation from someone blocked from a section rewrite — very different
+ * intent, and previously indistinguishable.
+ */
+export async function enforceEntitlement(
+  userId: string,
+  feature: 'generate' | 'retry' | 'revise' | 'pseo_plan' | 'pseo_generate' | 'strategy_chat',
+  client?: SupabaseClient,
+): Promise<NextResponse | null> {
+  const ent = await getEntitlement(userId, client);
+  if (ent.canGenerate) return null;
+  // `reason` is the entitlement verdict ('not_paying' vs 'no_subscription'),
+  // which separates a lapsed customer from someone who never checked out.
+  await captureServer(userId, 'generation_blocked_unpaid', { reason: ent.reason, feature });
+  return NextResponse.json(
+    { error: 'payment_required', message: 'An active subscription is required to generate content.' },
+    { status: 402 },
+  );
 }
 
 /** Batch check for cron loops: which of these user ids may generate?
