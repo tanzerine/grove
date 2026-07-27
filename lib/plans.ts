@@ -130,6 +130,8 @@ export type DomainLimitRow = {
   plan?: string | null;
   stripe_status?: string | null;
   stripe_price_id?: string | null;
+  /** Not metered at all — see migration 0030. */
+  comped?: boolean | null;
 };
 
 /**
@@ -147,6 +149,10 @@ export type DomainLimitRow = {
  */
 export function domainLimitFor(row: DomainLimitRow | null | undefined): number | null {
   if (!row) return PLANS.starter.domainLimit;
+  // Comped accounts aren't metered on anything (migration 0030). Checked before
+  // plan and status so a lapsed or mismatched Stripe row can't re-impose a
+  // ceiling on an account we deliberately exempted.
+  if (row.comped) return null;
   if (row.stripe_price_id && !planForPriceId(row.stripe_price_id)) return null;
   const status = (row.stripe_status ?? '').toLowerCase();
   if (!DOMAIN_LIMIT_STATUSES.has(status)) return PLANS.starter.domainLimit;

@@ -19,11 +19,13 @@ export type SubscriptionRow = {
   stripe_status?: string | null;
   current_period_end?: string | null;
   trial_ends_at?: string | null;
+  /** Not metered at all — see migration 0030. */
+  comped?: boolean | null;
 };
 
 export type Entitlement = {
   canGenerate: boolean;
-  reason: 'paying' | 'card_trial' | 'not_paying' | 'no_subscription';
+  reason: 'paying' | 'card_trial' | 'comped' | 'not_paying' | 'no_subscription';
 };
 
 /** Stripe statuses that represent a live, generation-entitled subscription. */
@@ -31,6 +33,11 @@ const LIVE_STATUSES = new Set(['active', 'trialing']);
 
 export function entitlementFrom(row: SubscriptionRow | null | undefined): Entitlement {
   if (!row) return { canGenerate: false, reason: 'no_subscription' };
+  // A comped account keeps generating regardless of Stripe (migration 0030).
+  // Checked before status so an internal account doesn't go dark the day a
+  // card expires — which for the dogfooding domain would look like the product
+  // itself breaking.
+  if (row.comped) return { canGenerate: true, reason: 'comped' };
   const status = (row.stripe_status ?? '').toLowerCase();
   if (status === 'active') return { canGenerate: true, reason: 'paying' };
   if (status === 'trialing') return { canGenerate: true, reason: 'card_trial' };
@@ -47,7 +54,10 @@ export async function getEntitlement(
   const sb = client ?? supabaseAdmin();
   const { data } = await sb
     .from('subscriptions')
-    .select('plan, stripe_status, current_period_end, trial_ends_at')
+    // `*` so a column this file reads but the database hasn't got yet (0030's
+    // `comped`) can't fail the query outright and take entitlement down with
+    // it. A missing column reads as undefined and the guard falls through.
+    .select('*')
     .eq('user_id', userId)
     .maybeSingle();
   return entitlementFrom(data as SubscriptionRow | null);
@@ -65,7 +75,7 @@ export async function entitledUserSet(userIds: string[]): Promise<Set<string>> {
   const sb = supabaseAdmin();
   const { data } = await sb
     .from('subscriptions')
-    .select('user_id, plan, stripe_status, current_period_end, trial_ends_at')
+    .select('*')
     .in('user_id', unique);
   const out = new Set<string>();
   for (const row of data ?? []) {
