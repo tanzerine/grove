@@ -46,12 +46,15 @@ export type RunCost = {
   outputTokens: number;
   /** Spend per model, so the expensive tier is obvious at a glance. */
   byModel: Record<string, number>;
+  /** Any call whose tokens were estimated from length rather than reported. */
+  estimated: boolean;
 };
 
 export function summarize(calls: readonly MeteredCall[]): RunCost {
-  const out: RunCost = { totalUsd: 0, calls: 0, unpriced: 0, inputTokens: 0, outputTokens: 0, byModel: {} };
+  const out: RunCost = { totalUsd: 0, calls: 0, unpriced: 0, inputTokens: 0, outputTokens: 0, byModel: {}, estimated: false };
   for (const c of calls) {
     out.calls++;
+    if (c.estimated) out.estimated = true;
     out.inputTokens += Number(c.inputTokens ?? 0);
     out.outputTokens += Number(c.outputTokens ?? 0);
     if (typeof c.costUsd === 'number' && Number.isFinite(c.costUsd)) {
@@ -68,14 +71,23 @@ export function summarize(calls: readonly MeteredCall[]): RunCost {
   return out;
 }
 
-/** One-line summary for the pipeline log: "$0.0182 · 6 calls · 14.2k in / 5.1k out". */
+/**
+ * One-line summary for the pipeline log:
+ *   "$0.0182 · 6 calls · 14.2k in / 5.1k out"
+ *   "~$0.0182 · 6 calls · 14.2k in / 5.1k out · est. tokens"
+ *
+ * The leading `~` and the trailing note are the whole point when tokens were
+ * estimated from length: a reader must never mistake a ±25% figure for a
+ * measured one, and a bare number invites exactly that.
+ */
 export function describeCost(c: RunCost): string {
   const tok = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
   const parts = [
-    `$${c.totalUsd.toFixed(4)}`,
+    `${c.estimated ? '~' : ''}$${c.totalUsd.toFixed(4)}`,
     `${c.calls} call${c.calls === 1 ? '' : 's'}`,
     `${tok(c.inputTokens)} in / ${tok(c.outputTokens)} out`,
   ];
+  if (c.estimated) parts.push('est. tokens');
   if (c.unpriced) parts.push(`${c.unpriced} unpriced`);
   return parts.join(' · ');
 }

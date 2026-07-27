@@ -42,6 +42,8 @@ export type LlmUsage = {
   model: string;
   inputTokens?: number | null;
   outputTokens?: number | null;
+  /** Token counts were derived from length rather than reported by the provider. */
+  estimated?: boolean;
 };
 
 /**
