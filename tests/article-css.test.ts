@@ -54,6 +54,22 @@ describe('ARTICLE_CSS covers the article body', () => {
     expect(ARTICLE_CSS).not.toMatch(bareElementRule);
   });
 
+  it('applies its direct-child rules in the embed’s nested DOM too', () => {
+    // The embed API wraps prose three levels deep —
+    //   .grove-article > .grv-root > .grv-wrap > .grv-body > p
+    // — to hang its floated TOC and CTA off the same tree, while grove's own
+    // page drops the HTML straight in. A `>` rule written only for the flat
+    // shape is inert in the embed, which is the context this file exists for.
+    // Verified against a live oveners.com article: the lead paragraph was
+    // rendering at 17px instead of 1.18em.
+    for (const rule of ['> \\* \\+ \\*', '> p:first-of-type', '> p > em:only-child']) {
+      const flat = new RegExp(`\\.${ARTICLE_CLASS} ${rule}`);
+      const nested = new RegExp(`\\.${ARTICLE_CLASS} \\.grv-body ${rule}`);
+      expect(ARTICLE_CSS, `flat form missing for "${rule}"`).toMatch(flat);
+      expect(ARTICLE_CSS, `nested (.grv-body) form missing for "${rule}"`).toMatch(nested);
+    }
+  });
+
   it('restores list rendering that a reset strips', () => {
     // Tailwind preflight sets `ul,ol { list-style: none }` and `li { display:
     // block }`. Without putting these back, every bullet list in an article

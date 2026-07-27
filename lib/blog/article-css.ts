@@ -53,7 +53,16 @@ export const ARTICLE_CSS = `
   margin: 0 auto;
   text-align: left;
 }
-.${ARTICLE_CLASS} > * + * { margin-top: 1.1em; }
+/* Direct-child rules have to account for BOTH shapes the article arrives in.
+   Grove's own page drops the HTML straight into the wrapper, so a direct-child
+   selector matches. The embed API wraps it three levels deep —
+       .grove-article > .grv-root > .grv-wrap > .grv-body > p
+   — to hang its floated TOC and CTA off the same tree. Matching only the
+   direct child made the lead paragraph and the block rhythm inert in exactly
+   the context this stylesheet exists for; measured on a live oveners.com
+   article, the lead rendered at 17px instead of 1.18em. */
+.${ARTICLE_CLASS} > * + *,
+.${ARTICLE_CLASS} .grv-body > * + * { margin-top: 1.1em; }
 
 .${ARTICLE_CLASS} h1,
 .${ARTICLE_CLASS} h2,
@@ -93,12 +102,14 @@ export const ARTICLE_CSS = `
 }
 
 .${ARTICLE_CLASS} p { margin: 0 0 1em; }
-.${ARTICLE_CLASS} > p:first-of-type {
+.${ARTICLE_CLASS} > p:first-of-type,
+.${ARTICLE_CLASS} .grv-body > p:first-of-type {
   font-size: 1.18em;
   line-height: 1.65;
   margin-bottom: 1.4em;
 }
-.${ARTICLE_CLASS} > p > em:only-child { font-size: 1.05em; color: var(--ga-clay); }
+.${ARTICLE_CLASS} > p > em:only-child,
+.${ARTICLE_CLASS} .grv-body > p > em:only-child { font-size: 1.05em; color: var(--ga-clay); }
 
 .${ARTICLE_CLASS} a {
   color: var(--ga-ink);
