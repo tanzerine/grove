@@ -4,6 +4,7 @@ import { getStripe } from '@/lib/stripe';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { PLANS, planForPriceId } from '@/lib/plans';
 import { captureServer } from '@/lib/analytics/capture-server';
+import { classifyClaim, isDuplicate, shouldReleaseClaim } from '@/lib/stripe-idempotency';
 
 // MUST be the Node runtime: signature verification needs the raw request body
 // and Stripe's crypto. Edge would mangle the body and break verification.
@@ -95,10 +96,15 @@ export async function POST(req: Request) {
   // Idempotency: record the event id; if it's already there, we've handled it.
   // Fail OPEN if the table is missing (pre-migration) so we never silently
   // drop real billing events — we only short-circuit on a true duplicate.
+  //
+  // The row is claimed BEFORE processing so two concurrent deliveries of the
+  // same event can't both run the handler. That ordering is deliberate, but it
+  // means the claim must be RELEASED if processing then fails — see the catch.
   const { error: dupErr } = await admin
     .from('stripe_events')
     .insert({ id: event.id, type: event.type });
-  if (dupErr && (dupErr as { code?: string }).code === '23505') {
+  const claim = classifyClaim(dupErr as { code?: string } | null);
+  if (isDuplicate(claim)) {
     return NextResponse.json({ received: true, duplicate: true });
   }
 
@@ -157,8 +163,28 @@ export async function POST(req: Request) {
     }
   } catch (e) {
     console.error('[stripe/webhook] handler error:', (e as Error).message);
-    // 500 → Stripe will retry. The idempotency row already exists, but our
-    // updates are last-write-wins upserts, so a retry is safe.
+    // Release the idempotency claim so Stripe's retry can actually run.
+    //
+    // Without this the 500 below is a silent, permanent data-loss bug: Stripe
+    // redelivers, the insert above hits 23505, and the request short-circuits
+    // as a "duplicate" having never processed the event. Because checkout
+    // deliberately grants no entitlement and this webhook is the ONLY writer of
+    // subscriptions.stripe_status, a single blip inside the handler (a
+    // subscriptions.retrieve timeout, say) meant: customer paid, customer has
+    // no access, and no retry could ever fix it.
+    //
+    // Deleting is safe because our writes are last-write-wins patches keyed by
+    // user/customer id — replaying the event produces the same row. Best-effort
+    // on purpose: if the delete itself fails we still want the 500, since a
+    // retry that gets swallowed is strictly better than no retry at all.
+    if (shouldReleaseClaim(claim)) {
+      try {
+        await admin.from('stripe_events').delete().eq('id', event.id);
+      } catch (delErr) {
+        console.error('[stripe/webhook] could not release idempotency claim:', delErr);
+      }
+    }
+    // 500 → Stripe retries, and now the retry reaches the handler.
     return NextResponse.json({ error: 'handler error' }, { status: 500 });
   }
 

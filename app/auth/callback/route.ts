@@ -34,9 +34,7 @@ export async function GET(req: Request) {
 
     // Google is the one path AuthForm cannot instrument — the browser leaves
     // for Google before any result exists, so the session first becomes real
-    // here. Email/password is deliberately NOT captured again: AuthForm
-    // already recorded it, and a confirmation link also lands on this route,
-    // which would otherwise count one signup twice.
+    // here.
     if (user && user.app_metadata?.provider === 'google') {
       // No "is this a new user?" flag exists on the session, so infer it from
       // the account's age. A first OAuth round-trip takes seconds; anything
@@ -50,6 +48,18 @@ export async function GET(req: Request) {
       } else {
         await captureServer(user.id, 'signed_in', { method: 'google' });
       }
+    } else if (user) {
+      // An email/password user reaching this route arrived by clicking a
+      // confirmation link — nothing else sends them here with a code.
+      //
+      // This is the other half of the launch's most important funnel.
+      // `signed_up{confirmation_required:true}` says an account was created
+      // and parked behind the email wall; this says they got through it.
+      // Without it the wall's completion rate is unobservable, which is
+      // exactly the blind spot that made the confirmation path risky to
+      // launch on. NOT captured as `signed_up` — AuthForm already counted
+      // that, and doing it here too would double every email signup.
+      await captureServer(user.id, 'email_confirmed', {});
     }
   }
   return NextResponse.redirect(new URL(next, url.origin));
