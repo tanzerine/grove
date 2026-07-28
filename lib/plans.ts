@@ -41,7 +41,7 @@ export const PLANS: Record<PlanId, Plan> = {
     priceUsd: 29,
     postsQuota: 12,
     domainLimit: 1,
-    blurb: 'For a single site finding its footing.',
+    blurb: 'One site, publishing about three times a week.',
     features: ['12 posts / month', '1 domain', 'Full SEO pipeline', 'Email support'],
   },
   growth: {
@@ -50,7 +50,7 @@ export const PLANS: Record<PlanId, Plan> = {
     priceUsd: 79,
     postsQuota: 40,
     domainLimit: 3,
-    blurb: 'For sites compounding traffic month over month.',
+    blurb: 'Up to three sites, publishing daily.',
     features: ['40 posts / month', 'Up to 3 domains', 'Social auto-publish', 'Search Console insights'],
   },
   agency: {
@@ -59,7 +59,7 @@ export const PLANS: Record<PlanId, Plan> = {
     priceUsd: 199,
     postsQuota: 150,
     domainLimit: null,
-    blurb: 'For teams running blogs at scale.',
+    blurb: 'Agencies and teams running many client blogs.',
     features: ['150 posts / month', 'Unlimited domains', 'Priority pipeline', 'Priority support'],
   },
 };
