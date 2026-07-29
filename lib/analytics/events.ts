@@ -55,7 +55,7 @@ export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
  */
 export const RATE_BUCKETS = [
   'assist', 'billing', 'crawl', 'gen', 'gsc', 'img',
-  'interview', 'llm', 'planchat', 'refundreq', 'repo', 'strategy',
+  'interview', 'llm', 'planchat', 'refundreq', 'repo', 'strategy', 'upload',
 ] as const;
 export type RateBucket = (typeof RATE_BUCKETS)[number] | 'unknown';
 
@@ -139,6 +139,8 @@ export type EventMap = {
   post_section_revised: { post_id: string };
   post_cover_regenerated: { post_id: string };
   illustration_generated: { domain_id: string };
+  /** An author put one of their OWN images in a draft. `bytes` is post-strip. */
+  image_uploaded: { domain_id: string; format: string; bytes: number };
 
   // ── distribution & setup ────────────────────────────────────────────────
   embed_snippet_copied: { mode: 'blog' | 'widget' | 'feed'; domain_id: string };
@@ -222,6 +224,7 @@ const EVENT_NAME_SET = {
   post_section_revised: true,
   post_cover_regenerated: true,
   illustration_generated: true,
+  image_uploaded: true,
   embed_snippet_copied: true,
   custom_hostname_set: true,
   blog_settings_saved: true,

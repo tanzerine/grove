@@ -20,6 +20,10 @@ import { parseRateBucket } from './analytics/events';
 export const LIMITS = {
   generate: { limit: 20, windowSec: 3600 }, // full article pipeline (LLM-heavy)
   image: { limit: 40, windowSec: 3600 },    // Replicate cover / inline images
+  // Author's own uploads. Kept off the `image` budget on purpose: an upload
+  // costs storage, not Replicate credits, so letting it eat the generation
+  // allowance would price a free action against a paid one.
+  upload: { limit: 80, windowSec: 3600 },
   llm: { limit: 60, windowSec: 3600 },      // lighter single LLM calls
   crawl: { limit: 10, windowSec: 3600 },    // outbound site crawl + profiler
 } as const;

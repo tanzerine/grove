@@ -14,6 +14,7 @@ import { stripLeadingH1, withTitleH1 } from '@/lib/article-body';
 import { sanitizeAlt } from '@/lib/images/prompt';
 import Icon from '../../gv-icons';
 import ImageStudio, { type ImageContext } from './ImageStudio';
+import { looksLikeImage, uploadImage } from './upload-image';
 import SchedulePicker from './SchedulePicker';
 
 const ACCENT = 'var(--gv-accent)';
@@ -72,6 +73,9 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
   const [prompt, setPrompt] = useState('');
   const [cards, setCards] = useState<AssistCard[]>([]);
   const [imageOpen, setImageOpen] = useState(false);
+  // Progress for images dropped/pasted straight onto the canvas. The image tool
+  // has its own status line; this covers the path that bypasses it.
+  const [canvasDrop, setCanvasDrop] = useState<{ busy: boolean; error: string | null }>({ busy: false, error: null });
   const [scheduledAt, setScheduledAt] = useState<string | null>(initialScheduledAt);
   const baseline = useRef<string>(initialBody);
   const lastInitialBody = useRef<string>(initialBody);
@@ -83,6 +87,10 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const imageAnchor = useRef<number | null>(null);
   const cid = useRef(1);
+  // tiptap builds `editorProps` once, so its handlers would close over the
+  // first render's props forever. The ref keeps the drop/paste path pointed at
+  // the current one (postId in particular changes when a blank draft is saved).
+  const dropRef = useRef<(files: File[], pos: number | null) => void>(() => {});
 
   const editor = useEditor({
     immediatelyRender: false,            // required for Next SSR (no hydration mismatch)
@@ -110,6 +118,25 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
     },
     editorProps: {
       attributes: { class: 'prose', style: 'outline:none; max-width:none;' },
+      // Paste a screenshot / drag a file in from the desktop. Both only fire
+      // while the canvas is editable, which is the behaviour we want: reading
+      // mode shouldn't quietly start uploading things.
+      handlePaste: (_view, event) => {
+        const files = Array.from(event.clipboardData?.files ?? []).filter(looksLikeImage);
+        if (!files.length) return false;   // not an image paste — let tiptap have it
+        event.preventDefault();
+        dropRef.current(files, null);      // null = insert at the cursor
+        return true;
+      },
+      handleDrop: (view, event, _slice, moved) => {
+        if (moved) return false;           // dragging a node around inside the doc
+        const files = Array.from(event.dataTransfer?.files ?? []).filter(looksLikeImage);
+        if (!files.length) return false;
+        event.preventDefault();
+        const at = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? null;
+        dropRef.current(files, at);
+        return true;
+      },
     },
   });
 
@@ -359,6 +386,37 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
     if (postId != null) await persist();
   }
 
+  /**
+   * Images dropped or pasted onto the canvas itself.
+   *
+   * Sequential, not parallel: each insert shifts every position after it, so
+   * uploading three at once and inserting them as they land would scatter them
+   * in arrival order at stale anchors. One at a time keeps them in the order
+   * the author dropped them.
+   */
+  async function uploadToCanvas(files: File[], at: number | null) {
+    if (!editor) return;
+    if (!domainId) {
+      setCanvasDrop({ busy: false, error: 'Add a domain first to upload images.' });
+      return;
+    }
+    setCanvasDrop({ busy: true, error: null });
+    let anchor = at ?? editor.state.selection.to;
+    for (const file of files) {
+      try {
+        const image = await uploadImage(file, domainId);
+        imageAnchor.current = Math.min(anchor, editor.state.doc.content.size);
+        await insertImage(image);
+        anchor = editor.state.selection.to;
+      } catch (e: any) {
+        setCanvasDrop({ busy: false, error: e?.message ?? 'Could not upload that image.' });
+        return;
+      }
+    }
+    setCanvasDrop({ busy: false, error: null });
+  }
+  dropRef.current = uploadToCanvas;
+
   function submitPrompt() {
     const t = prompt.trim();
     if (!t) return;
@@ -451,6 +509,23 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
                 <button onClick={() => promptRef.current?.focus()} className="gv-btn" style={{ display: 'flex', alignItems: 'center', gap: 7, height: 30, padding: '0 13px', borderRadius: 8, border: 'none', background: 'rgba(162,255,1,0.14)', color: ACCENT_INK, fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>
                   <Icon name="sparkle" size={13} /> Ask grove
                 </button>
+              </div>
+            )}
+
+            {/* Feedback for a drop/paste onto the canvas, which has no panel of
+                its own to report into. */}
+            {canEdit && (canvasDrop.busy || canvasDrop.error) && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', marginBottom: 14, borderRadius: 10, border: '1px solid var(--gv-line)', background: 'rgba(255,255,255,0.02)' }}>
+                {canvasDrop.busy && <span style={{ display: 'inline-flex', gap: 4 }}><span className="gv-tdot" /><span className="gv-tdot" style={{ animationDelay: '.18s' }} /><span className="gv-tdot" style={{ animationDelay: '.36s' }} /></span>}
+                <span style={{ fontSize: 12, color: canvasDrop.error ? 'var(--gv-red)' : 'var(--gv-dim)' }}>
+                  {canvasDrop.error ?? 'Uploading your image…'}
+                </span>
+                {canvasDrop.error && (
+                  <button onClick={() => setCanvasDrop({ busy: false, error: null })} className="gv-ghost" aria-label="Dismiss"
+                    style={{ marginLeft: 'auto', display: 'flex', border: 'none', background: 'transparent', color: 'var(--gv-dim)', cursor: 'pointer', padding: 2 }}>
+                    <Icon name="x" size={13} />
+                  </button>
+                )}
               </div>
             )}
 
