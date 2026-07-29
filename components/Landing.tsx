@@ -214,7 +214,7 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
   ];
   const weekRows = [
     { tag: 'MOFU', tagColor: '#e0c878', tagBg: 'rgba(224,200,120,0.08)', tagBorder: 'rgba(224,200,120,0.28)', title: 'The 7 best AI 3D icon generators in 2026, tested honestly', status: 'Live' },
-    { tag: 'BOFU', tagColor: '#c9a3e6', tagBg: 'rgba(201,163,230,0.08)', tagBorder: 'rgba(201,163,230,0.28)', title: 'Pixelcut’s AI 3D icon generator vs grove: which ships to production', status: 'Live' },
+    { tag: 'BOFU', tagColor: '#c9a3e6', tagBg: 'rgba(201,163,230,0.08)', tagBorder: 'rgba(201,163,230,0.28)', title: 'Pixelcut’s AI 3D icon generator vs Grove: which ships to production', status: 'Live' },
     { tag: 'MOFU', tagColor: '#e0c878', tagBg: 'rgba(224,200,120,0.08)', tagBorder: 'rgba(224,200,120,0.28)', title: 'Is there a truly free AI 3D icon generator? What you get at $0', status: 'Live' },
   ];
   const pipelineRows = [
@@ -884,7 +884,7 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
             <div style={{ maxWidth: 480 }}>
               <div style={{ fontSize: 12, letterSpacing: '0.1em', color: '#7c7f77', textTransform: 'uppercase', marginBottom: 10 }}>Analytics agent</div>
               <div style={{ fontSize: 18, fontWeight: 500, letterSpacing: '-0.02em', lineHeight: 1.1, color: '#f4f4f2', marginBottom: 12 }}>Shows you what&rsquo;s actually working</div>
-              <p style={leadStyle}>Ask in plain English what&rsquo;s working and get a plain English answer. No Search Console spreadsheet to decipher.</p>
+              <p style={leadStyle}>Ask a question in plain English, get an answer in plain English — which posts earn clicks, which are slipping, what to do next. No Search Console spreadsheet to decipher.</p>
             </div>
             <a className="gv-link gv-accentlink" href={startHref} style={{ color: '#d7d9d3', textDecoration: 'none', fontSize: 14, whiteSpace: 'nowrap' }}>Explore the Analytics agent →</a>
           </div>
@@ -1136,7 +1136,7 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
             <div style={eyebrow}>FAQ</div>
             <h2 style={h2Style}>The honest FAQ.</h2>
             <p style={{ ...leadStyle, margin: '0 0 22px' }}>The questions skeptical founders actually ask before handing over their blog.</p>
-            <a className="gv-btn" href={startHref} style={{ ...ctaBtn, background: '#f4f4f2', color: '#0a0a0a', padding: '0 22px', borderRadius: 9, textDecoration: 'none' }}>Book a walkthrough →</a>
+            <a className="gv-btn" href={startHref} style={{ ...ctaBtn, background: '#f4f4f2', color: '#0a0a0a', padding: '0 22px', borderRadius: 9, textDecoration: 'none' }}>{loggedIn ? 'Open dashboard →' : 'Start free →'}</a>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {faqs.map((f, i) => (
@@ -1161,11 +1161,11 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
       <section id="blog" style={{ padding: '30px 24px 40px', maxWidth: 1120, margin: '0 auto' }}>
         <div className="gv-r" style={{ maxWidth: 620, marginBottom: 30 }}>
           <div style={eyebrow}>Dogfood</div>
-          <h2 style={h2Style}>Our blog runs on grove.</h2>
+          <h2 style={h2Style}>Our blog runs on Grove.</h2>
           <p style={leadStyle}>
-            These posts weren&rsquo;t written for this page — the agent researched, wrote and
-            published them to our own domain. What you see below is the same embed snippet
-            we hand you, rendering the same feed.
+            Nobody wrote these posts for this page. Grove researched, wrote and published
+            them to our own domain, and what you see below is the same embed snippet we
+            hand you, rendering the same feed. Judge us on it.
           </p>
         </div>
         <div className="gv-r">
@@ -1177,7 +1177,7 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
       <section style={{ padding: '162px 24px 175px', textAlign: 'center' }}>
         <div className="gv-r" style={{ maxWidth: 680, margin: '0 auto' }}>
           <h2 style={{ ...h2Style, lineHeight: 1.08, margin: '0 0 22px' }}>Your next post starts here.</h2>
-          <p style={{ fontSize: 18, fontWeight: 500, color: '#9a9d97', margin: '0 0 32px' }}>Plant your domain tonight. Wake up to a researched, ranked, published post.</p>
+          <p style={{ fontSize: 18, fontWeight: 500, color: '#9a9d97', margin: '0 0 32px' }}>Plant your domain tonight. Wake up to a researched, written and published post on your own site.</p>
           <form onSubmit={onSubmit} style={{ display: 'flex', gap: 8, maxWidth: 440, margin: '0 auto', background: '#111110', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '6px 6px 6px 18px', height: 44 }}>
             <span style={{ display: 'flex', alignItems: 'center', color: '#7c7f77', fontSize: 14 }}>https://</span>
             <input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="yourdomain.com" aria-label="Your domain" style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#f4f4f2', fontSize: 14, fontFamily: 'inherit', minWidth: 0 }} />
@@ -1192,9 +1192,9 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
           <div>
             <a href="#hero" style={{ display: 'flex', alignItems: 'center', gap: 9, textDecoration: 'none', color: '#f4f4f2', marginBottom: 14 }}>
               <img src="/landing/grove-mark.png" alt="Grove" style={{ width: 28, height: 28, objectFit: 'contain' }} />
-              <span style={{ fontWeight: 700, fontSize: 17, letterSpacing: '-0.02em' }}>grove</span>
+              <span style={{ fontWeight: 700, fontSize: 17, letterSpacing: '-0.02em' }}>Grove</span>
             </a>
-            <p style={{ fontSize: 14, fontWeight: 500, color: '#7c7f77', lineHeight: 1.6, maxWidth: 250, margin: 0 }}>The AI content team that plants your domain once and grows the blog forever.</p>
+            <p style={{ fontSize: 14, fontWeight: 500, color: '#7c7f77', lineHeight: 1.6, maxWidth: 250, margin: 0 }}>Plant your domain once. Grove researches, writes and publishes the blog from there.</p>
           </div>
           {footcols.map((col) => (
             <div key={col.head}>
@@ -1208,7 +1208,7 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
           ))}
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, paddingTop: 22, fontSize: 12, color: '#565952' }}>
-          <span>© {new Date().getFullYear()} grove — plant once, grows forever.</span>
+          <span>© {new Date().getFullYear()} Grove — plant once, grow from there.</span>
         </div>
       </footer>
     </div>
