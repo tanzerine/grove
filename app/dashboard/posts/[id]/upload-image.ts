@@ -12,6 +12,14 @@ export type UploadedImage = { url: string; alt: string };
 export const MAX_UPLOAD_MB = MAX_UPLOAD_BYTES / 1024 / 1024;
 
 /**
+ * The file picker's filter. Spelled out rather than `image/*` on purpose:
+ * `image/*` includes SVG, and offering the author a file type the server then
+ * refuses is a worse experience than never listing it. Mirrors the server's
+ * allow-list in lib/images/upload.
+ */
+export const UPLOAD_ACCEPT = 'image/png,image/jpeg,image/webp,image/gif';
+
+/**
  * Why this file can't be uploaded, or null if it can.
  *
  * A courtesy check only — the server re-validates from the file's actual magic

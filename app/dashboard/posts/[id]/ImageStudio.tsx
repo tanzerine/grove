@@ -1,7 +1,7 @@
 'use client';
 import { useRef, useState } from 'react';
 import Icon from '../../gv-icons';
-import { MAX_UPLOAD_MB, uploadImage } from './upload-image';
+import { MAX_UPLOAD_MB, UPLOAD_ACCEPT, uploadImage } from './upload-image';
 
 /**
  * The editor's image tool: generate one, or bring your own.
@@ -154,7 +154,7 @@ export default function ImageStudio({
           <input
             ref={fileRef}
             type="file"
-            accept="image/png,image/jpeg,image/webp,image/gif"
+            accept={UPLOAD_ACCEPT}
             hidden
             onChange={(e) => { takeFile(e.target.files?.[0]); e.target.value = ''; }}
           />
