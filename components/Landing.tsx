@@ -34,8 +34,8 @@ const CSS = `
 @keyframes gvFade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes gvMarqueeL { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 @keyframes gvMarqueeR { from { transform: translateX(-50%); } to { transform: translateX(0); } }
-.gv-land .gv-link { transition: color .2s; }
-.gv-land .gv-link:hover { color: #f4f4f2 !important; }
+.gv-land .gv-navlink { transition: color .2s; }
+.gv-land .gv-navlink:hover { color: #f4f4f2 !important; }
 .gv-land .gv-accentlink:hover { color: var(--accent) !important; }
 .gv-land .gv-card { transition: border-color .25s, transform .25s; }
 .gv-land .gv-card:hover { border-color: rgba(255,255,255,0.22) !important; transform: translateY(-2px); }
@@ -275,7 +275,7 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 
       {/* NAV */}
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50, backdropFilter: 'blur(16px)', backgroundColor: '#000000C7' }}>
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50, backdropFilter: 'blur(16px)', backgroundColor: '#000000C7', fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif" }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 28, padding: '16px 24px', width: '100%' }}>
           <a href="#hero" style={{ display: 'flex', alignItems: 'center', gap: 5, textDecoration: 'none', color: '#f4f4f2' }}>
             <span style={{ width: 28, height: 28, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0, backgroundColor: '#000' }}>
@@ -284,11 +284,11 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
             <span style={{ fontWeight: 500, fontSize: 14, letterSpacing: '-0.02em' }}>Grove</span>
           </a>
           <div className="gv-navlinks" style={{ display: 'flex', gap: 26, fontSize: 14, fontWeight: 500, flex: 1 }}>
-            <a className="gv-link" href="#agents" style={{ color: '#9a9d97', textDecoration: 'none' }}>Agents</a>
-            <a className="gv-link" href="#platform" style={{ color: '#9a9d97', textDecoration: 'none' }}>Platform</a>
-            <a className="gv-link" href="#pricing" style={{ color: '#9a9d97', textDecoration: 'none' }}>Pricing</a>
-            <a className="gv-link" href="/blog" style={{ color: '#9a9d97', textDecoration: 'none' }}>Blog</a>
-            <a className="gv-link" href="#faq" style={{ color: '#9a9d97', textDecoration: 'none' }}>FAQ</a>
+            <a className="gv-navlink" href="#agents" style={{ color: '#9a9d97', textDecoration: 'none' }}>Agents</a>
+            <a className="gv-navlink" href="#platform" style={{ color: '#9a9d97', textDecoration: 'none' }}>Platform</a>
+            <a className="gv-navlink" href="#pricing" style={{ color: '#9a9d97', textDecoration: 'none' }}>Pricing</a>
+            <a className="gv-navlink" href="/blog" style={{ color: '#9a9d97', textDecoration: 'none' }}>Blog</a>
+            <a className="gv-navlink" href="#faq" style={{ color: '#9a9d97', textDecoration: 'none' }}>FAQ</a>
           </div>
           <a className="gv-btn" href={startHref} style={{ ...ctaBtn, background: '#f4f4f2', color: '#0a0a0a', padding: '0 18px', borderRadius: 8, textDecoration: 'none' }}>{loggedIn ? 'Dashboard' : 'Get Started'}</a>
         </div>
@@ -703,7 +703,7 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
               <div style={{ fontSize: 18, fontWeight: 500, letterSpacing: '-0.02em', lineHeight: 1.1, color: '#f4f4f2', marginBottom: 12 }}>Decides what to write next</div>
               <p style={leadStyle}>Grove checks what already ranks for your keywords, compares it to what you&rsquo;ve published, and turns the gaps into a dated plan for the month.</p>
             </div>
-            <a className="gv-link gv-accentlink" href={startHref} style={{ color: '#d7d9d3', textDecoration: 'none', fontSize: 14, whiteSpace: 'nowrap' }}>Explore the Strategy agent →</a>
+            <a className="gv-navlink gv-accentlink" href={startHref} style={{ color: '#d7d9d3', textDecoration: 'none', fontSize: 14, whiteSpace: 'nowrap' }}>Explore the Strategy agent →</a>
           </div>
         </div>
 
@@ -793,7 +793,7 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
               <div style={{ fontSize: 18, fontWeight: 500, letterSpacing: '-0.02em', lineHeight: 1.1, color: '#f4f4f2', marginBottom: 12 }}>Writes full drafts in your voice</div>
               <p style={leadStyle}>Grove learns from the posts you already have, then writes finished articles with real sources — and shows you where it matched your voice.</p>
             </div>
-            <a className="gv-link gv-accentlink" href={startHref} style={{ color: '#d7d9d3', textDecoration: 'none', fontSize: 14, whiteSpace: 'nowrap' }}>Explore the Write agent →</a>
+            <a className="gv-navlink gv-accentlink" href={startHref} style={{ color: '#d7d9d3', textDecoration: 'none', fontSize: 14, whiteSpace: 'nowrap' }}>Explore the Write agent →</a>
           </div>
         </div>
 
@@ -886,7 +886,7 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
               <div style={{ fontSize: 18, fontWeight: 500, letterSpacing: '-0.02em', lineHeight: 1.1, color: '#f4f4f2', marginBottom: 12 }}>Shows you what&rsquo;s actually working</div>
               <p style={leadStyle}>Ask a question in plain English, get an answer in plain English — which posts earn clicks, which are slipping, what to do next. No Search Console spreadsheet to decipher.</p>
             </div>
-            <a className="gv-link gv-accentlink" href={startHref} style={{ color: '#d7d9d3', textDecoration: 'none', fontSize: 14, whiteSpace: 'nowrap' }}>Explore the Analytics agent →</a>
+            <a className="gv-navlink gv-accentlink" href={startHref} style={{ color: '#d7d9d3', textDecoration: 'none', fontSize: 14, whiteSpace: 'nowrap' }}>Explore the Analytics agent →</a>
           </div>
         </div>
       </section>
@@ -1201,7 +1201,7 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
               <div style={{ fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#565952', marginBottom: 16 }}>{col.head}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
                 {col.links.map(([label, href]) => (
-                  <a className="gv-link" key={label} href={href} style={{ fontSize: 12, fontWeight: 500, color: '#9a9d97', textDecoration: 'none' }}>{label}</a>
+                  <a className="gv-navlink" key={label} href={href} style={{ fontSize: 12, fontWeight: 500, color: '#9a9d97', textDecoration: 'none' }}>{label}</a>
                 ))}
               </div>
             </div>
