@@ -233,6 +233,34 @@
   }
 
   /* ───────────────────────── full blog mode ───────────────────────── */
+
+  /* Lay out the default list view: which post goes in the featured card, which
+     fill the grid, and — the part that used to be wrong — whether an empty grid
+     means "nothing matched" or "everything is already featured".
+
+     The featured post is pulled OUT of the grid pool, so a blog with exactly one
+     published post leaves the pool empty. That is not a failed search: it is
+     every blog's FIRST publish, and printing "No articles match" under a
+     perfectly good featured card makes a working blog look broken to the reader
+     at the one moment it is most likely to be looked at. Only a real search or
+     genre filter can produce a genuine no-match.
+
+     Top-level and pure so it's unit-testable — embed.js runs on domains we don't
+     control and has no DOM harness. */
+  function planList(posts, isDefault, page, per) {
+    var feat = isDefault ? posts[0] || null : null;
+    var pool = feat ? posts.filter(function (p) { return p.slug !== feat.slug; }) : posts.slice();
+    var pages = Math.max(1, Math.ceil(pool.length / per));
+    var pg = Math.min(Math.max(1, page), pages);
+    return {
+      feat: feat,
+      pages: pages,
+      page: pg,
+      items: pool.slice((pg - 1) * per, pg * per),
+      noMatch: pool.length === 0 && !isDefault,
+    };
+  }
+
   function mountBlog(root, host) {
     root.className = 'gv' + themeClass(root);
     root.innerHTML = '<div class="gv-empty">Loading…</div>';
@@ -288,13 +316,12 @@
       function renderList() {
         if (_trackTeardown) { _trackTeardown(); _trackTeardown = null; } // stop the article tracker
         var isDefault = state.genre === 'All' && !state.q.trim();
-        var feat = isDefault ? posts[0] : null;
-        var pool = filtered();
-        if (feat) pool = pool.filter(function (p) { return p.slug !== feat.slug; });
         var PER = 9;
-        var pages = Math.max(1, Math.ceil(pool.length / PER));
-        if (state.page > pages) state.page = pages;
-        var items = pool.slice((state.page - 1) * PER, state.page * PER);
+        var plan = planList(filtered(), isDefault, state.page, PER);
+        state.page = plan.page;
+        var feat = plan.feat;
+        var pages = plan.pages;
+        var items = plan.items;
         var href = articleHref;
 
         var featHTML = (feat && state.page === 1) ? (
@@ -313,7 +340,9 @@
 
         var gridHTML = items.length
           ? '<div class="gv-grid">' + items.map(function (p) { return cardHTML(p, href(p.slug)); }).join('') + '</div>'
-          : '<div class="gv-empty">No articles match' + (state.q ? ' “' + esc(state.q) + '”' : '') + '. <span class="gv-link" data-clear style="cursor:pointer">Clear</span></div>';
+          : plan.noMatch
+            ? '<div class="gv-empty">No articles match' + (state.q ? ' “' + esc(state.q) + '”' : '') + '. <span class="gv-link" data-clear style="cursor:pointer">Clear</span></div>'
+            : '';
 
         var pagerHTML = pages > 1
           ? '<div class="gv-pager"><button class="gv-pg" data-prev' + (state.page <= 1 ? ' disabled' : '') + '>← Newer</button>' +
