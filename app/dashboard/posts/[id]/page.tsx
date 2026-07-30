@@ -170,6 +170,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
             <div style={{ marginTop: 20 }}>
               <RichEditor
                 postId={p.id}
+                domainId={domain?.id}
                 initialBody={p.body_md ?? ''}
                 initialTitle={p.title ?? ''}
                 initialMetaTitle={p.meta_title ?? ''}

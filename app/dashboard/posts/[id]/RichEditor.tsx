@@ -22,7 +22,14 @@ const ACCENT_INK = 'var(--gv-accent-ink)';
 
 type Props = {
   postId: string | null;         // null = a brand-new blank draft, created on first save
-  domainId?: string;             // required when postId is null (to create the draft)
+  /**
+   * The domain the draft belongs to. Not optional — every image path in the
+   * editor (generate, upload, drop, paste) is domain-scoped and refuses to run
+   * without it, and a `?` here let the post page omit it silently: the whole
+   * image tool answered "Add a domain first" on a post that plainly had one.
+   * Pass `undefined` explicitly if a caller genuinely has no domain yet.
+   */
+  domainId: string | undefined;
   initialBody: string;            // markdown
   initialTitle: string;
   initialMetaTitle: string;
