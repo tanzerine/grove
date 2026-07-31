@@ -120,7 +120,10 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   // CSS custom properties on the page root, so the banner AND everything hanging
   // off --moss (TOC, genre tag, read-progress, card hovers) pick up the palette.
   const branding = resolveBranding(domain);
-  const themeStyle = blogThemeVars(branding) as React.CSSProperties | undefined;
+  // The captured background is passed so the accent is corrected against
+  // the page it sits on (see blog-theme accentOn). This inline style wins
+  // over the layout's :root inside <main>, so it has to agree with it.
+  const themeStyle = blogThemeVars(branding, (domain as any)?.site_profile?.design?.colors?.bg) as React.CSSProperties | undefined;
 
   // Canonical article URL — the customer's own surface when one is configured.
   // Share buttons and JSON-LD must spread THAT url, not the mirror's.

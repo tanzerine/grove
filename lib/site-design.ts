@@ -244,20 +244,25 @@ function familyStack(value: string | undefined): string | null {
 
 export function extractFonts(html: string, css: string, baseUrl: string): SiteDesign['fonts'] {
   const style = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)].map((m) => m[1]).join('\n') + '\n' + css;
+  const props = customProps(style);
+  const family = (rule: string | null | undefined) =>
+    resolveVars(rule?.match(/font-family\s*:\s*([^;}]+)/i)?.[1], props);
 
-  const bodyRule = style.match(/(?:^|[},])\s*(?:html\s*,\s*body|body|html)\s*\{([^}]*)\}/i)?.[1];
-  const bodyFamily = bodyRule?.match(/font-family\s*:\s*([^;}]+)/i)?.[1];
+  // Same precedence as the palette: the shell element that actually wraps the
+  // page beats `body`, which sites often leave on a default they then override.
+  const shellFamily = family(shellRule(html, style));
+  const bodyFamily = family(style.match(/(?:^|[},])\s*(?:html\s*,\s*body|body|html)\s*\{([^}]*)\}/i)?.[1]);
 
   const headingRule = style.match(/(?:^|[},])\s*[^{}]*\bh[123]\b[^{}]*\{([^}]*font-family[^}]*)\}/i)?.[1];
-  const headingFamily = headingRule?.match(/font-family\s*:\s*([^;}]+)/i)?.[1];
+  const headingFamily = family(headingRule);
 
   // A --font-* custom property is how next/font and most design systems expose
   // the real family; the literal inside it survives even when the class that
   // consumes it does not.
-  const varFamily = style.match(/--font[-\w]*\s*:\s*([^;}]+)/i)?.[1];
+  const varFamily = resolveVars(style.match(/--font[-\w]*\s*:\s*([^;}]+)/i)?.[1], props);
 
   return {
-    body: familyStack(bodyFamily) ?? firstFamily(varFamily),
+    body: familyStack(shellFamily) ?? familyStack(bodyFamily) ?? firstFamily(varFamily),
     heading: familyStack(headingFamily) ?? firstFamily(headingFamily),
     stylesheets: extractFontStylesheets(html, baseUrl),
   };
@@ -266,32 +271,114 @@ export function extractFonts(html: string, css: string, baseUrl: string): SiteDe
 // ─── colors ──────────────────────────────────────────────────────────────────
 
 /**
+ * Every custom property the stylesheet declares, so `var()` references can be
+ * resolved to real colors.
+ *
+ * FIRST definition wins, not last. A dark-mode block (`.dark{}`,
+ * `@media (prefers-color-scheme: dark)`) redefines the same names further down
+ * the file, and taking the last value would hand back the dark palette for a
+ * site that is light by default — the `:root` declaration at the top is the
+ * page as it actually loads.
+ */
+function customProps(style: string): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const m of style.matchAll(/(--[\w-]+)\s*:\s*([^;}]+)/g)) {
+    const key = m[1].trim();
+    if (!map.has(key)) map.set(key, m[2].trim());
+  }
+  return map;
+}
+
+/**
+ * Resolve `var(--x)` / `var(--x, fallback)`, following chains a few levels.
+ *
+ * Token-driven sites almost never write a literal where the color is used —
+ * grove's own homepage says `body{background:var(--bone)}` — so without this,
+ * capture returns nothing for exactly the well-built sites it should handle
+ * best. Depth-limited because custom properties can reference each other in a
+ * cycle and CSS is not a language we are obliged to fully evaluate.
+ */
+function resolveVars(value: string | undefined, props: Map<string, string>, depth = 0): string | undefined {
+  if (!value || depth > 4 || !value.includes('var(')) return value;
+  const replaced = value.replace(/var\(\s*(--[\w-]+)\s*(?:,\s*([^()]*))?\)/g, (_, name, fallback) =>
+    props.get(name) ?? (fallback ?? '').trim()
+  );
+  return replaced === value ? value : resolveVars(replaced, props, depth + 1);
+}
+
+/**
+ * The rule that paints the page, which is often not `body`.
+ *
+ * React and Next sites routinely leave `body` on a neutral default and put the
+ * real surface on the shell element inside it — grove's own homepage is
+ * `<body><div class="gv-land">`, where `.gv-land` carries
+ * `background-color:#000` while `body` is still the light `--bone`. Reading
+ * `body` there captures a palette no visitor ever sees.
+ *
+ * Only the first classed element under <body> is considered, and only when its
+ * rule sets BOTH a background and a color — a content container usually sets
+ * one or neither, so requiring the pair keeps this from latching onto a card.
+ */
+function shellRule(html: string, style: string): string | null {
+  const bodyAt = html.search(/<body\b/i);
+  if (bodyAt < 0) return null;
+  const after = html.slice(bodyAt, bodyAt + 6000);
+  for (const m of after.matchAll(/<(?:div|main|section)\b([^>]*)>/gi)) {
+    const cls = m[1].match(/\bclass=["']([^"']+)["']/i)?.[1];
+    if (!cls) continue; // wrapper with no class tells us nothing (e.g. Next's <div hidden>)
+    for (const name of cls.trim().split(/\s+/).slice(0, 4)) {
+      const esc = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const rule = style.match(new RegExp(`\\.${esc}\\s*\\{([^}]*)\\}`, 'i'))?.[1];
+      if (rule && /background(?:-color)?\s*:/i.test(rule) && /(?:^|[;{])\s*color\s*:/i.test(rule)) return rule;
+    }
+    return null; // only the outermost shell; deeper divs are page content
+  }
+  return null;
+}
+
+/** A background shorthand only yields a color when it IS one flat color. */
+function flatBackground(value: string | undefined): string | null {
+  if (!value) return null;
+  if (/gradient|url\(/i.test(value)) return null;
+  return toHex(value.trim().split(/\s+(?![^(]*\))/)[0]);
+}
+
+/**
  * Page background and body text color.
  *
- * Ordered by how deliberate each source is. A `--background` / `--foreground`
- * pair is a design system stating its intent, so it outranks a `body` rule,
- * which in turn outranks anything inferred. When the two cannot BOTH be found
- * the pair is dropped: a background captured without its ink (or the reverse)
- * produces black-on-black exactly as often as it produces something readable.
+ * Ordered by how close each source is to what a visitor actually sees: the
+ * shell element that paints the page, then a `--background`/`--foreground`
+ * pair (a design system stating its intent), then the `body` rule. When both
+ * halves cannot be found the pair is dropped: a background captured without
+ * its ink (or the reverse) produces black-on-black exactly as often as it
+ * produces something readable.
  */
 export function extractColors(html: string, css: string): SiteDesign['colors'] {
   const style = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)].map((m) => m[1]).join('\n') + '\n' + css;
+  const props = customProps(style);
+
+  const readRule = (rule: string | null | undefined) => {
+    if (!rule) return { bg: null, ink: null };
+    return {
+      bg: flatBackground(resolveVars(rule.match(/background(?:-color)?\s*:\s*([^;}]+)/i)?.[1], props)),
+      ink: toHex(resolveVars(rule.match(/(?:^|[;{])\s*color\s*:\s*([^;}]+)/i)?.[1], props)),
+    };
+  };
+
+  const shell = readRule(shellRule(html, style));
+  if (shell.bg && shell.ink) return shell;
 
   const prop = (names: string[]): string | null => {
     for (const n of names) {
-      const m = style.match(new RegExp(`--${n}\\s*:\\s*([^;}]+)`, 'i'));
-      const hex = toHex(m?.[1]);
+      const hex = toHex(resolveVars(props.get(`--${n}`), props));
       if (hex) return hex;
     }
     return null;
   };
 
-  const bodyRule = style.match(/(?:^|[},])\s*(?:html\s*,\s*body|body|html)\s*\{([^}]*)\}/i)?.[1] ?? '';
-  const bodyBg = toHex(bodyRule.match(/background(?:-color)?\s*:\s*([^;}]+)/i)?.[1]?.split(/\s+url\(|\s+linear-/)[0]);
-  const bodyInk = toHex(bodyRule.match(/(?:^|[;{])\s*color\s*:\s*([^;}]+)/i)?.[1]);
-
-  const bg = prop(['background', 'bg', 'body-bg', 'page-bg', 'color-background', 'surface']) ?? bodyBg;
-  const ink = prop(['foreground', 'fg', 'text', 'body-color', 'color-text', 'ink']) ?? bodyInk;
+  const body = readRule(style.match(/(?:^|[},])\s*(?:html\s*,\s*body|body|html)\s*\{([^}]*)\}/i)?.[1]);
+  const bg = prop(['background', 'bg', 'body-bg', 'page-bg', 'color-background', 'surface']) ?? body.bg;
+  const ink = prop(['foreground', 'fg', 'text', 'body-color', 'color-text', 'ink']) ?? body.ink;
 
   // Both or neither — see above.
   return bg && ink ? { bg, ink } : { bg: null, ink: null };
@@ -344,6 +431,15 @@ export function extractNav(html: string, baseUrl: string): SiteDesign['nav'] {
   const candidates = [
     ...[...html.matchAll(/<header\b[^>]*>([\s\S]*?)<\/header>/gi)].map((m) => m[1]),
     ...[...html.matchAll(/<nav\b[^>]*>([\s\S]*?)<\/nav>/gi)].map((m) => m[1]),
+    // Non-semantic navs, which are common in JSX and are what grove's own
+    // landing page ships: `<div className="gv-navlinks">` inside a plain
+    // positioned div, with no <nav> anywhere on the page. Matched by class or
+    // id and read as a bounded window, since a regex cannot find the matching
+    // close tag of an arbitrary nested element. The nav-shape scoring below is
+    // what keeps an over-long window from being accepted.
+    ...[...html.matchAll(/<(?:div|ul)\b[^>]*(?:class|id)=["'][^"']*nav[^"']*["'][^>]*>/gi)]
+      .slice(0, 4)
+      .map((m) => html.slice(m.index! + m[0].length, m.index! + m[0].length + 2500)),
   ];
 
   const parsed: NonNullable<SiteDesign['nav']>[] = [];
@@ -364,8 +460,14 @@ export function extractNav(html: string, baseUrl: string): SiteDesign['nav'] {
       // The logo link: an <img> where the label should be, or a link to home.
       const img = inner.match(/<img\b[^>]*\bsrc=["']([^"']+)["']/i)?.[1];
       const label = textOf(inner);
+      // The brand link is a bare link to the origin. An in-page anchor like
+      // `#agents` also has an empty pathname, and taking it made grove's own
+      // first nav item the wordmark — so a hash or a query disqualifies it.
       const isHome = (() => {
-        try { return new URL(url).pathname.replace(/\/$/, '') === ''; } catch { return false; }
+        try {
+          const u = new URL(url);
+          return u.pathname.replace(/\/$/, '') === '' && !u.hash && !u.search;
+        } catch { return false; }
       })();
 
       if (img && !logo) {

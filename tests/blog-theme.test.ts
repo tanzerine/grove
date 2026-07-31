@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   accentForText, isDark, blogThemeVars, fallbackPalette, embedTheme, brandingPayload,
-  deriveBrandColors, resolveBranding,
+  deriveBrandColors, resolveBranding, accentOn, contrastRatio,
   type BrandColors,
 } from '../lib/blog-theme';
 
@@ -46,6 +46,35 @@ describe('blogThemeVars', () => {
   it('never puts an unreadably light primary into --moss', () => {
     const light = { ...branding, primary_color: '#fde047' };
     expect(isDark(blogThemeVars(light)!['--moss'])).toBe(true);
+  });
+
+  it('lifts the accent instead of darkening it when the page is dark', () => {
+    // Hosted blogs now take their background from the customer's own site
+    // (lib/site-design). accentForText darkens until a color reads on WHITE,
+    // which on a near-black page hides the links, genre tags and heading rule
+    // completely — the accent has to move away from the background it's on.
+    const onDark = blogThemeVars(branding, '#000000')!['--moss'];
+    const onLight = blogThemeVars(branding, '#ffffff')!['--moss'];
+    expect(contrastRatio(onDark, '#000000')).toBeGreaterThanOrEqual(3.2);
+    expect(contrastRatio(onLight, '#ffffff')).toBeGreaterThanOrEqual(3.2);
+    expect(onDark).not.toBe(onLight);
+  });
+
+  it('keeps the old white-background behaviour when no background is known', () => {
+    expect(blogThemeVars(branding)!['--moss']).toBe(accentForText(branding.primary_color));
+  });
+});
+
+describe('accentOn', () => {
+  it('leaves an accent that already reads alone', () => {
+    expect(accentOn('#1d4ed8', '#ffffff')).toBe('#1d4ed8');
+  });
+
+  it('rescues a brand color that collides with the page', () => {
+    // grove's own lime on grove's own black, and a near-black brand on white.
+    for (const [accent, bg] of [['#a2ff01', '#000000'], ['#0b0b0e', '#ffffff'], ['#1d4ed8', '#0b0d10']] as const) {
+      expect(contrastRatio(accentOn(accent, bg), bg), `${accent} on ${bg}`).toBeGreaterThanOrEqual(3.2);
+    }
   });
 });
 

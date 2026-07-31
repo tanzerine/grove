@@ -5,7 +5,7 @@
 import { supabaseAdmin } from '../supabase/admin';
 import { runWriter } from './writer';
 import { validatePost, blockingIssues } from './validator';
-import { profileSite, type SiteProfile } from './site-profile';
+import { profileSite, captureSiteDesign, type SiteProfile } from './site-profile';
 import { gatherContext } from './research-context';
 import { refineTopic } from './topic-refiner';
 import { repoKbPrompt, type RepoKnowledge } from './repo-knowledge';
@@ -222,6 +222,20 @@ async function generatePostInner(postId: string, opts: GenerateOptions = {}) {
       await sb.from('domains').update({ site_profile: profile }).eq('id', domain.id);
       await appendLog(postId, 'site_profile', 'done', profile.business.name);
     } catch (e) { await failAt(postId, 'site_profile', e, keepLive); return; }
+  } else if (!profile.design) {
+    // Backfill the design capture for a profile built before it existed.
+    // The condition above only fires when there is NO profile, so without this
+    // every domain that predates the feature would keep a null design forever
+    // and its hosted blog would keep rendering in grove's colors. One homepage
+    // fetch, no LLM — and best-effort: a blog post must never fail over the
+    // way its own page is painted.
+    try {
+      const design = await captureSiteDesign(domain.hostname);
+      if (design) {
+        profile = { ...profile, design };
+        await sb.from('domains').update({ site_profile: profile }).eq('id', domain.id);
+      }
+    } catch { /* keep grove's look for now; next run tries again */ }
   }
 
   // 2 + 3. RESEARCH + TOPIC REFINER

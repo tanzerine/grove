@@ -87,6 +87,43 @@ export function accentForText(hex: string): string {
   return c;
 }
 
+export function lightenHex(hex: string, amount = 0.25): string {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+  const up = (v: number) => Math.round(v + (255 - v) * amount);
+  return '#' + [up(rgb.r), up(rgb.g), up(rgb.b)].map(v => v.toString(16).padStart(2, '0')).join('');
+}
+
+export function contrastRatio(a: string, b: string): number {
+  const ra = hexToRgb(a), rb = hexToRgb(b);
+  if (!ra || !rb) return 1;
+  const la = relativeLuminance(ra), lb = relativeLuminance(rb);
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+
+/**
+ * The accent, made legible against the background it will actually sit on.
+ *
+ * accentForText() darkens until a color reads on WHITE, which was a safe
+ * assumption while every blog surface was grove's paper. It stopped being one
+ * when hosted blogs began taking their background from the customer's own site
+ * (lib/site-design): on a near-black page the darkened accent is invisible, so
+ * links, genre tags and the heading rule quietly vanish. Given a background,
+ * move the accent away from it instead of always downward.
+ *
+ * 3.2:1 — the WCAG floor for large text and UI components, which is what the
+ * accent is used for.
+ */
+export function accentOn(hex: string, bg: string | null | undefined): string {
+  if (!bg) return accentForText(hex);
+  const towardLight = isDark(bg);
+  let c = hex;
+  for (let i = 0; i < 10 && contrastRatio(c, bg) < 3.2; i++) {
+    c = towardLight ? lightenHex(c, 0.14) : darkenHex(c, 0.14);
+  }
+  return c;
+}
+
 /**
  * Build a full BrandColors from a primary (+ optional secondary) color. This is
  * the single source of truth for turning a couple of brand colors into the
@@ -136,9 +173,13 @@ export function resolveBranding(domain: any): BrandColors | null {
  * "Try {business}" banner. Returns undefined when no branding was extracted,
  * so pages fall back to Grove's own palette.
  */
-export function blogThemeVars(branding: BrandColors | null | undefined): Record<string, string> | undefined {
+export function blogThemeVars(
+  branding: BrandColors | null | undefined,
+  /** The page background this palette will sit on, when it's known — see accentOn. */
+  bg?: string | null,
+): Record<string, string> | undefined {
   if (!branding?.primary_color) return undefined;
-  const accent = accentForText(branding.primary_color);
+  const accent = accentOn(branding.primary_color, bg);
   return {
     '--moss': accent,
     '--moss2': darkenHex(accent, 0.15),

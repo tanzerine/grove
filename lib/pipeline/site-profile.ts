@@ -238,6 +238,26 @@ async function fetchExternalCss(html: string, baseUrl: string): Promise<string> 
   return sheets.join('\n');
 }
 
+/**
+ * Just the design capture, without the crawl or the LLM call.
+ *
+ * profileSite() is expensive — a dozen page fetches and a main-model call —
+ * and it only ever runs when a domain has NO profile at all
+ * (lib/pipeline/generate.ts). Every domain that existed before design capture
+ * shipped already has `business.name`, so nothing would have re-profiled them
+ * and `site_profile.design` would have stayed null on every live blog forever.
+ *
+ * This is the backfill: one homepage fetch plus its stylesheets, which is all
+ * extractSiteDesign needs. Cheap enough to run opportunistically, so a blog
+ * heals itself on its next generation instead of waiting for someone to notice.
+ */
+export async function captureSiteDesign(hostname: string): Promise<SiteDesign | null> {
+  const homepage = await fetchHomepageRaw(hostname);
+  if (!homepage) return null;
+  const css = await fetchExternalCss(homepage.html, homepage.base);
+  return extractSiteDesign(homepage.html, css, homepage.base);
+}
+
 const CANDIDATE_PATHS = [
   '', '/', '/about', '/about-us', '/who-we-are',
   '/pricing', '/plans',

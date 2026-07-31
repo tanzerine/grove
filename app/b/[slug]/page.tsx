@@ -81,7 +81,10 @@ export default async function BlogIndex({
   // card hovers, featured badge, tags) and drives the coverless-card fallback
   // colors. Grove greens when absent.
   const branding = resolveBranding(domain);
-  const themeStyle = blogThemeVars(branding) as React.CSSProperties | undefined;
+  // The captured background is passed so the accent is corrected against
+  // the page it sits on (see blog-theme accentOn). This inline style wins
+  // over the layout's :root inside <main>, so it has to agree with it.
+  const themeStyle = blogThemeVars(branding, (domain as any)?.site_profile?.design?.colors?.bg) as React.CSSProperties | undefined;
   const covers = fallbackPalette(branding);
 
   // genres present across the whole catalog → filter chips
