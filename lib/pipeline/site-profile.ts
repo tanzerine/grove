@@ -7,6 +7,7 @@
  */
 import { llmCall, extractJson } from '../llm';
 import { safeFetch } from '../net/ssrf';
+import { extractSiteDesign, type SiteDesign } from '../site-design';
 import {
   type BrandColors,
   hexToHsl, darkenHex, deriveBrandColors,
@@ -37,6 +38,9 @@ export type SiteProfile = {
     samples: string[];              // 2-3 REAL prose excerpts from the brand's own blog
   };
   branding: BrandColors | null;
+  /** Fonts, palette and navigation captured from the homepage, for the blogs
+      grove HOSTS — those have no page to measure. See lib/site-design.ts. */
+  design: SiteDesign | null;
   meta: {
     has_blog: boolean;
     has_pricing: boolean;
@@ -331,10 +335,11 @@ export async function profileSite(hostname: string): Promise<SiteProfile> {
   const pages = pagesResults.filter((p): p is NonNullable<typeof p> => !!p);
   const externalCss = homepage ? await fetchExternalCss(homepage.html, homepage.base) : '';
   const branding = homepage ? extractBrandColors(homepage.html, externalCss) : null;
+  const design = homepage ? extractSiteDesign(homepage.html, externalCss, homepage.base) : null;
 
   // Always include the homepage even if empty
   if (!pages.length) {
-    return blankProfile(hostname, [], false, false, branding);
+    return blankProfile(hostname, [], false, false, branding, design);
   }
 
   const crawledUrls = pages.map((p) => p.url);
@@ -406,7 +411,7 @@ ${corpus}`,
   try {
     parsed = extractJson(text);
   } catch {
-    return blankProfile(hostname, crawledUrls, hasBlog, hasPricing, branding);
+    return blankProfile(hostname, crawledUrls, hasBlog, hasPricing, branding, design);
   }
 
   try {
@@ -432,10 +437,11 @@ ${corpus}`,
         samples: blogSamples,
       },
       branding,
+      design,
       meta: { has_blog: hasBlog, has_pricing: hasPricing, pages_crawled: crawledUrls },
     };
   } catch {
-    return blankProfile(hostname, crawledUrls, hasBlog, hasPricing, branding);
+    return blankProfile(hostname, crawledUrls, hasBlog, hasPricing, branding, design);
   }
 }
 
@@ -446,7 +452,7 @@ ${corpus}`,
  * still plan from the owner's own interview answers, and a plan built on their
  * stated intent beats making them wait a month for one.
  */
-export function blankProfile(hostname: string, crawled: string[] = [], hasBlog = false, hasPricing = false, branding: BrandColors | null = null): SiteProfile {
+export function blankProfile(hostname: string, crawled: string[] = [], hasBlog = false, hasPricing = false, branding: BrandColors | null = null, design: SiteDesign | null = null): SiteProfile {
   return {
     business: {
       name: hostname, industry: 'unknown', description: '',
@@ -458,6 +464,7 @@ export function blankProfile(hostname: string, crawled: string[] = [], hasBlog =
       we_are: [], we_are_not: [], signature_moves: [], avoid: [], samples: [],
     },
     branding,
+    design,
     meta: { has_blog: hasBlog, has_pricing: hasPricing, pages_crawled: crawled },
   };
 }

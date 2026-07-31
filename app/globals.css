@@ -527,6 +527,37 @@ a { color: inherit; text-decoration: none; }
 .prose table tr:nth-child(even) td { background: rgba(245, 243, 237, 0.4); }
 
 /* ─────────────── public article: right-rail TOC + CTA banner ─────────────── */
+/* ── hosted blog nav (app/b/[slug]/layout.tsx) ──────────────────────────────
+   Reconstructed from the customer's homepage, rendered with grove's markup and
+   the captured tokens. Every color reads a token that lib/site-design designCss
+   retints, so this is the customer's bar on their own subdomain rather than a
+   grove-colored one — and it degrades to grove's palette when the capture came
+   back empty. */
+.hosted-nav {
+  display: flex; align-items: center; gap: 28px; flex-wrap: wrap;
+  max-width: 1060px; margin: 0 auto; padding: 18px 28px;
+  border-bottom: 1px solid var(--line);
+}
+.hosted-nav-brand {
+  font-weight: 700; font-size: 19px; letter-spacing: -0.015em;
+  color: var(--ink); text-decoration: none; display: inline-flex; align-items: center;
+}
+.hosted-nav-logo { height: 28px; width: auto; max-width: 190px; object-fit: contain; display: block; }
+.hosted-nav-links { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
+.hosted-nav-links a { font-size: 14.5px; color: var(--clay); text-decoration: none; transition: color .15s ease; }
+.hosted-nav-links a:hover { color: var(--moss); }
+.hosted-nav-cta {
+  margin-left: auto; font-size: 14px; font-weight: 600; text-decoration: none;
+  background: var(--cta-btn, var(--moss)); color: var(--cta-btn-text, #fff);
+  padding: 9px 18px; border-radius: var(--r-md);
+}
+@media (max-width: 640px) {
+  .hosted-nav { gap: 14px; padding: 14px 16px; }
+  .hosted-nav-links { gap: 14px; }
+  .hosted-nav-links a { font-size: 13.5px; }
+  .hosted-nav-cta { margin-left: 0; }
+}
+
 .post-shell { max-width: 1060px; margin: 0 auto; padding: 60px 28px; }
 .post-grid { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 48px; align-items: start; }
 .post-main { min-width: 0; }

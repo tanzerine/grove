@@ -156,7 +156,11 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   return (
     <main className="post-shell" style={themeStyle}>
       <div id="rp" className="read-progress" aria-hidden />
-      <a href={prefix || '/'} className="mono" style={{ fontSize: 12, color: 'var(--moss)' }}>← {domain.hostname}</a>
+      {/* Was `← {hostname}`, which was this page's only navigation and pointed
+          at the blog index while being labelled with the site — the nav in the
+          layout now carries the way back to the site itself, so this can say
+          what it actually does. */}
+      <a href={prefix || '/'} className="mono" style={{ fontSize: 12, color: 'var(--moss)' }}>← All articles</a>
 
       <div className="post-grid" style={{ marginTop: 18 }}>
         <div className="post-main">
@@ -193,7 +197,11 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
 
           <article
             className="prose"
-            style={{ marginTop: 30, padding: 'clamp(22px, 5vw, 44px) clamp(16px, 4.5vw, 40px)', background: 'white', border: '1px solid var(--line)', borderRadius: 18, boxShadow: 'var(--sh-md)', maxWidth: 'none' }}
+            // background/radius read tokens rather than literals so the
+            // captured palette reaches the article card too — an inline
+            // `white` here outranks any stylesheet and was the single most
+            // visible piece of grove showing through on a customer's blog.
+            style={{ marginTop: 30, padding: 'clamp(22px, 5vw, 44px) clamp(16px, 4.5vw, 40px)', background: 'var(--surface, white)', border: '1px solid var(--line)', borderRadius: 'var(--r-lg, 18px)', boxShadow: 'var(--sh-md)', maxWidth: 'none' }}
             dangerouslySetInnerHTML={{ __html: html }}
           />
 
