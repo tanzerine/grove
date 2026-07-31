@@ -1,0 +1,269 @@
+/**
+ * Design inheritance — the embed reading the page it's mounted in.
+ *
+ * The bug this covers: the embed shipped grove's own design system into every
+ * customer page. White cards, #1a2e1f green body text, #f5f3ed blockquote fills
+ * and `ui-monospace` on every label, dropped onto sites that had chosen none of
+ * those. On a sand-colored, serif, plum-inked page the blog section read as a
+ * different product embedded in the middle of theirs.
+ *
+ * embed.js has no DOM harness (the suite is `environment: 'node'`), so the
+ * derivation is written as pure functions over plain values and tested here
+ * directly; only the thin measurement layer touches the DOM. The stylesheet
+ * contract at the bottom is the part that actually rots — a literal color or a
+ * hardcoded font in one new rule is invisible in review and undoes the whole
+ * feature for that element.
+ */
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { describe, it, expect } from 'vitest';
+
+const SRC = readFileSync(path.join(process.cwd(), 'public/embed.js'), 'utf8');
+
+/**
+ * Pull the color/derivation helpers out of the IIFE and make them callable.
+ * They're mutually recursive (deriveTokens → mix/luminance/readableOn), so the
+ * whole set is evaluated together in one scope rather than one at a time.
+ */
+function load(): Record<string, any> {
+  const names = [
+    'parseColor', 'rgbStr', 'mix', 'luminance', 'contrast', 'readableOn', 'deriveTokens',
+  ];
+  const bodies = names.map((n) => {
+    const m = SRC.match(new RegExp(`\\n  function ${n}\\([^)]*\\) \\{[\\s\\S]*?\\n  \\}`));
+    if (!m) throw new Error(`${n}() not found in embed.js`);
+    return m[0];
+  });
+  const consts = ['WHITE', 'BLACK'].map((n) => SRC.match(new RegExp(`var ${n} = \\{[^}]*\\};`))![0]);
+  return new Function(
+    `${consts.join('\n')}\n${bodies.join('\n')}\nreturn {${names.join(',')}};`
+  )();
+}
+
+const M = load();
+const tokens = (m: Record<string, unknown>) => M.deriveTokens(m).vars as Record<string, string>;
+
+// Fixtures mirror the two mock sites the change was verified against.
+const KETTLE = { bg: 'rgb(244, 239, 230)', ink: 'rgb(43, 31, 51)' };   // sand paper, plum ink
+const VOLT = { bg: 'rgb(11, 13, 16)', ink: 'rgb(232, 236, 241)' };     // near-black, off-white
+
+describe('parseColor', () => {
+  it('reads the shapes getComputedStyle actually returns', () => {
+    expect(M.parseColor('rgb(43, 31, 51)')).toMatchObject({ r: 43, g: 31, b: 51, a: 1 });
+    expect(M.parseColor('rgba(0, 0, 0, 0.5)')).toMatchObject({ r: 0, g: 0, b: 0, a: 0.5 });
+    // Modern space/slash syntax — Chrome returns this for some declarations.
+    expect(M.parseColor('rgb(10 20 30 / 0.4)')).toMatchObject({ r: 10, g: 20, b: 30, a: 0.4 });
+  });
+
+  it('reads hex, since authors write it in data-accent', () => {
+    expect(M.parseColor('#4e9e6a')).toMatchObject({ r: 78, g: 158, b: 106 });
+    expect(M.parseColor('#abc')).toMatchObject({ r: 170, g: 187, b: 204 });
+  });
+
+  it('returns null rather than a wrong color for what it cannot read', () => {
+    // `transparent`, keywords and gradients must not resolve to black — black
+    // would read as a dark page and flip the whole palette.
+    for (const v of ['', 'transparent', 'currentColor', 'oklch(0.7 0.1 200)', 'nonsense', null, undefined]) {
+      expect(M.parseColor(v as string), `parsed ${v}`).toBeNull();
+    }
+  });
+});
+
+describe('deriveTokens — colors are relationships, not constants', () => {
+  it('adopts the page ink and background verbatim', () => {
+    const t = tokens(KETTLE);
+    expect(t['--gv-ink']).toBe('rgb(43,31,51)');
+    expect(t['--gv-bg']).toBe('rgb(244,239,230)');
+  });
+
+  it('never emits grove’s own palette for a page that never chose it', () => {
+    const all = Object.values(tokens(KETTLE)).join(' ').toLowerCase();
+    for (const grove of ['#1a2e1f', '#f5f3ed', '#e6e2d6', '#7a8a7d', '#4e9e6a']) {
+      expect(all, `leaked ${grove}`).not.toContain(grove);
+    }
+  });
+
+  it('lifts cards off a light page and off a dark one alike', () => {
+    // The relationship that has to hold on both: a card is distinguishable
+    // from the page behind it. Direction differs, presence doesn't.
+    const light = M.parseColor(tokens(KETTLE)['--gv-surface']);
+    const dark = M.parseColor(tokens(VOLT)['--gv-surface']);
+    expect(M.luminance(light)).toBeGreaterThan(M.luminance(M.parseColor(KETTLE.bg)));
+    expect(M.luminance(dark)).toBeGreaterThan(M.luminance(M.parseColor(VOLT.bg)));
+  });
+
+  it('keeps body text on the page ink and secondary text below it', () => {
+    for (const page of [KETTLE, VOLT]) {
+      const t = tokens(page);
+      const ink = M.parseColor(t['--gv-ink']);
+      const muted = M.parseColor(t['--gv-muted']);
+      const bg = M.parseColor(t['--gv-bg']);
+      // Muted sits between ink and background — dimmer than body text, still
+      // legible. Asserted as contrast so it holds on light and dark both.
+      expect(M.contrast(muted, bg)).toBeLessThan(M.contrast(ink, bg));
+      expect(M.contrast(muted, bg)).toBeGreaterThan(2.2);
+    }
+  });
+
+  it('reports dark pages as dark so the class-based rules switch too', () => {
+    expect(M.deriveTokens(VOLT).dark).toBe(true);
+    expect(M.deriveTokens(KETTLE).dark).toBe(false);
+  });
+
+  it('shadows stay black on a dark page instead of glowing', () => {
+    // Tinting by ink is right on light pages and wrong on dark ones, where
+    // ink is near-white and the "shadow" becomes a halo.
+    expect(tokens(VOLT)['--gv-shadow']).toBe('rgba(0,0,0,0.55)');
+    expect(tokens(KETTLE)['--gv-shadow']).toBe('rgba(43,31,51,0.22)');
+  });
+
+  it('inverts code blocks against the page, not against grove', () => {
+    const onLight = M.parseColor(tokens(KETTLE)['--gv-code-bg']);
+    const onDark = M.parseColor(tokens(VOLT)['--gv-code-bg']);
+    expect(M.luminance(onLight)).toBeLessThan(0.1);          // dark slab on light page
+    expect(M.luminance(onDark)).toBeGreaterThan(M.luminance(M.parseColor(VOLT.bg)));
+  });
+});
+
+describe('deriveTokens — accent legibility', () => {
+  // oveners' extracted brand color. Grove derives accents to read on WHITE
+  // (lib/blog-theme accentForText), so a near-black one is correct on their
+  // site and invisible the moment the embed lands on a dark page.
+  const NEAR_BLACK = '#0b0b0e';
+
+  it('lifts an unreadable accent until it clears the UI contrast floor', () => {
+    const t = tokens({ ...VOLT, accent: NEAR_BLACK });
+    const accent = M.parseColor(t['--gv-accent']);
+    expect(accent).not.toBeNull();
+    expect(M.contrast(accent, M.parseColor(VOLT.bg))).toBeGreaterThanOrEqual(3.2);
+  });
+
+  it('leaves an already-legible accent alone', () => {
+    const t = tokens({ ...KETTLE, accent: '#c2410c' });
+    expect(t['--gv-accent']).toBe('rgb(194,65,12)');
+  });
+
+  it('never overwrites an accent the author pinned with data-accent', () => {
+    const t = tokens({ ...VOLT, accent: NEAR_BLACK, accentPinned: true });
+    expect(t['--gv-accent']).toBeUndefined();
+    // …but still contrast-checks it, so text on the accent fill stays readable.
+    expect(t['--gv-on-accent']).toBeTruthy();
+  });
+
+  it('picks a foreground that survives on the accent fill', () => {
+    for (const [page, accent] of [[KETTLE, '#ffe066'], [KETTLE, '#1e3a8a'], [VOLT, '#22d3ee']] as const) {
+      const t = tokens({ ...page, accent });
+      const fill = M.parseColor(t['--gv-accent'] ?? accent);
+      expect(M.contrast(M.parseColor(t['--gv-on-accent']), fill)).toBeGreaterThan(3);
+    }
+  });
+});
+
+describe('deriveTokens — typography and geometry', () => {
+  it('takes headings from the page’s headings, not its body text', () => {
+    const t = tokens({ ...KETTLE, bodyFont: 'Palatino, serif', headFont: 'Georgia, serif' });
+    expect(t['--gv-head-font']).toBe('Georgia, serif');
+    expect(t['--gv-label-font']).toBe('Palatino, serif');
+  });
+
+  it('falls back to the body face when the page has no heading to sample', () => {
+    const t = tokens({ ...KETTLE, bodyFont: 'Palatino, serif', headFont: null });
+    expect(t['--gv-head-font']).toBe('Palatino, serif');
+  });
+
+  it('follows a squared-off system down to its chips', () => {
+    // 999px pills next to 4px cards are the tell that two design systems are
+    // in the same section.
+    const t = tokens({ ...KETTLE, radius: 4 });
+    expect(t['--gv-radius']).toBe('4px');
+    expect(t['--gv-pill']).toBe('4px');
+  });
+
+  it('keeps pills where a pill is the idiom anyway', () => {
+    const t = tokens({ ...KETTLE, radius: 12 });
+    expect(t['--gv-radius']).toBe('12px');
+    expect(t['--gv-pill']).toBe('999px');
+  });
+
+  it('clamps a runaway measurement', () => {
+    expect(tokens({ ...KETTLE, radius: 400 })['--gv-radius']).toBe('28px');
+    expect(tokens({ ...KETTLE, radius: -5 })['--gv-radius']).toBe('0px');
+  });
+});
+
+describe('deriveTokens — degrading safely', () => {
+  it('themes nothing when the page cannot be read', () => {
+    // Better grove's defaults than a palette derived from a half-measurement:
+    // a missing background parsed as black would flip a light site to dark.
+    for (const m of [{}, { bg: 'transparent', ink: 'rgb(0,0,0)' }, { bg: 'rgb(255,255,255)' }]) {
+      const r = M.deriveTokens(m);
+      expect(r.themed, JSON.stringify(m)).toBe(false);
+      expect(r.vars['--gv-ink']).toBeUndefined();
+      expect(r.vars['--gv-surface']).toBeUndefined();
+    }
+  });
+
+  it('still inherits type and geometry when the colors are unreadable', () => {
+    // Fonts don't depend on the palette, and getting them right is most of
+    // what makes the section belong.
+    const r = M.deriveTokens({ bodyFont: 'Inter, sans-serif', headFont: 'Fraunces, serif', radius: 6 });
+    expect(r.themed).toBe(false);
+    expect(r.vars['--gv-head-font']).toBe('Fraunces, serif');
+    expect(r.vars['--gv-radius']).toBe('6px');
+  });
+});
+
+describe('stylesheet contract', () => {
+  // Rules are single-quoted strings in the injected array.
+  const rules = SRC.match(/'\.gv[^']*\{[^']*\}'/g) ?? [];
+  const base = SRC.split('\n').find((l) => l.includes("'.gv{"))!;
+
+  it('sets no font-family that the host page cannot override', () => {
+    // Every label in the embed used to be hardcoded `ui-monospace`, which is
+    // grove's design language showing through on a customer's serif site.
+    const offenders = rules.filter(
+      (r) => /font-family:(?!var\(--gv-)/.test(r) && !r.startsWith("'.gv{")
+    );
+    expect(offenders, `hardcoded font-family in: ${offenders.join(' ')}`).toEqual([]);
+  });
+
+  it('routes every corner radius through a token', () => {
+    const offenders = rules.filter((r) => /border-radius:(?!var\(--gv-|999px)/.test(r));
+    expect(offenders, `hardcoded radius in: ${offenders.join(' ')}`).toEqual([]);
+  });
+
+  it('keeps grove’s palette only as a fallback, never as a value', () => {
+    // A literal is fine as the second argument of var(...) — that's the
+    // no-measurement path — but never on its own.
+    for (const rule of rules) {
+      if (rule.startsWith("'.gv{")) continue;
+      const stripped = rule.replace(/var\([^)]*\)/g, '');
+      for (const grove of ['#1a2e1f', '#f5f3ed', '#e6e2d6', '#7a8a7d']) {
+        expect(stripped.toLowerCase(), `${grove} used directly in: ${rule}`).not.toContain(grove);
+      }
+    }
+  });
+
+  it('chains the dark article vars through the measured ones', () => {
+    // `.gv.gv-dark .grove-article` (0,3,0) out-specifies article.css's
+    // `.grove-article` (0,1,0). Without var(--gv-*) in front of each literal,
+    // a measured dark page goes dark and then discards the palette it read.
+    const darkArticle = SRC.match(/var DARK_ARTICLE = '([^']*)'/)![1];
+    for (const decl of darkArticle.split(';')) {
+      const [prop, value] = decl.split(/:(.+)/);
+      expect(value, `${prop} does not chain through a --gv-* property`).toMatch(/^var\(--gv-/);
+    }
+  });
+
+  it('applies the measured design in every mount mode', () => {
+    // A mode that skips applyDesign silently keeps grove's palette.
+    expect(SRC.match(/applyDesign\(root, window, document\)/g)?.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('measures the page, never the embed’s own styles', () => {
+    // `.gv` sets `color:var(--gv-ink)`, so measuring the mount once it carries
+    // that class reads grove's green back out and "inherits" it.
+    expect(base).toContain('color:var(--gv-ink)');
+    expect(SRC).toMatch(/var anchor = root\.parentElement/);
+  });
+});

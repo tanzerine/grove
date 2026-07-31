@@ -36,16 +36,27 @@ export const ARTICLE_CLASS = 'grove-article';
 
 export const ARTICLE_CSS = `
 .${ARTICLE_CLASS} {
-  --ga-ink: #1a2e1f;
+  /* Every token chains through the --gv-* property embed.js measured off the
+     HOST PAGE before falling back to grove's own palette. That chain is what
+     makes an embedded article read as part of the customer's site instead of a
+     grove-colored panel dropped into it: on a page with plum ink and a sand
+     background, --ga-ink resolves to their plum, not this literal green.
+     The literals still carry a consumer that renders grove content on its own
+     (ovenai's server-rendered /blog/[slug]) with no --gv-* in scope. */
+  --ga-ink: var(--gv-ink, #1a2e1f);
   /* Follows the accent embed.js extracted from the customer's own homepage
      (set as --gv-accent on the mount root, an ancestor of this element), and
      falls back to grove's moss when there isn't one. A non-embed consumer can
      override --ga-accent inline on the wrapper, which beats this class rule. */
   --ga-accent: var(--gv-accent, #4e9e6a);
-  --ga-clay: #6b7280;
-  --ga-line: #e6e2d6;
-  --ga-paper: #f5f3ed;
-  --ga-bone: #f7f6f1;
+  --ga-clay: var(--gv-muted, #6b7280);
+  --ga-line: var(--gv-line, #e6e2d6);
+  --ga-paper: var(--gv-raise, #f5f3ed);
+  --ga-bone: var(--gv-surface, #f7f6f1);
+  /* Code blocks invert against the page rather than against grove's ink, so a
+     dark host site doesn't get a glaring light slab mid-article. */
+  --ga-code-bg: var(--gv-code-bg, #1a2e1f);
+  --ga-code-ink: var(--gv-code-ink, #f7f6f1);
   color: var(--ga-ink);
   font-size: 17px;
   line-height: 1.78;
@@ -68,7 +79,10 @@ export const ARTICLE_CSS = `
 .${ARTICLE_CLASS} h2,
 .${ARTICLE_CLASS} h3,
 .${ARTICLE_CLASS} h4 {
-  font-family: inherit;
+  /* A site's heading face is usually not its body face, and plain inherit
+     only ever got us the body one. --gv-head-font is sampled from the host
+     page's own h1/h2/h3. */
+  font-family: var(--gv-head-font, inherit);
   font-weight: 600;
   line-height: 1.2;
   letter-spacing: -0.01em;
@@ -96,7 +110,7 @@ export const ARTICLE_CSS = `
 .${ARTICLE_CLASS} h4 {
   font-size: 1.05em;
   color: var(--ga-accent);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--gv-label-font, ui-monospace, SFMono-Regular, Menlo, monospace);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -115,6 +129,9 @@ export const ARTICLE_CSS = `
   color: var(--ga-ink);
   text-decoration: none;
   border-bottom: 1px solid rgba(26, 46, 31, 0.16);
+  /* Second declaration wins wherever color-mix is supported, tying the
+     underline to the page's ink; the rgba above stays for everyone else. */
+  border-bottom-color: color-mix(in srgb, var(--ga-ink) 22%, transparent);
   transition: color 0.15s ease, border-color 0.15s ease;
 }
 .${ARTICLE_CLASS} a:hover { color: var(--ga-accent); border-bottom-color: var(--ga-accent); }
@@ -150,8 +167,8 @@ export const ARTICLE_CSS = `
   color: var(--ga-ink);
 }
 .${ARTICLE_CLASS} pre {
-  background: var(--ga-ink);
-  color: var(--ga-bone);
+  background: var(--ga-code-bg);
+  color: var(--ga-code-ink);
   padding: 16px 18px;
   border-radius: 10px;
   overflow-x: auto;
@@ -214,7 +231,10 @@ export const ARTICLE_CSS = `
   letter-spacing: 0.06em;
 }
 .${ARTICLE_CLASS} table tr:last-child td { border-bottom: none; }
-.${ARTICLE_CLASS} table tr:nth-child(even) td { background: rgba(245, 243, 237, 0.4); }
+.${ARTICLE_CLASS} table tr:nth-child(even) td {
+  background: rgba(245, 243, 237, 0.4);
+  background: color-mix(in srgb, var(--ga-paper) 55%, transparent);
+}
 
 @media (max-width: 640px) {
   .${ARTICLE_CLASS} { font-size: 16px; }
