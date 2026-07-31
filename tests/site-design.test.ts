@@ -86,6 +86,42 @@ describe('extractColors', () => {
     expect(extractColors('', `body{background:linear-gradient(#fff,#000);color:#111}`))
       .toEqual({ bg: null, ink: null });
   });
+
+  it('resolves var() references', () => {
+    // Token-driven sites never write a literal where the color is used —
+    // grove's own homepage is `body{background:var(--bone);color:var(--ink)}`.
+    // Without resolution, capture returns nothing for the best-built sites.
+    const css = `:root{--bone:#fcfbf7;--ink:#1a2e1f}html,body{background:var(--bone);color:var(--ink)}`;
+    expect(extractColors('', css)).toEqual({ bg: '#fcfbf7', ink: '#1a2e1f' });
+  });
+
+  it('follows a var() chain and honours a var() fallback', () => {
+    expect(extractColors('', `:root{--a:#112233;--bg:var(--a)}body{background:var(--bg);color:var(--nope,#eeeeee)}`))
+      .toEqual({ bg: '#112233', ink: '#eeeeee' });
+  });
+
+  it('takes the first definition of a token, not a later dark-mode override', () => {
+    // `.dark{}` further down redefines the same names; taking the last value
+    // hands back the dark palette for a site that loads light.
+    const css = `:root{--background:#ffffff;--foreground:#111111}.dark{--background:#000000;--foreground:#ffffff}`;
+    expect(extractColors('', css)).toEqual({ bg: '#ffffff', ink: '#111111' });
+  });
+
+  it('prefers the shell element that actually paints the page', () => {
+    // React/Next sites leave body on a default and paint the real surface on
+    // the wrapper inside it. Grove's own homepage is exactly this: body is the
+    // light --bone while .gv-land carries background-color:#000.
+    const html = `<body><div hidden=""><template id="B:0"></template></div><div class="gv-land">…</div></body>`;
+    const css = `html,body{background:#fcfbf7;color:#1a2e1f}.gv-land{color:#f4f4f2;background-color:#000}`;
+    expect(extractColors(html, css)).toEqual({ bg: '#000000', ink: '#f4f4f2' });
+  });
+
+  it('ignores a shell rule that sets only one half', () => {
+    // A container that sets a background but no color is a card, not the page.
+    const html = `<body><div class="wrap">…</div></body>`;
+    const css = `body{background:#ffffff;color:#222222}.wrap{background:#f0f0f0}`;
+    expect(extractColors(html, css)).toEqual({ bg: '#ffffff', ink: '#222222' });
+  });
 });
 
 describe('extractFonts', () => {
@@ -209,6 +245,24 @@ describe('extractNav', () => {
       <a href="/product">Product</a><a href="/pricing">Pricing</a>
     `), BASE)!;
     expect(nav.links).toHaveLength(2);
+  });
+
+  it('finds a non-semantic nav, which is what JSX usually ships', () => {
+    // Grove's own landing has no <nav> and no <header> — just
+    // `<div className="gv-navlinks">` inside a positioned div.
+    const html = `<div style="position:fixed"><div class="gv-navlinks">
+      <a href="/#agents">Agents</a><a href="/platform">Platform</a><a href="/pricing">Pricing</a>
+    </div></div>`;
+    const nav = extractNav(html, BASE)!;
+    expect(nav.links.map((l) => l.label)).toEqual(['Agents', 'Platform', 'Pricing']);
+  });
+
+  it('does not mistake an in-page anchor for the brand link', () => {
+    // `#agents` also has an empty pathname, which made grove's first nav item
+    // its wordmark and dropped it out of the links.
+    const nav = extractNav('<header><a href="/#agents">Agents</a><a href="/pricing">Pricing</a></header>', BASE)!;
+    expect(nav.brand.text).toBeNull();
+    expect(nav.links.map((l) => l.label)).toEqual(['Agents', 'Pricing']);
   });
 
   it('returns null when there is no nav to speak of', () => {
