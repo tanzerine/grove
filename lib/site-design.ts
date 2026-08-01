@@ -411,6 +411,42 @@ function textOf(fragment: string): string {
  * hosted blog: `blog.acme.com` rendering `/pricing` would link to a page that
  * does not exist there, silently breaking every nav item.
  */
+/**
+ * The wordmark, when the nav region itself did not carry one.
+ *
+ * The nav region is found by class (`…nav…`) and read as a bounded window, so a
+ * brand link that is a SIBLING of the links container falls outside it. That is
+ * not an edge case — it is the standard flex-header shape, and it is what
+ * grove's own landing page ships: `<a href="#hero"><img …/>Grove</a>` next to
+ * `<div class="gv-navlinks">`, which produced a captured nav with five links
+ * and no logo at all.
+ *
+ * The first link containing an image, near the top of the body, is the logo on
+ * essentially every site on the web. Bounded to the top of the document and to
+ * a short label so a hero illustration or a card link can't be mistaken for it.
+ */
+function brandFromTopOfPage(html: string, baseUrl: string): { text: string | null; logo: string | null } | null {
+  const bodyAt = html.search(/<body\b/i);
+  const from = bodyAt < 0 ? 0 : bodyAt;
+  const top = html.slice(from, from + 12_000);
+
+  for (const m of top.matchAll(/<a\b[^>]*>([\s\S]{0,800}?)<\/a>/gi)) {
+    const src = m[1].match(/<img\b[^>]*\bsrc=["']([^"']+)["']/i)?.[1];
+    if (!src) continue;
+    let logo: string | null = null;
+    try {
+      const u = new URL(src, baseUrl);
+      if (u.protocol === 'http:' || u.protocol === 'https:') logo = u.toString();
+    } catch { /* unusable src — keep looking */ }
+    if (!logo) continue;
+    const alt = decodeEntities(m[1].match(/\balt=["']([^"']*)["']/i)?.[1] ?? '').trim();
+    const label = textOf(m[1]);
+    const text = (alt || label || '').slice(0, 40) || null;
+    return { text: text && text.length <= 28 ? text : null, logo };
+  }
+  return null;
+}
+
 export function extractNav(html: string, baseUrl: string): SiteDesign['nav'] {
   let home = '/';
   try { home = new URL(baseUrl).origin; } catch { /* keep '/' */ }
@@ -497,7 +533,10 @@ export function extractNav(html: string, baseUrl: string): SiteDesign['nav'] {
   // A primary nav is 2–8 items. Prefer the first region shaped like one; only
   // fall back to an oversized region (trimmed) when nothing else was found.
   const best = parsed.find((p) => p.links.length + (p.cta ? 1 : 0) <= 8) ?? parsed[0];
-  return { ...best, links: best.links.slice(0, NAV_MAX) };
+  const brand = best.brand.logo || best.brand.text
+    ? best.brand
+    : { ...best.brand, ...(brandFromTopOfPage(html, baseUrl) ?? {}) };
+  return { ...best, brand, links: best.links.slice(0, NAV_MAX) };
 }
 
 /** How many nav items the hosted blog will render before it stops. */
@@ -597,6 +636,15 @@ function lum(hex: string): number {
  * one and a near-black one. Returns undefined when no palette was captured, so
  * the blog keeps grove's own look rather than a half-applied one.
  */
+/** Neutral drop shadow. Layers are [y, blur, spread, alpha]; alpha is roughly
+ *  tripled on a dark page, where a light-page shadow shows nothing at all. */
+function shadow(dark: boolean, layers: [number, number, number, number][]): string {
+  return layers
+    .map(([y, blur, spread, a]) =>
+      `0 ${y}px ${blur}px ${spread}px rgba(0,0,0,${Math.min(0.72, dark ? a * 3 : a).toFixed(2)})`)
+    .join(', ');
+}
+
 export function designTokens(d: SiteDesign | null | undefined): Record<string, string> | undefined {
   const bg = d?.colors.bg, ink = d?.colors.ink;
   if (!bg || !ink) return undefined;
@@ -616,6 +664,12 @@ export function designTokens(d: SiteDesign | null | undefined): Record<string, s
     // so using it as the code surface reads as a well.
     '--code-bg': dark ? bg : ink,
     '--code-ink': dark ? ink : bg,
+    // Grove's --sh-* are tuned for its paper: a green-black at low alpha, which
+    // on a dark customer page is both invisible and the wrong hue. Neutral
+    // black, deeper when the page is dark, works on any background.
+    '--sh-sm': shadow(dark, [[1, 2, 0, 0.05], [2, 6, -2, 0.07]]),
+    '--sh-md': shadow(dark, [[6, 16, -8, 0.14], [12, 30, -12, 0.10]]),
+    '--sh-lg': shadow(dark, [[30, 70, -28, 0.28], [10, 28, -14, 0.18]]),
   };
   if (d?.radius != null) {
     out['--r-md'] = `${d.radius}px`;
@@ -652,17 +706,32 @@ export function designCss(d: SiteDesign | null | undefined): string | null {
   const tokens = designTokens(d);
   const body = d?.fonts.body ? fontStack(d.fonts.body, 'system-ui, sans-serif') : null;
   const heading = d?.fonts.heading ? fontStack(d.fonts.heading, 'system-ui, sans-serif') : body;
-  if (!tokens && !body) return null;
 
-  const rules: string[] = [];
-  if (tokens) rules.push(`:root{${Object.entries(tokens).map(([k, v]) => `${k}:${v}`).join(';')}}`);
+  // Fonts ship as custom properties as well as element rules. The rules alone
+  // lost every specificity contest that mattered: `.cta-banner h3` (0,1,1) and
+  // `.share-btn` (0,1,0) name grove's Inter and DM Mono directly and outrank a
+  // bare `h3` or `.mono`, so grove's two brand typefaces went on shipping to
+  // customers on exactly the components a reader looks at. Components now read
+  // var(--head-font)/var(--label-font) with grove's faces as the fallback,
+  // which no selector can outrank.
+  const vars: Record<string, string> = { ...(tokens ?? {}) };
+  if (body) {
+    vars['--body-font'] = body;
+    // A captured site rarely declares a mono face, and grove's DM Mono labels
+    // are grove's, not theirs — so labels take the customer's body font.
+    vars['--label-font'] = body;
+  }
+  if (heading) vars['--head-font'] = heading;
+  if (!Object.keys(vars).length) return null;
+
+  const rules: string[] = [`:root{${Object.entries(vars).map(([k, v]) => `${k}:${v}`).join(';')}}`];
   if (tokens) rules.push('body{background:var(--bone);color:var(--ink)}');
   if (body) {
-    rules.push(`body,.mono,input,button,textarea,select{font-family:${body}}`);
+    rules.push(`body,.mono,input,button,textarea,select{font-family:var(--body-font)}`);
     // .mono is grove's DM Mono label idiom; on a customer's blog the labels
     // should be in the customer's own face.
     rules.push(`.mono{letter-spacing:0.02em}`);
   }
-  if (heading) rules.push(`.display,h1,h2,h3,h4,.prose h1,.prose h2,.prose h3{font-family:${heading}}`);
+  if (heading) rules.push(`.display,h1,h2,h3,h4,.prose h1,.prose h2,.prose h3{font-family:var(--head-font)}`);
   return rules.join('');
 }

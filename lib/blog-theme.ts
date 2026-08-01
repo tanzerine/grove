@@ -235,6 +235,14 @@ export function blogThemeVars(
     '--moss': accent,
     '--moss2': darkenHex(accent, 0.15),
     '--accent-soft': withOpacity(accent, 0.10),
+    // Text sitting ON an accent fill (the active genre chip). White is only
+    // right when the accent is dark — on grove's own lime it is unreadable —
+    // so pick whichever of the site's two colors reads, exactly as embed.js
+    // does for --gv-on-accent.
+    '--on-accent':
+      bg && ink
+        ? (contrastRatio(ink, accent) >= contrastRatio(bg, accent) ? ink : bg)
+        : contrastColor(accent),
     ...banner,
   };
 }

@@ -94,35 +94,41 @@ export default async function HostedBlogLayout({
 
       {siteName && (
         <header className="hosted-nav">
-          <a className="hosted-nav-brand" href={siteHome ?? blogHome}>
-            {nav?.brand.logo ? (
-              // Not next/image: this is an arbitrary customer-hosted asset on a
-              // domain the optimizer isn't configured for, and a broken
-              // optimize step would blank the logo on every page.
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={nav.brand.logo} alt={siteName} className="hosted-nav-logo" />
-            ) : (
-              siteName
-            )}
-          </a>
-          <nav className="hosted-nav-links">
-            {(nav?.links ?? []).map((l) => (
-              <a key={l.href + l.label} href={l.href}>
-                {l.label}
-              </a>
-            ))}
-            {/* The blog is the page we're on, and a captured nav often already
-                links to it on the customer's own site — so it's added only
-                when their nav didn't already carry one. */}
-            {!(nav?.links ?? []).some((l) => /blog|articles|insights|journal/i.test(l.label)) && (
-              <a href={blogHome}>Blog</a>
-            )}
-          </nav>
-          {nav?.cta && (
-            <a className="hosted-nav-cta" href={nav.cta.href}>
-              {nav.cta.label}
+          <div className="hosted-nav-in">
+            {/* Mark AND wordmark, the shape the landing's bar uses. A captured
+                logo is usually an icon sitting next to the name, so rendering
+                only one of the two loses half the lockup. */}
+            <a className="hosted-nav-brand" href={siteHome ?? blogHome}>
+              {nav?.brand.logo && (
+                // Not next/image: this is an arbitrary customer-hosted asset on
+                // a domain the optimizer isn't configured for, and a broken
+                // optimize step would blank the logo on every page.
+                // eslint-disable-next-line @next/next/no-img-element
+                // alt="": the name is rendered as text right beside it, so a
+                // described image would just say it twice.
+                <img src={nav.brand.logo} alt="" className="hosted-nav-logo" />
+              )}
+              <span>{siteName}</span>
             </a>
-          )}
+            <nav className="hosted-nav-links">
+              {(nav?.links ?? []).map((l) => (
+                <a key={l.href + l.label} href={l.href}>
+                  {l.label}
+                </a>
+              ))}
+              {/* The blog is the page we're on, and a captured nav often already
+                  links to it on the customer's own site — so it's added only
+                  when their nav didn't already carry one. */}
+              {!(nav?.links ?? []).some((l) => /blog|articles|insights|journal/i.test(l.label)) && (
+                <a href={blogHome}>Blog</a>
+              )}
+            </nav>
+            {nav?.cta && (
+              <a className="hosted-nav-cta" href={nav.cta.href}>
+                {nav.cta.label}
+              </a>
+            )}
+          </div>
         </header>
       )}
 
