@@ -241,8 +241,79 @@ const STRATEGY_MODEL = (
 // can never again be invisible.
 const STRATEGY_MIN_BUDGET_MS = 180_000;
 
-/** What a strategy call needs, so callers can't accidentally under-budget it. */
+/** Cap on the Opus attempt. More than this buys nothing and costs latency. */
 export const STRATEGY_BUDGET_MS = 240_000;
+
+/**
+ * Wall clock the fallback is GUARANTEED, carved out before Opus is offered
+ * anything.
+ *
+ * THE OUTAGE THIS EXISTS TO PREVENT. The ladder used to hand the fallback a
+ * *fresh* full `timeoutMs` — the same 240s Opus had just spent — with no
+ * deadline arithmetic anywhere:
+ *
+ *     const { text } = await llmCall({ ...opts, model: STRATEGY_MODEL, timeoutMs }); // 240s
+ *     } catch { const { text } = await llmCall(opts); }                              // 240s AGAIN
+ *
+ * 240 + 240 = 480s against a route whose `maxDuration` is 300. So whenever Opus
+ * timed out rather than failing fast, the fallback started at ~245s and Vercel
+ * killed the function mid-call. A hard function timeout is NOT catchable: the
+ * route's try/catch never ran, nothing was written, nothing was logged. The
+ * cron fired hourly, did that, and reported nothing — which is exactly how
+ * 2026-08-01 reached mid-morning with zero August plans and zero posts on a
+ * platform whose July slots had all been consumed by the 30th.
+ *
+ * The workhorse only needs a fraction of Opus's time for the same prompt, so
+ * reserving this is cheap insurance: the plan lands on the workhorse instead of
+ * not landing at all.
+ */
+const STRATEGY_FALLBACK_RESERVE_MS = 75_000;
+
+/**
+ * Time held back from the LLM ladder so the finished plan can be WRITTEN.
+ *
+ * Generating a plan and then being killed before the INSERT is the same outcome
+ * as never generating it, but costs a top-tier call. The persistence path after
+ * buildStrategy returns (deactivate, insert, savePlanContext, captureServer) is
+ * several round trips.
+ */
+const STRATEGY_WRITEBACK_RESERVE_MS = 20_000;
+
+export type StrategyBudget = {
+  /** Wall clock for the Opus attempt; 0 when it must be skipped entirely. */
+  primaryMs: number;
+  /** Wall clock left for the workhorse. Never 0 for a usable total. */
+  fallbackMs: number;
+};
+
+/**
+ * Split one invocation's remaining wall clock across the model ladder.
+ *
+ * Ordering is the whole design: the fallback is reserved FIRST and Opus is
+ * offered only what survives that. The guarantee it buys — the property the
+ * old code lacked — is `primaryMs + fallbackMs + writeback <= totalMs`, so the
+ * ladder can never overrun the function ceiling and die uncatchably.
+ *
+ * When what's left for Opus is under the threshold it could actually finish in,
+ * Opus is skipped and its share goes to the workhorse: a doomed call helps
+ * nobody, and spending the whole budget on a model that will finish is strictly
+ * better than spending most of it on one that won't.
+ *
+ * Pure, so the arithmetic that caused a platform-wide outage is unit-testable
+ * without a clock, a network, or a 300-second wait.
+ */
+export function splitStrategyBudget(totalMs: number): StrategyBudget {
+  const usable = Math.max(0, Math.floor(totalMs) - STRATEGY_WRITEBACK_RESERVE_MS);
+
+  // Reserve the fallback before Opus is considered at all.
+  const reserved = Math.min(STRATEGY_FALLBACK_RESERVE_MS, usable);
+  const primaryMs = Math.min(STRATEGY_BUDGET_MS, usable - reserved);
+
+  // Not enough left for Opus to land — give the workhorse everything.
+  if (primaryMs < STRATEGY_MIN_BUDGET_MS) return { primaryMs: 0, fallbackMs: usable };
+
+  return { primaryMs, fallbackMs: usable - primaryMs };
+}
 
 export type StrategyCallResult = {
   text: string;
@@ -256,32 +327,38 @@ export async function strategyLlmCall(opts: {
   system: string;
   user: string;
   maxTokens?: number;
-  timeoutMs?: number;   // callers on a tight function budget (crons) pass a lower cap
+  /**
+   * Wall clock for the WHOLE ladder — both attempts plus write-back headroom —
+   * not the cap for a single call. Callers pass what their invocation actually
+   * has left, so this function can never hand out more time than exists.
+   */
+  budgetMs?: number;
 }): Promise<StrategyCallResult> {
-  const timeoutMs = opts.timeoutMs ?? STRATEGY_BUDGET_MS;
   const maxTokens = opts.maxTokens ?? 4500;
+  // Default to a full Vercel function; every strategy route declares 300s.
+  const { primaryMs, fallbackMs } = splitStrategyBudget(opts.budgetMs ?? 300_000);
 
-  if (timeoutMs < STRATEGY_MIN_BUDGET_MS) {
-    // Not enough time for Opus to finish — don't waste the call. Loud, because
-    // this silently disabled the strategy tier for months.
+  if (primaryMs > 0) {
+    try {
+      const { text } = await llmCall({ ...opts, model: STRATEGY_MODEL, maxTokens, timeoutMs: primaryMs });
+      return { text, model: STRATEGY_MODEL, fellBack: false };
+    } catch (err) {
+      // The loop must never stall on a single provider hiccup: fall back to the
+      // workhorse rather than leaving a domain without a plan. The fallback's
+      // time was reserved up front, so it is still there to spend.
+      console.error('[strategyLlmCall] falling back to main model:', err);
+    }
+  } else {
+    // Loud, because an under-budgeted ladder silently disabled the strategy
+    // tier for months.
     console.warn(
-      `[strategyLlmCall] budget ${timeoutMs}ms < ${STRATEGY_MIN_BUDGET_MS}ms — ` +
-      `skipping ${STRATEGY_MODEL}, planning on ${MODEL}`,
+      `[strategyLlmCall] budget ${opts.budgetMs}ms leaves < ${STRATEGY_MIN_BUDGET_MS}ms ` +
+      `for ${STRATEGY_MODEL} — planning on ${MODEL}`,
     );
-    const { text } = await llmCall({ ...opts, maxTokens, timeoutMs });
-    return { text, model: MODEL, fellBack: true };
   }
 
-  try {
-    const { text } = await llmCall({ ...opts, model: STRATEGY_MODEL, maxTokens, timeoutMs });
-    return { text, model: STRATEGY_MODEL, fellBack: false };
-  } catch (err) {
-    // The loop must never stall on a single provider hiccup: fall back to the
-    // workhorse model rather than leaving a domain without a plan.
-    console.error('[strategyLlmCall] falling back to main model:', err);
-    const { text } = await llmCall(opts);
-    return { text, model: MODEL, fellBack: true };
-  }
+  const { text } = await llmCall({ ...opts, maxTokens, timeoutMs: fallbackMs });
+  return { text, model: MODEL, fellBack: true };
 }
 
 /* ─────────────────── fast LLM call (small model, low latency) ──────────── */

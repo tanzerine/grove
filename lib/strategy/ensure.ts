@@ -28,8 +28,16 @@ import { captureServer } from '../analytics/capture-server';
 export type EnsureResult = 'created' | 'exists' | 'no_profile';
 
 export type EnsureOptions = {
-  /** Cap for the planning LLM call — crons run on a 300s budget. */
-  llmTimeoutMs?: number;
+  /**
+   * Wall clock this whole call may use — normally the route's `maxDuration`.
+   *
+   * Passed as the INVOCATION budget, not an LLM cap: the DB work below (the
+   * month summary alone is an aggregate over post_events) runs before any model
+   * is called, and time it spends is time the ladder no longer has. Measuring
+   * it and handing the remainder down is what keeps the total inside the
+   * function ceiling — see splitStrategyBudget.
+   */
+  budgetMs?: number;
   /**
    * Plan even with no usable site profile, from a hostname-only one.
    *
@@ -101,6 +109,7 @@ export async function ensureMonthlyStrategy(
   opts: EnsureOptions = {},
 ): Promise<EnsureResult> {
   const sb = supabaseAdmin();
+  const startedAt = Date.now();
   const { thisMonth, prevMonth } = monthBounds(opts.month ?? new Date());
   const monthDate = thisMonth.toISOString().slice(0, 10);
   const monthLabel = thisMonth.toISOString().slice(0, 7);
@@ -156,7 +165,9 @@ export async function ensureMonthlyStrategy(
     prevReport: report,
     progressMd: ctx.progress_md,
     alreadyCovered,
-    llmTimeoutMs: opts.llmTimeoutMs,
+    // What's actually LEFT, not what we started with. Everything above this
+    // line is round trips against Postgres.
+    budgetMs: opts.budgetMs == null ? undefined : opts.budgetMs - (Date.now() - startedAt),
   });
 
   // Only a plan that goes live now displaces the current one. A staged plan

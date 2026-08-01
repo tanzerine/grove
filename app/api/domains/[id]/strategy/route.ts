@@ -69,7 +69,7 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
       },
       // A plan the owner is waiting on is worth building from their answers
       // alone; 'exists' is a fine answer, so nothing is replaced here.
-      { profileFallback: true },
+      { profileFallback: true, budgetMs: maxDuration * 1000 },
     );
     return NextResponse.json({ ok: true, result, built: result === 'created' || result === 'exists' });
   } catch (err: any) {

@@ -30,7 +30,6 @@ import { isCronAuthorized } from '@/lib/cron-auth';
 import { ensureMonthlyStrategy, type EnsureDomain } from '@/lib/strategy/ensure';
 import { planningTargets } from '@/lib/strategy/rollover';
 import { entitledUserSet } from '@/lib/billing';
-import { STRATEGY_BUDGET_MS } from '@/lib/llm';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -77,7 +76,10 @@ export async function GET(req: Request) {
     const domain = pending[0];
     try {
       const status = await ensureMonthlyStrategy(domain as EnsureDomain, {
-        llmTimeoutMs: STRATEGY_BUDGET_MS,
+        // The INVOCATION's ceiling, not an LLM cap. Passing the LLM cap here is
+        // what let the ladder ask for 240s of Opus plus 240s of fallback inside
+        // a 300s function and get killed uncatchably between them.
+        budgetMs: maxDuration * 1000,
         month: new Date(`${target.month}T00:00:00.000Z`),
         staged: target.staged,
       });
