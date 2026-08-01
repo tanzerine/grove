@@ -98,6 +98,48 @@ export function planningTargets(now: Date, lookaheadDays = PLAN_LOOKAHEAD_DAYS):
   return targets;
 }
 
+export type PlanCandidate = {
+  id: string;
+  /** Domain creation time — the tiebreak, so the order stays deterministic. */
+  created_at?: string | null;
+  /**
+   * When the planner last STARTED a build for this domain (migration 0031).
+   * Stamped before the LLM call, not after, so a build the platform kills
+   * mid-flight still counts as an attempt — see /api/cron/strategy.
+   */
+  strategy_attempted_at?: string | null;
+};
+
+/**
+ * Order the domains a planning tick should try — least-recently-attempted
+ * first, never-attempted before everyone.
+ *
+ * THE OUTAGE THIS EXISTS TO PREVENT. The planner builds one domain per hourly
+ * invocation, and it used to take whichever unplanned domain came first by
+ * `domains.created_at` — a fixed order. Only a SUCCESSFUL build removes a
+ * domain from that queue, so a domain whose build failed was first again on
+ * the next tick, and the next, forever. One domain that cannot be planned
+ * therefore starved every domain behind it: on 2026-08-01 the platform's
+ * oldest domain failed every tick and no other customer was planned all day.
+ * With no live plan, `materializeDuePlanSlots` queues nothing, the drain has
+ * nothing to draft, and nothing publishes — the whole autopilot, stopped by
+ * one bad row, silently.
+ *
+ * Rotating on attempt rather than success is what fixes it: a permanently
+ * broken domain now costs the platform one tick per rotation instead of all of
+ * them, and it is still retried on its turn.
+ */
+export function planningQueue<T extends PlanCandidate>(pending: T[]): T[] {
+  return [...pending].sort((a, b) => {
+    // '' (never attempted) sorts before any ISO timestamp — exactly the wanted
+    // priority, and it keeps a domain that has never had a plan at the front.
+    const attemptA = a.strategy_attempted_at ?? '';
+    const attemptB = b.strategy_attempted_at ?? '';
+    if (attemptA !== attemptB) return attemptA < attemptB ? -1 : 1;
+    return (a.created_at ?? '').localeCompare(b.created_at ?? '');
+  });
+}
+
 export type StrategyRowLite = {
   id: string;
   /** 'YYYY-MM-DD' as Postgres returns a `date`. */

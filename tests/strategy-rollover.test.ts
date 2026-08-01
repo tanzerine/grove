@@ -4,6 +4,7 @@ import {
   daysUntilNextMonth,
   monthKey,
   planToActivate,
+  planningQueue,
   planningTargets,
   startOfMonthUTC,
   startOfNextMonthUTC,
@@ -129,5 +130,59 @@ describe('planToActivate', () => {
 
   it('has nothing to do for a domain with no plans at all', () => {
     expect(planToActivate([], now)).toEqual({ activateId: null, deactivateIds: [] });
+  });
+});
+
+describe('planningQueue', () => {
+  const dom = (id: string, created_at: string, strategy_attempted_at: string | null = null) =>
+    ({ id, created_at, strategy_attempted_at });
+
+  it('puts never-attempted domains ahead of ones already tried', () => {
+    const queue = planningQueue([
+      dom('tried', '2026-06-02T00:00:00Z', '2026-08-01T09:45:00Z'),
+      dom('fresh', '2026-07-26T00:00:00Z'),
+    ]);
+    expect(queue.map((d) => d.id)).toEqual(['fresh', 'tried']);
+  });
+
+  it('falls back to created_at while nothing has been attempted', () => {
+    const queue = planningQueue([
+      dom('newer', '2026-07-26T00:00:00Z'),
+      dom('older', '2026-06-02T00:00:00Z'),
+    ]);
+    expect(queue.map((d) => d.id)).toEqual(['older', 'newer']);
+  });
+
+  it('rotates past a domain that cannot be planned', () => {
+    // THE OUTAGE. `broken` is the oldest domain and fails every build. Under the
+    // old fixed created_at order it was first on every tick forever, so `waiting`
+    // — and every customer behind it — was never planned at all. Stamping the
+    // attempt moves it to the back, so the next tick reaches the next domain.
+    const broken = dom('broken', '2026-06-02T00:00:00Z');
+    const waiting = dom('waiting', '2026-07-26T00:00:00Z');
+    expect(planningQueue([broken, waiting])[0].id).toBe('broken');
+
+    const afterTick = planningQueue([
+      { ...broken, strategy_attempted_at: '2026-08-01T09:45:00Z' },
+      waiting,
+    ]);
+    expect(afterTick[0].id).toBe('waiting');
+  });
+
+  it('comes back round to the broken domain once everyone has had a turn', () => {
+    const queue = planningQueue([
+      dom('broken', '2026-06-02T00:00:00Z', '2026-08-01T09:45:00Z'),
+      dom('waiting', '2026-07-26T00:00:00Z', '2026-08-01T10:45:00Z'),
+    ]);
+    expect(queue.map((d) => d.id)).toEqual(['broken', 'waiting']);
+  });
+
+  it('does not mutate the array it was given', () => {
+    const input = [
+      dom('newer', '2026-07-26T00:00:00Z'),
+      dom('older', '2026-06-02T00:00:00Z'),
+    ];
+    planningQueue(input);
+    expect(input.map((d) => d.id)).toEqual(['newer', 'older']);
   });
 });
