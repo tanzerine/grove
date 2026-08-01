@@ -98,6 +98,24 @@ export type Strategy = {
   planned_by?: string;
 };
 
+/**
+ * Output ceiling for one plan.
+ *
+ * A whole month has to fit: goals, KPIs, pillars, the week-by-week direction,
+ * and up to ~17 calendar slots each carrying a topic, keyword and notes. At the
+ * old 4500 this simply did not — on 2026-08-01 every oveners.com build stopped
+ * at ~10.4KB, mid-calendar, and the JSON that came back was unparseable for the
+ * dullest possible reason: the model was still writing. The bigger domain (real
+ * Search Console history to reason about, more slots to fill) hit the ceiling
+ * that the smaller one cleared, which is why it looked domain-specific.
+ *
+ * Sized to fit the largest calendar the planner can be asked for with room for
+ * prose, not to a round number. It is a ceiling, not a target — a short plan
+ * costs nothing extra — and closeTruncatedJson still salvages the day if some
+ * future plan outgrows even this.
+ */
+const PLAN_MAX_TOKENS = 9000;
+
 export type BuildStrategyInput = {
   month: string;                    // "2026-06"
   postsPerWeek: number;
@@ -330,10 +348,23 @@ Produce the new strategy as JSON:
 
 publishing_plan should contain exactly ${monthlyPostCount} slots, distributed across pillars in proportion to each pillar's importance.`;
 
-  const { text, model } = await strategyLlmCall({ system, user, maxTokens: 4500, budgetMs: input.budgetMs });
+  const { text, model } = await strategyLlmCall({ system, user, maxTokens: PLAN_MAX_TOKENS, budgetMs: input.budgetMs });
   const parsed = extractJson<Strategy>(text);
 
   const strategy = normalizeStrategy(parsed, { month, source, maxSlots: monthlyPostCount, postsPerWeek });
+
+  // A plan with no calendar is not a plan — it is a row that makes the month
+  // read as COVERED while publishing nothing, which is worse than no row at
+  // all because the hourly self-heal then skips the domain forever. Only
+  // reachable if the model was cut off before the first slot; throwing hands
+  // the domain back to the next tick, which is the recoverable outcome.
+  if (monthlyPostCount > 0 && !strategy.publishing_plan.length) {
+    throw new Error(
+      `strategy for ${month} came back with no publishing_plan ` +
+      `(expected ${monthlyPostCount} slots, model ${model}) — refusing to persist an empty month`,
+    );
+  }
+
   strategy.planned_by = model;
   return strategy;
 }

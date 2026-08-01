@@ -50,3 +50,48 @@ describe('extractJson', () => {
     expect(() => extractJson('no json here')).toThrow(/no JSON braces/);
   });
 });
+
+describe('truncated output (max_tokens guillotine)', () => {
+  // THE 2026-08-01 OUTAGE, in miniature. The model wrote a valid plan and was
+  // cut off mid-calendar; V8 reports the unterminated array as "Expected ','
+  // or ']' after array element", which reads like malformed output but means
+  // "there was more". Everything already written must survive.
+  const truncatedPlan =
+    '{"month":"2026-08","goals":[{"id":"page-one","title":"Push near-winners to page 1"}],' +
+    '"publishing_plan":[{"id":"a","topic":"First article"},{"id":"b","topic":"Second article"},' +
+    '{"id":"c","topic":"Third article that the model never finished writ';
+
+  it('recovers the complete part of a plan cut off mid-array', () => {
+    const parsed = extractJson<any>(truncatedPlan);
+    expect(parsed.month).toBe('2026-08');
+    expect(parsed.goals).toHaveLength(1);
+    // The two finished slots are kept; the half-written third is dropped, not guessed.
+    expect(parsed.publishing_plan.map((s: any) => s.id)).toEqual(['a', 'b']);
+  });
+
+  it('recovers when the cut lands inside the very first slot', () => {
+    const parsed = extractJson<any>(
+      '{"month":"2026-08","kpis":[{"id":"k1","metric":"views"}],"publishing_plan":[{"id":"a","topic":"unfinis',
+    );
+    expect(parsed.kpis).toHaveLength(1);
+    // Nothing complete in the calendar — buildStrategy refuses to persist this
+    // rather than writing a month that reads as covered but publishes nothing.
+    expect(parsed.publishing_plan ?? []).toHaveLength(0);
+  });
+
+  it('survives a cut inside a string containing braces and escapes', () => {
+    const parsed = extractJson<any>(
+      '{"a":[{"note":"uses {curly} and \\"quoted\\" text"},{"note":"cut here {[ \\" ',
+    );
+    expect(parsed.a).toEqual([{ note: 'uses {curly} and "quoted" text' }]);
+  });
+
+  it('leaves valid JSON completely alone', () => {
+    const whole = { month: '2026-08', publishing_plan: [{ id: 'a' }, { id: 'b' }] };
+    expect(extractJson(JSON.stringify(whole))).toEqual(whole);
+  });
+
+  it('still throws when there is nothing complete to salvage', () => {
+    expect(() => extractJson('{"publishing_plan":[{"id":"only-a-fragm')).toThrow();
+  });
+});
