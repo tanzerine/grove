@@ -16,6 +16,7 @@ import {
   resolveTickBudgetMs,
   schedulerCron,
   schedulerTicksPerDay,
+  schedulerTickMinutes,
   shouldSyncGsc,
   tickBudgetMs,
   ticksPerDay,
@@ -92,6 +93,50 @@ describe('shouldSyncGsc', () => {
     // feedback signal simply never refreshes.
     expect(shouldSyncGsc(at(9), 1)).toBe(true);
     expect(shouldSyncGsc(at(23), 1)).toBe(true);
+  });
+
+  it('still syncs exactly once on a sub-HOURLY schedule', () => {
+    // The every-15-minutes schedule CLAUDE.md names as the next throughput step
+    // puts four ticks inside the sync hour. Gating on the hour alone qualified
+    // all four — four syncs of data Google publishes daily, and GSC_RESERVE_MS
+    // withheld from the drain on four ticks instead of one.
+    const minutes = [0, 15, 30, 45];
+    const inHour = (m: number) => new Date(Date.UTC(2026, 6, 26, GSC_SYNC_HOUR_UTC, m));
+    expect(minutes.filter((m) => shouldSyncGsc(inHour(m), 96, minutes))).toEqual([0]);
+  });
+
+  it('syncs on the schedule\'s own first minute, not on minute zero', () => {
+    // A schedule offset off the hour (e.g. '20,50 * * * *') still gets exactly
+    // one sync — on a minute it actually fires.
+    const minutes = [20, 50];
+    const inHour = (m: number) => new Date(Date.UTC(2026, 6, 26, GSC_SYNC_HOUR_UTC, m));
+    expect(shouldSyncGsc(inHour(20), 48, minutes)).toBe(true);
+    expect(shouldSyncGsc(inHour(50), 48, minutes)).toBe(false);
+    expect(shouldSyncGsc(inHour(0), 48, minutes)).toBe(false);
+  });
+
+  it('falls back to the hour gate when the schedule is unparseable', () => {
+    // Never syncing is worse than syncing more than once.
+    expect(shouldSyncGsc(at(GSC_SYNC_HOUR_UTC), 24, [])).toBe(true);
+    expect(shouldSyncGsc(at(GSC_SYNC_HOUR_UTC + 1), 24, [])).toBe(false);
+  });
+});
+
+describe('schedulerTickMinutes', () => {
+  it('reads the minutes the scheduler actually fires on', () => {
+    expect(schedulerTickMinutes('0 * * * *')).toEqual([0]);
+    expect(schedulerTickMinutes('*/15 * * * *')).toEqual([0, 15, 30, 45]);
+    expect(schedulerTickMinutes('20,50 * * * *')).toEqual([20, 50]);
+  });
+
+  it('reports nothing for an unparseable schedule rather than guessing', () => {
+    expect(schedulerTickMinutes('nonsense')).toEqual([]);
+    expect(schedulerTickMinutes('99 * * * *')).toEqual([]);
+  });
+
+  it('matches the real schedule in vercel.json', () => {
+    const cron = (vercelConfig.crons ?? []).find((c) => c.path === '/api/cron/scheduler')?.schedule;
+    expect(schedulerTickMinutes(cron)).toEqual([0]);
   });
 });
 

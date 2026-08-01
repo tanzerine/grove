@@ -45,6 +45,23 @@ export type EnsureOptions = {
    * wins, and the crons keep their idempotent default.
    */
   replaceActive?: boolean;
+  /**
+   * The month to plan for. Defaults to the current one.
+   *
+   * Set by the lookahead path in /api/cron/strategy so next month's plan can be
+   * built during this one — see lib/strategy/rollover for why the boundary was
+   * a platform-wide outage without it.
+   */
+  month?: Date;
+  /**
+   * Store the plan INACTIVE, and leave the live plan alone.
+   *
+   * Set when planning a month that hasn't started. An active row would win the
+   * `order('month', desc).limit(1)` every live-plan reader uses, so the future
+   * plan would take over mid-month and the current month's remaining slots
+   * would never materialize. The scheduler promotes it on the 1st instead.
+   */
+  staged?: boolean;
 };
 
 /**
@@ -84,17 +101,21 @@ export async function ensureMonthlyStrategy(
   opts: EnsureOptions = {},
 ): Promise<EnsureResult> {
   const sb = supabaseAdmin();
-  const { thisMonth, prevMonth } = monthBounds();
+  const { thisMonth, prevMonth } = monthBounds(opts.month ?? new Date());
   const monthDate = thisMonth.toISOString().slice(0, 10);
   const monthLabel = thisMonth.toISOString().slice(0, 7);
 
-  const { data: existing } = await sb
+  // A staged month is matched on the month alone, not on `active`. Its whole
+  // point is that it is inactive, so an active-only check would rebuild it —
+  // and burn a top-tier planning call — on every tick until the 1st.
+  const existingQuery = sb
     .from('strategies')
     .select('id')
     .eq('domain_id', domain.id)
-    .eq('month', monthDate)
-    .eq('active', true)
-    .maybeSingle();
+    .eq('month', monthDate);
+  const { data: existing } = opts.staged
+    ? await existingQuery.limit(1).maybeSingle()
+    : await existingQuery.eq('active', true).maybeSingle();
   if (existing && !opts.replaceActive) return 'exists';
 
   const profile = planningProfile(domain.site_profile, domain.hostname, opts.profileFallback);
@@ -138,8 +159,12 @@ export async function ensureMonthlyStrategy(
     llmTimeoutMs: opts.llmTimeoutMs,
   });
 
-  await sb.from('strategies').update({ active: false })
-    .eq('domain_id', domain.id).eq('active', true);
+  // Only a plan that goes live now displaces the current one. A staged plan
+  // must leave it running — the month it covers hasn't started.
+  if (!opts.staged) {
+    await sb.from('strategies').update({ active: false })
+      .eq('domain_id', domain.id).eq('active', true);
+  }
 
   const row = {
     domain_id: domain.id,
@@ -153,7 +178,7 @@ export async function ensureMonthlyStrategy(
     interview: domain.interview ?? null,
     prev_review: report,
     notes: strategy.notes,
-    active: true,
+    active: !opts.staged,
   };
 
   // planned_by lands in migration 0029. Until that's applied the column doesn't
@@ -164,8 +189,10 @@ export async function ensureMonthlyStrategy(
     .insert({ ...row, planned_by: strategy.planned_by ?? null });
   if (insertErr) await sb.from('strategies').insert(row);
 
-  // Refresh the plan memo the chat + downstream prompts read.
-  await savePlanContext(domain.id, strategy, domain.hostname);
+  // Refresh the plan memo the chat + downstream prompts read — but only for the
+  // plan that is actually live. A staged month must not start describing itself
+  // to the owner (or to the writer) weeks before it begins.
+  if (!opts.staged) await savePlanContext(domain.id, strategy, domain.hostname);
 
   // `planned_by` is the whole point of capturing this: a plan silently built by
   // the cheap workhorse instead of the strategy model is the exact failure that
@@ -176,6 +203,7 @@ export async function ensureMonthlyStrategy(
       domain_id: domain.id,
       source: strategy.source === 'interview' ? 'interview' : 'inferred',
       planned_by: strategy.planned_by ?? null,
+      staged: !!opts.staged,
     });
   }
 
