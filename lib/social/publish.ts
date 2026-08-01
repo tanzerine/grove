@@ -90,7 +90,20 @@ export async function publishToSocials(
     ? all.filter((c) => opts.only!.includes(c.platform))
     : all.filter((c) => !disabled.has(c.platform));
   const hasWebhook = !!domain.social_webhook_url && (!opts.only || opts.only.includes('webhook'));
-  if (!conns.length && !hasWebhook) return post.social_published ?? {};
+  if (!conns.length && !hasWebhook) {
+    // Nothing to share to — RECORD that, rather than leaving social_published
+    // null. The scheduler resumes deferred fan-outs by looking for null, so an
+    // unrecorded "we checked, there was nowhere to post" reads identically to
+    // "this still needs posting" and gets re-examined on every tick for a day.
+    // On a domain with no connections that is one wasted connections lookup
+    // per post per tick, forever — the kind of cost that only shows up once
+    // there are enough customers to notice it.
+    const settled: ShareResult = post.social_published ?? {};
+    if (!post.social_published) {
+      await supabaseAdmin().from('posts').update({ social_published: settled }).eq('id', post.id);
+    }
+    return settled;
+  }
 
   const url = blogUrlFor(domain, post.slug);
   const already: ShareResult = post.social_published ?? {};
