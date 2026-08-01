@@ -610,6 +610,12 @@ export function designTokens(d: SiteDesign | null | undefined): Record<string, s
     '--paper': mixHex(bg, ink, 0.06),
     '--clay': mixHex(bg, ink, 0.55),
     '--line': mixHex(bg, ink, 0.14),
+    // Code blocks: inverted on a light site (the familiar dark slab), recessed
+    // on a dark one. Inverting a dark page instead puts a white block in the
+    // middle of the article — the page background sits BELOW the lifted card,
+    // so using it as the code surface reads as a well.
+    '--code-bg': dark ? bg : ink,
+    '--code-ink': dark ? ink : bg,
   };
   if (d?.radius != null) {
     out['--r-md'] = `${d.radius}px`;
