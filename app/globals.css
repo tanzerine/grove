@@ -321,7 +321,7 @@ a { color: inherit; text-decoration: none; }
 .sample.on { display: block; animation: fadein 0.3s ease; }
 .blog-card { background: white; border-radius: 16px; border: 1px solid var(--line); overflow: hidden; }
 .blog-hero { height: 130px; background: linear-gradient(135deg, var(--mint), var(--leaf)); position: relative; }
-.blog-hero .tag { position: absolute; bottom: 12px; left: 14px; background: white; padding: 4px 10px; border-radius: 999px; font-family: 'DM Mono'; font-size: 11px; color: var(--moss); }
+.blog-hero .tag { position: absolute; bottom: 12px; left: 14px; background: var(--surface, white); padding: 4px 10px; border-radius: 999px; font-family: var(--label-font, 'DM Mono', monospace); font-size: 11px; color: var(--moss); }
 .blog-body { padding: 22px; }
 .blog-body h3 { margin: 0 0 10px; font-family: 'Inter'; font-size: 22px; }
 .blog-meta { display: flex; gap: 16px; font-size: 12px; color: var(--clay); margin-bottom: 14px; }
@@ -542,29 +542,45 @@ a { color: inherit; text-decoration: none; }
    retints, so this is the customer's bar on their own subdomain rather than a
    grove-colored one — and it degrades to grove's palette when the capture came
    back empty. */
+/* Same bar as the landing's (components/Landing.tsx): a translucent blurred
+   strip over the page, an icon+wordmark on the left, muted links that brighten
+   to full ink on hover, and a solid INVERTED pill on the right. Every value
+   that was a literal there is a token here, so the identical bar renders in
+   grove's black-and-lime and in a customer's own palette — including the CTA,
+   which is ink-on-page inverted rather than the brand color, so it stays the
+   highest-contrast thing in the bar whatever the brand happens to be.
+
+   sticky, not fixed: fixed would need a spacer on every page under it, and a
+   blog whose first paint is at scroll 0 looks identical either way. */
 .hosted-nav {
-  display: flex; align-items: center; gap: 28px; flex-wrap: wrap;
-  max-width: 1060px; margin: 0 auto; padding: 18px 28px;
+  position: sticky; top: 0; z-index: 50;
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  background: color-mix(in srgb, var(--bone) 78%, transparent);
   border-bottom: 1px solid var(--line);
+  font-family: var(--body-font, 'Inter', 'Helvetica Neue', Arial, sans-serif);
+}
+.hosted-nav-in {
+  max-width: 1200px; margin: 0 auto; width: 100%; box-sizing: border-box;
+  display: flex; align-items: center; gap: 28px; padding: 16px 24px;
 }
 .hosted-nav-brand {
-  font-weight: 700; font-size: 19px; letter-spacing: -0.015em;
-  color: var(--ink); text-decoration: none; display: inline-flex; align-items: center;
+  display: flex; align-items: center; gap: 5px; text-decoration: none;
+  color: var(--ink); font-weight: 500; font-size: 14px; letter-spacing: -0.02em;
 }
-.hosted-nav-logo { height: 28px; width: auto; max-width: 190px; object-fit: contain; display: block; }
-.hosted-nav-links { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
-.hosted-nav-links a { font-size: 14.5px; color: var(--clay); text-decoration: none; transition: color .15s ease; }
-.hosted-nav-links a:hover { color: var(--moss); }
+.hosted-nav-logo { height: 28px; width: auto; max-width: 190px; object-fit: contain; display: block; border-radius: 6px; }
+.hosted-nav-links { display: flex; align-items: center; gap: 26px; flex: 1; font-size: 14px; font-weight: 500; }
+.hosted-nav-links a { color: var(--clay); text-decoration: none; transition: color .2s ease; }
+.hosted-nav-links a:hover { color: var(--ink); }
 .hosted-nav-cta {
-  margin-left: auto; font-size: 14px; font-weight: 600; text-decoration: none;
-  background: var(--cta-btn, var(--moss)); color: var(--cta-btn-text, #fff);
-  padding: 9px 18px; border-radius: var(--r-md);
+  margin-left: auto; height: 32px; box-sizing: border-box;
+  display: inline-flex; align-items: center; justify-content: center; white-space: nowrap;
+  font-size: 14px; font-weight: 500; text-decoration: none;
+  background: var(--ink); color: var(--bone);
+  padding: 0 18px; border-radius: 8px;
 }
-@media (max-width: 640px) {
-  .hosted-nav { gap: 14px; padding: 14px 16px; }
-  .hosted-nav-links { gap: 14px; }
-  .hosted-nav-links a { font-size: 13.5px; }
-  .hosted-nav-cta { margin-left: 0; }
+@media (max-width: 760px) {
+  .hosted-nav-links { display: none; }
+  .hosted-nav-in { gap: 14px; padding: 14px 16px; }
 }
 
 .post-shell { max-width: 1060px; margin: 0 auto; padding: 60px 28px; }
@@ -572,15 +588,15 @@ a { color: inherit; text-decoration: none; }
 .post-main { min-width: 0; }
 
 .toc-rail { position: sticky; top: 28px; }
-.toc-title { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--clay); margin-bottom: 12px; }
+.toc-title { font-family: var(--label-font, 'DM Mono', monospace); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--clay); margin-bottom: 12px; }
 .toc-rail ol { list-style: none; margin: 0; padding: 0; }
 .toc-rail a { display: block; color: var(--clay); text-decoration: none; font-size: 13.5px; line-height: 1.45; padding: 5px 0 5px 14px; border-left: 2px solid var(--line); transition: color 0.15s, border-color 0.15s; }
 .toc-rail a:hover { color: var(--ink); border-left-color: var(--moss); }
 .toc-rail li.lvl3 a { padding-left: 26px; font-size: 13px; }
 
-.cta-banner { margin-top: 48px; background: var(--cta-bg, var(--ink)); color: var(--cta-text, white); border-radius: 16px; padding: 36px 40px; text-align: center; }
-.cta-banner .cta-kicker { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--cta-text-muted, rgba(255,255,255,0.6)); }
-.cta-banner h3 { font-family: 'Inter', sans-serif; font-size: 26px; margin: 8px 0 6px; color: inherit; }
+.cta-banner { margin-top: 48px; background: var(--cta-bg, var(--ink)); color: var(--cta-text, white); border-radius: var(--r-lg, 16px); padding: 36px 40px; text-align: center; }
+.cta-banner .cta-kicker { font-family: var(--label-font, 'DM Mono', monospace); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--cta-text-muted, rgba(255,255,255,0.6)); }
+.cta-banner h3 { font-family: var(--head-font, 'Inter', sans-serif); font-size: 26px; margin: 8px 0 6px; color: inherit; }
 .cta-banner p { color: var(--cta-text-muted, rgba(255,255,255,0.82)); font-size: 15px; line-height: 1.6; margin: 0 auto 20px; max-width: 48ch; }
 .cta-btn { display: inline-block; background: var(--cta-btn, var(--moss)); color: var(--cta-btn-text, white); text-decoration: none; padding: 12px 26px; border-radius: 999px; font-weight: 600; font-size: 15px; transition: transform 0.12s ease, background 0.15s ease; }
 .cta-btn:hover { background: var(--cta-btn, #4e9e6a); transform: translateY(-1px); }
@@ -593,33 +609,33 @@ a { color: inherit; text-decoration: none; }
 /* ───────────────────────── public blog v2 polish ───────────────────────── */
 
 /* index cards */
-.bi-card { display: flex; flex-direction: column; background: white; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; text-decoration: none; color: inherit; transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; }
-.bi-card:hover { transform: translateY(-3px); border-color: var(--moss); box-shadow: 0 16px 34px -20px rgba(26,46,31,0.28); }
+.bi-card { display: flex; flex-direction: column; background: var(--surface, white); border: 1px solid var(--line); border-radius: var(--r-md, 14px); overflow: hidden; text-decoration: none; color: inherit; transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; }
+.bi-card:hover { transform: translateY(-3px); border-color: var(--moss); box-shadow: var(--sh-lg); }
 .bi-card:focus-visible { outline: 2px solid var(--moss); outline-offset: 2px; }
 .bi-cover { width: 100%; height: 160px; object-fit: cover; display: block; background: var(--paper); }
-.bi-fallback { height: 160px; display: flex; align-items: center; justify-content: center; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 46px; color: rgba(255,255,255,0.92); letter-spacing: 0.02em; }
+.bi-fallback { height: 160px; display: flex; align-items: center; justify-content: center; font-family: var(--head-font, 'Inter', sans-serif); font-weight: 600; font-size: 46px; color: rgba(255,255,255,0.92); letter-spacing: 0.02em; }
 
 /* featured wide card */
-.feat-card { display: flex; margin-top: 28px; background: white; border: 1px solid var(--line); border-radius: 18px; overflow: hidden; text-decoration: none; color: inherit; transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; }
-.feat-card:hover { transform: translateY(-3px); border-color: var(--moss); box-shadow: 0 20px 48px -24px rgba(26,46,31,0.32); }
+.feat-card { display: flex; margin-top: 28px; background: var(--surface, white); border: 1px solid var(--line); border-radius: var(--r-lg, 18px); overflow: hidden; text-decoration: none; color: inherit; transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; }
+.feat-card:hover { transform: translateY(-3px); border-color: var(--moss); box-shadow: var(--sh-lg); }
 .feat-card:focus-visible { outline: 2px solid var(--moss); outline-offset: 2px; }
 .feat-media { flex: 1 1 45%; min-width: 0; max-width: 45%; object-fit: cover; }
-.feat-fallback { flex: 1 1 45%; max-width: 45%; display: flex; align-items: center; justify-content: center; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 84px; color: rgba(255,255,255,0.92); }
+.feat-fallback { flex: 1 1 45%; max-width: 45%; display: flex; align-items: center; justify-content: center; font-family: var(--head-font, 'Inter', sans-serif); font-weight: 600; font-size: 84px; color: rgba(255,255,255,0.92); }
 @media (max-width: 760px) {
   .feat-card { flex-direction: column-reverse; }
   .feat-media, .feat-fallback { max-width: 100%; height: 210px; flex-basis: auto; }
 }
 
 /* filter chips + search */
-.chip-link { font-family: 'DM Mono', monospace; font-size: 12px; padding: 6px 14px; border-radius: 999px; text-decoration: none; background: white; color: var(--ink); border: 1px solid var(--line); transition: border-color .14s ease, color .14s ease, background .14s ease; }
+.chip-link { font-family: var(--label-font, 'DM Mono', monospace); font-size: 12px; padding: 6px 14px; border-radius: 999px; text-decoration: none; background: var(--surface, white); color: var(--ink); border: 1px solid var(--line); transition: border-color .14s ease, color .14s ease, background .14s ease; }
 .chip-link:hover { border-color: var(--moss); color: var(--moss); }
-.chip-link.on { background: var(--moss); color: white; border-color: var(--moss); }
+.chip-link.on { background: var(--moss); color: var(--on-accent, white); border-color: var(--moss); }
 .chip-link:focus-visible { outline: 2px solid var(--moss); outline-offset: 2px; }
-.blog-search { width: 230px; padding: 10px 14px 10px 36px; border: 1px solid var(--line); border-radius: 999px; background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%237a8a7d' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E") no-repeat 13px center; font-family: inherit; font-size: 14px; color: var(--ink); transition: border-color .14s ease, box-shadow .14s ease; }
+.blog-search { width: 230px; padding: 10px 14px 10px 36px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface, white) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E") no-repeat 13px center; font-family: inherit; font-size: 14px; color: var(--ink); transition: border-color .14s ease, box-shadow .14s ease; }
 .blog-search:focus { outline: none; border-color: var(--moss); box-shadow: 0 0 0 3px var(--accent-soft, rgba(78,158,106,0.18)); }
 
 /* pagination */
-.pagenav-link { font-family: 'DM Mono', monospace; font-size: 13px; color: var(--moss); text-decoration: none; padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px; background: white; transition: border-color .14s ease, transform .14s ease; }
+.pagenav-link { font-family: var(--label-font, 'DM Mono', monospace); font-size: 13px; color: var(--moss); text-decoration: none; padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface, white); transition: border-color .14s ease, transform .14s ease; }
 .pagenav-link:hover { border-color: var(--moss); transform: translateY(-1px); }
 .pagenav-link.off { color: var(--line); pointer-events: none; }
 
@@ -661,8 +677,11 @@ a { color: inherit; text-decoration: none; }
 .read-progress { position: fixed; top: 0; left: 0; height: 3px; width: 0; background: var(--moss); z-index: 60; }
 html { scroll-behavior: smooth; }
 .prose h2, .prose h3 { scroll-margin-top: 28px; }
-.share-btn { display: inline-flex; align-items: center; gap: 6px; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--ink); background: white; border: 1px solid var(--line); border-radius: 999px; padding: 8px 16px; text-decoration: none; cursor: pointer; transition: border-color .14s ease, color .14s ease, transform .14s ease; }
+.share-btn { display: inline-flex; align-items: center; gap: 6px; font-family: var(--label-font, 'DM Mono', monospace); font-size: 12px; color: var(--ink); background: var(--surface, white); border: 1px solid var(--line); border-radius: 999px; padding: 8px 16px; text-decoration: none; cursor: pointer; transition: border-color .14s ease, color .14s ease, transform .14s ease; }
 .share-btn:hover { border-color: var(--moss); color: var(--moss); transform: translateY(-1px); }
+/* ── end hosted blog ── (tests/hosted-blog-design.test.ts slices to here:
+   every rule above renders on a customer's domain and must stay token-driven;
+   grove's own literals below are grove's own pages) */
 
 /* ═══════════════════════ premium pass ═══════════════════════
    Depth, gradient accent, and a calmer light hero. Mostly additive —
