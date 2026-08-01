@@ -22,6 +22,66 @@ export type LlmUsage = {
   estimated?: boolean;
 };
 
+/**
+ * Pull the assistant text out of whatever shape a Replicate model returns.
+ *
+ * Output shape is per-model, not per-platform. The workhorse
+ * (google/gemini-3.1-pro) streams an array of string chunks, which is all this
+ * ever handled: `Array.isArray(out) ? out.join('') : String(out ?? '')`.
+ *
+ * THE OUTAGE THAT CAUSED THIS. The strategy tier is the only caller of
+ * anthropic/claude-opus-4.7, and an Anthropic-shaped response is an OBJECT, not
+ * an array of chunks. `String(object)` is the literal "[object Object]" — which
+ * is non-empty, so the empty-output guard passed it, llmCall reported success,
+ * and strategyLlmCall's fallback (which only fires on a throw) never engaged.
+ * The failure surfaced two frames later as extractJson's "no JSON braces", so
+ * every monthly plan build died after the model had already run and been
+ * billed. `planned_by` was null on every strategy row in production because no
+ * Opus build had EVER completed — the one diagnostic that would have shown it.
+ *
+ * Returns null when nothing usable is present, so the caller throws and the
+ * fallback ladder does what it was written to do.
+ */
+export function textFromReplicateOutput(out: unknown): string | null {
+  if (out == null) return null;
+  if (typeof out === 'string') return out;
+  if (typeof out === 'number' || typeof out === 'boolean') return String(out);
+
+  // Streamed chunks — the workhorse's shape. Elements may themselves be
+  // content blocks, so recurse rather than assuming strings.
+  if (Array.isArray(out)) {
+    const parts = out.map((p) => textFromReplicateOutput(p)).filter((s): s is string => !!s);
+    return parts.length ? parts.join('') : null;
+  }
+
+  if (typeof out === 'object') {
+    const o = out as Record<string, unknown>;
+    // Anthropic message content: [{ type: 'text', text: '...' }, ...]
+    if (Array.isArray(o.content)) {
+      const joined = textFromReplicateOutput(o.content);
+      if (joined) return joined;
+    }
+    // A single content block, or the common single-field wrappers.
+    for (const key of ['text', 'completion', 'output', 'message', 'response']) {
+      const v = o[key];
+      if (v != null && v !== out) {
+        const s = textFromReplicateOutput(v);
+        if (s) return s;
+      }
+    }
+  }
+  return null;
+}
+
+/** Shape summary for error messages — never the content, which can be huge. */
+export function describeOutputShape(out: unknown): string {
+  if (out === null) return 'null';
+  if (out === undefined) return 'undefined';
+  if (Array.isArray(out)) return `array(${out.length})[${out.length ? typeof out[0] : ''}]`;
+  if (typeof out === 'object') return `object{${Object.keys(out as object).join(',') || 'no keys'}}`;
+  return typeof out;
+}
+
 export async function llmCall(opts: {
   system: string;
   user: string;
@@ -65,9 +125,20 @@ export async function llmCall(opts: {
   if (finished.status !== 'succeeded') {
     throw new Error(`Replicate prediction ${finished.status}: ${finished.error ?? 'unknown'}`);
   }
-  const out = finished.output;
-  const text = Array.isArray(out) ? out.join('') : String(out ?? '');
-  if (!text.trim()) throw new Error('Replicate returned empty output');
+  const text = textFromReplicateOutput(finished.output);
+  if (!text || !text.trim()) {
+    // THROW, don't return junk. `String(out)` on an object yields the literal
+    // "[object Object]" — non-empty, so the old guard passed it through as if
+    // the call had succeeded. strategyLlmCall's fallback only triggers on a
+    // thrown error, so a shape it didn't understand bypassed the safety net
+    // entirely and the failure surfaced two frames later as extractJson's
+    // "no JSON braces", with the model already billed. Failing here is what
+    // lets the fallback do its job.
+    throw new Error(
+      `Replicate returned unusable output from ${opts.model ?? MODEL} ` +
+      `(shape: ${describeOutputShape(finished.output)})`,
+    );
+  }
   const usage = usageFrom(finished, opts.model ?? MODEL, {
     promptChars: (opts.system?.length ?? 0) + (opts.user?.length ?? 0),
     outputChars: text.length,

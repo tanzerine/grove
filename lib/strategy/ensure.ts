@@ -187,7 +187,18 @@ export async function ensureMonthlyStrategy(
   const { error: insertErr } = await sb
     .from('strategies')
     .insert({ ...row, planned_by: strategy.planned_by ?? null });
-  if (insertErr) await sb.from('strategies').insert(row);
+  if (insertErr) {
+    // The retry's error used to be discarded, and 'created' returned anyway —
+    // so a plan that was never written reported success to the cron, which
+    // logged a clean build and moved on. A failed write must be loud.
+    const { error: retryErr } = await sb.from('strategies').insert(row);
+    if (retryErr) {
+      throw new Error(
+        `strategy insert failed for ${domain.hostname} ${monthDate}: ` +
+        `${retryErr.message} (first attempt: ${insertErr.message})`,
+      );
+    }
+  }
 
   // Refresh the plan memo the chat + downstream prompts read — but only for the
   // plan that is actually live. A staged month must not start describing itself
