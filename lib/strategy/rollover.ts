@@ -98,6 +98,24 @@ export function planningTargets(now: Date, lookaheadDays = PLAN_LOOKAHEAD_DAYS):
   return targets;
 }
 
+/**
+ * True when the live plan covers a month that has already ended.
+ *
+ * Every consumer reads the active plan as `.eq('active', true).order('month',
+ * desc).limit(1)` — with no month filter, because the rollover is supposed to
+ * keep exactly one current plan live. When this month's build fails, that
+ * invariant quietly breaks: last month's plan stays active and the dashboard
+ * renders it as if it were current, dates and all. This is what lets a surface
+ * say so instead.
+ *
+ * Takes the raw `strategies.month` (a Postgres `date`, so 'YYYY-MM-DD') and
+ * compares on 'YYYY-MM', which sorts correctly as a string.
+ */
+export function planIsStale(planMonth: string | null | undefined, now: Date): boolean {
+  if (!planMonth) return false;
+  return String(planMonth).slice(0, 7) < monthKey(startOfMonthUTC(now)).slice(0, 7);
+}
+
 export type PlanCandidate = {
   id: string;
   /** Domain creation time — the tiebreak, so the order stays deterministic. */
