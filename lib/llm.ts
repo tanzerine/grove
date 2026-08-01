@@ -431,6 +431,11 @@ export function extractJson<T = unknown>(text: string): T {
         .replace(/[‘’]/g, "'").replace(/[“”]/g, '"')
         .replace(/,(\s*[}\]])/g, '$1'),
     ),
+    // Last resort: the model ran out of output tokens mid-document. Salvaging
+    // the complete part beats throwing away everything it wrote — see
+    // closeTruncatedJson.
+    (s) => closeTruncatedJson(s),
+    (s) => closeTruncatedJson(escapeControlChars(s.replace(/,(\s*[}\]])/g, '$1'))),
   ];
   let lastErr: unknown;
   for (const candidate of candidates) {
@@ -439,6 +444,64 @@ export function extractJson<T = unknown>(text: string): T {
     }
   }
   throw new Error(`extractJson: ${(lastErr as any)?.message}. First 300: ${candidates[0].slice(0, 300)}…`);
+}
+
+/**
+ * Close a JSON document the model stopped writing halfway through, by dropping
+ * the incomplete tail and closing whatever containers are still open.
+ *
+ * WHY. `max_tokens` is a guillotine: the model emits perfectly good JSON right
+ * up to the ceiling and then simply stops, usually mid-array. V8 reports that
+ * as "Expected ',' or ']' after array element at position N", which reads like
+ * malformed output but is really "there was more and you didn't pay for it".
+ *
+ * On 2026-08-01 that killed www.oveners.com's August plan on every tick: a
+ * 13-slot calendar didn't fit in 4500 tokens, so ~10.4KB of usable strategy —
+ * goals, KPIs, pillars, and most of the calendar — was thrown away because the
+ * last slot was half-written. A month with ten planned articles is worth
+ * enormously more than no month at all, and normalizeStrategy already repairs
+ * a short plan: it backfills dangling references, dedupes, and re-dates every
+ * slot it kept.
+ *
+ * The cut point is the only one that is provably legal: immediately after a
+ * nested value closes, its container is between elements, so appending the
+ * open brackets in reverse always yields parseable JSON. A partial trailing
+ * element is discarded rather than guessed at — this never invents content,
+ * it only stops short.
+ *
+ * Returns the input unchanged when nothing is open (not truncated) or when
+ * there's no complete nested value to cut back to, so the caller still throws.
+ */
+export function closeTruncatedJson(s: string): string {
+  const stack: string[] = [];
+  let inString = false;
+  let escaped = false;
+  let cut = -1;
+  let stackAtCut: string[] = [];
+
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (c === '\\') escaped = true;
+      else if (c === '"') inString = false;
+      continue;
+    }
+    if (c === '"') { inString = true; continue; }
+    if (c === '{' || c === '[') { stack.push(c); continue; }
+    if (c === '}' || c === ']') {
+      stack.pop();
+      // Only inside an enclosing container: a close at depth 0 ends the whole
+      // document, which means it was never truncated in the first place.
+      if (stack.length) { cut = i + 1; stackAtCut = [...stack]; }
+    }
+  }
+
+  if (!stack.length || cut === -1) return s;
+
+  let out = s.slice(0, cut);
+  for (let i = stackAtCut.length - 1; i >= 0; i--) out += stackAtCut[i] === '{' ? '}' : ']';
+  return out;
 }
 
 function escapeControlChars(s: string): string {
