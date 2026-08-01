@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import GroveEmbed from '@/components/GroveEmbed';
+import SiteNav from '@/components/SiteNav';
 import { ANNUAL_DISCOUNT, PLANS, formatUsd, monthlyPriceUsd, yearlyPriceUsd } from '@/lib/plans';
 
 /* Faithful port of the "Grove Landing" design comp (dark / accent #A2FF01,
@@ -274,25 +275,16 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 
-      {/* NAV */}
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50, backdropFilter: 'blur(16px)', backgroundColor: '#000000C7', fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif" }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 28, padding: '16px 24px', width: '100%' }}>
-          <a href="#hero" style={{ display: 'flex', alignItems: 'center', gap: 5, textDecoration: 'none', color: '#f4f4f2' }}>
-            <span style={{ width: 28, height: 28, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0, backgroundColor: '#000' }}>
-              <img src="/landing/grove-mark.png" alt="Grove" style={{ width: 28, height: 28, objectFit: 'contain' }} />
-            </span>
-            <span style={{ fontWeight: 500, fontSize: 14, letterSpacing: '-0.02em' }}>Grove</span>
-          </a>
-          <div className="gv-navlinks" style={{ display: 'flex', gap: 26, fontSize: 14, fontWeight: 500, flex: 1 }}>
-            <a className="gv-navlink" href="#agents" style={{ color: '#9a9d97', textDecoration: 'none' }}>Agents</a>
-            <a className="gv-navlink" href="#platform" style={{ color: '#9a9d97', textDecoration: 'none' }}>Platform</a>
-            <a className="gv-navlink" href="#pricing" style={{ color: '#9a9d97', textDecoration: 'none' }}>Pricing</a>
-            <a className="gv-navlink" href="/blog" style={{ color: '#9a9d97', textDecoration: 'none' }}>Blog</a>
-            <a className="gv-navlink" href="#faq" style={{ color: '#9a9d97', textDecoration: 'none' }}>FAQ</a>
-          </div>
-          <a className="gv-btn" href={startHref} style={{ ...ctaBtn, background: '#f4f4f2', color: '#0a0a0a', padding: '0 18px', borderRadius: 8, textDecoration: 'none' }}>{loggedIn ? 'Dashboard' : 'Get Started'}</a>
-        </div>
-      </div>
+      {/* NAV — components/SiteNav.tsx is the single definition; /blog and the
+          hosted blog render the same bar. Editing the links here instead is
+          what left /blog without a FAQ item. */}
+      <SiteNav
+        onLanding
+        position="fixed"
+        brandHref="#hero"
+        ctaHref={startHref}
+        ctaLabel={loggedIn ? 'Dashboard' : 'Get Started'}
+      />
 
       {/* HERO */}
       <section id="hero" style={{ padding: '152px 24px 0', maxWidth: 1200, margin: '0 auto', textAlign: 'left', width: '100%' }}>

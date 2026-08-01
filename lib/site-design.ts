@@ -447,6 +447,24 @@ function brandFromTopOfPage(html: string, baseUrl: string): { text: string | nul
   return null;
 }
 
+/**
+ * Trim a non-semantic nav window at the point the page's CONTENT begins.
+ *
+ * The window for a class-matched nav is a fixed slice forward, because a regex
+ * cannot find the matching close tag of an arbitrary nested element. On a short
+ * nav that slice runs past the bar and into the hero — and since the primary
+ * action is taken as the LAST button-ish link in the region, the hero's buttons
+ * won. Grove's own blog advertised "See how it works", a hero button, where the
+ * landing's bar says "Get Started".
+ *
+ * A nav never contains a <section>, <main>, <article>, <footer> or an <h1>, so
+ * the first of those is where the bar ended.
+ */
+function endOfHeader(window: string): string {
+  const at = window.search(/<(?:section|main|article|footer|h1)\b/i);
+  return at < 0 ? window : window.slice(0, at);
+}
+
 export function extractNav(html: string, baseUrl: string): SiteDesign['nav'] {
   let home = '/';
   try { home = new URL(baseUrl).origin; } catch { /* keep '/' */ }
@@ -475,7 +493,7 @@ export function extractNav(html: string, baseUrl: string): SiteDesign['nav'] {
     // what keeps an over-long window from being accepted.
     ...[...html.matchAll(/<(?:div|ul)\b[^>]*(?:class|id)=["'][^"']*nav[^"']*["'][^>]*>/gi)]
       .slice(0, 4)
-      .map((m) => html.slice(m.index! + m[0].length, m.index! + m[0].length + 2500)),
+      .map((m) => endOfHeader(html.slice(m.index! + m[0].length, m.index! + m[0].length + 2500))),
   ];
 
   const parsed: NonNullable<SiteDesign['nav']>[] = [];

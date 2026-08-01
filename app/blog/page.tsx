@@ -13,6 +13,7 @@
  */
 import type { Metadata } from 'next';
 import GroveEmbed, { groveEmbedHost } from '@/components/GroveEmbed';
+import SiteNav from '@/components/SiteNav';
 import { resolveBlogDomain } from '@/lib/blog-domain';
 import { blogHomeUrl } from '@/lib/seo';
 import { supabaseAdmin } from '@/lib/supabase/admin';
@@ -54,56 +55,9 @@ export default async function Page() {
         WebkitFontSmoothing: 'antialiased',
       }}
     >
-      {/* NAV — same shape as the landing's, static (no auth state to reflect). */}
-      <div
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 50,
-          backdropFilter: 'blur(16px)',
-          backgroundColor: '#000000C7',
-          borderBottom: '1px solid rgba(255,255,255,0.08)',
-        }}
-      >
-        <div
-          style={{
-            maxWidth: 1200,
-            margin: '0 auto',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 26,
-            padding: '16px 24px',
-          }}
-        >
-          <a href="/" style={{ display: 'flex', alignItems: 'center', gap: 5, textDecoration: 'none', color: '#f4f4f2' }}>
-            <img src="/landing/grove-mark.png" alt="Grove" style={{ width: 28, height: 28, objectFit: 'contain' }} />
-            <span style={{ fontWeight: 500, fontSize: 14, letterSpacing: '-0.02em' }}>Grove</span>
-          </a>
-          <div style={{ display: 'flex', gap: 26, flex: 1 }}>
-            <a href="/#agents" style={link}>Agents</a>
-            <a href="/#platform" style={link}>Platform</a>
-            <a href="/#pricing" style={link}>Pricing</a>
-            <a href="/blog" style={{ ...link, color: '#f4f4f2' }}>Blog</a>
-          </div>
-          <a
-            href="/signup"
-            style={{
-              height: 32,
-              display: 'inline-flex',
-              alignItems: 'center',
-              padding: '0 18px',
-              borderRadius: 8,
-              background: '#f4f4f2',
-              color: '#0a0a0a',
-              fontSize: 14,
-              fontWeight: 500,
-              textDecoration: 'none',
-            }}
-          >
-            Get Started
-          </a>
-        </div>
-      </div>
+      {/* NAV — the landing's own bar, not a copy of it. The copy this replaced
+          claimed to be the "same shape as the landing's" and was missing FAQ. */}
+      <SiteNav active="Blog" />
 
       <main style={{ maxWidth: 1120, margin: '0 auto', padding: '72px 24px 120px' }}>
         <div style={{ maxWidth: 640, marginBottom: 44 }}>
