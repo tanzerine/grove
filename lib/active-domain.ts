@@ -21,13 +21,37 @@ export type DomainRow = {
   [k: string]: any;
 };
 
-function pickActive(rows: DomainRow[], wanted: string | undefined): DomainRow | null {
+/**
+ * Which row the switcher is pointing at. Exported so the selection rule is
+ * testable on its own — it is the difference between editing the site you are
+ * looking at and editing a different one.
+ */
+export function pickActive(rows: DomainRow[], wanted: string | undefined): DomainRow | null {
   if (!rows.length) return null;
   if (wanted) {
     const match = rows.find((d) => d.id === wanted);
     if (match) return match;
   }
   return rows.find((d) => d.verified_at) ?? rows[0];
+}
+
+/**
+ * Active-domain row narrowed to `columns`.
+ *
+ * For CLIENT-FACING routes, which must not ship the whole row: `select('*')`
+ * carries gsc_refresh_token, github_repo_token and social_webhook_secret, so
+ * getActiveDomain is for server components only.
+ *
+ * `columns` MUST include `id` and `verified_at` — pickActive matches the cookie
+ * on the former and falls back on the latter.
+ */
+export async function getActiveDomainFields(
+  sb: SupabaseClient,
+  columns: string,
+): Promise<DomainRow | null> {
+  const { data } = await sb.from('domains').select(columns).order('created_at');
+  const jar = await cookies();
+  return pickActive((data ?? []) as unknown as DomainRow[], jar.get(ACTIVE_DOMAIN_COOKIE)?.value);
 }
 
 /** Full active-domain row (select *), scoped to the signed-in user. */
