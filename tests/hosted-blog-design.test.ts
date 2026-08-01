@@ -14,6 +14,8 @@
  * if it can't dress grove's own blog it can't dress anyone's.
  */
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { designCss, designTokens, type SiteDesign } from '../lib/site-design';
 import { blogThemeVars, contrastRatio, isDark, type BrandColors } from '../lib/blog-theme';
 
@@ -69,6 +71,28 @@ describe('grove’s own hosted blog wears grove', () => {
     // The article card reads --surface with a `white` fallback; a dark site that
     // captured colors must never fall back to it.
     expect(tokens['--surface']).toBeTruthy();
+  });
+
+  it('recesses code blocks instead of inverting a dark page into a white slab', () => {
+    const tokens = designTokens(GROVE_DESIGN)!;
+    expect(isDark(tokens['--code-bg'])).toBe(true);
+    expect(contrastRatio(tokens['--code-ink'], tokens['--code-bg'])).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('keeps the familiar dark code slab on a light site', () => {
+    const tokens = designTokens({ ...GROVE_DESIGN, colors: { bg: '#ffffff', ink: '#111111' } })!;
+    expect(tokens['--code-bg']).toBe('#111111');
+    expect(tokens['--code-ink']).toBe('#ffffff');
+  });
+
+  it('leaves no fixed light literal in the article body', () => {
+    // Every one of these banded a dark article with light: the table zebra, the
+    // link hairline tinted from grove's ink, and the inverted code block.
+    const globals = readFileSync(join(process.cwd(), 'app/globals.css'), 'utf8');
+    const prose = globals.slice(globals.indexOf('.prose {'), globals.indexOf('.hosted-nav'));
+    const bare = (prose.match(/(?:background|border-bottom|color)\s*:[^;}]*(?:rgba?\((?!\s*255\s*,\s*255\s*,\s*255)[\d.,\s]+\)|#[0-9a-fA-F]{3,6})/g) ?? [])
+      .filter((r) => !r.includes('var(') && !r.includes('color-mix'));
+    expect(bare, `fixed color in .prose: ${bare.join(' | ')}`).toEqual([]);
   });
 
   it('sets the accent to grove’s lime, readable on black', () => {

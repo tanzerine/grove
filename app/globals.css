@@ -468,7 +468,10 @@ a { color: inherit; text-decoration: none; }
 .prose a {
   color: var(--ink);
   text-decoration: none;
-  border-bottom: 1px solid rgba(26, 46, 31, 0.16);
+  /* Tinted from --ink rather than grove's ink literal: on a hosted blog that
+     captured a dark site, rgba(26,46,31,…) is black on black and the hairline
+     that is the ONLY thing marking a link disappears entirely. */
+  border-bottom: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
   transition: color 0.15s ease, border-color 0.15s ease;
 }
 .prose a:hover { color: var(--moss); border-bottom-color: var(--moss); }
@@ -500,8 +503,12 @@ a { color: inherit; text-decoration: none; }
   background: var(--paper); padding: 2px 6px; border-radius: 4px;
   font-family: 'DM Mono', ui-monospace, monospace; font-size: 0.9em; color: var(--ink);
 }
+/* Code blocks invert the page by default, which is right on grove's paper and
+   wrong the moment a hosted blog captures a dark site — inverting black gives a
+   white slab in the middle of a black article. --code-* lets designTokens
+   recess the block instead; the fallbacks are the original inversion. */
 .prose pre {
-  background: var(--ink); color: var(--bone); padding: 16px 18px; border-radius: 10px;
+  background: var(--code-bg, var(--ink)); color: var(--code-ink, var(--bone)); padding: 16px 18px; border-radius: 10px;
   overflow-x: auto; font-family: 'DM Mono', ui-monospace, monospace; font-size: 14px;
   line-height: 1.55; margin: 1.2em 0;
 }
@@ -524,7 +531,9 @@ a { color: inherit; text-decoration: none; }
 .prose table th, .prose table td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--line); }
 .prose table th { background: var(--paper); color: var(--moss); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
 .prose table tr:last-child td { border-bottom: none; }
-.prose table tr:nth-child(even) td { background: rgba(245, 243, 237, 0.4); }
+/* Derived from --ink, not grove's paper literal — a fixed warm white banded
+   every other row of every table with light on a dark captured site. */
+.prose table tr:nth-child(even) td { background: color-mix(in srgb, var(--ink) 4%, transparent); }
 
 /* ─────────────── public article: right-rail TOC + CTA banner ─────────────── */
 /* ── hosted blog nav (app/b/[slug]/layout.tsx) ──────────────────────────────
