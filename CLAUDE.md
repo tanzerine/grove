@@ -60,12 +60,19 @@ current Pro account the declared 300s is honoured, so leave it unset).
 
 The account is on **Vercel Pro**, so sub-daily crons are allowed. Three hourly
 300s functions, offset so they never fire together: the scheduler at :00,
-`/api/cron/images` at :30, `/api/cron/strategy` at :45. That's ~47 posts/day of
-headroom. Phases that don't need every tick opt out — the Search Console sync
-runs on one tick a day (`shouldSyncGsc`), handing its reserve back to
-generation on the other 23. If you ever need more, `*/15 * * * *` is the next
-step and every figure follows. Measured generation cost is ~138s p80, so
-roughly 2 articles fit per tick.
+`/api/cron/images` at :30, `/api/cron/strategy` at :45. Phases that don't need
+every tick opt out — the Search Console sync runs on one tick a day
+(`shouldSyncGsc`), handing its reserve back to generation on the other 23. If
+you ever need more, `*/15 * * * *` is the next step and every figure follows.
+
+**Real throughput is ~1 article per tick, so ~24/day (~720/month) — NOT the
+~47/day this file used to claim.** Measured generation is ~138s p80, which does
+leave room for two in a 300s tick on paper, but the drain also takes the fresh
+draft's cover inline when it fits (`COVER_COST_MS`, 75s): 138 + ~60 = ~198s
+elapsed, and 198 + 138 overruns 300, so the second article never starts.
+`postsPerTick(300s, 138s)` reports the same 1. Size plans against 720/month —
+50 customers fit on Starter (12/mo → 600) and do **not** fit on Growth
+(40/mo → 2,000). The dial is the cron schedule, not the code.
 
 **Work that needs a big uninterrupted slice gets its own cron.** Both images and
 strategy were starved when they shared a tick with the generation drain, and

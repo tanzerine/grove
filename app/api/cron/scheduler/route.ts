@@ -110,6 +110,56 @@ const SOCIAL_FANOUT_SCAN = 100;
 /** Ids per publish statement — see the chunk loop for why this is bounded. */
 const PUBLISH_CHUNK = 200;
 
+/** Rows per page of the queue read, and a hard stop far past any real backlog. */
+const QUEUE_PAGE = 1000;
+const QUEUE_MAX_PAGES = 20;
+
+/**
+ * Every queued post, oldest first — paged rather than capped.
+ *
+ * Both readers of this queue used to take a fixed slice, and both were wrong
+ * once the platform held more queued posts than the slice:
+ *
+ *   `.limit(500)` fed the per-owner "already committed" count that is
+ *   subtracted from each owner's remaining allowance. Past 500 rows the count
+ *   silently under-reports, so the planner believes owners have allowance they
+ *   have already spent and keeps materializing; those posts then fail
+ *   consumeQuota at drain time and bounce straight back to `queued`. The
+ *   backlog grows every tick and never drains — which is the exact failure the
+ *   subtraction was added to prevent.
+ *
+ *   `.limit(200)` fed the drain's candidate list. pickQueuedFairly round-robins
+ *   across domains to stop one deep backlog monopolising a tick, but it can
+ *   only be fair about what it is shown: ordered oldest-first, the window fills
+ *   with whichever domains materialized earliest, and a domain whose posts are
+ *   all newer than the 200th waits for every one of them to clear. At ~24 posts
+ *   a day and 50 domains that is over a week of invisible starvation, with the
+ *   fairness code running and doing nothing.
+ *
+ * 50 domains on the smallest plan is ~600 queued posts at the start of a month,
+ * so both limits are already reachable. Ordering by id as well as created_at
+ * keeps paging stable: posts materialized in the same tick share a timestamp,
+ * and without a tiebreak rows can shift between pages and be read twice or not
+ * at all.
+ */
+async function allQueuedPosts(sb: ReturnType<typeof supabaseAdmin>) {
+  const out: any[] = [];
+  for (let page = 0; page < QUEUE_MAX_PAGES; page++) {
+    const from = page * QUEUE_PAGE;
+    const { data, error } = await sb
+      .from('posts')
+      .select('id, domain_id, created_at')
+      .eq('status', 'queued')
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, from + QUEUE_PAGE - 1);
+    if (error || !data?.length) break;
+    out.push(...data);
+    if (data.length < QUEUE_PAGE) break;
+  }
+  return out;
+}
+
 export async function GET(req: Request) {
   if (!isCronAuthorized(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
@@ -337,8 +387,7 @@ export async function GET(req: Request) {
   // `remaining` only falls when a post is GENERATED, so without subtracting
   // this the loop re-plans against the same allowance every tick and the queue
   // grows past anything the plan can pay for.
-  const { data: pendingQueued } = await sb
-    .from('posts').select('domain_id').eq('status', 'queued').limit(500);
+  const pendingQueued = await allQueuedPosts(sb);
   const queuedByOwner = new Map<string, number>();
   for (const p of pendingQueued ?? []) {
     const owner = ownerOf.get((p as any).domain_id);
@@ -384,9 +433,9 @@ export async function GET(req: Request) {
   //    monopolize the tick. Posts whose owner isn't paying stay queued
   //    untouched — they resume if the account upgrades, and they never starve
   //    paying accounts (we scan past them rather than counting them).
-  const { data: queuedAll } = await sb
-    .from('posts').select('id, domain_id, created_at').eq('status', 'queued')
-    .order('created_at', { ascending: true }).limit(200);
+  //    Re-read AFTER materialize, so a slot queued by this tick can also be
+  //    drafted by it rather than waiting an hour for the next one.
+  const queuedAll = await allQueuedPosts(sb);
   const entitledQueued = (queuedAll ?? []).filter((p: any) => entitledDomainIds.has(p.domain_id));
   const candidates = pickQueuedFairly(entitledQueued as any[], MAX_POSTS_PER_TICK);
 
