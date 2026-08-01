@@ -121,7 +121,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         interview: answers,
         user_id: user.id,
       },
-      { replaceActive: true, profileFallback: true },
+      { replaceActive: true, profileFallback: true, budgetMs: maxDuration * 1000 },
     );
     strategyBuilt = result === 'created';
     if (!strategyBuilt) reason = result;

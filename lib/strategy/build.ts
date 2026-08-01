@@ -107,7 +107,13 @@ export type BuildStrategyInput = {
   prevReport?: MonthlyReport | null;
   progressMd?: string | null;       // rolling weekly log (agent_context.progress_md)
   alreadyCovered?: string[];        // topic_memory keywords — don't re-propose these
-  llmTimeoutMs?: number;            // cap for the planning call (crons run on a 300s budget)
+  /**
+   * Wall clock left in THIS invocation for planning — the whole model ladder
+   * plus write-back headroom, not a single call's cap. strategyLlmCall splits
+   * it; see splitStrategyBudget for why handing out a per-call timeout instead
+   * silently killed the function mid-fallback.
+   */
+  budgetMs?: number;
   // This month's plan allowance. The cadence sets the shape of the calendar,
   // this caps how much of it we actually plan — slots past the allowance would
   // only be deferred as over-quota. Omit (or null) to plan on cadence alone.
@@ -324,7 +330,7 @@ Produce the new strategy as JSON:
 
 publishing_plan should contain exactly ${monthlyPostCount} slots, distributed across pillars in proportion to each pillar's importance.`;
 
-  const { text, model } = await strategyLlmCall({ system, user, maxTokens: 4500, timeoutMs: input.llmTimeoutMs });
+  const { text, model } = await strategyLlmCall({ system, user, maxTokens: 4500, budgetMs: input.budgetMs });
   const parsed = extractJson<Strategy>(text);
 
   const strategy = normalizeStrategy(parsed, { month, source, maxSlots: monthlyPostCount, postsPerWeek });
