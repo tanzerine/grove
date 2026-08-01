@@ -16,6 +16,18 @@ import { describe, it, expect } from 'vitest';
 
 const SRC = readFileSync(path.join(process.cwd(), 'public/embed.js'), 'utf8');
 
+/**
+ * The other half of what the embed renders. embed.js draws the list; this route
+ * builds the ARTICLE — its TOC card, rail and CTA — server-side, as a string of
+ * inline styles injected into the same mount root. It sits outside embed.js, so
+ * the stylesheet contract above never covered it, and it shipped a light grey
+ * TOC panel into every dark customer site for as long as dark mode existed.
+ */
+const ARTICLE_ROUTE = readFileSync(
+  path.join(process.cwd(), 'app/api/embed/host/[hostname]/article/[slug]/route.ts'),
+  'utf8',
+);
+
 /** Pull a top-level function out of the IIFE and make it callable. */
 function extract<T>(name: string, win: unknown): T {
   const m = SRC.match(new RegExp(`function ${name}\\(root\\) \\{[\\s\\S]*?\\n  \\}`));
@@ -106,5 +118,43 @@ describe('stylesheet theming contract', () => {
     expect(dark).toContain('--gv-on-accent:');
     expect(SRC).toContain('.gv-chip.on{background:var(--gv-accent);color:var(--gv-on-accent)');
     expect(SRC).toContain('background:var(--gv-accent);color:var(--gv-on-accent)">★ Featured');
+  });
+});
+
+describe('embed article HTML theming contract', () => {
+  const dark = SRC.match(/var DARK_VARS = '([^']*)'/)![1];
+
+  it('routes every color through a --gv- property', () => {
+    // The same rule embed.js lives by, applied to the string this route builds.
+    // A bare `#faf9f5` here is a light card pasted into a dark article.
+    const bare: string[] = [];
+    for (const m of ARTICLE_ROUTE.matchAll(/#[0-9a-fA-F]{3,8}\b/g)) {
+      const before = ARTICLE_ROUTE.slice(Math.max(0, m.index - 40), m.index);
+      if (!/var\(--gv-[a-z-]+,\s*$/.test(before)) bare.push(`${m[0]} (…${before.slice(-24)})`);
+    }
+    expect(bare, `color not routed through --gv-*: ${bare.join(', ')}`).toEqual([]);
+  });
+
+  it('carries a literal fallback on every one, so raw-HTML consumers are unaffected', () => {
+    // A customer who renders the `html` field on their own page has no embed.js
+    // and therefore no --gv-*; a bare var() would strip the styling entirely.
+    for (const m of ARTICLE_ROUTE.matchAll(/var\((--gv-[a-z-]+)\s*(,?)([^)]*)\)/g)) {
+      expect(m[2], `${m[1]} has no fallback`).toBe(',');
+      expect(m[3].trim().length, `${m[1]} has an empty fallback`).toBeGreaterThan(0);
+    }
+  });
+
+  it('themes the properties a dark page actually needs', () => {
+    // Only the properties DARK_VARS overrides can be relied on from data-theme
+    // alone — --gv-raise and --gv-radius exist only once a page was measured,
+    // which is why the surfaces here use --gv-surface.
+    const themable = new Set((dark.match(/--gv-[a-z-]+(?=\s*:)/g) ?? []).map((p) => p.trim()));
+    const used = new Set((ARTICLE_ROUTE.match(/--gv-[a-z-]+(?=\s*,)/g) ?? []).map((p) => p.trim()));
+    for (const p of ['--gv-surface', '--gv-line', '--gv-ink', '--gv-muted']) {
+      expect(themable, `${p} is not themed in dark`).toContain(p);
+      expect(used, `article HTML never uses ${p}`).toContain(p);
+    }
+    // Surfaces must not hang off a measured-only property.
+    expect(ARTICLE_ROUTE).not.toMatch(/background:\s*var\(--gv-raise/);
   });
 });

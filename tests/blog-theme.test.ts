@@ -53,8 +53,8 @@ describe('blogThemeVars', () => {
     // (lib/site-design). accentForText darkens until a color reads on WHITE,
     // which on a near-black page hides the links, genre tags and heading rule
     // completely — the accent has to move away from the background it's on.
-    const onDark = blogThemeVars(branding, '#000000')!['--moss'];
-    const onLight = blogThemeVars(branding, '#ffffff')!['--moss'];
+    const onDark = blogThemeVars(branding, { bg: '#000000', ink: '#ffffff' })!['--moss'];
+    const onLight = blogThemeVars(branding, { bg: '#ffffff', ink: '#111111' })!['--moss'];
     expect(contrastRatio(onDark, '#000000')).toBeGreaterThanOrEqual(3.2);
     expect(contrastRatio(onLight, '#ffffff')).toBeGreaterThanOrEqual(3.2);
     expect(onDark).not.toBe(onLight);
@@ -62,6 +62,52 @@ describe('blogThemeVars', () => {
 
   it('keeps the old white-background behaviour when no background is known', () => {
     expect(blogThemeVars(branding)!['--moss']).toBe(accentForText(branding.primary_color));
+  });
+
+  it('leaves the banner deriving from the brand when there is no capture', () => {
+    // Every blog without a design capture must render exactly as it does today.
+    for (const page of [undefined, null, { bg: '#000000', ink: null }, { bg: null, ink: '#fff' }]) {
+      const vars = blogThemeVars(branding, page)!;
+      expect(vars['--cta-bg']).toBe(branding.banner_bg);
+      expect(vars['--cta-btn']).toBe(branding.btn_color);
+    }
+  });
+
+  describe('a bright accent on a dark site (grove’s own shape)', () => {
+    // The case that forced a hand-set brand_override: lime is the accent, and
+    // near-black is the surface. deriveBrandColors can only express one of them
+    // through primary_color, so the banner used to be bought by flattening the
+    // accent. With the page captured, both survive.
+    const lime: BrandColors = { ...branding, primary_color: '#a2ff01', banner_bg: '#7abf01' };
+    const page = { bg: '#000000', ink: '#f4f4f2' };
+
+    it('keeps the accent bright instead of spending it on the banner', () => {
+      const vars = blogThemeVars(lime, page)!;
+      expect(vars['--moss']).toBe('#a2ff01');
+      expect(contrastRatio(vars['--moss'], page.bg)).toBeGreaterThanOrEqual(3.2);
+    });
+
+    it('builds the banner from the site’s own surface, not a darkened brand', () => {
+      const vars = blogThemeVars(lime, page)!;
+      expect(vars['--cta-bg']).not.toBe(lime.banner_bg);      // not the lime-green block
+      expect(isDark(vars['--cta-bg'])).toBe(true);            // lifted off black, still dark
+      expect(vars['--cta-text']).toBe(page.ink);
+      expect(contrastRatio(vars['--cta-text'], vars['--cta-bg'])).toBeGreaterThanOrEqual(4.5);
+    });
+
+    it('puts the brand on the button, readably', () => {
+      const vars = blogThemeVars(lime, page)!;
+      expect(contrastRatio(vars['--cta-btn'], vars['--cta-bg'])).toBeGreaterThanOrEqual(3.2);
+      expect(contrastRatio(vars['--cta-btn-text'], vars['--cta-btn'])).toBeGreaterThanOrEqual(4.5);
+      // and out of the site's own palette — never grove's ink green
+      expect([page.bg, page.ink]).toContain(vars['--cta-btn-text']);
+    });
+
+    it('inverts into a dark card on a light site', () => {
+      const vars = blogThemeVars(lime, { bg: '#ffffff', ink: '#111111' })!;
+      expect(isDark(vars['--cta-bg'])).toBe(true);
+      expect(vars['--cta-text']).toBe('#ffffff');
+    });
   });
 });
 

@@ -54,10 +54,12 @@ export default async function HostedBlogLayout({
    * grove's default moss green. Declaring it here themes both; the pages' own
    * inline copy still wins inside <main>, so nothing they do changes.
    */
-  // Passed the captured background so the accent is corrected against the page
-  // it will actually sit on — a dark customer site otherwise gets a dark blog
-  // with a dark accent, and the links and genre tags disappear into it.
-  const brand = blogThemeVars(resolveBranding(domain), design?.colors.bg);
+  // Passed the captured colors so the accent is corrected against the page it
+  // will actually sit on — a dark customer site otherwise gets a dark blog with
+  // a dark accent, and the links and genre tags disappear into it — and so the
+  // CTA banner is built from the site's own surface instead of a darkened brand
+  // color (see blogThemeVars).
+  const brand = blogThemeVars(resolveBranding(domain), design?.colors);
   const brandCss = brand
     ? `:root{${Object.entries(brand).map(([k, v]) => `${k}:${v}`).join(';')}}`
     : '';

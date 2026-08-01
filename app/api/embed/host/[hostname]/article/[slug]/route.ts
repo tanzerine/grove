@@ -147,17 +147,27 @@ function esc(s: string): string {
  * Floated-right TOC rail as a single self-contained, inline-styled HTML block.
  * float:right makes it sit beside the body without needing the host page's CSS;
  * the article text wraps to its left — matching Grove's hosted layout.
+ *
+ * Colors go through --gv-* with the original literal as the fallback, for the
+ * same reason every rule in embed.js does. This block is injected INSIDE the
+ * embed's mount root, where embed.js has already resolved those properties
+ * against the page it measured — so on a dark site the card follows instead of
+ * pasting a light grey panel into a black article. A customer rendering this
+ * string on their own page without embed.js resolves the fallbacks and sees
+ * exactly what they see today.
  */
 function tocHtml(toc: Toc[]): string {
   const items = toc.map((t) =>
     `<li style="margin:${t.level === 3 ? '3px 0 3px 18px' : '5px 0'}">` +
-    `<a href="#${esc(t.id)}" style="color:#3a4a3f;text-decoration:none">${esc(t.text)}</a></li>`,
+    `<a href="#${esc(t.id)}" style="color:var(--gv-ink,#3a4a3f);text-decoration:none">${esc(t.text)}</a></li>`,
   ).join('');
   // A tidy full-width "Table of contents" card at the top of the article body
   // (not a cramped right-float, which reads badly inside a narrow content column).
-  return `<div style="margin:10px 0 30px;padding:22px 26px;border:1px solid #e6e2d6;border-radius:14px;background:#faf9f5">` +
-    `<div style="font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#7a8a7d;margin-bottom:12px">Table of contents</div>` +
-    `<ol style="margin:0;padding-left:20px;font-size:15px;line-height:1.6;color:#3a4a3f">${items}</ol></div>`;
+  // --gv-surface, not --gv-raise: only the surface properties are themed by
+  // data-theme alone; --gv-raise exists only once embed.js has measured a page.
+  return `<div style="margin:10px 0 30px;padding:22px 26px;border:1px solid var(--gv-line,#e6e2d6);border-radius:var(--gv-radius,14px);background:var(--gv-surface,#faf9f5)">` +
+    `<div style="font-family:var(--gv-label-font,ui-monospace,monospace);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--gv-muted,#7a8a7d);margin-bottom:12px">Table of contents</div>` +
+    `<ol style="margin:0;padding-left:20px;font-size:15px;line-height:1.6;color:var(--gv-ink,#3a4a3f)">${items}</ol></div>`;
 }
 
 type Cta = { headline: string; subline: string; url: string };
@@ -176,6 +186,14 @@ function ctaHtml(cta: Cta, name: string, theme: EmbedTheme): string {
  * — body left, sticky TOC rail right, polished CTA below — with a scoped
  * <style> block so it needs ZERO CSS on the customer's page. They just render
  * this string. Collapses to one column under 820px.
+ *
+ * Self-contained is not the same as fixed. Every neutral here resolves through
+ * a --gv-* property with its old literal as the fallback: rendered inside the
+ * embed the chrome follows the page embed.js measured, and rendered anywhere
+ * else the fallbacks make it byte-identical to what it was. The `theme` colors
+ * stay as those fallbacks — they're derived to read on white (accentForText),
+ * which is the right assumption for a consumer with no measured page and the
+ * wrong one everywhere embed.js has already done better.
  */
 function buildHtmlField(rawBody: string, toc: Toc[], cta: Cta, name: string, theme: EmbedTheme): string {
   // rawBody already has its leading H1 stripped — the customer's page renders
@@ -192,10 +210,10 @@ function buildHtmlField(rawBody: string, toc: Toc[], cta: Cta, name: string, the
     `.grv-root{box-sizing:border-box}` +
     `.grv-wrap{display:grid;grid-template-columns:minmax(0,1fr)${hasToc ? ' 240px' : ''};gap:44px;align-items:start}` +
     `.grv-toc{position:sticky;top:24px;font-size:14px;line-height:1.5}` +
-    `.grv-toc-t{font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#7a8a7d;margin-bottom:10px}` +
+    `.grv-toc-t{font-family:var(--gv-label-font,ui-monospace,monospace);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--gv-muted,#7a8a7d);margin-bottom:10px}` +
     `.grv-toc ol{list-style:none;margin:0;padding:0}` +
-    `.grv-toc a{display:block;color:#7a8a7d;text-decoration:none;padding:5px 0 5px 14px;border-left:2px solid #e6e2d6}` +
-    `.grv-toc a:hover{color:#1a2e1f;border-left-color:${theme.accent}}` +
+    `.grv-toc a{display:block;color:var(--gv-muted,#7a8a7d);text-decoration:none;padding:5px 0 5px 14px;border-left:2px solid var(--gv-line,#e6e2d6)}` +
+    `.grv-toc a:hover{color:var(--gv-ink,#1a2e1f);border-left-color:var(--gv-accent,${theme.accent})}` +
     `.grv-toc li.grv-l3 a{padding-left:26px;font-size:13px}` +
     `.grv-cta{margin:48px 0 8px;padding:40px 36px;border-radius:18px;background:linear-gradient(135deg,${theme.bannerFrom},${theme.bannerTo});color:${theme.bannerText};text-align:center;box-shadow:0 12px 40px rgba(20,20,20,.18)}` +
     `.grv-cta .k{font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:${theme.bannerMuted}}` +

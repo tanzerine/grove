@@ -574,7 +574,8 @@ function rgbOf(hex: string): { r: number; g: number; b: number } | null {
   return null;
 }
 
-function mixHex(a: string, b: string, t: number): string {
+/** Blend two hex colors, `t` of the way from `a` to `b`. */
+export function mixHex(a: string, b: string, t: number): string {
   const x = rgbOf(a), y = rgbOf(b);
   if (!x || !y) return a;
   return '#' + (['r', 'g', 'b'] as const).map((k) => byte(x[k] + (y[k] - x[k]) * t)).join('');
