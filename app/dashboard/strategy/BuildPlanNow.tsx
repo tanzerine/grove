@@ -23,7 +23,11 @@ export default function BuildPlanNow({ domainId, label = 'Build this month’s p
       const res = await fetch(`/api/domains/${domainId}/strategy`, { method: 'POST' });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setErr(j.message ?? j.error ?? 'Could not build the plan. Try again.');
+        // Show the reason when the server sends one. A friendly apology with
+        // no cause is unactionable for the owner and undiagnosable for us —
+        // the failure that motivated this was invisible outside Vercel's logs.
+        const why = j.note && j.note !== j.message ? ` (${j.note})` : '';
+        setErr(`${j.message ?? j.error ?? 'Could not build the plan. Try again.'}${why}`);
         return;
       }
       r.refresh();

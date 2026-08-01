@@ -75,7 +75,18 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   } catch (err: any) {
     console.error('[strategy build] failed:', err);
     return NextResponse.json(
-      { error: 'build_failed', message: 'The strategist could not finish — try again in a minute.' },
+      {
+        error: 'build_failed',
+        message: 'The strategist could not finish — try again in a minute.',
+        // The reason, not just the apology. This used to go ONLY to
+        // console.error, so the single path a human actually watches was the
+        // one that hid why it failed — while /api/cron/strategy already
+        // returned `note` for exactly this. On 2026-08-01 that asymmetry cost
+        // hours: a domain failed to plan every tick for half a day and the
+        // only way to see the cause was Vercel's logs. It is the owner's own
+        // build; they get to see what broke.
+        note: String(err?.message ?? err),
+      },
       { status: 502 },
     );
   }
