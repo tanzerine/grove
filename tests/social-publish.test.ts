@@ -187,3 +187,32 @@ describe('publishToSocials', () => {
     expect(res.webhook.status).toBe(200);
   });
 });
+
+describe('nothing to share to', () => {
+  // The scheduler resumes deferred fan-outs by looking for posts whose
+  // social_published is still null. A domain with no connections and no
+  // webhook must therefore be RECORDED as settled — otherwise "we checked,
+  // there was nowhere to post" is indistinguishable from "still needs
+  // posting", and every such post is re-examined on every tick for a day.
+  it('records an empty result so the post is not rescanned forever', async () => {
+    getConnections.mockResolvedValue([]);
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await publishToSocials('d1', { ...post, social_published: null as any }, domain);
+
+    expect(res).toEqual({});
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(updateEq).toHaveBeenCalled();
+  });
+
+  it('does not rewrite a post that already carries a result', async () => {
+    getConnections.mockResolvedValue([]);
+    vi.stubGlobal('fetch', vi.fn());
+
+    const res = await publishToSocials('d1', { ...post, social_published: { x: { id: 't1' } } }, domain);
+
+    expect(res).toEqual({ x: { id: 't1' } });
+    expect(updateEq).not.toHaveBeenCalled();
+  });
+});

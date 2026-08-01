@@ -81,6 +81,35 @@ const MATERIALIZE_PER_TICK = 3;
  */
 const COVER_COST_MS = 75_000;
 
+/**
+ * Wall clock one post's social fan-out may need: an LLM call for the copy when
+ * the pipeline didn't already write it, then a post to each connected platform
+ * and the outbound webhook. Generous on purpose — overrunning here costs the
+ * article the drain would otherwise have generated.
+ */
+const SOCIAL_COST_MS = 15_000;
+
+/**
+ * Ceiling on the share of a tick that fan-out may spend, so a day when every
+ * domain publishes at once cannot starve generation. ~6 posts a tick, ~144 a
+ * day, against a platform that generates ~24 — fan-out can never be the
+ * bottleneck, and it still cannot take the invocation.
+ */
+const SOCIAL_BUDGET_MS = 90_000;
+
+/**
+ * How far back to look for posts whose fan-out hasn't run. Long enough that a
+ * deferred post is certain to be picked up (24 ticks of runway), short enough
+ * that connecting a channel never retro-posts the back catalogue.
+ */
+const SOCIAL_RESUME_WINDOW_MS = 24 * 3600_000;
+
+/** Cap on the fan-out scan itself, so the query stays flat as the site grows. */
+const SOCIAL_FANOUT_SCAN = 100;
+
+/** Ids per publish statement — see the chunk loop for why this is bounded. */
+const PUBLISH_CHUNK = 200;
+
 export async function GET(req: Request) {
   if (!isCronAuthorized(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
@@ -92,24 +121,71 @@ export async function GET(req: Request) {
   // Prune rate-limiter rows older than any window (best-effort; ignore errors).
   await sb.from('rate_hits').delete().lt('created_at', new Date(Date.now() - 2 * 3600_000).toISOString());
 
-  // 1) publish scheduled posts whose time has come, then fan out to socials
+  // 1) PUBLISH everything whose time has come — in ONE statement.
+  //
+  //    Every planned slot on every domain publishes at PUBLISH_HOUR_UTC, so
+  //    this is not a trickle: at N domains the 09:00 tick finds a whole
+  //    platform-day of posts at once. It used to walk them one UPDATE at a
+  //    time and fan each one out to socials inline, with no clock anywhere in
+  //    the loop — and the fan-out is the expensive half (an LLM call for the
+  //    copy, then OAuth posts to up to three platforms, plus a webhook).
+  //    Publishing is also the product's actual promise, and it must not be
+  //    hostage to a flaky social API: one slow platform could push this past
+  //    maxDuration, at which point Vercel kills the function UNCATCHABLY —
+  //    some posts live, some not, no error recorded, and the tick's generation
+  //    never runs. Splitting the cheap half from the expensive half means a
+  //    hundred posts go live in a single round trip.
   const now = new Date().toISOString();
   const { data: due } = await sb
     .from('posts')
-    .select('id, title, slug, body_md, social, cover_image_url, social_published, domain_id, domains(*)')
+    .select('id, domain_id, domains(user_id)')
     .eq('status', 'scheduled').lte('scheduled_at', now);
-  let socialFanout = 0;
-  for (const p of due ?? []) {
-    await sb.from('posts').update({ status: 'published', published_at: now }).eq('id', p.id);
-
-    const domain = (p as any).domains;
-    // Autopilot publishing is the product's whole promise, so it has to appear
-    // in the same series as manual approvals — `scheduled` is what separates
-    // "the agent shipped this" from "a person clicked approve".
-    if (domain?.user_id) {
-      await captureServer(domain.user_id, 'post_published', { post_id: p.id, scheduled: true });
+  const dueIds = (due ?? []).map((p: any) => p.id);
+  if (dueIds.length) {
+    // Chunked: `in` becomes a query-string filter, so one enormous day would
+    // otherwise build a URL long enough to be rejected outright.
+    for (let i = 0; i < dueIds.length; i += PUBLISH_CHUNK) {
+      await sb
+        .from('posts')
+        .update({ status: 'published', published_at: now })
+        .in('id', dueIds.slice(i, i + PUBLISH_CHUNK))
+        .eq('status', 'scheduled');
     }
+    for (const p of due ?? []) {
+      // Autopilot publishing is the product's whole promise, so it has to
+      // appear in the same series as manual approvals — `scheduled` is what
+      // separates "the agent shipped this" from "a person clicked approve".
+      const userId = (p as any).domains?.user_id;
+      if (userId) await captureServer(userId, 'post_published', { post_id: p.id, scheduled: true });
+    }
+  }
+
+  // 1a) FAN OUT to socials, time-boxed and resumable.
+  //
+  //     Reads what was JUST published together with anything published in the
+  //     last day whose fan-out never ran — the posts deferred by an earlier
+  //     tick's budget land here automatically, because publishToSocials writes
+  //     posts.social_published and this looks for the rows where it is still
+  //     null. That is the whole resume mechanism: no extra bookkeeping, and it
+  //     is idempotent, so re-running can never double-post.
+  //
+  //     The slice is capped so a big publishing day cannot eat the invocation
+  //     the drain needs. Whatever doesn't fit waits for the next tick, which
+  //     is 60 minutes — for a social post, immaterial.
+  let socialFanout = 0;
+  let socialDeferred = 0;
+  const { data: pendingSocial } = await sb
+    .from('posts')
+    .select('id, title, slug, body_md, social, cover_image_url, social_published, domain_id, domains(*)')
+    .eq('status', 'published')
+    .is('social_published', null)
+    .gte('published_at', new Date(Date.now() - SOCIAL_RESUME_WINDOW_MS).toISOString())
+    .order('published_at', { ascending: true })
+    .limit(SOCIAL_FANOUT_SCAN);
+  for (const p of pendingSocial ?? []) {
+    const domain = (p as any).domains;
     if (!domain?.auto_social) continue;
+    if (!hasRoomFor(elapsed(), SOCIAL_BUDGET_MS, SOCIAL_COST_MS)) { socialDeferred++; continue; }
     try {
       // generate the social copy on demand if it wasn't created earlier
       let social = (p as any).social;
