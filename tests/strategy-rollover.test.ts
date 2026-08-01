@@ -4,6 +4,7 @@ import {
   daysUntilNextMonth,
   monthKey,
   planToActivate,
+  planIsStale,
   planningQueue,
   planningTargets,
   startOfMonthUTC,
@@ -184,5 +185,37 @@ describe('planningQueue', () => {
     ];
     planningQueue(input);
     expect(input.map((d) => d.id)).toEqual(['newer', 'older']);
+  });
+});
+
+describe('planIsStale', () => {
+  it('is false while the live plan covers the current month', () => {
+    expect(planIsStale('2026-08-01', at(2026, 8, 1))).toBe(false);
+    expect(planIsStale('2026-08-01', at(2026, 8, 31, 23))).toBe(false);
+  });
+
+  it('is true the instant the month turns over on a plan that did not roll', () => {
+    // www.oveners.com on 2026-08-01: July's plan still active because August's
+    // build failed, so the dashboard was rendering last month's calendar as if
+    // it were this month's, with no way to ask for a new one.
+    expect(planIsStale('2026-07-01', at(2026, 8, 1))).toBe(true);
+  });
+
+  it('is true for a plan several months behind', () => {
+    expect(planIsStale('2026-03-01', at(2026, 8, 12))).toBe(true);
+  });
+
+  it('is false for a staged plan covering a future month', () => {
+    expect(planIsStale('2026-09-01', at(2026, 8, 28))).toBe(false);
+  });
+
+  it('handles the year boundary', () => {
+    expect(planIsStale('2026-12-01', at(2027, 1, 1))).toBe(true);
+    expect(planIsStale('2027-01-01', at(2027, 1, 1))).toBe(false);
+  });
+
+  it('treats a missing month as not stale rather than throwing', () => {
+    expect(planIsStale(null, at(2026, 8, 1))).toBe(false);
+    expect(planIsStale(undefined, at(2026, 8, 1))).toBe(false);
   });
 });

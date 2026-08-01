@@ -5,6 +5,7 @@ import { getActiveDomain } from '@/lib/active-domain';
 import { summarizeMonth, type MonthlyReport } from '@/lib/strategy/review';
 import type { Strategy, Goal, Pillar, PostSlot, KPI } from '@/lib/strategy/build';
 import { horizons } from '@/lib/strategy/context';
+import { monthKey, planIsStale, startOfMonthUTC } from '@/lib/strategy/rollover';
 import { strategyBrief } from '@/lib/strategy/brief';
 import Icon from '../gv-icons';
 import { DashHeader } from '../gv-chrome';
@@ -81,6 +82,18 @@ export default async function StrategyPage() {
   // (e.g. "2026-07-01"). Slice to "YYYY-MM" before rebuilding the UTC date —
   // appending "-01T00:00:00Z" to a full date produced "Invalid Date".
   const planMonth = new Date(String(s.month).slice(0, 7) + '-01T00:00:00Z').toLocaleString(undefined, { month: 'long', year: 'numeric' });
+
+  // A LIVE PLAN FROM A PAST MONTH. The active plan is read without any month
+  // filter, so when this month's build fails the page happily renders LAST
+  // month's calendar as if it were current — dates in the past, slots already
+  // published — and BuildPlanNow only ever appeared in the "No strategy yet"
+  // empty state, which a domain with any plan at all never reaches. The owner
+  // whose month is actually broken was the one owner with no way to ask for it.
+  // On 2026-08-01 that was www.oveners.com for a day and a half.
+  const currentMonthKey = monthKey(startOfMonthUTC(new Date())).slice(0, 7);
+  const stalePlan = planIsStale(s.month, new Date());
+  const currentMonthLabel = new Date(`${currentMonthKey}-01T00:00:00Z`)
+    .toLocaleString(undefined, { month: 'long', year: 'numeric' });
 
   // ---------- goals (rings) ----------
   const now = new Date();
@@ -277,6 +290,30 @@ export default async function StrategyPage() {
       <DashHeader title="Strategy" subtitle={`${domain.hostname} · the agent's plan for ${planMonth}`} />
 
       <div className="gv-body">
+        {stalePlan && (
+          <section style={{ background: 'var(--gv-card)', border: '1px solid rgba(224,200,120,0.34)', borderRadius: 14, padding: '18px 20px', marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 10.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--gv-amber)' }}>
+              <Icon name="clock" size={13} /> Plan out of date
+            </div>
+            <h3 style={{ fontSize: 17, fontWeight: 600, color: 'var(--gv-ink)', margin: '10px 0 0' }}>
+              You’re looking at your {planMonth} plan. {currentMonthLabel} hasn’t been built yet.
+            </h3>
+            <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--gv-dim)', margin: '8px 0 0', maxWidth: 680 }}>
+              The agent builds each month’s plan automatically and retries every hour, so this
+              usually clears itself. Below is last month’s calendar — its dates have passed, so
+              nothing new is being queued from it. Build {currentMonthLabel} now if you’d rather
+              not wait.
+            </p>
+            {domain.verified_at
+              ? <BuildPlanNow domainId={domain.id} label={`Build ${currentMonthLabel}’s plan →`} />
+              : (
+                <p style={{ fontSize: 12.5, color: 'var(--gv-dim)', margin: '12px 0 0' }}>
+                  Verify this domain and the strategist can draft it.
+                </p>
+              )}
+          </section>
+        )}
+
         {/* ===== HERO BRIEF ===== */}
         <section className="gv-card" style={{ background: 'var(--gv-card-grad)', border: '1px solid rgba(162,255,1,0.18)', borderRadius: 18, padding: '26px 28px', marginBottom: 14 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 28, flexWrap: 'wrap' }}>
