@@ -54,6 +54,7 @@ import {
   shouldSyncGsc,
 } from '@/lib/pipeline/capacity';
 import { materializeDuePlanSlots } from '@/lib/strategy/materialize';
+import { monthKey, planToActivate, startOfMonthUTC } from '@/lib/strategy/rollover';
 import { entitledUserSet } from '@/lib/billing';
 import { consumeQuota, quotaForUsers, releaseQuota, shareAllowance } from '@/lib/quota';
 import { publishToSocials } from '@/lib/social/publish';
@@ -205,6 +206,51 @@ export async function GET(req: Request) {
   //     ~3-4 minutes it needs. Healing still happens every hour; it just no
   //     longer competes with the drain, and this tick keeps its full budget for
   //     generation.
+
+  // 2b-ii) ROLL THE MONTH OVER. /api/cron/strategy stages next month's plan
+  //     during the last days of this one (inactive, so it can't hijack the live
+  //     plan); this promotes every staged plan whose month has arrived.
+  //
+  //     It runs BEFORE materialize on purpose — the same tick that rolls a
+  //     domain over then queues its first slots, so the 1st isn't a lost day.
+  //
+  //     This is the half that makes the boundary scale. Building plans is one
+  //     domain per hour, so doing it at the boundary made the outage N hours
+  //     wide for N domains. Promoting is a single UPDATE per domain, so every
+  //     customer rolls over in ONE tick regardless of how many there are.
+  let activated = 0;
+  const currentMonth = monthKey(startOfMonthUTC(new Date()));
+  if (entitledDomains.length) {
+    // Bounded read: rows that are live anywhere, plus anything for this month.
+    // Enough to spot a staged plan and every row it must displace, without
+    // dragging in a year of history.
+    const { data: stratRows } = await sb
+      .from('strategies')
+      .select('id, domain_id, month, active, created_at')
+      .in('domain_id', entitledDomains.map((d: any) => d.id))
+      .or(`active.eq.true,month.eq.${currentMonth}`);
+    const byDomain = new Map<string, any[]>();
+    for (const r of stratRows ?? []) {
+      const list = byDomain.get((r as any).domain_id) ?? [];
+      list.push(r);
+      byDomain.set((r as any).domain_id, list);
+    }
+    for (const [, rows] of byDomain) {
+      const { activateId, deactivateIds } = planToActivate(rows as any, new Date());
+      if (!activateId) continue;
+      try {
+        // Deactivate first: a crash between the two must never leave two live
+        // plans, which would make the live-plan read order-dependent.
+        if (deactivateIds.length) {
+          await sb.from('strategies').update({ active: false }).in('id', deactivateIds);
+        }
+        await sb.from('strategies').update({ active: true }).eq('id', activateId);
+        activated++;
+      } catch (e) {
+        console.error('[scheduler] strategy rollover failed:', activateId, e);
+      }
+    }
+  }
 
   // 2c) materialize plan → posts: turn active-strategy slots that are due
   //     (within the lead window) into queued posts, carrying their planned
@@ -368,6 +414,8 @@ export async function GET(req: Request) {
     social_fanout: socialFanout,
     reclaimed,
     // strategy_healed moved to /api/cron/strategy — see 2b.
+    // Staged plans promoted because their month started — see 2b-ii.
+    activated,
     materialized,
     generated,
     covers_inline: coversInline,

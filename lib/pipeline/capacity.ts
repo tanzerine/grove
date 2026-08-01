@@ -46,11 +46,28 @@ export const GSC_RESERVE_MS = 45_000;
 // spend on generation.
 export const GSC_SYNC_HOUR_UTC = 4;
 
-/** Should this tick spend time on the Search Console sync? */
-export function shouldSyncGsc(now: Date, ticksPerDayCount: number): boolean {
+/**
+ * Should this tick spend time on the Search Console sync?
+ *
+ * Gated on the minute as well as the hour. Gating on the hour alone is exact
+ * only while the scheduler fires once an hour: on the every-15-minutes schedule
+ * that CLAUDE.md names as the next throughput step, all four ticks inside the
+ * sync hour would qualify — syncing Google four times for data it publishes
+ * daily, and withholding GSC_RESERVE_MS from the drain on four ticks instead of
+ * one. The schedule's own first minute is the single tick that syncs.
+ */
+export function shouldSyncGsc(
+  now: Date,
+  ticksPerDayCount: number,
+  tickMinutes: number[] = schedulerTickMinutes(),
+): boolean {
   // On a once-daily schedule the sole tick must do it, whatever hour it lands on.
   if (ticksPerDayCount <= 1) return true;
-  return now.getUTCHours() === GSC_SYNC_HOUR_UTC;
+  if (now.getUTCHours() !== GSC_SYNC_HOUR_UTC) return false;
+  // An unparseable schedule leaves no minute to single out; the hour gate alone
+  // is the old behaviour and still syncs, which beats never syncing at all.
+  if (!tickMinutes.length) return true;
+  return now.getUTCMinutes() === Math.min(...tickMinutes);
 }
 
 // Used until enough real generations have been observed to measure.
@@ -130,6 +147,18 @@ export function schedulerCron(): string {
 
 export function schedulerTicksPerDay(): number {
   return ticksPerDay(schedulerCron());
+}
+
+/**
+ * Minutes past the hour the scheduler fires on, from its own cron.
+ *
+ * Lets once-a-day tail work pick exactly one tick on a sub-hourly schedule
+ * instead of every tick inside the chosen hour. Empty when unparseable.
+ */
+export function schedulerTickMinutes(cron: string = schedulerCron()): number[] {
+  const parts = cron.trim().split(/\s+/);
+  if (parts.length !== 5) return [];
+  return expandField(parts[0], 0, 59);
 }
 
 // ── per-tick time budget ───────────────────────────────────────────────────
