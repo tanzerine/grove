@@ -41,6 +41,10 @@ export type SiteProfile = {
   /** Fonts, palette and navigation captured from the homepage, for the blogs
       grove HOSTS — those have no page to measure. See lib/site-design.ts. */
   design: SiteDesign | null;
+  /** When `design` was last captured (ISO). Drives the refresh order in
+      /api/cron/domains; absent on profiles written before that cron existed,
+      which is exactly the set that should be re-captured first. */
+  design_captured_at?: string | null;
   meta: {
     has_blog: boolean;
     has_pricing: boolean;

@@ -5,6 +5,7 @@
  * embed.js. Keeping the mapping here means the banner, TOC, and cards can't
  * drift apart — they all read the same palette.
  */
+import { mixHex } from './site-design';
 
 export type BrandColors = {
   primary_color: string;
@@ -166,29 +167,75 @@ export function resolveBranding(domain: any): BrandColors | null {
 
 // ─── theme builders ──────────────────────────────────────────────────────────
 
+/** The page a palette will sit on, as captured by lib/site-design. */
+export type PageColors = { bg?: string | null; ink?: string | null } | null;
+
 /**
  * CSS custom properties for the hosted blog pages. Setting --moss on the page
  * root retints everything the blog styles hang off it — TOC hover, genre tags,
  * card hover borders, chips, read-progress bar — while --cta-* themes the
  * "Try {business}" banner. Returns undefined when no branding was extracted,
  * so pages fall back to Grove's own palette.
+ *
+ * The banner comes from the CAPTURED PAGE when there is one, not from
+ * `banner_bg`. deriveBrandColors builds the banner by darkening the primary,
+ * which quietly makes one column do two jobs: `primary_color` is both the
+ * accent that has to read as the brand AND the seed for the banner surface.
+ * A brand that is a bright accent ON a dark surface — grove's own lime on
+ * near-black is exactly this — cannot be expressed that way, and the only way
+ * to get the banner right was to set `primary_color` to the surface color,
+ * which then flattened the accent everywhere it appears. Once the site's own
+ * background and ink are known, the banner is built from those and the accent
+ * is free to stay the accent.
  */
 export function blogThemeVars(
   branding: BrandColors | null | undefined,
-  /** The page background this palette will sit on, when it's known — see accentOn. */
-  bg?: string | null,
+  /** The captured page colors this palette will sit on, when known. */
+  page?: PageColors,
 ): Record<string, string> | undefined {
   if (!branding?.primary_color) return undefined;
+  const bg = page?.bg ?? null;
+  const ink = page?.ink ?? null;
   const accent = accentOn(branding.primary_color, bg);
+
+  // No capture: the banner keeps deriving from the brand color, which is what
+  // every existing blog renders today.
+  const banner =
+    bg && ink
+      ? (() => {
+          // Dark page: the banner lifts off it. Light page: it inverts, which
+          // is the dark CTA card the blog has always drawn — except the darkness
+          // is now the site's own ink instead of a muddied brand color.
+          const dark = isDark(bg);
+          const bannerBg = mixHex(bg, ink, dark ? 0.10 : 0.92);
+          const bannerText = dark ? ink : bg;
+          // The button is where the brand belongs on a neutral card — corrected
+          // against the banner it sits on, not against the page behind it.
+          const btn = accentOn(branding.primary_color, bannerBg);
+          return {
+            '--cta-bg': bannerBg,
+            '--cta-text': bannerText,
+            '--cta-text-muted': withOpacity(bannerText, 0.65),
+            '--cta-btn': btn,
+            // Label the button out of the site's OWN two colors rather than
+            // contrastColor's grove-green default, which is a grove token on a
+            // customer's page.
+            '--cta-btn-text': contrastRatio(ink, btn) >= contrastRatio(bg, btn) ? ink : bg,
+          };
+        })()
+      : {
+          '--cta-bg': branding.banner_bg,
+          '--cta-text': branding.banner_text,
+          '--cta-text-muted': branding.banner_text_muted,
+          '--cta-btn': branding.btn_color,
+          '--cta-btn-text': branding.btn_text_color,
+        };
+
   return {
     '--moss': accent,
     '--moss2': darkenHex(accent, 0.15),
     '--accent-soft': withOpacity(accent, 0.10),
-    '--cta-bg': branding.banner_bg,
-    '--cta-text': branding.banner_text,
-    '--cta-text-muted': branding.banner_text_muted,
-    '--cta-btn': branding.btn_color,
-    '--cta-btn-text': branding.btn_text_color,
+    ...banner,
   };
 }
 

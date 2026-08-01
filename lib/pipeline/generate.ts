@@ -229,10 +229,14 @@ async function generatePostInner(postId: string, opts: GenerateOptions = {}) {
     // and its hosted blog would keep rendering in grove's colors. One homepage
     // fetch, no LLM — and best-effort: a blog post must never fail over the
     // way its own page is painted.
+    //
+    // This is the OPPORTUNISTIC half. It only fires when a domain generates,
+    // which for a blog that publishes rarely can be never — /api/cron/domains
+    // is the half that guarantees every domain gets captured and refreshed.
     try {
       const design = await captureSiteDesign(domain.hostname);
       if (design) {
-        profile = { ...profile, design };
+        profile = { ...profile, design, design_captured_at: new Date().toISOString() };
         await sb.from('domains').update({ site_profile: profile }).eq('id', domain.id);
       }
     } catch { /* keep grove's look for now; next run tries again */ }
