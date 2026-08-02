@@ -9,8 +9,24 @@
  * the route owns the I/O.
  */
 
-/** Vercel's anycast apex IP — an A record here works as well as the CNAME. */
-export const VERCEL_APEX_IP = '76.76.21.21';
+/**
+ * Vercel anycast addresses seen in the wild for an A-record setup — apex
+ * records, and registrars/proxies that flatten a CNAME into A.
+ *
+ * This list ROTS, and it already had: the single IP here used to be
+ * 76.76.21.21, which today matches nothing — trygroveai.com's own apex answers
+ * 216.198.79.1 and cname.vercel-dns.com resolves to 76.76.21.22 / 66.33.60.129.
+ * A customer whose registrar hands back A records was therefore told "no record
+ * found yet" by a checklist looking at correct DNS.
+ *
+ * So the list is a HINT, not the test. `dnsPointsAtVercel` also accepts any
+ * *.vercel-dns.com CNAME, and buildSetupSteps treats a host that is already
+ * serving grove's own robots.txt over HTTPS as proof enough — which is the part
+ * that can't go stale when Vercel renumbers again.
+ */
+export const VERCEL_APEX_IPS = ['216.198.79.1', '76.76.21.21', '76.76.21.22', '66.33.60.129'];
+/** @deprecated kept for callers that want a single example to display. */
+export const VERCEL_APEX_IP = VERCEL_APEX_IPS[0];
 export const VERCEL_CNAME = 'cname.vercel-dns.com';
 
 export type HostnameProbe = {
@@ -43,11 +59,15 @@ export function recordLabel(hostname: string): string {
 export function dnsPointsAtVercel(cnameTarget?: string | null, aRecords?: string[]): boolean {
   const target = (cnameTarget ?? '').toLowerCase().replace(/\.$/, '');
   if (target.endsWith('vercel-dns.com')) return true;
-  return (aRecords ?? []).includes(VERCEL_APEX_IP);
+  return (aRecords ?? []).some((ip) => VERCEL_APEX_IPS.includes(ip.trim()));
 }
 
 export function buildSetupSteps(p: HostnameProbe): { steps: SetupStep[]; allOk: boolean } {
-  const dnsOk = dnsPointsAtVercel(p.cnameTarget, p.aRecords);
+  // A host that already serves grove's own robots.txt over HTTPS has working
+  // DNS by definition, whatever shape the records take. Checking that first
+  // means the recogniser above can fall behind Vercel's addressing without the
+  // checklist contradicting a page the customer can already load.
+  const dnsOk = p.serving === true || dnsPointsAtVercel(p.cnameTarget, p.aRecords);
   const target = (p.cnameTarget ?? '').replace(/\.$/, '');
 
   const attach: SetupStep = {
