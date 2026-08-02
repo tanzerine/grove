@@ -162,9 +162,29 @@ export default function CustomHostnameForm({
       {state === 'error' && (
         <p style={{ color: 'var(--gv-red)', fontSize: 12.5, margin: '8px 0 0' }}>{error}</p>
       )}
+      {/* `blog.{apex}` is the answer for almost everyone, so it shouldn't have
+          to be typed. It stays a SUGGESTION rather than a pre-filled value on
+          purpose: grove can set this column and attach the hostname to the
+          project, but it cannot create the CNAME in a DNS zone it doesn't
+          control — so a value written without the customer asking would leave
+          a hostname that resolves nowhere while the dashboard reported it as
+          live. One click to accept keeps the choice explicit and the status
+          card honest. (Filling the input, never submitting, also keeps the
+          empty-Save guard above intact.) */}
       {cannotSubmit && state !== 'error' && (
-        <p style={{ color: 'var(--gv-dim)', fontSize: 12, margin: '6px 0 0' }}>
-          Type a subdomain like <span className="mono">blog.{apex}</span> — the grey text is just an example.
+        <p style={{ color: 'var(--gv-dim)', fontSize: 12, margin: '8px 0 0', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => setValue(`blog.${apex}`)}
+            style={{
+              border: '1px solid rgba(255,255,255,0.16)', background: 'rgba(255,255,255,0.05)',
+              color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600,
+              padding: '5px 11px', borderRadius: 8, cursor: 'pointer',
+            }}
+          >
+            Use <span className="mono">blog.{apex}</span>
+          </button>
+          <span>or type another subdomain — you&rsquo;ll add one DNS record either way.</span>
         </p>
       )}
 
