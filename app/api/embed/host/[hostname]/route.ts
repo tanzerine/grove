@@ -7,7 +7,7 @@
  */
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { blogPostUrl, sanitizeEmbedHost, appBase } from '@/lib/seo';
+import { blogPostUrl, sanitizeEmbedHost, appBase, canonicalBaseFor } from '@/lib/seo';
 import { embedSeoStatus } from '@/lib/embed-seo';
 import { genreFor, authorFor } from '@/lib/blog-genre';
 import { brandingPayload, resolveBranding } from '@/lib/blog-theme';
@@ -85,7 +85,10 @@ export async function GET(req: Request, ctx: { params: Promise<{ hostname: strin
       slug: p.slug,
       title: p.title,
       excerpt: p.meta_description,
-      url: blogPostUrl(domain.blog_slug, p.slug, (domain as any).canonical_blog_base),
+      // canonicalBaseFor, never the raw column: a customer whose canonical is a
+      // CNAME (custom_blog_hostname, canonical_blog_base NULL) would otherwise
+      // fall through to the grove mirror and contradict `blog_base` above.
+      url: blogPostUrl(domain.blog_slug, p.slug, canonicalBaseFor(domain as any)),
       date: p.published_at,
       cover_image_url: p.cover_image_url ?? null,
       cover_image_credit: p.cover_image_credit ?? null,
