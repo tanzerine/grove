@@ -13,6 +13,8 @@
 import { supabaseAdmin } from './supabase/admin';
 import { getStripe, stripeConfigured } from './stripe';
 import { LIMITS } from './ratelimit';
+import { entitledUserSet } from './billing';
+import { monthKey, startOfMonthUTC } from './strategy/rollover';
 import {
   capacityReport,
   committedPostsPerMonth,
@@ -43,6 +45,7 @@ const T = {
   signupWarn: 8, signupCrit: 30,        // new users in the last hour
   failedPayWarn: 4, failedPayCrit: 15,  // failed charges in the last 24h
   capacityWarnRatio: 0.75,              // sold quota ÷ deliverable capacity
+  queueStallHours: 6,                   // oldest queued post still waiting
 };
 
 const iso = (ms: number) => new Date(ms).toISOString();
@@ -201,6 +204,92 @@ export async function detectAnomalies(): Promise<Flag[]> {
       });
     }
   } catch { /* subscriptions or posts unreadable */ }
+
+  // ── THE AGENT LOOP ITSELF ──
+  //
+  // Every flag above watches traffic, money, or capacity. NONE of them watched
+  // the thing the product actually sells. On 2026-08-01 the monthly plan build
+  // failed on every tick for a day and a half: the paying domain had no live
+  // plan, nothing materialized, nothing generated, nothing published — and the
+  // admin overview was completely green the entire time. It was found because
+  // a human went looking, which is not a monitoring strategy.
+  //
+  // A stopped loop must be louder than a traffic spike, because it is the only
+  // failure the customer is actually paying us not to have.
+  try {
+    const { data: domains } = await admin
+      .from('domains')
+      .select('id, hostname, user_id, strategy_error')
+      .not('verified_at', 'is', null);
+    const entitled = await entitledUserSet((domains ?? []).map((d: any) => d.user_id));
+    const live = (domains ?? []).filter((d: any) => entitled.has(d.user_id));
+
+    if (live.length) {
+      const month = monthKey(startOfMonthUTC(new Date()));
+      const { data: plans } = await admin
+        .from('strategies')
+        .select('domain_id')
+        .eq('month', month)
+        .eq('active', true);
+      const planned = new Set((plans ?? []).map((r: any) => r.domain_id));
+
+      // No live plan for THIS month = publishing nothing, right now. There is
+      // no degraded mode here: materializeDuePlanSlots reads the active plan,
+      // so a domain without one queues nothing at all.
+      const unplanned = live.filter((d: any) => !planned.has(d.id));
+      if (unplanned.length) {
+        flags.push({
+          key: 'plan_missing',
+          severity: 'critical',
+          title: `${unplanned.length} paying domain${unplanned.length === 1 ? '' : 's'} with no plan this month`,
+          detail: `${unplanned.map((d: any) => d.hostname).slice(0, 5).join(', ')}` +
+            `${unplanned.length > 5 ? ` +${unplanned.length - 5} more` : ''} have no active ${month} strategy, ` +
+            `so nothing is being queued or published for them. /api/cron/strategy retries hourly; ` +
+            `check domains.strategy_error for the reason it isn't landing.`,
+        });
+      }
+
+      // The reason, when the planner recorded one. This is the flag that would
+      // have turned "the blog stopped" into "extractJson hit a truncated
+      // publishing_plan" without anyone opening Vercel's logs.
+      const failing = live.filter((d: any) => d.strategy_error);
+      if (failing.length) {
+        flags.push({
+          key: 'plan_build_failing',
+          severity: 'warn',
+          title: `Plan build failing on ${failing.length} domain${failing.length === 1 ? '' : 's'}`,
+          detail: failing.slice(0, 3)
+            .map((d: any) => `${d.hostname}: ${String(d.strategy_error).slice(0, 160)}`)
+            .join(' · '),
+        });
+      }
+
+      // Generic backstop for the failure modes not yet imagined: work is queued
+      // for a paying domain and simply isn't moving. Says the queue depth too,
+      // so a real backlog (deep queue, oldest waiting) reads differently from a
+      // stall (shallow queue, oldest waiting just as long).
+      const liveIds = new Set(live.map((d: any) => d.id));
+      const { data: queued } = await admin
+        .from('posts')
+        .select('domain_id, created_at')
+        .eq('status', 'queued')
+        .order('created_at', { ascending: true })
+        .limit(1000);
+      const mine = (queued ?? []).filter((p: any) => liveIds.has(p.domain_id));
+      const oldest = mine[0]?.created_at ? new Date(mine[0].created_at).getTime() : null;
+      const waitedH = oldest === null ? 0 : (now - oldest) / 3600_000;
+      if (waitedH >= T.queueStallHours) {
+        flags.push({
+          key: 'queue_stalled',
+          severity: waitedH >= T.queueStallHours * 2 ? 'critical' : 'warn',
+          title: 'Queued posts are not being generated',
+          detail: `The oldest queued post has waited ${Math.round(waitedH)}h with ${mine.length} in the queue. ` +
+            `At roughly ${schedulerTicksPerDay()} ticks/day a shallow queue waiting this long means the drain ` +
+            `isn't draining — check the scheduler cron, quota, and entitlement.`,
+        });
+      }
+    }
+  } catch { /* domains or strategies unreadable — never take the page down */ }
 
   return flags;
 }
