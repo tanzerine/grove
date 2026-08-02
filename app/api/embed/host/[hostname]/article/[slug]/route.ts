@@ -9,7 +9,9 @@ import { mdToHtml, extractToc } from '@/lib/markdown';
 import { stripLeadingH1, stripLeadingCoverImage } from '@/lib/article-body';
 import { genreFor, authorFor } from '@/lib/blog-genre';
 import { pickRelated } from '@/lib/related-posts';
-import { sanitizeEmbedHost } from '@/lib/seo';
+import { sanitizeEmbedHost, buildArticleGraph, canonicalBaseFor } from '@/lib/seo';
+import { crawlableArticleUrl } from '@/lib/embed-seo';
+import { extractFaq } from '@/lib/faq';
 import { embedTheme, brandingPayload, resolveBranding, type EmbedTheme } from '@/lib/blog-theme';
 import { resolveBlogDomain } from '@/lib/blog-domain';
 
@@ -108,6 +110,32 @@ export async function GET(_req: Request, ctx: { params: Promise<{ hostname: stri
   const enrichedBody = enrichBody(rawBody, { toc, cta, businessName, theme });
   const html = buildHtmlField(rawBody, toc, cta, businessName, theme);
 
+  // The head signals for the in-page hash reader. A fragment can never be its
+  // own indexable URL, so when embed.js opens an article it points rel=canonical
+  // at the crawlable copy (the customer's own base when they have one, grove's
+  // mirror otherwise) and injects the same Article @graph the hosted page emits.
+  // It's the one piece of SEO a script CAN deliver, and it costs one field here.
+  const author = authorFor((domain as any).site_profile, domain.hostname);
+  const genre = genreFor((post as any).format, post.title);
+  const canonicalUrl = crawlableArticleUrl(domain as any, post.slug);
+  const jsonLd = buildArticleGraph({
+    hostname: domain.hostname,
+    blogSlug: (domain as any).blog_slug ?? '',
+    postSlug: post.slug,
+    title: post.title ?? '',
+    description: post.meta_description,
+    image: post.cover_image_url,
+    publishedAt: post.published_at,
+    businessName,
+    homeUrl,
+    authorName: author,
+    authorIsOrg: author.endsWith('Team'),
+    genreLabel: genre.label,
+    wordCount: (post.body_md ?? '').split(/\s+/).filter(Boolean).length,
+    faqs: extractFaq(post.body_md ?? ''),
+    canonicalBase: canonicalBaseFor(domain as any),
+  });
+
   return NextResponse.json({
     domain: domain.hostname,
     article: {
@@ -117,8 +145,10 @@ export async function GET(_req: Request, ctx: { params: Promise<{ hostname: stri
       title: post.title,
       meta_title: post.meta_title,
       meta_description: post.meta_description,
-      genre: genreFor((post as any).format, post.title).label,
-      author: authorFor((domain as any).site_profile, domain.hostname),
+      genre: genre.label,
+      author,
+      canonical_url: canonicalUrl,   // rel=canonical for the in-page reader
+      json_ld: jsonLd,               // Article @graph — same shape the hosted page emits
       body_md: enrichedBody,             // fallback: floated TOC + CTA inline
       html,                              // RECOMMENDED: full 2-col article + right-rail TOC + CTA
       toc,                               // [{ id, text, level }] — build your own rail if you prefer
