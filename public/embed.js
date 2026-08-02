@@ -214,8 +214,75 @@
   function readableOn(color, bg, min) {
     var target = luminance(bg) < 0.22 ? WHITE : BLACK;
     var c = color;
-    for (var i = 0; i < 12 && contrast(c, bg) < min; i++) c = mix(c, target, 0.12);
-    return c;
+    // 24 steps, not 12. Twelve covers an accent that starts on the far side of
+    // the background, which is the ordinary case. It does not cover one that
+    // starts on the SAME side and has to be dragged across it — a navy brand on
+    // a mid-grey page ran out of room at 3.1:1 and returned a color that failed
+    // the floor this function exists to guarantee. Twenty-four reaches ~96% of
+    // the way to the pole, so the loop ends because it succeeded rather than
+    // because it gave up.
+    for (var i = 0; i < 24 && contrast(c, bg) < min; i++) c = mix(c, target, 0.12);
+    // Mixing by a fraction each step approaches the pole asymptotically and
+    // never arrives, so an accent needing nearly all of the way there lands
+    // just short — the navy-on-mid-grey case stopped at 4.4 against a 4.5
+    // floor. Where the loop could not get there, the pole itself is both the
+    // best available answer and an honest one.
+    return contrast(c, bg) < min && contrast(target, bg) > contrast(c, bg) ? target : c;
+  }
+
+  /* How far a color is from grey. Paper, ink and every neutral in between have
+     almost none of it; a brand color is the thing on the page that does. */
+  function chroma(c) {
+    return (Math.max(c.r, c.g, c.b) - Math.min(c.r, c.g, c.b)) / 255;
+  }
+
+  function nearColor(a, b) {
+    return Math.abs(a.r - b.r) + Math.abs(a.g - b.g) + Math.abs(a.b - b.b) < 48;
+  }
+
+  /* Is this color plausibly the page's ACCENT rather than part of its palette?
+     Pure so the judgement can be tested directly; the DOM walk around it stays
+     thin. Rejects neutrals, and rejects anything that is really just the page's
+     own paper or ink wearing a slightly different shade. */
+  function isAccentCandidate(c, bg, ink) {
+    if (!c || c.a < 0.9) return false;
+    if (chroma(c) < 0.10) return false;
+    if (bg && nearColor(c, bg)) return false;
+    if (ink && nearColor(c, ink)) return false;
+    return true;
+  }
+
+  /* The page's own accent.
+     EVERY other token here is measured from the page. The accent alone came
+     from a server-side crawl of the customer's homepage, which is right only
+     when the crawl picked the right color, the crawl is still current, AND the
+     mount is on the brand that was crawled. None of the three is guaranteed:
+     one live profile had the customer's near-black INK stored as their brand
+     color, and grove's own row carried a hand-set override for the same reason.
+     So measure it like everything else and keep the crawl as the fallback.
+
+     Buttons, links and small labels are where a site states its accent. The
+     most-repeated qualifying color wins, with chroma breaking ties, so one
+     stray red error badge cannot outvote the actual brand. */
+  function sampleAccent(root, win, doc, bg, ink) {
+    var els = doc.querySelectorAll('a,button,[class*="btn"],[class*="button"],[class*="badge"],[class*="chip"],[class*="tag"],[class*="label"],[class*="accent"],[class*="pill"]');
+    var counts = {}, seen = {}, best = null, bestN = 0;
+    for (var i = 0; i < els.length && i < 80; i++) {
+      if (root.contains(els[i])) continue;
+      var cs = win.getComputedStyle(els[i]);
+      var vals = [cs.backgroundColor, cs.color];
+      for (var j = 0; j < 2; j++) {
+        var c = parseColor(vals[j]);
+        if (!isAccentCandidate(c, bg, ink)) continue;
+        var k = rgbStr(c);
+        counts[k] = (counts[k] || 0) + 1;
+        seen[k] = c;
+        if (counts[k] > bestN || (counts[k] === bestN && best && chroma(c) > chroma(best))) {
+          bestN = counts[k]; best = c;
+        }
+      }
+    }
+    return best ? rgbStr(best) : null;
   }
 
   /* The card fill — lifted off the page, but never at the cost of the text on
@@ -294,7 +361,16 @@
     out['--gv-code-bg'] = dark ? rgbStr(mix(bg, WHITE, 0.1)) : rgbStr(mix(ink, BLACK, 0.15));
     out['--gv-code-ink'] = dark ? rgbStr(ink) : rgbStr(mix(bg, WHITE, 0.85));
 
-    var accent = parseColor(m.accent);
+    // Measured first, crawled second: an accent read off the page the embed is
+    // actually sitting in beats one extracted from that customer's homepage
+    // months ago, and beats one extracted from a DIFFERENT domain entirely,
+    // which is what data-host pinning produces on a preview or staging site.
+    // Except when the author pinned one with data-accent: then that is the only
+    // input, and the measurement must not reach the --gv-on-accent check either
+    // — that has to run against the color actually being painted.
+    var accent = m.accentPinned
+      ? parseColor(m.accent)
+      : (parseColor(m.pageAccent) || parseColor(m.accent));
     if (accent) {
       // 4.5:1, not the 3.2 UI-component floor this used to take. The accent is
       // not only a border and a fill here — .gv-kicker is 11px, .gv-badge 10px,
@@ -327,9 +403,14 @@
     var anchor = root.parentElement || doc.body;
     if (!anchor) return {};
     var cs = win.getComputedStyle(anchor);
+    var bg = paintedBg(anchor, win, doc);
+    var ink = cs.color;
     return {
-      bg: paintedBg(anchor, win, doc),
-      ink: cs.color,
+      bg: bg,
+      ink: ink,
+      // The page's own accent, when it states one. Preferred over the crawled
+      // brand color in deriveTokens — see sampleAccent.
+      pageAccent: sampleAccent(root, win, doc, parseColor(bg), parseColor(ink)),
       bodyFont: cs.fontFamily,
       headFont: sampleFont(root, win, doc, 'h1,h2,h3,h4'),
       // Whatever actually won for the accent — data-accent, the palette the API

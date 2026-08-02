@@ -71,6 +71,17 @@ where the derivation has failed twice.
   ~2 points of contrast, which is nothing at 16:1 and fatal at 4.3:1 — `midgrey`
   cards landed at 3.74, below AA and visibly worse than the identical text beside
   them. The lift is now capped by the page's own readability.
+- **the accent was the one token never measured.** Every other value here is
+  read off the page; the accent came from a server-side crawl of the customer's
+  homepage, so it was right only if that crawl picked the right color, is still
+  current, *and* the mount is on the brand that was crawled. `sampleAccent` now
+  reads it from the page's own buttons, links and labels, and the crawl is the
+  fallback. Across the ten: nine keep the page's exact hue, all ten clear 4.5:1.
+- **`readableOn` could miss the floor it exists to guarantee.** An accent that
+  starts on the same side of the luminance boundary as the background has to be
+  dragged across it, and 12 steps of 12% approach the pole without arriving —
+  navy on mid-grey stopped at 4.4 against a 4.5 floor. It now falls back to the
+  pole when the loop cannot converge.
 - **the brand arrived pre-flattened.** The API sent `accent` already darkened to
   read on white, so grove's lime reached a near-black host as a dark olive and
   stayed one. `accent_raw` carries the uncorrected color for consumers that
