@@ -70,6 +70,27 @@ export async function materializeDuePlanSlots(
   return created;
 }
 
+/**
+ * The plan slots that have NOT become posts yet — the future of the month.
+ *
+ * Slots are materialized only ~72h before their date, so for most of a month
+ * most of the calendar exists ONLY here, in the strategy's publishing_plan.
+ * A surface that draws the calendar from the posts table alone therefore shows
+ * a nearly empty month and reads as "the agent has nothing planned", which is
+ * the opposite of the truth — and is exactly how the dashboard home differed
+ * from the calendar page, which had this filter inline.
+ *
+ * Pure, and shared, so the two can't drift apart again.
+ */
+export function unmaterializedSlots(
+  plan: PostSlot[] | null | undefined,
+  materializedSlotIds: Iterable<string | null | undefined>,
+): PostSlot[] {
+  const taken = new Set<string>();
+  for (const id of materializedSlotIds) if (id) taken.add(id);
+  return (plan ?? []).filter((s) => !!s.publish_date && !taken.has(s.id));
+}
+
 /** Re-derive a strategy's whole calendar without regenerating it — used after
  *  an owner changes posts_per_week or wants a fresh spread. (Pure helper.) */
 export function planToCalendar(strategy: Pick<Strategy, 'publishing_plan'>): PostSlot[] {
