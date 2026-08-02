@@ -70,6 +70,20 @@ describe('ARTICLE_CSS covers the article body', () => {
     }
   });
 
+  it('caps the measure on the text column, not the two-column wrapper', () => {
+    // The wrapper is the text column in only ONE of the two shapes. When the
+    // article comes from the embed API the same wrapper also holds the 240px
+    // TOC rail, so a cap there capped the whole grid: measured on a 1060px
+    // shell, the rail kept its 240px and the body was squeezed to 444px —
+    // narrower than it would have been with no sidebar at all.
+    expect(ARTICLE_CSS).toMatch(
+      new RegExp(`\\.${ARTICLE_CLASS}:has\\(\\.grv-root\\)\\s*\\{[^}]*max-width:\\s*none`),
+    );
+    expect(ARTICLE_CSS).toMatch(
+      new RegExp(`\\.${ARTICLE_CLASS} \\.grv-body\\s*\\{[^}]*max-width:\\s*68ch`),
+    );
+  });
+
   it('restores list rendering that a reset strips', () => {
     // Tailwind preflight sets `ul,ol { list-style: none }` and `li { display:
     // block }`. Without putting these back, every bullet list in an article
