@@ -218,6 +218,30 @@
     return c;
   }
 
+  /* The card fill — lifted off the page, but never at the cost of the text on
+     it.
+
+     Lifting a dark page toward white by 7% is free when the page is genuinely
+     dark: near-white ink on #0a0b10 reads at 16:1, and the lift costs about two
+     points of that. It is NOT free on a mid-tone. A #6f7278 page with near-white
+     ink only has 4.3:1 to begin with, and the same lift spends enough of it to
+     drop grove's cards to 3.7:1 — below AA, and visibly worse than the very same
+     text sitting on the page around it.
+
+     So the lift is capped by the page's own readability: grove's card may never
+     be harder to read than the host's own background. Where that leaves no room,
+     the card sits flush and --gv-line does the separating, which is what the
+     host's own cards are doing on such a page anyway. */
+  function cardSurface(bg, ink, dark) {
+    if (!dark) return mix(bg, WHITE, 0.55);
+    var floor = Math.min(4.5, contrast(ink, bg));
+    for (var t = 0.07; t > 0; t -= 0.01) {
+      var s = mix(bg, WHITE, t);
+      if (contrast(ink, s) >= floor) return s;
+    }
+    return bg;
+  }
+
   /* Measured page values → the custom properties every embed surface reads.
      Returns a plain {prop: value} map; the caller writes it onto the mount.
 
@@ -253,7 +277,7 @@
     var dark = luminance(bg) < 0.22;
     out['--gv-bg'] = rgbStr(bg);
     out['--gv-ink'] = rgbStr(ink);
-    out['--gv-surface'] = rgbStr(mix(bg, WHITE, dark ? 0.07 : 0.55));
+    out['--gv-surface'] = rgbStr(cardSurface(bg, ink, dark));
     out['--gv-line'] = rgbStr(mix(bg, ink, 0.14));
     out['--gv-muted'] = rgbStr(mix(bg, ink, 0.55));
     out['--gv-raise'] = rgbStr(mix(bg, ink, 0.06));
@@ -272,9 +296,11 @@
 
     var accent = parseColor(m.accent);
     if (accent) {
-      // 3.2:1 — the WCAG floor for large text and UI components, which is what
-      // the accent is used for here (kickers, chips, badges, links).
-      var acc = readableOn(accent, bg, 3.2);
+      // 4.5:1, not the 3.2 UI-component floor this used to take. The accent is
+      // not only a border and a fill here — .gv-kicker is 11px, .gv-badge 10px,
+      // .gv-link 12px. None of those are "large text", so 3.2 was the wrong
+      // floor for the thing this color mostly does.
+      var acc = readableOn(accent, bg, 4.5);
       // An accent the customer pinned with data-accent is a stated intent, not
       // a guess: report the corrected value for contrast math but never
       // overwrite theirs.
@@ -349,10 +375,20 @@
     var counts = {}, best = null, bestN = 0;
     for (var i = 0; i < els.length && i < 60; i++) {
       if (root.contains(els[i])) continue;
-      var r = parseFloat(win.getComputedStyle(els[i]).borderTopLeftRadius);
-      // Ignore 0 (no system to copy) and pills — a 999px chip says nothing
-      // about how the page corners a card.
-      if (isNaN(r) || r <= 0 || r > 28) continue;
+      var ecs = win.getComputedStyle(els[i]);
+      var r = parseFloat(ecs.borderTopLeftRadius);
+      // Pills say nothing about how the page corners a card.
+      if (isNaN(r) || r > 28) continue;
+      // Zero is a design decision on a brutalist or terminal-styled site, and
+      // skipping it there left grove's 14px cards and 999px chips rounded on a
+      // page where nothing else was — the single loudest way the embed reads as
+      // imported. But zero is ALSO what every unstyled <a class> computes to,
+      // and letting those vote would square almost every site on the web. So a
+      // zero only counts from something that is actually a painted surface.
+      if (r === 0) {
+        var ebg = parseColor(ecs.backgroundColor);
+        if (!(ebg && ebg.a > 0.05) && !(parseFloat(ecs.borderTopWidth) > 0)) continue;
+      }
       counts[r] = (counts[r] || 0) + 1;
       if (counts[r] > bestN) { bestN = counts[r]; best = r; }
     }
@@ -463,7 +499,12 @@
      and badges follow the site's own palette with zero configuration. */
   function applyBranding(root, branding) {
     if (root.getAttribute('data-accent')) return;
-    if (branding && branding.accent) root.style.setProperty('--gv-accent', branding.accent);
+    // accent_raw is the UNCORRECTED brand color. Prefer it: applyDesign runs
+    // straight after this and corrects against the page it measured, which is
+    // strictly better than the API's guess that we are sitting on white. The
+    // `accent` fallback keeps this working against an older deployment.
+    var a = branding && (branding.accent_raw || branding.accent);
+    if (a) root.style.setProperty('--gv-accent', a);
   }
 
   function cardHTML(p, href) {

@@ -308,7 +308,20 @@ export function brandingPayload(branding: BrandColors | null | undefined) {
   return {
     primary_color: branding.primary_color,
     secondary_color: branding.secondary_color ?? branding.btn_color,
+    /**
+     * `accent` is darkened until it reads on WHITE, which is the only safe
+     * assumption for a consumer that renders this payload itself and never
+     * tells us what it renders onto.
+     *
+     * embed.js is not that consumer — it measures the page it is mounted in.
+     * Handing it a pre-corrected color threw the brand away before it could:
+     * grove's lime arrived as a dark olive and stayed one on a near-black host,
+     * legible but muddy and unrecognisable, when the measured correction would
+     * have kept it lime. `accent_raw` is the uncorrected brand color, for
+     * consumers that can do better than an assumption.
+     */
     accent: accentForText(branding.primary_color),
+    accent_raw: branding.primary_color,
     banner_bg: branding.banner_bg,
     banner_text: branding.banner_text,
     btn_color: branding.btn_color,

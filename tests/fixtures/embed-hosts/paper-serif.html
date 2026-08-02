@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thornfield & Co — embed host test (paper-serif)</title>
+<style>
+  :root { --bg:#faf7f0; --ink:#2e2419; --muted:#7a6a55; --accent:#8c5a2b; --r:2px; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:'Iowan Old Style', Georgia, serif; line-height:1.6; }
+  header { display:flex; align-items:center; gap:24px; padding:18px 28px;
+            border-bottom:1px solid color-mix(in srgb, var(--ink) 14%, transparent); }
+  header .brand { font-family:Georgia, serif; font-weight:700; font-size:18px; }
+  header nav { display:flex; gap:18px; margin-left:auto; font-size:14px; color:var(--muted); }
+  main { max-width:1080px; margin:0 auto; padding:56px 28px 96px; }
+  h1 { font-family:Georgia, serif; font-size:44px; line-height:1.1; margin:0 0 16px; }
+  h2 { font-family:Georgia, serif; font-size:26px; margin:0 0 12px; }
+  p.lead { font-size:19px; color:var(--muted); max-width:60ch; margin:0 0 28px; }
+  .btn { display:inline-block; padding:10px 20px; border-radius:var(--r);
+          background:var(--accent); color:var(--bg); text-decoration:none; font-weight:600; }
+  .btn.ghost { background:transparent; color:var(--ink);
+                border:1px solid color-mix(in srgb, var(--ink) 30%, transparent); }
+  .cards { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin:36px 0 64px; }
+  .card { border:1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+           border-radius:var(--r); padding:20px;
+           background:color-mix(in srgb, var(--ink) 4%, transparent); }
+  .card h3 { font-family:Georgia, serif; margin:0 0 6px; font-size:16px; }
+  .card p { margin:0; font-size:14px; color:var(--muted); }
+  .sec-label { font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+                color:var(--accent); margin-bottom:10px; }
+  footer { padding:32px 28px; color:var(--muted); font-size:13px;
+            border-top:1px solid color-mix(in srgb, var(--ink) 14%, transparent); }
+</style></head>
+<body>
+<header>
+  <span class="brand">Thornfield & Co</span>
+  <nav><span>Product</span><span>Docs</span><span>Pricing</span><span>Blog</span></nav>
+</header>
+<main>
+  <h1>Furniture that outlives the fashion.</h1>
+  <p class="lead">A wireframe standing in for a real customer site. Everything below the
+     divider is grove's embed, mounted with two lines and no styling of its own.</p>
+  <p><a class="btn" href="#">Get started</a> <a class="btn ghost" href="#">Read the docs</a></p>
+
+  <div class="cards">
+    <div class="card"><h3>One</h3><p>Filler card so the embed has a radius to sample.</p></div>
+    <div class="card"><h3>Two</h3><p>Filler card so the embed has a radius to sample.</p></div>
+    <div class="card"><h3>Three</h3><p>Filler card so the embed has a radius to sample.</p></div>
+  </div>
+
+  <div class="sec-label">From the blog</div>
+  <h2>Written by grove</h2>
+  <!-- THE EMBED — exactly what a customer pastes -->
+  <div id="grove-blog" data-host="trygroveai.com"
+       data-article-base="https://trygroveai.com/b/trygroveai-com-o6hf"></div>
+</main>
+<footer>&copy; 2026 Thornfield & Co — embed host fixture <code>paper-serif</code></footer>
+<script src="https://trygroveai.com/embed.js" async></script>
+</body></html>
