@@ -5,7 +5,9 @@ import CustomHostnameForm from './CustomHostnameForm';
 import BannerLinkForm from './BannerLinkForm';
 import ThemeColorsForm from './ThemeColorsForm';
 import EmbedTabs from './EmbedTabs';
+import RewriteSnippets from './RewriteSnippets';
 import { resolveBranding } from '@/lib/blog-theme';
+import { embedSeoStatus } from '@/lib/embed-seo';
 import { DashHeader } from '../gv-chrome';
 import Icon from '../gv-icons';
 
@@ -27,6 +29,11 @@ export default async function Page() {
   const hasOverride = !!(domain as any)?.brand_override?.primary_color;
   const connected = !!(domain as any)?.custom_blog_hostname;
   const apex = domain?.hostname.replace(/^www\./, '') ?? 'yoursite.com';
+  // Can search actually see this domain's articles? The embed renders the same
+  // either way, so nothing on this page used to distinguish "indexable blog"
+  // from "one page with a JS reader on it" — the customer's whole reason for
+  // buying, invisible in the UI. embed.js reads the same answer from the API.
+  const seo = domain ? embedSeoStatus(domain as any, groveBase) : null;
 
   return (
     <>
@@ -58,7 +65,13 @@ export default async function Page() {
             </div>
 
             {/* STEP 2: EMBEDS */}
-            <EmbedTabs blogSnippet={blogSnippet} widgetSnippet={widgetSnippet} domainId={domain?.id ?? null} />
+            <EmbedTabs
+              blogSnippet={blogSnippet}
+              widgetSnippet={widgetSnippet}
+              domainId={domain?.id ?? null}
+              fullNote={seo ? (seo.crawlable ? seo.detail : `${seo.detail} ${seo.fix}`) : undefined}
+              fullNoteWarn={!!seo && !seo.crawlable}
+            />
 
             {/* STEP 3: CUSTOMIZE */}
             {domain && (
@@ -111,6 +124,7 @@ export default async function Page() {
                     Google accepts the cross-hosted sitemap for your URLs:{' '}
                     <span className="mono">Sitemap: {groveBase}/b/{domain.blog_slug}/sitemap.xml</span>
                   </p>
+                  <RewriteSnippets groveBase={groveBase} blogSlug={domain.blog_slug} hostname={apex} />
                 </div>
               </details>
             )}
@@ -128,6 +142,20 @@ export default async function Page() {
               <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 3 }}>Setup status</div>
               <div style={{ fontSize: 12, color: 'var(--gv-faint)', marginBottom: 16 }}>what&rsquo;s live right now</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                {/* The one row that says whether any of this earns traffic. */}
+                {seo && (
+                  <div style={{ padding: '11px 12px', borderRadius: 9, background: seo.crawlable ? 'rgba(162,255,1,0.07)' : 'rgba(255,176,84,0.08)', border: `1px solid ${seo.crawlable ? 'rgba(162,255,1,0.3)' : 'rgba(255,176,84,0.34)'}` }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ display: 'flex', color: seo.crawlable ? 'var(--gv-accent-ink)' : '#ffb054' }}>
+                        <Icon name={seo.crawlable ? 'check' : 'alert'} size={15} />
+                      </span>
+                      <span style={{ flex: 1, fontSize: 12.5, color: 'var(--gv-soft)' }}>Articles in search</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: seo.crawlable ? '#d9ff8f' : '#ffb054' }}>{seo.label}</span>
+                    </div>
+                    <div style={{ fontSize: 11.5, color: 'var(--gv-dim)', lineHeight: 1.5, marginTop: 7 }}>{seo.detail}</div>
+                    {seo.fix && <div style={{ fontSize: 11.5, color: 'var(--gv-faint)', lineHeight: 1.5, marginTop: 6 }}>{seo.fix}</div>}
+                  </div>
+                )}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 9, background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.06)' }}>
                   <span style={{ display: 'flex', color: connected ? 'var(--gv-accent-ink)' : '#4c4f47' }}><Icon name={connected ? 'check' : 'clock'} size={15} /></span>
                   <span style={{ flex: 1, fontSize: 12.5, color: 'var(--gv-soft)' }}>Subdomain</span>
@@ -157,14 +185,14 @@ export default async function Page() {
                     <div style={{ fontSize: 12, color: 'var(--gv-dim)', lineHeight: 1.5 }}>— Paste a snippet — on load, it reads window.location.hostname.</div>
                     <div style={{ fontSize: 12, color: 'var(--gv-dim)', lineHeight: 1.5 }}>— Calls grove for your published posts on that domain.</div>
                     <div style={{ fontSize: 12, color: 'var(--gv-dim)', lineHeight: 1.5 }}>— Renders styled HTML directly — no iframe, no tracking pixel.</div>
-                    <div style={{ fontSize: 12, color: 'var(--gv-dim)', lineHeight: 1.5 }}>— Full-blog mode reads articles in-page via hash routing, so your header and footer stay put.</div>
+                    <div style={{ fontSize: 12, color: 'var(--gv-dim)', lineHeight: 1.5 }}>— Cards link to your real article URLs when you have them, so search follows them. With none set up, articles open in-page instead — readable, but not indexable.</div>
                   </div>
                 </div>
                 <div>
                   <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 8 }}>Customization attrs</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                     <div style={{ fontSize: 12, color: 'var(--gv-dim)', lineHeight: 1.5 }}>— <span className="mono">data-accent=&quot;#hex&quot;</span> — match links, chips and hover states to your brand.</div>
-                    <div style={{ fontSize: 12, color: 'var(--gv-dim)', lineHeight: 1.5 }}>— <span className="mono">data-article-base=&quot;/blog&quot;</span> — link cards to your own article pages instead of the in-page reader.</div>
+                    <div style={{ fontSize: 12, color: 'var(--gv-dim)', lineHeight: 1.5 }}>— <span className="mono">data-article-base=&quot;/blog&quot;</span> — override where cards link. Only needed if you render articles at a route grove doesn&rsquo;t know about.</div>
                     <div style={{ fontSize: 12, color: 'var(--gv-dim)', lineHeight: 1.5 }}>— Cards inherit your page font automatically; override anything under <span className="mono">.gv</span> to restyle.</div>
                   </div>
                 </div>

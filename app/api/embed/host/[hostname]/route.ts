@@ -8,6 +8,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { blogPostUrl, sanitizeEmbedHost } from '@/lib/seo';
+import { embedSeoStatus } from '@/lib/embed-seo';
 import { genreFor, authorFor } from '@/lib/blog-genre';
 import { brandingPayload, resolveBranding } from '@/lib/blog-theme';
 import { resolveBlogDomain } from '@/lib/blog-domain';
@@ -73,6 +74,13 @@ export async function GET(req: Request, ctx: { params: Promise<{ hostname: strin
     // customer palette (manual override wins over crawl) — embed.js themes its
     // cards/chips with `accent` unless the mount div pins data-accent.
     branding: brandingPayload(resolveBranding(domain)),
+    // Where this domain's articles are crawlable, or null when nowhere on the
+    // customer's own domain. embed.js links its cards here by DEFAULT, so a
+    // customer who configures a subdomain gets indexable articles without
+    // editing the snippet they pasted months ago — the old behaviour needed
+    // data-article-base, an opt-in nobody discovered, and every blog without it
+    // read in-page at a #fragment that no crawler can index.
+    blog_base: embedSeoStatus(domain as any).articleBase,
     posts: (posts ?? []).map((p: any) => ({
       slug: p.slug,
       title: p.title,

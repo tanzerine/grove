@@ -98,6 +98,18 @@ Other key surfaces:
   `data-host` (pin the domain instead of auto-detecting — previews and localhost
   don't own a blog). Every surface color must resolve through a `--gv-*`
   property or dark mode half-applies; `tests/embed-theme.test.ts` enforces it.
+- **The embed's SEO hinges on one thing: does the domain have a crawlable base?**
+  `lib/embed-seo.ts embedSeoStatus()` is the single answer, read by both the
+  dashboard badge and the list API's `blog_base` field. With a base (subdomain
+  or `canonical_blog_base`), embed.js links cards at real URLs **by default** —
+  `data-article-base` is now only an override, so connecting a subdomain
+  upgrades snippets already pasted on customer sites with no edit. Without one,
+  articles open in the hash reader at `#grove/<slug>`, which no crawler indexes:
+  the reader then injects `rel=canonical` + Article JSON-LD pointing at the
+  crawlable copy and **restores the page's original canonical on the way back**
+  (`tests/embed-head.test.ts` runs that round-trip against a fake DOM — an
+  article canonical left on the list view is worse than none). Subfolder
+  customers get proxy configs from `lib/rewrite-snippets.ts`.
 - **grove eats its own dogfood**: `/blog` (`app/blog/page.tsx`) and the landing's
   "Our blog runs on grove" section mount that same embed via
   `components/GroveEmbed.tsx`, against grove's own `trygroveai.com` domain row.

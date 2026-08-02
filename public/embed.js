@@ -27,6 +27,15 @@
    Options (data-attributes on the mount div):
      data-count      widget only — how many posts (default 4)
      data-blog-url   widget only — where "Read the blog →" + cards link (default /blog)
+     data-article-base
+                     full blog only — base URL the cards link to ({base}/{slug}).
+                     You normally DON'T set this: grove already knows where your
+                     articles are crawlable (your blog subdomain, or the base you
+                     set as canonical) and links there automatically. Set it only
+                     when you render articles at a route grove doesn't know about.
+                     With no base anywhere, articles open in the in-page reader —
+                     fine for humans, invisible to search, because a #fragment is
+                     not a URL a crawler can index.
      data-accent     accent color. Default: the brand color grove extracted from
                      your homepage (returned by the API), else #4e9e6a. The
                      default is contrast-corrected against your page background
@@ -61,6 +70,53 @@
     return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
     });
+  }
+
+  /* ── head signals for the in-page reader ──
+     The hash reader shows an article at /blog#grove/<slug>, and a fragment has
+     never been a crawlable URL of its own. So while an article is open we
+     declare the CRAWLABLE copy canonical (the customer's own base when they
+     have one, grove's mirror otherwise) and inject the same Article @graph the
+     hosted page emits. That's the only SEO a script can actually deliver.
+
+     Both are undone on the way back to the list, and the page's original
+     canonical is restored byte-for-byte — leaving an article canonical behind
+     on the list view would tell Google the customer's /blog page is a duplicate
+     of one post, which is worse than doing nothing at all. ── */
+  var _head = null;
+  function clearHead() {
+    if (!_head) return;
+    try {
+      if (_head.ld && _head.ld.parentNode) _head.ld.parentNode.removeChild(_head.ld);
+      if (_head.link) {
+        if (_head.prev === null) { if (_head.link.parentNode) _head.link.parentNode.removeChild(_head.link); }
+        else _head.link.setAttribute('href', _head.prev);
+      }
+    } catch (e) {}
+    _head = null;
+  }
+  function setHead(canonical, jsonLd) {
+    clearHead();
+    if (!canonical && !jsonLd) return;
+    var st = { link: null, prev: null, ld: null };
+    try {
+      if (canonical) {
+        var link = document.querySelector('link[rel="canonical"]');
+        if (link) { st.prev = link.getAttribute('href'); }
+        else { link = document.createElement('link'); link.setAttribute('rel', 'canonical'); document.head.appendChild(link); }
+        link.setAttribute('href', canonical);
+        st.link = link;
+      }
+      if (jsonLd) {
+        var s = document.createElement('script');
+        s.type = 'application/ld+json';
+        s.setAttribute('data-grove', '');
+        s.textContent = JSON.stringify(jsonLd);
+        document.head.appendChild(s);
+        st.ld = s;
+      }
+    } catch (e) {}
+    _head = st;
   }
 
   /* ── first-party analytics: same view/dwell/scroll/conversion beacon the
@@ -658,16 +714,26 @@
     applyDesign(root, window, document); // theme the loading state too, not just the result
     root.innerHTML = '<div class="gv-empty">Loading…</div>';
     var HASH = '#grove/';
-    // Hybrid mode: when data-article-base is set, cards link to the customer's
-    // own server-rendered article pages ({base}/{slug}) instead of the in-page
-    // hash reader — keeps articles crawlable/SEO'd on their domain.
-    var artBase = root.getAttribute('data-article-base');
+    // Cards link to real, crawlable article URLs ({base}/{slug}) whenever a base
+    // exists; the in-page hash reader is the FALLBACK for domains that have
+    // nowhere crawlable to point yet.
+    //
+    // The base used to come only from data-article-base — an opt-in attribute
+    // nobody discovered, so the default install read every article at a
+    // #fragment and the customer's blog had exactly one indexable page. The API
+    // now returns the domain's own base (subdomain or self-served), so an
+    // already-pasted snippet starts linking to indexable URLs the moment its
+    // owner connects a subdomain, with no edit to the page. An explicit
+    // attribute still wins — that's the escape hatch for a site whose article
+    // route grove doesn't know about.
+    var artBase = (root.getAttribute('data-article-base') || '').trim() || null;
     function articleHref(slug) {
       return artBase ? artBase.replace(/\/$/, '') + '/' + slug : HASH + slug;
     }
 
     loadAll(host).then(function (r) {
       var posts = r.posts;
+      if (!artBase && r.blog_base) artBase = r.blog_base;
       applyBranding(root, r.branding);
       applyDesign(root, window, document); // re-run: --gv-on-accent depends on the branding accent
       if (!posts.length) { root.innerHTML = '<div class="gv-empty">New articles are on the way — check back soon.</div>'; return; }
@@ -693,6 +759,7 @@
             '<div class="gv-art-meta">' + (a.author ? 'By ' + esc(a.author) + ' · ' : '') + fmtDate(a.published_at) + '</div>' +
             cover + '<div class="grove-article">' + (a.html || '') + '</div>';
           root.querySelector('.gv-back').addEventListener('click', function () { location.hash = ''; });
+          setHead(a.canonical_url, a.json_ld);
           track(a.post_id, a.domain_id, root);
           window.scrollTo({ top: root.getBoundingClientRect().top + window.scrollY - 20, behavior: 'smooth' });
         }).catch(function () { location.hash = ''; });
@@ -709,6 +776,7 @@
 
       function renderList() {
         if (_trackTeardown) { _trackTeardown(); _trackTeardown = null; } // stop the article tracker
+        clearHead(); // put the page's own canonical back before showing the list
         var isDefault = state.genre === 'All' && !state.q.trim();
         var PER = 9;
         var plan = planList(filtered(), isDefault, state.page, PER);
@@ -773,13 +841,14 @@
 
   // page through the host feed (cap 240) so search/filter/pagination is client-side
   function loadAll(host) {
-    var all = [], branding = null;
+    var all = [], branding = null, blogBase = null;
     function page(n) {
       return getJSON(api(host, '?limit=24&page=' + n)).then(function (d) {
         all = all.concat(d.posts || []);
         if (!branding) branding = d.branding || null;
+        if (!blogBase) blogBase = d.blog_base || null;
         if (n < (d.pages || 1) && n < 10) return page(n + 1);
-        return { posts: all, branding: branding };
+        return { posts: all, branding: branding, blog_base: blogBase };
       });
     }
     return page(1);

@@ -82,10 +82,24 @@ function WidgetPreview() {
   );
 }
 
-export default function EmbedTabs({ blogSnippet, widgetSnippet, domainId }: { blogSnippet: string; widgetSnippet: string; domainId?: string | null }) {
+/**
+ * `fullNote` overrides the Full blog tab's footnote with this domain's real SEO
+ * state (lib/embed-seo). The static line it replaces said the embed alone can't
+ * be indexed, which stopped being true for anyone with a subdomain connected —
+ * and stayed invisibly true for everyone without one.
+ */
+export default function EmbedTabs({ blogSnippet, widgetSnippet, domainId, fullNote, fullNoteWarn }: {
+  blogSnippet: string;
+  widgetSnippet: string;
+  domainId?: string | null;
+  fullNote?: string;
+  fullNoteWarn?: boolean;
+}) {
   const [tab, setTab] = useState<Tab>('full');
   const def = TABS.find((t) => t.key === tab) ?? TABS[0];
   const snippet = tab === 'full' ? blogSnippet : widgetSnippet;
+  const note = tab === 'full' && fullNote ? fullNote : def.note;
+  const warn = tab === 'full' && !!fullNoteWarn;
 
   return (
     <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '22px 24px' }}>
@@ -106,7 +120,7 @@ export default function EmbedTabs({ blogSnippet, widgetSnippet, domainId }: { bl
       </div>
 
       <p style={{ fontSize: 13, color: 'var(--gv-dim)', lineHeight: 1.55, margin: '0 0 6px' }}>{def.desc}</p>
-      <p style={{ fontSize: 12, color: 'var(--gv-fainter)', lineHeight: 1.5, margin: '0 0 16px' }}>{def.note}</p>
+      <p style={{ fontSize: 12, color: warn ? '#ffb054' : 'var(--gv-fainter)', lineHeight: 1.5, margin: '0 0 16px' }}>{note}</p>
 
       <div style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 16, background: '#111310', marginBottom: 16 }}>
         <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 14 }}>Preview — {tab === 'full' ? '/blog page' : 'homepage teaser'}</div>
