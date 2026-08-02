@@ -104,6 +104,28 @@ function collectInlineBackgroundColors(html: string): string[] {
   return out;
 }
 
+/**
+ * How likely a color is to BE the brand, from how saturated it is and how often
+ * the site uses it.
+ *
+ * Frequency dominates, and it did not used to. The old blend was
+ * `saturation + 10·log2(1+n)`, which weighted saturation linearly and count only
+ * gently — so one appearance of a 100%-saturated color scored 110 and beat a
+ * 46%-saturated color used sixteen times, at 87. On grove's own homepage that
+ * elected `--gv-red-text` — the ERROR color, present exactly once in the whole
+ * stylesheet — as the secondary brand color, and the dashboard turns the
+ * secondary into the CTA button. Every blog banner offered readers a salmon pink
+ * button.
+ *
+ * Saturation is really a filter — it says "this is a color at all", which
+ * isInteresting already gates on. Repetition is the actual evidence of a system:
+ * a brand color appears on buttons, links, borders and section fills; an error
+ * state, a third-party logo and an illustration tint appear once or twice.
+ */
+function brandScore(saturation: number, uses: number): number {
+  return saturation * 0.6 + 25 * Math.log2(1 + uses);
+}
+
 function hueDistance(a: number, b: number): number {
   const d = Math.abs(a - b) % 360;
   return Math.min(d, 360 - d);
@@ -139,7 +161,7 @@ export function extractBrandColors(html: string, externalCss = ''): BrandColors 
 
     // every color in CSS + inline style backgrounds, frequency-counted: a brand
     // color repeats across buttons/links/sections, a one-off illustration tint
-    // doesn't. Score blends saturation with a gentle log of the count.
+    // doesn't.
     const counts = new Map<string, number>();
     for (const c of [...collectColors(styleText), ...collectInlineBackgroundColors(html)]) {
       counts.set(c, (counts.get(c) ?? 0) + 1);
@@ -148,7 +170,7 @@ export function extractBrandColors(html: string, externalCss = ''): BrandColors 
       .filter(isInteresting)
       .map(c => ({ c, hsl: hexToHsl(c)!, n: counts.get(c)! }))
       .filter(x => x.hsl)
-      .sort((a, b) => (b.hsl.s + 10 * Math.log2(1 + b.n)) - (a.hsl.s + 10 * Math.log2(1 + a.n)));
+      .sort((a, b) => brandScore(b.hsl.s, b.n) - brandScore(a.hsl.s, a.n));
 
     const primary = brandVarColors[0] ?? themeColor ?? scored[0]?.c ?? null;
     if (!primary) return null;
@@ -256,10 +278,33 @@ async function fetchExternalCss(html: string, baseUrl: string): Promise<string> 
  * heals itself on its next generation instead of waiting for someone to notice.
  */
 export async function captureSiteDesign(hostname: string): Promise<SiteDesign | null> {
+  return (await captureSiteLook(hostname)).design;
+}
+
+/**
+ * The design capture AND the brand palette, from one homepage fetch.
+ *
+ * They were split, and only `design` had a refresh path (/api/cron/domains).
+ * `branding` was written once, by the profile crawl that runs only when a
+ * domain has no profile at all — so an improvement to the extractor reached
+ * exactly nobody, and a palette that was wrong on the day it was captured
+ * stayed wrong forever. That is not hypothetical: grove's own row held its
+ * ERROR red as the brand's secondary color, which the dashboard turns into the
+ * CTA button, for as long as the row had existed.
+ *
+ * Both come out of the same two requests, so refreshing them together costs
+ * nothing over refreshing one.
+ */
+export async function captureSiteLook(
+  hostname: string,
+): Promise<{ design: SiteDesign | null; branding: BrandColors | null }> {
   const homepage = await fetchHomepageRaw(hostname);
-  if (!homepage) return null;
+  if (!homepage) return { design: null, branding: null };
   const css = await fetchExternalCss(homepage.html, homepage.base);
-  return extractSiteDesign(homepage.html, css, homepage.base);
+  return {
+    design: extractSiteDesign(homepage.html, css, homepage.base),
+    branding: extractBrandColors(homepage.html, css),
+  };
 }
 
 const CANDIDATE_PATHS = [

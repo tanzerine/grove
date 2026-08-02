@@ -98,6 +98,10 @@ export default async function Page() {
                     initialSecondary={effective?.secondary_color ?? '#2f6b4f'}
                     hasOverride={hasOverride}
                     crawledPrimary={crawledPrimary}
+                    // The banner is built from the site's own surface once a
+                    // capture exists, so the preview needs it too or it draws a
+                    // banner the blog will never render.
+                    pageColors={(domain as any).site_profile?.design?.colors ?? null}
                   />
                 </div>
 
