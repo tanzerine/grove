@@ -27,7 +27,8 @@ const SRC = readFileSync(path.join(process.cwd(), 'public/embed.js'), 'utf8');
  */
 function load(): Record<string, any> {
   const names = [
-    'parseColor', 'rgbStr', 'mix', 'luminance', 'contrast', 'readableOn', 'cardSurface', 'deriveTokens',
+    'parseColor', 'rgbStr', 'mix', 'luminance', 'contrast', 'readableOn', 'cardSurface',
+    'chroma', 'nearColor', 'isAccentCandidate', 'deriveTokens',
   ];
   const bodies = names.map((n) => {
     const m = SRC.match(new RegExp(`\\n  function ${n}\\([^)]*\\) \\{[\\s\\S]*?\\n  \\}`));
@@ -160,6 +161,16 @@ describe('deriveTokens — accent legibility', () => {
     expect(M.contrast(accent, M.parseColor(VOLT.bg))).toBeGreaterThanOrEqual(4.5);
   });
 
+  it('reaches the floor even when the accent starts on the page’s own side', () => {
+    // A navy brand on a mid-grey page has to be dragged ACROSS the background
+    // to read at all. Stepping 12% at a time approaches the pole without ever
+    // arriving, so this used to stop at 4.4 against a 4.5 floor — a function
+    // whose whole job is guaranteeing that floor, quietly not doing it.
+    const bg = M.parseColor('rgb(111,114,120)');
+    const out = M.readableOn(M.parseColor('#1e293b'), bg, 4.5);
+    expect(M.contrast(out, bg)).toBeGreaterThanOrEqual(4.5);
+  });
+
   it('keeps a brand color that is already bright enough for a dark page', () => {
     // The reason the API now sends accent_raw: pre-correcting grove's lime for
     // white produced a dark olive, and an olive that already clears the floor on
@@ -173,6 +184,31 @@ describe('deriveTokens — accent legibility', () => {
   it('leaves an already-legible accent alone', () => {
     const t = tokens({ ...KETTLE, accent: '#c2410c' });
     expect(t['--gv-accent']).toBe('rgb(194,65,12)');
+  });
+
+  it('prefers the accent measured on the page over the crawled brand color', () => {
+    // The accent was the ONE token not measured — it came from a server-side
+    // crawl of the customer's homepage, so it was right only if that crawl
+    // picked the right color, is still current, AND the mount is on the brand
+    // that was crawled. A page that states its own accent settles all three.
+    const t = tokens({ ...KETTLE, accent: '#a2ff01', pageAccent: 'rgb(29,78,216)' } as any);
+    expect(t['--gv-accent']).toBe('rgb(29,78,216)');
+  });
+
+  it('falls back to the crawled color when the page states no accent', () => {
+    const t = tokens({ ...KETTLE, accent: '#c2410c', pageAccent: null } as any);
+    expect(t['--gv-accent']).toBe('rgb(194,65,12)');
+  });
+
+  it('lets data-accent beat the measurement too', () => {
+    // A pinned accent is an author's stated intent; a measurement is an
+    // inference. The inference must not reach --gv-on-accent either, which has
+    // to be contrast-checked against the color actually painted.
+    const withMeasurement = tokens({ ...KETTLE, accent: '#a2ff01', pageAccent: 'rgb(29,78,216)', accentPinned: true } as any);
+    const without = tokens({ ...KETTLE, accent: '#a2ff01', accentPinned: true } as any);
+    expect(withMeasurement['--gv-accent']).toBeUndefined();
+    // Identical either way: the measurement changed nothing, which is the point.
+    expect(withMeasurement['--gv-on-accent']).toBe(without['--gv-on-accent']);
   });
 
   it('never overwrites an accent the author pinned with data-accent', () => {
@@ -224,6 +260,41 @@ describe('deriveTokens — typography and geometry', () => {
     const t = tokens({ ...KETTLE, radius: 0 });
     expect(t['--gv-radius']).toBe('0px');
     expect(t['--gv-pill']).toBe('0px');
+  });
+
+  it('tells a brand color apart from the page’s own palette', () => {
+    const bg = M.parseColor('rgb(250,247,240)');
+    const ink = M.parseColor('rgb(46,36,25)');
+    const ok = (hex: string) => M.isAccentCandidate(M.parseColor(hex), bg, ink);
+
+    // Real accents from the host fixtures.
+    for (const c of ['#8c5a2b', '#22d3ee', '#ff2d00', '#1d4ed8', '#ec4899', '#22c55e', '#10b981', '#e879f9']) {
+      expect(ok(c), `${c} should read as an accent`).toBe(true);
+    }
+    // Neutrals are the page, not its accent.
+    for (const c of ['#ffffff', '#000000', '#808080', '#f4f4f2', '#1a1a1a']) {
+      expect(ok(c), `${c} should not read as an accent`).toBe(false);
+    }
+    // …nor is the page's own paper or ink in a slightly different shade.
+    expect(ok('rgb(248,245,238)')).toBe(false);
+    expect(ok('rgb(50,40,29)')).toBe(false);
+    // A translucent fill tells us nothing about what will be painted.
+    expect(M.isAccentCandidate(M.parseColor('rgba(29,78,216,0.1)'), bg, ink)).toBe(false);
+  });
+
+  it('reads the accent off buttons and labels, and lets repetition win', () => {
+    // sampleAccent is the second measurement that touches the DOM, so its
+    // selection rules are a source contract like sampleRadius's.
+    const fn = SRC.match(/function sampleAccent\([\s\S]*?\n  \}/)![0];
+    expect(fn).toMatch(/backgroundColor/);
+    expect(fn).toMatch(/\bcs\.color\b|vals\s*=\s*\[cs\.backgroundColor, cs\.color\]/);
+    expect(fn).toMatch(/isAccentCandidate/);
+    // most-repeated wins, chroma breaks ties — one stray error badge must not
+    // outvote the brand
+    expect(fn).toMatch(/counts\[k\]/);
+    expect(fn).toMatch(/chroma\(c\) > chroma\(best\)/);
+    // and it must never sample from inside the embed itself
+    expect(fn).toMatch(/root\.contains/);
   });
 
   it('only lets a painted element vote for square corners', () => {
