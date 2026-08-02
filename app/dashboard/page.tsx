@@ -12,6 +12,7 @@ import AgentInsight from './AgentInsight';
 import { clusterSeedFromTitle } from '@/lib/cluster-seed';
 import GhostPipeline from './GhostPipeline';
 import OverviewCalendar, { type CalDay } from './OverviewCalendar';
+import { unmaterializedSlots } from '@/lib/strategy/materialize';
 import DashSearch from './DashSearch';
 import type { SearchablePost } from '@/lib/post-search';
 import { getEntitlement } from '@/lib/billing';
@@ -32,6 +33,9 @@ const ES: Record<string, { color: string; chipBg: string; name: string; line: Re
   scheduled: { color: 'var(--gv-blue)', chipBg: 'rgba(255,255,255,0.09)', name: 'Scheduled', line: 'dashed' },
   review: { color: 'var(--gv-amber)', chipBg: 'rgba(255,255,255,0.12)', name: 'In review', line: 'dotted' },
   draft: { color: 'var(--gv-sky)', chipBg: 'rgba(255,255,255,0.06)', name: 'Draft', line: 'double' },
+  // Matches the calendar page's own 'planned' tier — a slot the agent intends
+  // to write but hasn't started, so it reads as the faintest thing on the grid.
+  planned: { color: 'var(--gv-fainter)', chipBg: 'transparent', name: 'Planned', line: 'dashed' },
 };
 
 function categoryFor(status: string): keyof typeof ES {
@@ -88,6 +92,25 @@ export default async function OverviewPage() {
   const { data: posts } = await sb
     .from('posts').select('*').eq('domain_id', domain?.id).order('created_at', { ascending: false }).limit(60);
   const all = posts ?? [];
+
+  // The calendar needs a different slice than the rest of this page. `all` is
+  // the 60 most recent posts BY CREATION, which is the right input for the
+  // pipeline and the stats but the wrong one for a month grid: a post carries
+  // a date it was not created on. Read what actually has a date, plus the plan
+  // slots that haven't become posts yet — see the calendar block below.
+  const { data: datedPosts } = await sb
+    .from('posts')
+    .select('id, title, topic, status, scheduled_at, published_at, slot_id')
+    .eq('domain_id', domain?.id)
+    .or('scheduled_at.not.is.null,published_at.not.is.null');
+  const { data: livePlan } = await sb
+    .from('strategies')
+    .select('publishing_plan')
+    .eq('domain_id', domain?.id)
+    .eq('active', true)
+    .order('month', { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   // Seed for the search bar: the recent slice, minus body_md and the other
   // heavy columns — never ship whole articles to the client for a typeahead.
@@ -147,16 +170,31 @@ export default async function OverviewPage() {
   const now = new Date();
   const calYear = now.getFullYear(), calMonthIdx = now.getMonth(), todayNum = now.getDate();
   const calMonth = now.toLocaleString(undefined, { month: 'long', year: 'numeric' });
-  const calLegend = (['published', 'scheduled', 'review', 'draft'] as const).map((k) => ({ label: ES[k].name, color: ES[k].color, line: ES[k].line }));
+  const calLegend = (['published', 'scheduled', 'review', 'draft', 'planned'] as const).map((k) => ({ label: ES[k].name, color: ES[k].color, line: ES[k].line }));
 
   const eventsByDay: Record<number, { id: string; s: keyof typeof ES; label: string }[]> = {};
-  for (const p of all) {
+  for (const p of datedPosts ?? []) {
     const iso = p.published_at ?? p.scheduled_at;
     if (!iso) continue;
     const d = new Date(iso);
     if (d.getFullYear() !== calYear || d.getMonth() !== calMonthIdx) continue;
     const day = d.getDate();
     (eventsByDay[day] ??= []).push({ id: p.id, s: categoryFor(p.status), label: p.title ?? p.topic ?? 'Post' });
+  }
+  // Plan slots that haven't become posts yet. Slots materialize only ~72h
+  // before their date, so for most of a month most of the calendar lives ONLY
+  // in the plan — drawing this card from posts alone showed a near-empty month
+  // and read as "the agent has nothing planned", while the calendar page (which
+  // already merged these) showed a full one. Same data, two answers.
+  for (const slot of unmaterializedSlots(
+    (livePlan as any)?.publishing_plan,
+    (datedPosts ?? []).map((p: any) => p.slot_id),
+  )) {
+    const d = new Date(slot.publish_date!);
+    if (d.getFullYear() !== calYear || d.getMonth() !== calMonthIdx) continue;
+    (eventsByDay[d.getDate()] ??= []).push({
+      id: `slot-${slot.id}`, s: 'planned', label: slot.topic ?? 'Planned post',
+    });
   }
 
   const firstWeekday = new Date(calYear, calMonthIdx, 1).getDay();
