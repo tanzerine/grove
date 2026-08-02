@@ -6,6 +6,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { embedSeoStatus, crawlableArticleUrl } from '@/lib/embed-seo';
+import { blogPostUrl, canonicalBaseFor } from '@/lib/seo';
 
 const HOSTED = 'https://trygroveai.com';
 
@@ -105,5 +106,54 @@ describe('crawlableArticleUrl', () => {
     const url = crawlableArticleUrl({ hostname: 'www.acme.com', blog_slug: 'acme-com-ab12' }, 'my-post');
     expect(url).toContain('/b/acme-com-ab12/my-post');
     expect(url.startsWith('http')).toBe(true);
+  });
+});
+
+/**
+ * The list payload carries BOTH `blog_base` and a per-post `url`, built by two
+ * different call sites. They have to describe the same place.
+ *
+ * REGRESSION (2026-08-02): the routes passed the raw `canonical_blog_base`
+ * column into blogPostUrl instead of canonicalBaseFor(domain). A customer
+ * whose canonical is a CNAME — custom_blog_hostname set, canonical_blog_base
+ * NULL, which is exactly the live oveners.com configuration — got
+ * `blog_base: https://blog.oveners.com` next to
+ * `url: https://trygroveai.com/b/oveners-com-85lu/...` in one response. Every
+ * article link the legacy feed and third-party API consumers drew pointed at
+ * grove's mirror rather than the customer's own domain, sending the link
+ * equity the product is sold on to the wrong host.
+ */
+describe('list payload — blog_base and per-post url agree', () => {
+  const postUrlFor = (d: Parameters<typeof canonicalBaseFor>[0] & { blog_slug: string }) =>
+    blogPostUrl(d.blog_slug, 'my-post', canonicalBaseFor(d));
+
+  it('keeps the article under the CNAMEd base when canonical_blog_base is NULL', () => {
+    const domain = {
+      hostname: 'www.acme.com',
+      blog_slug: 'acme-com-ab12',
+      custom_blog_hostname: 'blog.acme.com',
+      canonical_blog_base: null,
+    };
+    expect(postUrlFor(domain)).toBe('https://blog.acme.com/my-post');
+    expect(postUrlFor(domain).startsWith(embedSeoStatus(domain, HOSTED).articleBase!)).toBe(true);
+  });
+
+  it('prefers an explicit canonical_blog_base over the CNAME', () => {
+    const domain = {
+      hostname: 'www.acme.com',
+      blog_slug: 'acme-com-ab12',
+      custom_blog_hostname: 'blog.acme.com',
+      canonical_blog_base: 'https://acme.com/insights',
+    };
+    expect(postUrlFor(domain)).toBe('https://acme.com/insights/my-post');
+    expect(postUrlFor(domain).startsWith(embedSeoStatus(domain, HOSTED).articleBase!)).toBe(true);
+  });
+
+  it('falls back to the grove mirror when the domain owns no base', () => {
+    const domain = { hostname: 'www.acme.com', blog_slug: 'acme-com-ab12' };
+    expect(postUrlFor(domain)).toContain('/b/acme-com-ab12/my-post');
+    // Nothing crawlable on the customer's domain, so blog_base is null and the
+    // mirror is all there is — the two are not in conflict here.
+    expect(embedSeoStatus(domain, HOSTED).articleBase).toBeNull();
   });
 });

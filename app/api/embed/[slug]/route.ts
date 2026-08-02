@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { blogPostUrl } from '@/lib/seo';
+import { blogPostUrl, canonicalBaseFor } from '@/lib/seo';
 import { genreFor, authorFor } from '@/lib/blog-genre';
 
 export async function GET(req: Request, ctx: { params: Promise<{ slug: string }> }) {
@@ -33,7 +33,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ slug: string }>
     posts: (posts ?? []).map((p: any) => ({
       title: p.title,
       excerpt: p.meta_description,
-      url: blogPostUrl(slug, p.slug, (domain as any).canonical_blog_base),
+      url: blogPostUrl(slug, p.slug, canonicalBaseFor(domain as any)),
       date: p.published_at,
       genre: genreFor(p.format, p.title).label,
       author,

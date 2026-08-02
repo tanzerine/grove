@@ -15,7 +15,7 @@ import type { Metadata } from 'next';
 import GroveEmbed, { groveEmbedHost } from '@/components/GroveEmbed';
 import SiteNav from '@/components/SiteNav';
 import { resolveBlogDomain } from '@/lib/blog-domain';
-import { blogHomeUrl } from '@/lib/seo';
+import { blogHomeUrl, canonicalBaseFor } from '@/lib/seo';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export const metadata: Metadata = {
@@ -34,7 +34,7 @@ const ACCENT = '#A2FF01';
 async function articleBase(): Promise<string | null> {
   try {
     const domain = await resolveBlogDomain(supabaseAdmin(), groveEmbedHost());
-    return domain?.blog_slug ? blogHomeUrl(domain.blog_slug, domain.canonical_blog_base) : null;
+    return domain?.blog_slug ? blogHomeUrl(domain.blog_slug, canonicalBaseFor(domain)) : null;
   } catch {
     // No service key / DB unreachable: fall back to the in-page reader.
     return null;
