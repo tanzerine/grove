@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { deriveBrandColors, accentForText } from '@/lib/blog-theme';
+import { deriveBrandColors, blogThemeVars, accentForText, type PageColors } from '@/lib/blog-theme';
 
 /**
  * Manual brand-color override. The homepage crawl guesses a palette, but it can
@@ -12,13 +12,16 @@ import { deriveBrandColors, accentForText } from '@/lib/blog-theme';
  * reverts to whatever the crawl found.
  */
 export default function ThemeColorsForm({
-  domainId, initialPrimary, initialSecondary, hasOverride, crawledPrimary,
+  domainId, initialPrimary, initialSecondary, hasOverride, crawledPrimary, pageColors,
 }: {
   domainId: string;
   initialPrimary: string;
   initialSecondary: string;
   hasOverride: boolean;
   crawledPrimary: string | null;
+  /** The site's captured background and ink (site_profile.design.colors), which
+   *  is what the banner is actually built from once a capture exists. */
+  pageColors: PageColors;
 }) {
   const [primary, setPrimary] = useState(initialPrimary);
   const [secondary, setSecondary] = useState(initialSecondary);
@@ -26,9 +29,29 @@ export default function ThemeColorsForm({
   const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [error, setError] = useState('');
 
-  // Same derivation the blog will use, so the preview is faithful.
+  /**
+   * The preview has to run the SAME derivation the blog runs, and since the
+   * banner started being built from the captured page (blogThemeVars) that is
+   * no longer deriveBrandColors. On grove's own domain the two had diverged
+   * completely — the preview drew a #7abf01 yellow-green slab with a salmon
+   * button while the blog rendered a #181818 card with a lime one — so the
+   * owner was tuning colors against a picture of something that did not exist.
+   *
+   * deriveBrandColors still runs first because blogThemeVars consumes a full
+   * BrandColors, and it remains the whole answer for a domain with no capture.
+   */
   const derived = deriveBrandColors(primary, { secondary });
-  const accent = accentForText(primary);
+  const vars = blogThemeVars(derived, pageColors) ?? {};
+  const banner = {
+    bg: vars['--cta-bg'] ?? derived.banner_bg,
+    text: vars['--cta-text'] ?? derived.banner_text,
+    muted: vars['--cta-text-muted'] ?? derived.banner_text_muted,
+    btn: vars['--cta-btn'] ?? derived.btn_color,
+    btnText: vars['--cta-btn-text'] ?? derived.btn_text_color,
+  };
+  // The accent is corrected against the page it sits on, exactly as the blog
+  // does; accentForText's assume-white result is the no-capture fallback.
+  const accent = vars['--moss'] ?? accentForText(primary);
 
   async function send(body: Record<string, unknown>, after: () => void) {
     setState('saving');
@@ -61,17 +84,18 @@ export default function ThemeColorsForm({
         <Swatch label="Primary" hint="banner + accents" value={primary} onChange={setPrimary} />
         <Swatch label="Secondary" hint="button" value={secondary} onChange={setSecondary} />
 
-        {/* live preview: banner mockup + accent chip, using the real derivation */}
+        {/* live preview: banner mockup + accent chip, through the same path the
+            blog renders — see the note on `banner` above. */}
         <div style={{ flex: '1 1 260px', minWidth: 240 }}>
           <div className="mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-dim)', marginBottom: 8 }}>
             Preview
           </div>
-          <div style={{ borderRadius: 12, padding: '20px 18px', textAlign: 'center', background: derived.banner_bg, color: derived.banner_text }}>
-            <div className="mono" style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: derived.banner_text_muted }}>
+          <div style={{ borderRadius: 12, padding: '20px 18px', textAlign: 'center', background: banner.bg, color: banner.text }}>
+            <div className="mono" style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: banner.muted }}>
               Powered by your brand
             </div>
             <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 17, margin: '5px 0 10px' }}>Try your product</div>
-            <span style={{ display: 'inline-block', background: derived.btn_color, color: derived.btn_text_color, padding: '7px 16px', borderRadius: 999, fontSize: 12, fontWeight: 600 }}>
+            <span style={{ display: 'inline-block', background: banner.btn, color: banner.btnText, padding: '7px 16px', borderRadius: 999, fontSize: 12, fontWeight: 600 }}>
               Visit →
             </span>
           </div>

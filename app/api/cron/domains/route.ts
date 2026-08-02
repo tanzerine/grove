@@ -30,7 +30,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { isCronAuthorized } from '@/lib/cron-auth';
 import { attachProjectDomain, isVercelDomainsConfigured } from '@/lib/vercel/domains';
-import { captureSiteDesign, type SiteProfile } from '@/lib/pipeline/site-profile';
+import { captureSiteLook, type SiteProfile } from '@/lib/pipeline/site-profile';
 import { hasDesign } from '@/lib/site-design';
 
 export const runtime = 'nodejs';
@@ -94,15 +94,26 @@ export async function GET(req: Request) {
 }
 
 /**
- * Re-capture `site_profile.design` for the domains whose capture is oldest or
- * missing.
+ * Re-capture `site_profile.design` AND `site_profile.branding` for the domains
+ * whose capture is oldest or missing.
  *
- * Two rules keep this from making a blog worse than it already is:
- *  - a capture that yields nothing (`hasDesign` false) is never written, so a
- *    homepage that is briefly down or newly behind a bot wall cannot erase a
- *    good capture and drop the blog back to grove's palette;
+ * Branding was not refreshed by anything until now. Its only writer was the
+ * profile crawl, which runs once, when a domain has no profile at all — so a
+ * palette that was wrong on the day it was captured stayed wrong forever, and
+ * an improvement to the extractor reached nobody who had already been crawled.
+ * Both come from the same homepage fetch, so this costs nothing extra.
+ *
+ * Three rules keep this from making a blog worse than it already is:
+ *  - a capture that yields nothing (`hasDesign` false, or a null palette) is
+ *    never written, so a homepage that is briefly down or newly behind a bot
+ *    wall cannot erase a good capture and drop the blog back to grove's look;
+ *  - each half is written independently, so a homepage that yields colors but
+ *    no usable design still improves the half it can;
  *  - the row is re-read and merged rather than overwritten, so a profile
  *    rewritten by a generation running at the same time keeps its own fields.
+ *
+ * `brand_override` is untouched: an owner who set their colors by hand outranks
+ * anything crawled, and resolveBranding already prefers it.
  */
 async function refreshDesigns(sb: ReturnType<typeof supabaseAdmin>) {
   const { data: rows } = await sb
@@ -126,18 +137,21 @@ async function refreshDesigns(sb: ReturnType<typeof supabaseAdmin>) {
   let empty = 0;
   const errors: { host: string; message: string }[] = [];
 
+  let recolored = 0;
+
   for (const row of queue) {
     try {
-      const d = await captureSiteDesign(row.hostname as string);
-      if (!hasDesign(d)) { empty++; continue; }
+      const look = await captureSiteLook(row.hostname as string);
+      const usableDesign = hasDesign(look.design);
+      if (!usableDesign && !look.branding) { empty++; continue; }
 
       const { data: fresh } = await sb.from('domains').select('site_profile').eq('id', row.id).single();
       const profile = (fresh?.site_profile ?? row.site_profile) as SiteProfile;
-      await sb
-        .from('domains')
-        .update({ site_profile: { ...profile, design: d, design_captured_at: new Date().toISOString() } })
-        .eq('id', row.id);
-      captured++;
+      const next: SiteProfile = { ...profile, design_captured_at: new Date().toISOString() };
+      if (usableDesign) { next.design = look.design; captured++; }
+      if (look.branding) { next.branding = look.branding; recolored++; }
+
+      await sb.from('domains').update({ site_profile: next }).eq('id', row.id);
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       errors.push({ host: row.hostname as string, message });
@@ -145,5 +159,5 @@ async function refreshDesigns(sb: ReturnType<typeof supabaseAdmin>) {
     }
   }
 
-  return { considered: queue.length, captured, empty, errors };
+  return { considered: queue.length, captured, recolored, empty, errors };
 }

@@ -247,6 +247,34 @@ describe('the hosted nav is the landing’s bar', () => {
   });
 });
 
+describe('the dashboard preview shows what the blog renders', () => {
+  const form = readFileSync(join(process.cwd(), 'app/dashboard/embed/ThemeColorsForm.tsx'), 'utf8');
+
+  it('derives the preview banner through blogThemeVars, not deriveBrandColors', () => {
+    // The preview's comment claimed it used "the same derivation the blog will
+    // use". That stopped being true when the banner started being built from
+    // the captured page: for grove's own domain the preview drew a #7abf01
+    // yellow-green slab with a salmon button while the blog rendered a #181818
+    // card with a lime one, so the owner was tuning against a fiction.
+    expect(form).toContain('blogThemeVars');
+    expect(form).toContain('pageColors');
+    // …and the markup must read the resolved values, not the raw derivation.
+    expect(form).not.toMatch(/background:\s*derived\.banner_bg/);
+    expect(form).not.toMatch(/background:\s*derived\.btn_color/);
+  });
+
+  it('agrees with the hosted page for a captured site', () => {
+    const branding = { ...GROVE_BRANDING };
+    const page = GROVE_DESIGN.colors;
+    const preview = blogThemeVars(branding, page)!;   // what the form now draws
+    const rendered = blogThemeVars(branding, page)!;  // what app/b/[slug] draws
+    expect(preview['--cta-bg']).toBe(rendered['--cta-bg']);
+    // and it is the captured surface, not the darkened brand color
+    expect(preview['--cta-bg']).not.toBe(branding.banner_bg);
+    expect(isDark(preview['--cta-bg'])).toBe(true);
+  });
+});
+
 describe('a site grove could not capture', () => {
   it('keeps grove’s own look, exactly as before the feature', () => {
     expect(designCss(null)).toBeNull();

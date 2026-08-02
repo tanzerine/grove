@@ -13,6 +13,37 @@ describe('extractBrandColors', () => {
     expect(extractBrandColors(makeHtml('body { color: #fff; background: #000; }'))).toBeNull();
   });
 
+  it('does not elect a one-off status color as the brand', () => {
+    // The real failure, reduced. grove's own homepage declares --gv-red-text
+    // ONCE, for error copy. The old score weighted saturation linearly and the
+    // use count only logarithmically, so a single 100%-saturated red outscored
+    // a 46%-saturated green used sixteen times — and since the dashboard turns
+    // the secondary into the CTA button, every blog banner offered readers a
+    // salmon pink button.
+    const css = `
+      :root { --gv-red-text: #ff9b9b; }
+      ${Array.from({ length: 16 }, (_, i) => `.a${i} { color: #6cc98a; }`).join('\n')}
+      ${Array.from({ length: 20 }, (_, i) => `.b${i} { background: #a2ff01; }`).join('\n')}
+    `;
+    const r = extractBrandColors(makeHtml(css))!;
+    expect(r.primary_color).toBe('#a2ff01');
+    expect(r.secondary_color).toBe('#6cc98a');
+    expect(r.secondary_color).not.toBe('#ff9b9b');
+    // and the button follows the secondary, which is how the red reached readers
+    expect(r.btn_color).not.toBe('#ff9b9b');
+  });
+
+  it('still prefers a saturated color when both are used equally', () => {
+    // Frequency dominating must not mean saturation stops counting — between
+    // two colors a site uses the same amount, the more chromatic one is the
+    // likelier brand.
+    const css = `
+      ${Array.from({ length: 6 }, (_, i) => `.x${i} { color: #8a8f88; }`).join('\n')}
+      ${Array.from({ length: 6 }, (_, i) => `.y${i} { background: #1d4ed8; }`).join('\n')}
+    `;
+    expect(extractBrandColors(makeHtml(css))!.primary_color).toBe('#1d4ed8');
+  });
+
   it('picks primary from a CSS brand var and derives banner_bg', () => {
     const result = extractBrandColors(makeHtml(`:root { --primary: #1d4ed8; } body { color: #333; }`));
     expect(result).not.toBeNull();
