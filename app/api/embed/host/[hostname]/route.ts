@@ -7,7 +7,7 @@
  */
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { blogPostUrl, sanitizeEmbedHost } from '@/lib/seo';
+import { blogPostUrl, sanitizeEmbedHost, appBase } from '@/lib/seo';
 import { embedSeoStatus } from '@/lib/embed-seo';
 import { genreFor, authorFor } from '@/lib/blog-genre';
 import { brandingPayload, resolveBranding } from '@/lib/blog-theme';
@@ -80,7 +80,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ hostname: strin
     // editing the snippet they pasted months ago — the old behaviour needed
     // data-article-base, an opt-in nobody discovered, and every blog without it
     // read in-page at a #fragment that no crawler can index.
-    blog_base: embedSeoStatus(domain as any).articleBase,
+    blog_base: embedSeoStatus(domain as any, appBase()).articleBase,
     posts: (posts ?? []).map((p: any) => ({
       slug: p.slug,
       title: p.title,

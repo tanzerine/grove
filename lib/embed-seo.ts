@@ -21,6 +21,9 @@ export type EmbedSeoState =
   | 'self-served'
   /** Grove serves the whole blog on the customer's CNAME'd subdomain. */
   | 'subdomain'
+  /** The domain IS the app origin (grove's own row) — /b/{slug} is already
+   *  on its own domain, so there is nothing to connect. */
+  | 'app-origin'
   /** Neither: articles exist only on grove's domain + the hash reader. */
   | 'hash-only';
 
@@ -82,6 +85,24 @@ export function embedSeoStatus(
   }
 
   const mirror = domain?.blog_slug ? `${hostedBase}/b/${domain.blog_slug}` : hostedBase;
+
+  // Grove's own domain row is a customer like any other, except for one thing:
+  // the "grove-hosted mirror" is ON ITS OWN DOMAIN. The hash-only warning below
+  // exists because /b/{slug} spends a customer's content on grove's domain —
+  // when the domain IS grove's, that sentence ("credit goes to grove") is both
+  // false and nonsensical, and the subdomain it tells you to connect would buy
+  // nothing. Everything is already where it should be.
+  if (domain?.blog_slug && sameHost(domain.hostname, hostedBase)) {
+    return {
+      state: 'app-origin',
+      articleBase: mirror,
+      crawlable: true,
+      label: 'Indexable',
+      detail: `Articles are served at ${mirror}/<slug> — already on this domain, with canonical, sitemap, RSS and JSON-LD.`,
+      fix: null,
+    };
+  }
+
   return {
     state: 'hash-only',
     articleBase: null,
@@ -90,6 +111,13 @@ export function embedSeoStatus(
     detail: `Articles open in the in-page reader at a #fragment, which no crawler treats as its own URL — ${host} has one indexable page.`,
     fix: `Connect a subdomain (step 1) and every article gets a real URL on your domain. Until then the only crawlable copy is grove's mirror at ${mirror}, and that credit goes to grove.`,
   };
+}
+
+/** Is this hostname the same site as `base`'s origin? www-insensitive. */
+function sameHost(hostname: string | null | undefined, base: string): boolean {
+  if (!hostname) return false;
+  const strip = (h: string) => h.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
+  return strip(hostname) === strip(base);
 }
 
 /**

@@ -34,6 +34,9 @@ export default async function Page() {
   // from "one page with a JS reader on it" — the customer's whole reason for
   // buying, invisible in the UI. embed.js reads the same answer from the API.
   const seo = domain ? embedSeoStatus(domain as any, groveBase) : null;
+  // grove's own domain row: /b/{slug} already IS this domain, so step 1 has
+  // nothing to offer and "Not connected" was reading as a problem to fix.
+  const onAppOrigin = seo?.state === 'app-origin';
 
   return (
     <>
@@ -47,20 +50,28 @@ export default async function Page() {
           {/* LEFT COLUMN */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
 
-            {/* STEP 1: SUBDOMAIN */}
-            <div className="gv-card" style={{ background: 'var(--gv-card)', border: `1px solid ${connected ? 'rgba(162,255,1,0.35)' : 'var(--gv-line)'}`, borderRadius: 18, padding: '22px 24px' }}>
+            {/* STEP 1: SUBDOMAIN — skipped entirely when the blog is already
+                served on this domain's own origin (grove's own row), where a
+                subdomain would move the articles sideways for no gain. */}
+            <div className="gv-card" style={{ background: 'var(--gv-card)', border: `1px solid ${connected || onAppOrigin ? 'rgba(162,255,1,0.35)' : 'var(--gv-line)'}`, borderRadius: 18, padding: '22px 24px' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 4 }}>
                 <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>Step 1 · Own the SEO</div>
-                <span style={{ fontSize: 11, fontWeight: 700, color: connected ? '#d9ff8f' : 'var(--gv-dim)', background: connected ? 'rgba(162,255,1,0.14)' : 'rgba(255,255,255,0.05)', border: `1px solid ${connected ? 'rgba(162,255,1,0.4)' : 'rgba(255,255,255,0.14)'}`, borderRadius: 999, padding: '4px 10px', flexShrink: 0 }}>{connected ? 'Connected' : 'Not connected'}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: connected || onAppOrigin ? '#d9ff8f' : 'var(--gv-dim)', background: connected || onAppOrigin ? 'rgba(162,255,1,0.14)' : 'rgba(255,255,255,0.05)', border: `1px solid ${connected || onAppOrigin ? 'rgba(162,255,1,0.4)' : 'rgba(255,255,255,0.14)'}`, borderRadius: 999, padding: '4px 10px', flexShrink: 0 }}>
+                  {onAppOrigin ? 'Not needed' : connected ? 'Connected' : 'Not connected'}
+                </span>
               </div>
-              <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.01em', marginBottom: 6 }}>Serve the blog on your own subdomain</div>
+              <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.01em', marginBottom: 6 }}>
+                {onAppOrigin ? 'Your blog is already on your own domain' : 'Serve the blog on your own subdomain'}
+              </div>
               <p style={{ fontSize: 13, color: 'var(--gv-dim)', lineHeight: 1.55, margin: '0 0 16px', maxWidth: 640 }}>
-                Point a subdomain at grove — we handle pages, canonicals, sitemap and search credit. Zero code.
+                {onAppOrigin
+                  ? `Articles are served from ${apex} itself, with canonicals, sitemap, RSS and JSON-LD. A subdomain would only move them sideways.`
+                  : 'Point a subdomain at grove — we handle pages, canonicals, sitemap and search credit. Zero code.'}
               </p>
-              {domain ? (
-                <CustomHostnameForm domainId={domain.id} initial={(domain as any).custom_blog_hostname ?? null} hostname={domain.hostname} />
-              ) : (
+              {!domain ? (
                 <p style={{ color: 'var(--gv-faint)', fontSize: 13 }}>Connect a domain first.</p>
+              ) : onAppOrigin ? null : (
+                <CustomHostnameForm domainId={domain.id} initial={(domain as any).custom_blog_hostname ?? null} hostname={domain.hostname} />
               )}
             </div>
 
@@ -129,11 +140,13 @@ export default async function Page() {
               </details>
             )}
 
-            <p style={{ color: 'var(--gv-faint)', fontSize: 12.5, lineHeight: 1.55 }}>
-              Haven&rsquo;t set up step 1 yet? Grove hosts your blog at{' '}
-              <span className="mono">{groveBase}/b/{domain?.blog_slug}</span> (sitemap, RSS, JSON-LD) in the meantime —
-              but that credit goes to grove&rsquo;s domain, not yours. Setting your subdomain moves it to you.
-            </p>
+            {!onAppOrigin && (
+              <p style={{ color: 'var(--gv-faint)', fontSize: 12.5, lineHeight: 1.55 }}>
+                Haven&rsquo;t set up step 1 yet? Grove hosts your blog at{' '}
+                <span className="mono">{groveBase}/b/{domain?.blog_slug}</span> (sitemap, RSS, JSON-LD) in the meantime —
+                but that credit goes to grove&rsquo;s domain, not yours. Setting your subdomain moves it to you.
+              </p>
+            )}
           </div>
 
           {/* RIGHT COLUMN */}
@@ -157,9 +170,9 @@ export default async function Page() {
                   </div>
                 )}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 9, background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                  <span style={{ display: 'flex', color: connected ? 'var(--gv-accent-ink)' : '#4c4f47' }}><Icon name={connected ? 'check' : 'clock'} size={15} /></span>
+                  <span style={{ display: 'flex', color: connected || onAppOrigin ? 'var(--gv-accent-ink)' : '#4c4f47' }}><Icon name={connected || onAppOrigin ? 'check' : 'clock'} size={15} /></span>
                   <span style={{ flex: 1, fontSize: 12.5, color: 'var(--gv-soft)' }}>Subdomain</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: connected ? '#d9ff8f' : 'var(--gv-dim)' }}>{connected ? 'Live' : 'Not connected'}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: connected || onAppOrigin ? '#d9ff8f' : 'var(--gv-dim)' }}>{onAppOrigin ? 'Not needed' : connected ? 'Live' : 'Not connected'}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 9, background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.06)' }}>
                   <span style={{ display: 'flex', color: 'var(--gv-faint)' }}><Icon name="embed" size={15} /></span>

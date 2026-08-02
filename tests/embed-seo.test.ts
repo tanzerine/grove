@@ -53,6 +53,35 @@ describe('embedSeoStatus', () => {
     expect(s.articleBase).toBeNull();
   });
 
+  it('treats grove’s own domain row as already indexable', () => {
+    // The hash-only warning exists because /b/{slug} spends a customer's
+    // content on grove's domain. When the domain IS grove's, that mirror is
+    // on-domain: "credit goes to grove" is nonsense and the subdomain it tells
+    // you to connect would buy nothing. This shipped reading "Not indexable"
+    // on grove's own dashboard.
+    const s = embedSeoStatus({ hostname: 'trygroveai.com', blog_slug: 'trygroveai-com-o6hf' }, HOSTED);
+    expect(s.state).toBe('app-origin');
+    expect(s.crawlable).toBe(true);
+    expect(s.label).toBe('Indexable');
+    expect(s.articleBase).toBe(`${HOSTED}/b/trygroveai-com-o6hf`);
+    expect(s.fix).toBeNull();
+    expect(s.detail).not.toContain('credit goes to grove');
+  });
+
+  it('matches the app origin through www and protocol', () => {
+    for (const hostname of ['www.trygroveai.com', 'TryGroveAI.com']) {
+      expect(embedSeoStatus({ hostname, blog_slug: 'x' }, HOSTED).state, hostname).toBe('app-origin');
+    }
+    // A different host that merely contains it is NOT the app origin.
+    expect(embedSeoStatus({ hostname: 'nottrygroveai.com', blog_slug: 'x' }, HOSTED).state).toBe('hash-only');
+  });
+
+  it('still warns a real customer whose only copy is on grove’s domain', () => {
+    const s = embedSeoStatus({ hostname: 'www.acme.com', blog_slug: 'acme-com-ab12' }, HOSTED);
+    expect(s.state).toBe('hash-only');
+    expect(s.fix).toContain('credit goes to grove');
+  });
+
   it('survives a null domain (dashboard renders before one is connected)', () => {
     const s = embedSeoStatus(null, HOSTED);
     expect(s.crawlable).toBe(false);
