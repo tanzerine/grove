@@ -64,6 +64,16 @@ export const ARTICLE_CSS = `
   margin: 0 auto;
   text-align: left;
 }
+/* The measure cap belongs to the TEXT COLUMN, and the wrapper is only the text
+   column in one of the two shapes. When the article arrives from the embed API
+   the wrapper also contains the 240px TOC rail, so capping it there capped the
+   whole two-column grid: measured on a 1060px shell, the rail stayed 240px and
+   the body was squeezed to 444px — narrower than it would have been with no
+   sidebar at all. The cap moves to .grv-body in that shape, where it means what
+   it says. Both rules are needed: grove's own page drops the html straight into
+   the wrapper with no .grv-root, and keeps the cap above. */
+.${ARTICLE_CLASS}:has(.grv-root) { max-width: none; }
+.${ARTICLE_CLASS} .grv-body { max-width: 68ch; margin: 0 auto; }
 /* Direct-child rules have to account for BOTH shapes the article arrives in.
    Grove's own page drops the HTML straight into the wrapper, so a direct-child
    selector matches. The embed API wraps it three levels deep —
