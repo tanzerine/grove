@@ -27,7 +27,7 @@ const SRC = readFileSync(path.join(process.cwd(), 'public/embed.js'), 'utf8');
  */
 function load(): Record<string, any> {
   const names = [
-    'parseColor', 'rgbStr', 'mix', 'luminance', 'contrast', 'readableOn', 'deriveTokens',
+    'parseColor', 'rgbStr', 'mix', 'luminance', 'contrast', 'readableOn', 'cardSurface', 'deriveTokens',
   ];
   const bodies = names.map((n) => {
     const m = SRC.match(new RegExp(`\\n  function ${n}\\([^)]*\\) \\{[\\s\\S]*?\\n  \\}`));
@@ -92,6 +92,26 @@ describe('deriveTokens — colors are relationships, not constants', () => {
     expect(M.luminance(dark)).toBeGreaterThan(M.luminance(M.parseColor(VOLT.bg)));
   });
 
+  it('never makes text on a card harder to read than text on the page', () => {
+    // The mid-tone hole. A 7% lift toward white is free on a near-black page,
+    // where near-white ink reads at 16:1. On a #6f7278 page with the same ink
+    // there is only 4.3:1 to spend, and the lift dropped grove's cards to
+    // 3.7 — below AA, and visibly worse than the identical text beside it.
+    const MIDGREY = { bg: 'rgb(111,114,120)', ink: 'rgb(242,242,240)' };
+    const t = tokens(MIDGREY as any);
+    const ink = M.parseColor(t['--gv-ink']);
+    const onPage = M.contrast(ink, M.parseColor(MIDGREY.bg));
+    const onCard = M.contrast(ink, M.parseColor(t['--gv-surface']));
+    expect(onCard).toBeGreaterThanOrEqual(Math.min(4.5, onPage) - 0.01);
+  });
+
+  it('still lifts the card where the page has contrast to spare', () => {
+    // The cap must not flatten the ordinary dark page, which is the case the
+    // lift exists for.
+    const s = M.parseColor(tokens(VOLT)['--gv-surface']);
+    expect(M.luminance(s)).toBeGreaterThan(M.luminance(M.parseColor(VOLT.bg)));
+  });
+
   it('keeps body text on the page ink and secondary text below it', () => {
     for (const page of [KETTLE, VOLT]) {
       const t = tokens(page);
@@ -131,11 +151,23 @@ describe('deriveTokens — accent legibility', () => {
   // site and invisible the moment the embed lands on a dark page.
   const NEAR_BLACK = '#0b0b0e';
 
-  it('lifts an unreadable accent until it clears the UI contrast floor', () => {
+  it('lifts an unreadable accent until it clears the text contrast floor', () => {
     const t = tokens({ ...VOLT, accent: NEAR_BLACK });
     const accent = M.parseColor(t['--gv-accent']);
     expect(accent).not.toBeNull();
-    expect(M.contrast(accent, M.parseColor(VOLT.bg))).toBeGreaterThanOrEqual(3.2);
+    // 4.5, not the 3.2 UI-component floor: .gv-kicker is 11px and .gv-badge is
+    // 10px, so the accent is mostly small TEXT and 3.2 was the wrong bar.
+    expect(M.contrast(accent, M.parseColor(VOLT.bg))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('keeps a brand color that is already bright enough for a dark page', () => {
+    // The reason the API now sends accent_raw: pre-correcting grove's lime for
+    // white produced a dark olive, and an olive that already clears the floor on
+    // a near-black page is never lifted back — so the brand arrived muddy and
+    // stayed muddy. Given the RAW color, a dark page keeps it as it is.
+    const t = tokens({ ...VOLT, accent: '#a2ff01' });
+    expect(t['--gv-accent']).toBe('rgb(162,255,1)');
+    expect(M.contrast(M.parseColor(t['--gv-accent']), M.parseColor(VOLT.bg))).toBeGreaterThan(10);
   });
 
   it('leaves an already-legible accent alone', () => {
@@ -183,6 +215,26 @@ describe('deriveTokens — typography and geometry', () => {
     const t = tokens({ ...KETTLE, radius: 12 });
     expect(t['--gv-radius']).toBe('12px');
     expect(t['--gv-pill']).toBe('999px');
+  });
+
+  it('squares itself completely on a site that squares everything', () => {
+    // Radius 0 used to be discarded as "no system to copy", so a brutalist or
+    // terminal-styled page got grove's 14px cards and 999px chips — the single
+    // loudest way the section reads as imported from somewhere else.
+    const t = tokens({ ...KETTLE, radius: 0 });
+    expect(t['--gv-radius']).toBe('0px');
+    expect(t['--gv-pill']).toBe('0px');
+  });
+
+  it('only lets a painted element vote for square corners', () => {
+    // …because 0 is also what every unstyled <a class> computes to, and letting
+    // those vote would square almost every site on the web. sampleRadius is the
+    // one measurement that touches the DOM, so this is a source contract.
+    const fn = SRC.match(/function sampleRadius\([\s\S]*?\n  \}/)![0];
+    expect(fn).toMatch(/r === 0/);                       // zero is considered…
+    expect(fn).toMatch(/backgroundColor/);               // …only with a fill…
+    expect(fn).toMatch(/borderTopWidth/);                // …or a border.
+    expect(fn).not.toMatch(/r <= 0/);                    // never discarded outright
   });
 
   it('clamps a runaway measurement', () => {

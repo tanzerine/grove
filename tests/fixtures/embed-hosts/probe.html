@@ -1,0 +1,51 @@
+<!doctype html><meta charset=utf-8><title>embed probe</title>
+<style>body{margin:0;font:12px system-ui}iframe{width:1100px;height:900px;border:0;display:block}</style>
+<div id=frames></div>
+<script>
+const IDS = ['paper-serif','midnight-neon','brutalist','corporate','pastel','terminal','sand','hicontrast','mint','midgrey'];
+const box = document.getElementById('frames');
+IDS.forEach(id => { const f = document.createElement('iframe'); f.id = 'f-'+id; f.src = id+'.html'; box.appendChild(f); });
+
+const PROPS = ['--gv-bg','--gv-ink','--gv-surface','--gv-line','--gv-muted','--gv-accent','--gv-on-accent','--gv-radius','--gv-pill','--gv-shadow','--gv-head-font','--gv-label-font'];
+
+function lum(c){const m=c.match(/\d+(\.\d+)?/g);if(!m)return null;const f=v=>{v/=255;return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4)};return 0.2126*f(+m[0])+0.7152*f(+m[1])+0.0722*f(+m[2])}
+function ratio(a,b){const la=lum(a),lb=lum(b);if(la==null||lb==null)return null;return +(((Math.max(la,lb)+0.05)/(Math.min(la,lb)+0.05))).toFixed(2)}
+
+window.probe = function () {
+  return IDS.map(id => {
+    const d = document.getElementById('f-'+id).contentDocument;
+    const root = d.getElementById('grove-blog');
+    if (!root) return { id, error: 'no mount' };
+    const cs = d.defaultView.getComputedStyle(root);
+    const v = k => cs.getPropertyValue(k).trim();
+    const body = d.defaultView.getComputedStyle(d.body);
+    const card = root.querySelector('.gv-card');
+    const cardCs = card ? d.defaultView.getComputedStyle(card) : null;
+    const chip = root.querySelector('.gv-chip');
+    const kicker = root.querySelector('.gv-kicker');
+    const search = root.querySelector('.gv-search');
+    const pageCard = d.querySelector('.card');
+    return {
+      id,
+      cards: root.querySelectorAll('.gv-card').length,
+      feat: root.querySelectorAll('.gv-feat').length,
+      page: { bg: body.backgroundColor, ink: body.color, radius: pageCard ? d.defaultView.getComputedStyle(pageCard).borderRadius : null },
+      vars: Object.fromEntries(PROPS.map(k => [k, v(k)])),
+      rendered: cardCs ? {
+        cardBg: cardCs.backgroundColor, cardBorder: cardCs.borderTopColor, cardRadius: cardCs.borderRadius,
+        cardFont: cardCs.fontFamily.slice(0, 40),
+        searchBg: search ? d.defaultView.getComputedStyle(search).backgroundColor : null,
+        chipRadius: chip ? d.defaultView.getComputedStyle(chip).borderRadius : null,
+      } : null,
+      contrast: {
+        inkOnSurface: ratio(v('--gv-ink'), v('--gv-surface')),
+        mutedOnSurface: ratio(v('--gv-muted'), v('--gv-surface')),
+        accentOnBg: ratio(v('--gv-accent'), v('--gv-bg') || body.backgroundColor),
+        accentOnSurface: ratio(v('--gv-accent'), v('--gv-surface')),
+        onAccentOnAccent: ratio(v('--gv-on-accent'), v('--gv-accent')),
+        kickerOnPage: kicker ? ratio(d.defaultView.getComputedStyle(kicker).color, body.backgroundColor) : null,
+      },
+    };
+  });
+};
+</script>
