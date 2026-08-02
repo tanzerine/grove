@@ -25,9 +25,25 @@ Mono, defined in `app/globals.css` (`--ink #1a2e1f`, `--moss #4e9e6a`,
    — a *customer's* marketing site (Oven AI, oveners.com). Separate Next.js app.
    It consumes Grove's embed API and renders its own `/blog`. **When a user reports
    a bug on `oveners.com/blog`, it is almost always THIS repo, not grove** — the
-   recurring "shows 6 / says AI / no author" issues all lived here. The blog list
-   now renders via grove's `#grove-blog` embed; `/blog/[slug]` stays server-rendered
-   for SEO.
+   recurring "shows 6 / says AI / no author" issues all lived here.
+
+   **oveners.com does NOT load embed.js at all** (an earlier version of this file
+   claimed the list had moved to `#grove-blog`; verified false on 2026-08-02 —
+   the live HTML has ovenai's own `m-blog-featured` markup and no embed script).
+   Both blog surfaces are ovenai's own server-rendered React, fed by grove's
+   embed *API*:
+   - `/blog` (list) — `components/blog/BlogContent.tsx` + `lib/grove.ts`, which
+     pages `/api/embed/host/oveners.com` server-side and draws its own cards,
+     search, genre chips and pagination. **This duplicates embed.js's list
+     logic**, so a list-level fix has to be made in both places — that's the
+     cost of the current setup, not a bug to "fix" by assuming the embed is there.
+   - `/blog/[slug]` (article) — renders the API's **`html`** field (ovenai#8,
+     2026-08-02), so the sticky TOC rail, the CTA and the article chrome all come
+     from grove and an upstream fix lands on oveners.com automatically. It maps
+     grove's `--gv-*` properties onto its own tokens and scopes its prose CSS to
+     `.grv-body`. Before that it rendered the `body_md` fallback, which is why
+     the same post had a boxy inline TOC there and a sidebar on grove's copy.
+     If you change the shape of `html`, check that page.
 
 ## Architecture (grove)
 
@@ -193,7 +209,12 @@ Other key surfaces:
 
 - ovenai's local `next build` fails on `/api/stripe-webhook` (`supabaseUrl is
   required`) because its env isn't in the local checkout — Vercel has it. Verify
-  ovenai with `npx tsc --noEmit` instead.
+  ovenai with `npx tsc --noEmit` instead. Its `next dev` doesn't run either:
+  Clerk middleware throws `Missing publishableKey` on EVERY route, so you cannot
+  render an ovenai page locally at all. To check an ovenai blog change visually,
+  rebuild the page's markup + CSS in a scratch HTML file against the live
+  `/api/embed/host/...` payload (CORS is open), then confirm on the Vercel
+  preview or after deploy — and say which of the two you actually did.
 - Public blog pages cache the feed ~5 min (`revalidate: 300` / CDN s-maxage). After
   a deploy, allow a few minutes before concluding a change didn't work.
 - `reads` feeds the strategy loop, so it's incremented for humans only (bot UAs
