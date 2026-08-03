@@ -26,7 +26,7 @@ function postIdForUrl(url: string, slugIndex: Map<string, string>): string | nul
   } catch { return null; }
 }
 
-export type SyncResult = { ok: boolean; pages: number; queries: number; reason?: string };
+export type SyncResult = { ok: boolean; pages: number; queries: number; pageQueries?: number; reason?: string };
 
 export async function syncDomain(domainId: string): Promise<SyncResult> {
   const conn = await getConnection(domainId);
@@ -52,11 +52,27 @@ export async function syncDomain(domainId: string): Promise<SyncResult> {
   let pageRows: GscRow[] = [];
   let queryRows: GscRow[] = [];
   let dailyRows: GscRow[] = [];
+  // The page+query pair, which neither of the two single-dimension calls above
+  // can reconstruct: 'page' rows say where a page ranks, 'query' rows say what
+  // we rank for, and nothing joins them. Refreshing a near-winner needs the
+  // queries that specific page already earns impressions on, so it's a fourth
+  // call rather than a derivation. Higher rowLimit because the pair fans out —
+  // one page contributes a row per query it ranks for.
+  let pageQueryRows: GscRow[] = [];
   try {
-    [pageRows, queryRows, dailyRows] = await Promise.all([
+    [pageRows, queryRows, dailyRows, pageQueryRows] = await Promise.all([
       querySearchAnalytics(accessToken, conn.siteUrl, { startDate, endDate, dimensions: ['page'], rowLimit: 200 }),
       querySearchAnalytics(accessToken, conn.siteUrl, { startDate, endDate, dimensions: ['query'], rowLimit: 200 }),
       querySearchAnalytics(accessToken, conn.siteUrl, { startDate: dailyStartDate, endDate, dimensions: ['date'], rowLimit: 100 }),
+      // Swallowed independently: this call feeds refresh targeting only, and
+      // the three above feed the whole analytics dashboard. Letting a failure
+      // here reject the Promise.all would turn "no refresh targeting" into "no
+      // Search Console data at all" — a strictly worse trade.
+      querySearchAnalytics(accessToken, conn.siteUrl, { startDate, endDate, dimensions: ['page', 'query'], rowLimit: 500 })
+        .catch((e: any) => {
+          console.error('[gsc sync] page+query failed', domainId, e?.message ?? e);
+          return [] as GscRow[];
+        }),
     ]);
   } catch (e: any) {
     console.error('[gsc sync] query failed', domainId, e?.message ?? e);
@@ -97,9 +113,31 @@ export async function syncDomain(domainId: string): Promise<SyncResult> {
     await sb.from('gsc_daily').upsert(dailyUpsert, { onConflict: 'domain_id,date' });
   }
 
+  // Per (page, query) rows — keys are in the order the dimensions were asked
+  // for. Only rows we can attribute to one of our posts are worth storing: the
+  // reader is "which queries does THIS article rank for", and an unattributed
+  // page can't be rewritten anyway.
+  const pageQueryUpsert = pageQueryRows
+    .filter((r) => r.keys[0] && r.keys[1])
+    .map((r) => ({
+      domain_id: domainId, post_id: postIdForUrl(r.keys[0], slugIndex),
+      page: r.keys[0], query: r.keys[1], date: today,
+      clicks: r.clicks, impressions: r.impressions, position: r.position,
+    }))
+    .filter((r) => r.post_id);
+  if (pageQueryUpsert.length) {
+    // Best-effort for one release: the table arrives in 0032, and a sync
+    // running against a database that hasn't applied it yet must still write
+    // everything above rather than throw on the last statement.
+    const { error } = await sb
+      .from('gsc_page_queries')
+      .upsert(pageQueryUpsert, { onConflict: 'domain_id,page,query,date' });
+    if (error) console.error('[gsc sync] page_queries upsert failed', domainId, error.message);
+  }
+
   await sb.from('domains').update({ gsc_synced_at: new Date().toISOString() }).eq('id', domainId);
 
-  return { ok: true, pages: pageRows.length, queries: queryRows.length };
+  return { ok: true, pages: pageRows.length, queries: queryRows.length, pageQueries: pageQueryUpsert.length };
 }
 
 export type DailyPoint = { date: string; clicks: number; impressions: number; ctr: number; position: number };

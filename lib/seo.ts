@@ -250,15 +250,22 @@ ${xmlItems}
 /**
  * Build a blog's sitemap.xml. Includes the Google image-sitemap extension so a
  * post's cover image is discoverable in Google Images — extra surface area for
- * free. lastmod uses published_at (posts carry no separate updated timestamp).
+ * free.
+ *
+ * lastmod is `updated_at ?? published_at`: an article rewritten in place keeps
+ * its URL and its first-publication date, so published_at alone would tell a
+ * crawler nothing changed and the refresh would go unnoticed. Posts that have
+ * never been refreshed carry a null updated_at and behave exactly as before.
  */
 export function buildSitemapXml(opts: {
   blogSlug: string;
   canonicalBase?: string | null;
-  posts: { slug: string | null; published_at?: string | null; cover_image_url?: string | null }[];
+  posts: { slug: string | null; published_at?: string | null; updated_at?: string | null; cover_image_url?: string | null }[];
 }): string {
   const { blogSlug, canonicalBase, posts } = opts;
   const day = (iso?: string | null) => (iso ? `<lastmod>${iso.slice(0, 10)}</lastmod>` : '');
+  const modified = (p: { published_at?: string | null; updated_at?: string | null }) =>
+    p.updated_at ?? p.published_at ?? null;
 
   const urls = posts
     .filter((p) => p.slug)
@@ -266,12 +273,16 @@ export function buildSitemapXml(opts: {
       const img = p.cover_image_url
         ? `<image:image><image:loc>${escapeXml(p.cover_image_url)}</image:loc></image:image>`
         : '';
-      return `<url><loc>${escapeXml(blogPostUrl(blogSlug, p.slug!, canonicalBase))}</loc>${day(p.published_at)}${img}</url>`;
+      return `<url><loc>${escapeXml(blogPostUrl(blogSlug, p.slug!, canonicalBase))}</loc>${day(modified(p))}${img}</url>`;
     })
     .join('');
 
-  // index lastmod = most recent post (posts arrive newest-first)
-  const indexLastmod = day(posts.find((p) => p.published_at)?.published_at);
+  // index lastmod = the most recently CHANGED post. Not simply the first row:
+  // posts arrive newest-first by published_at, so a refreshed older article is
+  // the freshest thing on the blog while sitting well down the list.
+  const indexLastmod = day(
+    posts.map(modified).filter(Boolean).sort().pop() ?? null,
+  );
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
@@ -294,6 +305,9 @@ export function buildArticleGraph(opts: {
   description?: string | null;
   image?: string | null;
   publishedAt?: string | null;
+  /** Last in-place rewrite, if any. Drives dateModified; datePublished always
+   *  stays at first publication so the article doesn't look brand new. */
+  updatedAt?: string | null;
   businessName: string;
   homeUrl: string;            // the customer's own site (publisher/author url)
   authorName: string;
@@ -305,7 +319,7 @@ export function buildArticleGraph(opts: {
   canonicalBase?: string | null;
 }): { '@context': string; '@graph': unknown[] } {
   const {
-    hostname, blogSlug, postSlug, title, description, image, publishedAt,
+    hostname, blogSlug, postSlug, title, description, image, publishedAt, updatedAt,
     businessName, homeUrl, authorName, authorIsOrg, genreLabel, wordCount,
     faqs = [], inLanguage = 'en', canonicalBase,
   } = opts;
@@ -359,7 +373,7 @@ export function buildArticleGraph(opts: {
       description: description ?? undef,
       image: image ?? undef,
       datePublished: publishedAt ?? undef,
-      dateModified: publishedAt ?? undef,
+      dateModified: updatedAt ?? publishedAt ?? undef,
       articleSection: genreLabel,
       wordCount: wordCount || undef,
       inLanguage,
