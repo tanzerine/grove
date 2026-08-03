@@ -11,6 +11,7 @@ import { getQuota } from '@/lib/quota';
 import { canGenerateForUser } from '@/lib/billing';
 import { maxPostsPerWeekForQuota } from '@/lib/plans';
 import { WORKING, isStuck } from '@/lib/pipeline/counts';
+import { blogHomeUrl, canonicalBaseFor } from '@/lib/seo';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
@@ -21,6 +22,10 @@ export default async function Page() {
   // first", which is what this used to do: an account with two sites saw the
   // wrong pipeline, with the other site's hostname in the header to prove it.
   const domain = await getActiveDomain(sb);
+  // Resolved once here, on the server, because the precedence lives in the
+  // domain row (canonical_blog_base > custom_blog_hostname > subdomain > /b/)
+  // and PostRow is a client component that never sees it.
+  const blogBase = domain?.blog_slug ? blogHomeUrl(domain.blog_slug, canonicalBaseFor(domain as any)) : null;
 
   // Cadence choices are bounded by the plan's monthly allowance, so the picker
   // can grey out what this account can't have instead of letting them pick it
@@ -169,7 +174,7 @@ export default async function Page() {
               </div>
               {g.key === 'review' && <ReviewWhy autoPublish={domain?.auto_publish ?? false} />}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-                {g.items.map((p) => <PostRow key={p.id} p={p} score={scoreByPost.get(p.id) ?? null} blogSlug={domain?.blog_slug} />)}
+                {g.items.map((p) => <PostRow key={p.id} p={p} score={scoreByPost.get(p.id) ?? null} blogBase={blogBase} />)}
               </div>
             </div>
           ))}

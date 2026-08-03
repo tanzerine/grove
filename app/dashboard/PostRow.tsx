@@ -23,7 +23,12 @@ function visuals(status: string, stuck: boolean) {
   return { icon: 'search2', accent: true, danger: false };
 }
 
-export default function PostRow({ p, score, blogSlug }: { p: any; score?: { overall: number; action: string } | null; blogSlug?: string | null }) {
+/* `blogBase` is the article's reader-facing home, already resolved by the
+   server through lib/seo (customer's own base when they have one, /b/{slug}
+   otherwise). It arrives pre-built rather than as a blog_slug this component
+   interpolates, because only the server has the domain row the precedence
+   depends on — the old blogSlug prop could only ever produce the mirror URL. */
+export default function PostRow({ p, score, blogBase }: { p: any; score?: { overall: number; action: string } | null; blogBase?: string | null }) {
   const r = useRouter();
   const [busy, setBusy] = useState<null | 'retry' | 'delete' | 'regen' | 'approve'>(null);
   const errorMsg = p.status === 'failed' ? (p.validation?.error ?? 'Unknown error') : null;
@@ -158,8 +163,8 @@ export default function PostRow({ p, score, blogSlug }: { p: any; score?: { over
           {showRetry && btn(busy === 'retry' ? 'Retrying…' : 'Retry', retry, true, 'r')}
           {showRegen && btn(busy === 'regen' ? '…' : 'Regenerate', regenerate, false, 'g')}
           {showDelete && btn(busy === 'delete' ? '…' : 'Delete', del, false, 'd')}
-          {p.status === 'published' && blogSlug && p.slug && (
-            <a className="gv-btn" href={`/b/${blogSlug}/${p.slug}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}
+          {p.status === 'published' && blogBase && p.slug && (
+            <a className="gv-btn" href={`${blogBase}/${p.slug}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}
               style={{ border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.03)', color: 'var(--gv-soft)', fontSize: 12.5, fontWeight: 600, padding: '7px 15px', borderRadius: 9, textDecoration: 'none', whiteSpace: 'nowrap' }}>View ↗</a>
           )}
         </div>
