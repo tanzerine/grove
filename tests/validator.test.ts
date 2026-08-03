@@ -148,7 +148,7 @@ describe('blockingIssues', () => {
       passed: false,
       issues: [
         'UNSUPPORTED_CLAIM: something',
-        'THIN_CONTENT: 400 words',
+        'REFERRAL_AWAY: tools like Foo',
         'LOW_CITATIONS: 1 markdown links',
         'EM_DASH_OVERUSE: 5',
       ],
@@ -157,6 +157,14 @@ describe('blockingIssues', () => {
     const blocking = blockingIssues(v);
     expect(blocking).toHaveLength(2);
     expect(blocking.some((i) => i.startsWith('LOW_CITATIONS'))).toBe(false);
+  });
+
+  // A draft 10 words under the floor used to be an unappealable hold, which is
+  // how a domain with autopilot on published nothing automatically for two
+  // months. It stays a flag; it no longer decides.
+  it('does not block on a thin draft — advisory only', () => {
+    const v = { passed: false, issues: ['THIN_CONTENT: 790 words (floor 800, target 900–1400)'], stats: {} };
+    expect(blockingIssues(v)).toEqual([]);
   });
 
   it('returns empty for a clean validation', () => {

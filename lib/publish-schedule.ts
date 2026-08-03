@@ -82,11 +82,24 @@ export function parseScheduleInput(value: string, now: Date = new Date()): Parse
 /**
  * Coarse "how far away" label for the schedule button — deliberately coarse so
  * it never disagrees with the exact local time rendered next to it.
+ *
+ * `willPublish` is what makes it honest. The cron publishes posts whose status
+ * is exactly `scheduled`; a draft held in `review` keeps the date its strategy
+ * slot planned for it, and no tick will ever act on it. Reading the clock
+ * alone, this rendered "due now" on a gated draft — telling the owner autopilot
+ * was about to fire at a moment when nothing at all was going to happen. For
+ * those the date is a target, not a commitment, so it says what the post is
+ * actually waiting on.
  */
-export function relativeSchedule(iso: string | null | undefined, now: Date = new Date()): string {
+export function relativeSchedule(
+  iso: string | null | undefined,
+  now: Date = new Date(),
+  opts: { willPublish?: boolean } = {},
+): string {
   if (!iso) return '';
   const t = new Date(iso).getTime();
   if (Number.isNaN(t)) return '';
+  if (opts.willPublish === false) return 'needs approval';
   const mins = Math.round((t - now.getTime()) / 60_000);
   if (mins <= 0) return 'due now';
   if (mins < 60) return `in ${mins} min`;

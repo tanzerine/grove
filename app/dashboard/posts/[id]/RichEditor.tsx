@@ -36,6 +36,13 @@ type Props = {
   initialMetaDesc: string;
   canEdit: boolean;
   initialScheduledAt?: string | null; // current publish time, if the post has one
+  /**
+   * Whether that time is a commitment. Only a post whose status is `scheduled`
+   * is picked up by the publisher cron; a draft in `review` carries the date
+   * its strategy slot planned for it and waits for a human indefinitely. The
+   * editor showed both identically, so a gated draft read "due now".
+   */
+  initialWillPublish?: boolean;
   schedulable?: boolean;          // false for a live post (managed from the post header)
   autoEdit?: boolean;             // open straight into edit mode (fresh manual drafts)
   railExtra?: React.ReactNode;   // extra card pinned to the top of the assist rail
@@ -66,7 +73,7 @@ function getMd(editor: any): string {
   return editor?.storage?.markdown?.getMarkdown?.() ?? '';
 }
 
-export default function RichEditor({ postId, domainId, initialBody, initialTitle, initialMetaTitle, initialMetaDesc, canEdit, initialScheduledAt = null, schedulable = true, autoEdit, railExtra, belowCanvas, onDirtyChange }: Props) {
+export default function RichEditor({ postId, domainId, initialBody, initialTitle, initialMetaTitle, initialMetaDesc, canEdit, initialScheduledAt = null, initialWillPublish = true, schedulable = true, autoEdit, railExtra, belowCanvas, onDirtyChange }: Props) {
   const r = useRouter();
   const [editing, setEditing] = useState(!!autoEdit);
   const [dirty, setDirty] = useState(false);
@@ -84,6 +91,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
   // has its own status line; this covers the path that bypasses it.
   const [canvasDrop, setCanvasDrop] = useState<{ busy: boolean; error: string | null }>({ busy: false, error: null });
   const [scheduledAt, setScheduledAt] = useState<string | null>(initialScheduledAt);
+  const [willPublish, setWillPublish] = useState(initialWillPublish);
   const baseline = useRef<string>(initialBody);
   const lastInitialBody = useRef<string>(initialBody);
   // Last title/meta the server gave us. This — not the props — is the yardstick
@@ -268,6 +276,9 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
     const id = await persist({ scheduled_at: iso, status: 'scheduled' });
     if (!id) throw new Error('Could not save the draft — try again.');
     setScheduledAt(iso);
+    // Now it IS a commitment — the write above put the post in the one status
+    // the publisher cron reads.
+    setWillPublish(true);
     setEditing(false);
   }
 
@@ -275,6 +286,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
     const id = await persist({ scheduled_at: null, status: 'review' });
     if (!id) throw new Error('Could not update the draft — try again.');
     setScheduledAt(null);
+    setWillPublish(false);
   }
 
   async function done() {
@@ -458,6 +470,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
         {canEdit && schedulable && (
           <SchedulePicker
             scheduledAt={scheduledAt}
+            willPublish={willPublish}
             disabled={saving}
             onSchedule={schedule}
             onClear={unschedule}

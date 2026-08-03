@@ -101,6 +101,15 @@ describe('relativeSchedule', () => {
     expect(relativeSchedule(at(-10), wed)).toBe('due now');
   });
 
+  // The cron publishes `scheduled` and nothing else. A draft held in review
+  // keeps its plan slot's date forever, so counting down to it — or announcing
+  // it "due now" — promises a publish that will never happen.
+  it('reports what a gated draft is actually waiting on, not the clock', () => {
+    expect(relativeSchedule(at(-10), wed, { willPublish: false })).toBe('needs approval');
+    expect(relativeSchedule(at(300), wed, { willPublish: false })).toBe('needs approval');
+    expect(relativeSchedule(at(300), wed, { willPublish: true })).toBe('in 5 hours');
+  });
+
   it('is empty for a missing or invalid instant', () => {
     expect(relativeSchedule(null, wed)).toBe('');
     expect(relativeSchedule('nope', wed)).toBe('');
