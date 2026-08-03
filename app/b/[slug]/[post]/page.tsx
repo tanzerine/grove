@@ -68,7 +68,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   const { data: domain } = await sb.from('domains').select('*').eq('blog_slug', slug).single(); // '*': survives pre-0018 DB
   if (!domain) notFound();
   const { data: p } = await sb
-    .from('posts').select('title,body_md,published_at,meta_description,id,cover_image_url,cover_image_credit,format:research->brief->>format')
+    .from('posts').select('title,body_md,published_at,updated_at,meta_description,id,cover_image_url,cover_image_credit,format:research->brief->>format')
     .eq('domain_id', domain.id).eq('slug', post).eq('status', 'published').single();
   if (!p) notFound();
 
@@ -133,6 +133,14 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   const author = authorFor(profile, domain.hostname);
   const genre = genreFor((p as any).format, p.title);
   const readMin = Math.max(1, Math.round((p.body_md ?? '').split(/\s+/).length / 225));
+  // A refresh rewrites the article at the same URL and keeps published_at
+  // pointing at first publication, so this byline is the only place a reader
+  // can see the facts were brought up to date. Suppressed when it lands on the
+  // publish date itself, where it would just repeat the line before it.
+  const updatedAt = (p as any).updated_at as string | null;
+  const updatedLabel = updatedAt && updatedAt.slice(0, 10) !== (p.published_at ?? '').slice(0, 10)
+    ? ` · Updated ${new Date(updatedAt).toLocaleDateString()}`
+    : '';
   const shareX = `https://twitter.com/intent/tweet?text=${encodeURIComponent(p.title ?? '')}&url=${encodeURIComponent(pageUrl)}`;
   const shareLi = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(pageUrl)}`;
   // One linked @graph (Organization → WebSite → WebPage → Article + Breadcrumb
@@ -147,6 +155,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
     description: p.meta_description,
     image: p.cover_image_url,
     publishedAt: p.published_at,
+    updatedAt: (p as any).updated_at,
     businessName,
     homeUrl,
     authorName: author,
@@ -174,7 +183,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
               {genre.label}
             </span>
             <p className="mono" style={{ color: 'var(--clay)', fontSize: 12, margin: 0 }}>
-              By {author} · {new Date(p.published_at!).toLocaleDateString()} · {readMin} min read
+              By {author} · {new Date(p.published_at!).toLocaleDateString()}{updatedLabel} · {readMin} min read
             </p>
           </div>
 

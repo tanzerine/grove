@@ -180,6 +180,38 @@ describe('buildSitemapXml', () => {
     expect(xml).not.toMatch(/<loc>[^<]*null/);
     expect(xml).toContain('a&amp;b');
   });
+
+  // An in-place refresh keeps published_at (first publication) and moves
+  // updated_at, so lastmod has to follow updated_at or a rewritten article
+  // looks unchanged to every crawler that reads the sitemap.
+  it('prefers updated_at over published_at for lastmod', () => {
+    const xml = buildSitemapXml({
+      blogSlug: 'demo',
+      posts: [{ slug: 'refreshed', published_at: '2026-01-05T00:00:00Z', updated_at: '2026-07-20T00:00:00Z', cover_image_url: null }],
+    });
+    expect(xml).toContain(`<loc>${blogPostUrl('demo', 'refreshed')}</loc><lastmod>2026-07-20</lastmod>`);
+  });
+
+  it('falls back to published_at when updated_at is absent or null', () => {
+    const nulled = buildSitemapXml({
+      blogSlug: 'demo',
+      posts: [{ slug: 'plain', published_at: '2026-01-05T00:00:00Z', updated_at: null, cover_image_url: null }],
+    });
+    // `posts` above omits updated_at entirely — the pre-0032 shape.
+    const absent = buildSitemapXml({ blogSlug: 'demo', posts });
+    expect(nulled).toContain('<lastmod>2026-01-05</lastmod>');
+    expect(absent).toContain(`<loc>${blogPostUrl('demo', 'newest')}</loc><lastmod>2026-06-10</lastmod>`);
+  });
+
+  it('index lastmod tracks the most recently CHANGED post, not the newest one', () => {
+    // The refreshed post is the OLDEST by published_at, so a "first row wins"
+    // index lastmod would report June and miss the July rewrite entirely.
+    const xml = buildSitemapXml({
+      blogSlug: 'demo',
+      posts: [...posts, { slug: 'ancient', published_at: '2026-01-01T00:00:00Z', updated_at: '2026-07-20T00:00:00Z', cover_image_url: null }],
+    });
+    expect(xml).toContain(`<loc>${blogHomeUrl('demo')}</loc><lastmod>2026-07-20</lastmod>`);
+  });
 });
 
 describe('buildRssXml', () => {
@@ -254,6 +286,20 @@ describe('buildArticleGraph', () => {
     const site = find(buildArticleGraph(base), 'WebSite');
     expect(site.potentialAction['@type']).toBe('SearchAction');
     expect(site.potentialAction.target.urlTemplate).toBe(`${blogHomeUrl('demo')}?q={search_term_string}`);
+  });
+
+  // datePublished must keep pointing at first publication — a refreshed
+  // article that claims to be brand new loses the age signal it earned.
+  it('moves dateModified to updatedAt but leaves datePublished alone', () => {
+    const g = buildArticleGraph({ ...base, updatedAt: '2026-07-20T00:00:00Z' });
+    const article = find(g, 'BlogPosting');
+    expect(article.datePublished).toBe('2026-06-15T00:00:00Z');
+    expect(article.dateModified).toBe('2026-07-20T00:00:00Z');
+  });
+
+  it('falls back to publishedAt for dateModified when never refreshed', () => {
+    const article = find(buildArticleGraph(base), 'BlogPosting');
+    expect(article.dateModified).toBe('2026-06-15T00:00:00Z');
   });
 
   it('marks a Team author as Organization, a person as Person', () => {
