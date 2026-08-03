@@ -128,9 +128,21 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
             {words ? `·  ${words.toLocaleString()} words  ` : ''}{cites ? `·  ${cites} citations  ` : ''}{readMin ? `·  ${readMin} min read` : ''}
           </span>
           {p.scheduled_at && (
-            <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.2 }}>
-              <span style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>Planned for</span>
-              <span style={{ fontSize: 13, fontWeight: 700, color: ACCENT_INK }}><LocalTime iso={p.scheduled_at} /></span>
+            /* `scheduled` is the only status the publisher cron acts on. On any
+               other, this date is the strategy slot's target the draft was
+               written for — worth showing, but it publishes nothing on its own,
+               and saying "Publishes" over both is how an approval queue came to
+               look like an autopilot that had stopped working. */
+            <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.25 }}>
+              <span style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>
+                {p.status === 'scheduled' ? 'Publishes' : 'Planned for'}
+              </span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: p.status === 'scheduled' ? ACCENT_INK : 'var(--gv-soft)' }}>
+                <LocalTime iso={p.scheduled_at} />
+              </span>
+              {p.status !== 'scheduled' && p.status !== 'published' && (
+                <span style={{ fontSize: 10.5, color: 'var(--gv-fainter)' }}>won’t publish until approved</span>
+              )}
             </div>
           )}
         </div>
@@ -177,6 +189,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
                 initialMetaDesc={p.meta_description ?? ''}
                 canEdit
                 initialScheduledAt={p.status === 'published' ? null : p.scheduled_at}
+                initialWillPublish={p.status === 'scheduled'}
                 schedulable={p.status !== 'published'}
                 autoEdit={!p.body_md}
                 belowCanvas={

@@ -8,11 +8,25 @@ export type Validation = { passed: boolean; issues: string[]; stats: Record<stri
 
 /** Rules serious enough to block auto-publish and route the draft to human
  *  review. Style flags (LOW_CITATIONS, EM_DASH_OVERUSE, …) stay advisory —
- *  gating on those would send everything to review and kill autopilot. */
+ *  gating on those would send everything to review and kill autopilot.
+ *
+ *  THIN_CONTENT used to be here and was doing exactly that. The writer is
+ *  briefed to land 900–1400 words and habitually comes in just under the 800
+ *  floor: on the one domain running autopilot, 29 of 32 drafts carried the
+ *  flag, and 790-words-against-a-800-floor gated an article the manager had
+ *  scored 81. Because the gate is evaluated once, at generation time, every
+ *  one of those became a permanent hold — that domain routed 32 drafts to
+ *  `review` and exactly 1 to `scheduled` in two months of "autopilot on".
+ *  The owner then approved most of them unread, which is the tell: the flag
+ *  was not protecting anyone, it was relocating the work back to a human.
+ *
+ *  It stays a flag — it still shows in review, still feeds the manager's
+ *  rewrite notes, and a genuinely stunted draft is caught by the manager's
+ *  own craft score against the owner's floor. It just no longer decides,
+ *  on its own, that a finished article can't ship. */
 export const BLOCKING_RULES = [
   'UNSUPPORTED_CLAIM',   // possible fabricated stat — the worst failure mode
   'RECYCLED_STAT',       // known-bogus stat the model loves to repeat
-  'THIN_CONTENT',        // under the word floor
   'MISSING_H1',          // structurally broken draft
   'REFERRAL_AWAY',       // sends the reader to a competitor
 ] as const;

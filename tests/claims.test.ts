@@ -51,6 +51,29 @@ describe('findUnsupportedClaims', () => {
     expect(findUnsupportedClaims(md, '')).toEqual([]);
   });
 
+  // Both shapes below were flagged on live oveners.com drafts scoring 84 and
+  // 78, which held them for review indefinitely.
+  it('ignores numbers inside a markdown table', () => {
+    const md = [
+      'Here is how the tools compare.',
+      '',
+      '| Tool | Starting price | Best for |',
+      '|:--- |:--- |:--- |',
+      '| Oven AI | $16.50 | Product teams |',
+      '| Other | $49 | Agencies |',
+    ].join('\n');
+    expect(findUnsupportedClaims(md, '')).toEqual([]);
+  });
+
+  it('ignores price notation ("$20/month") but still flags money as a magnitude', () => {
+    const priced = 'Instead of another $20/month subscription, you pay per icon.';
+    expect(findUnsupportedClaims(priced, '')).toEqual([]);
+
+    const magnitude = 'Teams save $4,000 a month by switching.';
+    const tokens = findUnsupportedClaims(magnitude, '').map((c) => c.token);
+    expect(tokens.some((t) => t.includes('4,000'))).toBe(true);
+  });
+
   it('dedupes the same token across sentences', () => {
     const md = 'Growth was 61% overall.\n\nYes, 61% — a number worth repeating.';
     expect(findUnsupportedClaims(md, '')).toHaveLength(1);

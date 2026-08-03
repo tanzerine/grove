@@ -22,9 +22,13 @@ const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
 
 export default function SchedulePicker({
-  scheduledAt, disabled, onSchedule, onClear,
+  scheduledAt, willPublish = true, disabled, onSchedule, onClear,
 }: {
   scheduledAt: string | null;
+  /** False when the post carries a date but isn't `scheduled` — a plan slot's
+   *  target on a draft still held for review. The cron only ever publishes
+   *  `scheduled`, so the button must not imply this one is about to go out. */
+  willPublish?: boolean;
   disabled?: boolean;
   onSchedule: (iso: string) => Promise<void>;
   onClear: () => Promise<void>;
@@ -90,20 +94,24 @@ export default function SchedulePicker({
     setBusy(false);
   }
 
+  // Accent means "this is going out on its own". A date on a draft that's still
+  // held for review is a plan, not a commitment, so it reads as neutral chrome.
+  const committed = !!scheduledAt && willPublish;
+
   return (
     <div ref={wrap} style={{ position: 'relative' }}>
       <button onClick={() => setOpen((o) => !o)} disabled={disabled} className="gv-ghost"
         style={{
           display: 'flex', alignItems: 'center', gap: 7,
-          border: `1px solid ${scheduledAt ? 'rgba(162,255,1,0.3)' : 'rgba(255,255,255,0.1)'}`,
-          background: scheduledAt ? 'rgba(162,255,1,0.1)' : 'rgba(255,255,255,0.02)',
-          color: scheduledAt ? ACCENT_INK : 'var(--gv-soft)',
+          border: `1px solid ${committed ? 'rgba(162,255,1,0.3)' : 'rgba(255,255,255,0.1)'}`,
+          background: committed ? 'rgba(162,255,1,0.1)' : 'rgba(255,255,255,0.02)',
+          color: committed ? ACCENT_INK : 'var(--gv-soft)',
           fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '8px 13px', borderRadius: 9,
           cursor: disabled ? 'default' : 'pointer',
         }}>
         <span style={{ display: 'flex' }}><Icon name="calendar" size={14} /></span>
         {scheduledAt
-          ? <><LocalTime iso={scheduledAt} />{mounted && <span style={{ color: 'var(--gv-faint)', fontWeight: 500 }}>· {relativeSchedule(scheduledAt)}</span>}</>
+          ? <><LocalTime iso={scheduledAt} />{mounted && <span style={{ color: 'var(--gv-faint)', fontWeight: 500 }}>· {relativeSchedule(scheduledAt, new Date(), { willPublish })}</span>}</>
           : 'Schedule'}
       </button>
 

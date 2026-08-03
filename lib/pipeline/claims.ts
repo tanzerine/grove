@@ -30,14 +30,37 @@ const CLAIM_PATTERNS: RegExp[] = [
 
 const INLINE_LINK = /\[[^\]]+\]\(https?:\/\/[^)]+\)/;
 
+/**
+ * Price notation: a money amount bound to a unit with a slash — "$20/month",
+ * "$16.50/seat", "$99/user". That is a price being mentioned, not a statistic
+ * being asserted, and it is the shape this check kept misfiring on: a
+ * product-comparison post says "instead of another $20/month subscription",
+ * and no research corpus will ever contain the figure because it isn't a
+ * finding, it's an aside.
+ *
+ * Only the slash form. Prose money ("saves $4,000 a month") is a real claim
+ * about a real magnitude and stays flagged — that is what this check is for.
+ */
+const PRICE_NOTATION = /^\s*\/\s*[a-z]/i;
+
 /** Strip the parts of markdown where numbers are never factual claims:
- *  fenced code, inline code, headings, image/link URLs (kept link text). */
+ *  fenced code, inline code, headings, table rows, image/link URLs (kept link
+ *  text).
+ *
+ *  Table rows go for two reasons. A cell has nowhere to put an inline
+ *  citation, so a comparison table — the format these posts are built around —
+ *  can never satisfy the check no matter how well sourced the article is. And
+ *  the sentence splitter below has no concept of a table, so it hands the
+ *  whole block back as one "sentence": the flags this produced in production
+ *  quoted an entire pricing table as the offending sentence, which told the
+ *  reviewer nothing. A fabricated number in a table is still the manager's to
+ *  catch; it just can't be caught here. */
 function proseOnly(md: string): string {
   return md
     .replace(/```[\s\S]*?```/g, '')
     .replace(/`[^`]*`/g, '')
     .split('\n')
-    .filter((l) => !/^#{1,6}\s/.test(l))
+    .filter((l) => !/^#{1,6}\s/.test(l) && !/^\s*\|/.test(l))
     .join('\n');
 }
 
@@ -46,11 +69,18 @@ function corpusKey(token: string): string {
   return token.toLowerCase().replace(/[\s,]/g, '');
 }
 
+/** Numeric claim tokens in one sentence, minus the ones that are prices rather
+ *  than assertions (see PRICE_NOTATION). Matched with indices so the text
+ *  immediately after a token can be inspected. */
 function matchTokens(sentence: string): string[] {
   const out: string[] = [];
   for (const re of CLAIM_PATTERNS) {
-    const m = sentence.match(new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g'));
-    if (m) out.push(...m);
+    const g = new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g');
+    for (const m of sentence.matchAll(g)) {
+      const after = sentence.slice((m.index ?? 0) + m[0].length);
+      if (PRICE_NOTATION.test(after)) continue;
+      out.push(m[0]);
+    }
   }
   return out;
 }
