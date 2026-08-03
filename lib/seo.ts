@@ -87,7 +87,20 @@ export function normalizeBlogHostname(v: string | null | undefined): string | nu
   return s;
 }
 
-type CanonicalFields = { canonical_blog_base?: string | null; custom_blog_hostname?: string | null };
+/**
+ * The columns the canonical precedence reads. Exported so a caller holding a
+ * domain row can declare that its row is a legal input to these builders —
+ * intersect it into the row type (see lib/active-domain DomainRow) rather than
+ * casting at the call site. Both are optional because a caller may have
+ * select()ed a narrower set of columns; absent reads as "not configured".
+ *
+ * All-optional makes this a WEAK TYPE: TypeScript rejects an argument that
+ * shares no declared property with it, even one carrying an `any` index
+ * signature. That check is the point — it catches a row that never selected
+ * these columns, which would silently resolve every URL to the /b/ fallback.
+ * Satisfy it by declaring the columns, never by casting them away.
+ */
+export type CanonicalFields = { canonical_blog_base?: string | null; custom_blog_hostname?: string | null };
 
 /**
  * The base every customer-facing absolute blog URL builds on — canonical, OG,

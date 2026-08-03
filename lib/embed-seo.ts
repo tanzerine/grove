@@ -14,7 +14,7 @@
  * embed API to hand `blog_base` to embed.js, so the badge a customer reads and
  * the links their visitors click can't disagree.
  */
-import { canonicalBaseFor, servedBlogBaseFor, blogPostUrl } from '@/lib/seo';
+import { canonicalBaseFor, servedBlogBaseFor, blogPostUrl, type CanonicalFields } from '@/lib/seo';
 
 export type EmbedSeoState =
   /** Customer renders articles themselves; canonical_blog_base points at them. */
@@ -41,11 +41,12 @@ export type EmbedSeoStatus = {
   fix: string | null;
 };
 
-type DomainLike = {
+/** Built on CanonicalFields rather than restating those two columns, so a
+ *  change to the canonical precedence can't leave this helper reading a set of
+ *  columns the builders below it no longer agree with. */
+type DomainLike = CanonicalFields & {
   hostname?: string | null;
   blog_slug?: string | null;
-  canonical_blog_base?: string | null;
-  custom_blog_hostname?: string | null;
 };
 
 /**

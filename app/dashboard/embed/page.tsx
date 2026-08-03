@@ -27,13 +27,13 @@ export default async function Page() {
   const effective = domain ? resolveBranding(domain) : null;
   const crawledPrimary = (domain as any)?.site_profile?.branding?.primary_color ?? null;
   const hasOverride = !!(domain as any)?.brand_override?.primary_color;
-  const connected = !!(domain as any)?.custom_blog_hostname;
+  const connected = !!domain?.custom_blog_hostname;
   const apex = domain?.hostname.replace(/^www\./, '') ?? 'yoursite.com';
   // Can search actually see this domain's articles? The embed renders the same
   // either way, so nothing on this page used to distinguish "indexable blog"
   // from "one page with a JS reader on it" — the customer's whole reason for
   // buying, invisible in the UI. embed.js reads the same answer from the API.
-  const seo = domain ? embedSeoStatus(domain as any, groveBase) : null;
+  const seo = domain ? embedSeoStatus(domain, groveBase) : null;
   // grove's own domain row: /b/{slug} already IS this domain, so step 1 has
   // nothing to offer and "Not connected" was reading as a problem to fix.
   const onAppOrigin = seo?.state === 'app-origin';
@@ -71,7 +71,7 @@ export default async function Page() {
               {!domain ? (
                 <p style={{ color: 'var(--gv-faint)', fontSize: 13 }}>Connect a domain first.</p>
               ) : onAppOrigin ? null : (
-                <CustomHostnameForm domainId={domain.id} initial={(domain as any).custom_blog_hostname ?? null} hostname={domain.hostname} />
+                <CustomHostnameForm domainId={domain.id} initial={domain.custom_blog_hostname ?? null} hostname={domain.hostname} />
               )}
             </div>
 
@@ -114,8 +114,12 @@ export default async function Page() {
               </div>
             )}
 
-            {/* ADVANCED: serve articles yourself */}
-            {domain && (
+            {/* ADVANCED: serve articles yourself.
+                Gated on blog_slug, not just on domain: everything inside bakes
+                /b/{blog_slug} into config the customer copies verbatim into
+                their web server, so a row without one would hand them a proxy
+                rule pointing at /b/undefined. */}
+            {domain?.blog_slug && (
               <details className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18 }}>
                 <summary style={{ padding: '18px 22px', cursor: 'pointer', listStyle: 'none' }}>
                   <span style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>Advanced · serve articles yourself</span>
@@ -133,7 +137,7 @@ export default async function Page() {
                     <span className="mono">{groveBase}/b/{domain.blog_slug}</span> stays up as a non-canonical mirror.
                     This wins over step 1&rsquo;s subdomain if both are set.
                   </p>
-                  <CanonicalBaseForm domainId={domain.id} initial={(domain as any).canonical_blog_base ?? null} hostname={domain.hostname} />
+                  <CanonicalBaseForm domainId={domain.id} initial={domain.canonical_blog_base ?? null} hostname={domain.hostname} />
                   <p style={{ fontSize: 12.5, color: 'var(--gv-dim)', margin: '14px 0 0', lineHeight: 1.6 }}>
                     Then add one line to <span className="mono">https://{apex}/robots.txt</span> so
                     Google accepts the cross-hosted sitemap for your URLs:{' '}

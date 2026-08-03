@@ -18,13 +18,13 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   // A customer-owned blog home (self-served base or CNAME'd hostname) is the
   // canonical when configured; this hosted index is then a mirror. The RSS
   // alternate stays on an origin grove serves.
-  const url = blogHomeUrl(slug, canonicalBaseFor(domain as any));
+  const url = blogHomeUrl(slug, canonicalBaseFor(domain));
   return {
     title: `${domain?.hostname ?? 'grove blog'} — articles`,
     description: `Posts by ${domain?.hostname}`,
     alternates: {
       canonical: url,
-      types: { 'application/rss+xml': `${blogHomeUrl(slug, servedBlogBaseFor(domain as any))}/rss.xml` },
+      types: { 'application/rss+xml': `${blogHomeUrl(slug, servedBlogBaseFor(domain))}/rss.xml` },
     },
     openGraph: {
       title: `${domain?.hostname ?? 'grove blog'} — articles`,
@@ -73,7 +73,7 @@ export default async function BlogIndex({
   const all = (data ?? []) as unknown as Row[];
 
   const host = (await headers()).get('host');
-  const onBlogHost = !!subdomainSlugFromHost(host) || isCustomBlogHost(host, domain as any);
+  const onBlogHost = !!subdomainSlugFromHost(host) || isCustomBlogHost(host, domain);
   const prefix = onBlogHost ? '' : `/b/${slug}`;
   const author = authorFor((domain as any).site_profile, domain.hostname);
 
@@ -125,7 +125,7 @@ export default async function BlogIndex({
   const homeUrl = `https://${domain.hostname.replace(/^https?:\/\//, '').replace(/\/$/, '')}`;
   const businessName = (domain as any).site_profile?.business?.name || domain.hostname.replace(/^www\./, '');
   // JSON-LD must reference the canonical URLs, same as the <link rel=canonical>
-  const ldBase = canonicalBaseFor(domain as any);
+  const ldBase = canonicalBaseFor(domain);
   const blogHome = blogHomeUrl(slug, ldBase);
   const orgId = `${homeUrl}#org`;
   const siteId = `${blogHome}#website`;

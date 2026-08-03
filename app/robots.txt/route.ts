@@ -3,7 +3,7 @@
  * discover every hosted blog without waiting on external links.
  */
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { blogHomeUrl, appBase, canonicalBaseFor } from '@/lib/seo';
+import { blogHomeUrl, appBase, canonicalBaseFor, type CanonicalFields } from '@/lib/seo';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +11,12 @@ export async function GET() {
   // Blog sitemaps are a best-effort enrichment: if the DB is unreachable or the
   // service-role env is missing, robots.txt must STILL serve (a crashing
   // robots.txt is far worse for crawling than one missing a few blog sitemaps).
-  let domains: { blog_slug: string }[] = [];
+  // Annotated with the columns the filter below actually reads. It declared
+  // only blog_slug before, so the canonical check had to be cast through `any`
+  // — which would have kept type-checking if the select ever stopped being '*'
+  // and started returning rows with no canonical columns at all, quietly
+  // advertising mirror sitemaps for customers who own their blog.
+  let domains: (CanonicalFields & { blog_slug: string })[] = [];
   try {
     const sb = supabaseAdmin();
     const { data } = await sb
@@ -34,7 +39,7 @@ export async function GET() {
   const sitemaps = [
     `Sitemap: ${appBase()}/sitemap.xml`,
     ...domains
-      .filter((d) => !canonicalBaseFor(d as any))
+      .filter((d) => !canonicalBaseFor(d))
       .map((d) => `Sitemap: ${blogHomeUrl(d.blog_slug)}/sitemap.xml`),
   ].join('\n');
 

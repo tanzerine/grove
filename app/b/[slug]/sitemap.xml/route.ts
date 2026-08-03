@@ -18,7 +18,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
   // robots.txt (cross-submission) — documented on the dashboard embed page.
   const xml = buildSitemapXml({
     blogSlug: slug,
-    canonicalBase: canonicalBaseFor(domain as any),
+    canonicalBase: canonicalBaseFor(domain),
     posts: posts ?? [],
   });
   return new Response(xml, {

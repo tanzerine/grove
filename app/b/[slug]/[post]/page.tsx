@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   // When the customer owns a blog surface — a self-served article base or a
   // CNAME'd hostname we serve for them — THAT page is the canonical and this
   // hosted copy is a mirror; equity flows to them.
-  const url = blogPostUrl(slug, post, canonicalBaseFor(domain as any));
+  const url = blogPostUrl(slug, post, canonicalBaseFor(domain));
   const title = p.meta_title || p.title || undefined;
   const description = p.meta_description ?? undefined;
   // Real cover wins; otherwise a branded card generated at {post}/og so every
@@ -42,7 +42,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       canonical: url,
       // feed alternate must resolve on an origin GROVE serves (hosted or the
       // CNAME'd host) — a customer-rendered canonical base has no rss.xml.
-      types: { 'application/rss+xml': `${blogHomeUrl(slug, servedBlogBaseFor(domain as any))}/rss.xml` },
+      types: { 'application/rss+xml': `${blogHomeUrl(slug, servedBlogBaseFor(domain))}/rss.xml` },
     },
     openGraph: {
       title,
@@ -81,7 +81,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   // middleware strips the /b/{slug} prefix, so relative links must be
   // root-relative there and prefixed on the app host.
   const host = (await headers()).get('host');
-  const onBlogHost = !!subdomainSlugFromHost(host) || isCustomBlogHost(host, domain as any);
+  const onBlogHost = !!subdomainSlugFromHost(host) || isCustomBlogHost(host, domain);
   const prefix = onBlogHost ? '' : `/b/${slug}`;
 
   // Siblings power both retention features: contextual in-body links and the
@@ -128,7 +128,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
 
   // Canonical article URL — the customer's own surface when one is configured.
   // Share buttons and JSON-LD must spread THAT url, not the mirror's.
-  const pageUrl = blogPostUrl(slug, post, canonicalBaseFor(domain as any));
+  const pageUrl = blogPostUrl(slug, post, canonicalBaseFor(domain));
   const credit = (p as any).cover_image_credit as { name?: string; profile_url?: string } | null;
   const author = authorFor(profile, domain.hostname);
   const genre = genreFor((p as any).format, p.title);
@@ -154,7 +154,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
     genreLabel: genre.label,
     wordCount: (p.body_md ?? '').split(/\s+/).filter(Boolean).length,
     faqs,
-    canonicalBase: canonicalBaseFor(domain as any),
+    canonicalBase: canonicalBaseFor(domain),
   });
 
   return (
