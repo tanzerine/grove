@@ -1,11 +1,17 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import { getActiveDomain } from '@/lib/active-domain';
 import { DashHeader } from '../gv-chrome';
+import { blogHomeUrl, canonicalBaseFor } from '@/lib/seo';
 
 export default async function Page() {
   const sb = await supabaseServer();
   const domain = await getActiveDomain(sb);
   const { data: posts } = await sb.from('posts').select('*').eq('domain_id', domain?.id).eq('status', 'published').order('published_at', { ascending: false });
+
+  // "everything that's live on your blog" means the reader-facing copy, so this
+  // resolves through the shared builders — a customer with their own base gets
+  // their own URLs here, not the /b/ mirror.
+  const blogBase = domain?.blog_slug ? blogHomeUrl(domain.blog_slug, canonicalBaseFor(domain as any)) : null;
 
   return (
     <>
@@ -13,7 +19,7 @@ export default async function Page() {
       <div className="gv-body">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {(posts ?? []).map((p) => (
-          <a key={p.id} className="post-row" href={`/b/${domain?.blog_slug}/${p.slug}`} target="_blank" rel="noreferrer">
+          <a key={p.id} className="post-row" href={`${blogBase}/${p.slug}`} target="_blank" rel="noreferrer">
             <div className="pthumb" />
             <div className="pbody">
               <div className="ptitle">{p.title}</div>
