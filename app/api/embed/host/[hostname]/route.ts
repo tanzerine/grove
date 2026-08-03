@@ -80,7 +80,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ hostname: strin
     // editing the snippet they pasted months ago — the old behaviour needed
     // data-article-base, an opt-in nobody discovered, and every blog without it
     // read in-page at a #fragment that no crawler can index.
-    blog_base: embedSeoStatus(domain as any, appBase()).articleBase,
+    blog_base: embedSeoStatus(domain, appBase()).articleBase,
     posts: (posts ?? []).map((p: any) => ({
       slug: p.slug,
       title: p.title,
@@ -88,7 +88,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ hostname: strin
       // canonicalBaseFor, never the raw column: a customer whose canonical is a
       // CNAME (custom_blog_hostname, canonical_blog_base NULL) would otherwise
       // fall through to the grove mirror and contradict `blog_base` above.
-      url: blogPostUrl(domain.blog_slug, p.slug, canonicalBaseFor(domain as any)),
+      url: blogPostUrl(domain.blog_slug, p.slug, canonicalBaseFor(domain)),
       date: p.published_at,
       cover_image_url: p.cover_image_url ?? null,
       cover_image_credit: p.cover_image_credit ?? null,

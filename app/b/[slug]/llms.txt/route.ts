@@ -25,7 +25,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
   const body = buildLlmsTxt({
     hostname: domain.hostname,
     blogSlug: slug,
-    canonicalBase: canonicalBaseFor(domain as any),
+    canonicalBase: canonicalBaseFor(domain),
     description,
     posts: posts ?? [],
   });

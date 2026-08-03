@@ -33,7 +33,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ slug: string }>
     posts: (posts ?? []).map((p: any) => ({
       title: p.title,
       excerpt: p.meta_description,
-      url: blogPostUrl(slug, p.slug, canonicalBaseFor(domain as any)),
+      url: blogPostUrl(slug, p.slug, canonicalBaseFor(domain)),
       date: p.published_at,
       genre: genreFor(p.format, p.title).label,
       author,

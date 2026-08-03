@@ -11,7 +11,7 @@ export default async function Page() {
   // "everything that's live on your blog" means the reader-facing copy, so this
   // resolves through the shared builders — a customer with their own base gets
   // their own URLs here, not the /b/ mirror.
-  const blogBase = domain?.blog_slug ? blogHomeUrl(domain.blog_slug, canonicalBaseFor(domain as any)) : null;
+  const blogBase = domain?.blog_slug ? blogHomeUrl(domain.blog_slug, canonicalBaseFor(domain)) : null;
 
   return (
     <>

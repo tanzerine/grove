@@ -72,7 +72,7 @@ export default async function HostedBlogLayout({
   // On a blog host the middleware strips the /b/{slug} prefix, so the blog's
   // own links must be root-relative there and prefixed on the app host.
   const host = (await headers()).get('host');
-  const onBlogHost = !!subdomainSlugFromHost(host) || isCustomBlogHost(host, domain as any);
+  const onBlogHost = !!subdomainSlugFromHost(host) || isCustomBlogHost(host, domain);
   const blogHome = onBlogHost ? '/' : `/b/${slug}`;
 
   const nav = design?.nav ?? null;

@@ -34,7 +34,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
   const xml = buildRssXml({
     hostname: domain.hostname,
     blogSlug: slug,
-    canonicalBase: canonicalBaseFor(domain as any),
+    canonicalBase: canonicalBaseFor(domain),
     items,
   });
   return new Response(xml, {

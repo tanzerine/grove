@@ -117,10 +117,10 @@ export async function GET(_req: Request, ctx: { params: Promise<{ hostname: stri
   // It's the one piece of SEO a script CAN deliver, and it costs one field here.
   const author = authorFor((domain as any).site_profile, domain.hostname);
   const genre = genreFor((post as any).format, post.title);
-  const canonicalUrl = crawlableArticleUrl(domain as any, post.slug);
+  const canonicalUrl = crawlableArticleUrl(domain, post.slug);
   const jsonLd = buildArticleGraph({
     hostname: domain.hostname,
-    blogSlug: (domain as any).blog_slug ?? '',
+    blogSlug: domain.blog_slug ?? '',
     postSlug: post.slug,
     title: post.title ?? '',
     description: post.meta_description,
@@ -133,7 +133,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ hostname: stri
     genreLabel: genre.label,
     wordCount: (post.body_md ?? '').split(/\s+/).filter(Boolean).length,
     faqs: extractFaq(post.body_md ?? ''),
-    canonicalBase: canonicalBaseFor(domain as any),
+    canonicalBase: canonicalBaseFor(domain),
   });
 
   return NextResponse.json({

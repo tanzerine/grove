@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { CanonicalFields } from './seo';
 
 /**
  * "Active site" selection for the multi-site (Instagram-style) switcher.
@@ -11,10 +12,23 @@ import type { SupabaseClient } from '@supabase/supabase-js';
  */
 export const ACTIVE_DOMAIN_COOKIE = 'grove_active_domain';
 
-export type DomainRow = {
+/**
+ * Intersecting CanonicalFields is what lets a row go straight into the lib/seo
+ * builders — `canonicalBaseFor(domain)` rather than `canonicalBaseFor(domain as
+ * any)`. The index signature below does NOT satisfy those builders' weak-type
+ * check, so before this the only way through was a cast, and a cast there would
+ * have equally accepted a row that had never selected the columns.
+ */
+export type DomainRow = CanonicalFields & {
   id: string;
   hostname: string;
   verified_at: string | null;
+  // Named because they carry real meaning at call sites (blog URLs, ownership)
+  // and the index signature would otherwise type them `any`. Optional but NOT
+  // nullable: both are NOT NULL in the schema, so the only way to not have one
+  // is a getActiveDomainFields() call whose `columns` left it out.
+  blog_slug?: string;
+  user_id?: string;
   // select('*') brings extra columns (auto_publish, site_profile, gsc_*, …);
   // keep them loosely typed like the prior raw query so callers aren't broken.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -19,7 +19,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
   const body = `User-agent: *
 Allow: /
 
-Sitemap: ${blogHomeUrl(slug, servedBlogBaseFor(domain as any))}/sitemap.xml
+Sitemap: ${blogHomeUrl(slug, servedBlogBaseFor(domain))}/sitemap.xml
 `;
   return new Response(body, {
     headers: {

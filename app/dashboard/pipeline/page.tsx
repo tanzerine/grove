@@ -25,7 +25,7 @@ export default async function Page() {
   // Resolved once here, on the server, because the precedence lives in the
   // domain row (canonical_blog_base > custom_blog_hostname > subdomain > /b/)
   // and PostRow is a client component that never sees it.
-  const blogBase = domain?.blog_slug ? blogHomeUrl(domain.blog_slug, canonicalBaseFor(domain as any)) : null;
+  const blogBase = domain?.blog_slug ? blogHomeUrl(domain.blog_slug, canonicalBaseFor(domain)) : null;
 
   // Cadence choices are bounded by the plan's monthly allowance, so the picker
   // can grey out what this account can't have instead of letting them pick it
