@@ -232,7 +232,7 @@ export async function summarizeMonth(
       const toRow = (r: any): MetricRow => ({
         key: r.key, clicks: r.clicks, impressions: r.impressions, position: r.position, post_id: r.post_id ?? null,
       });
-      search_console = summarize(snap.pages.map(toRow), snap.queries.map(toRow));
+      search_console = summarize(snap.pages.map(toRow), snap.queries.map(toRow), snap.pageQueries ?? []);
     }
   } catch { /* GSC is optional signal */ }
 

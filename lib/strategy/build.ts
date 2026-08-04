@@ -147,8 +147,12 @@ export type BuildStrategyInput = {
  *   - what won / lost by intent (so the intent mix can shift with evidence)
  *   - top & bottom posts with the metric that explains why
  *   - real search queries (the strongest demand signal we have)
+ *
+ * Exported for tests: the near-winner section is a behavioural guard (it decides
+ * whether the planner competes with our own page-2 URLs), so its wording has to
+ * be assertable rather than reviewed by eye.
  */
-function digestReport(r: MonthlyReport): string {
+export function digestReport(r: MonthlyReport): string {
   const row = (p: any) =>
     `"${(p.title || p.post_id || '').slice(0, 60)}" — ${p.views} views, ${p.median_dwell_sec}s dwell, ${(p.scroll_100_rate * 100).toFixed(0)}% read-through, ${p.conversions} conv`;
   const intents = Object.entries(r.per_intent || {})
@@ -171,14 +175,30 @@ function digestReport(r: MonthlyReport): string {
   // and it exists even before traffic does (impressions at position 30 still count).
   const sc = r.search_console;
   if (sc && sc.impressions > 0) {
-    const scQueries = sc.topQueries.slice(0, 12)
+    // A query owned by a near-winner is withheld from the "cover these" list:
+    // the two blocks would otherwise contradict each other on the same string,
+    // one asking for a slot and the other forbidding it.
+    const taken = new Set(
+      sc.nearWinners.flatMap((w) => (w.queries ?? []).map((q) => q.query.toLowerCase())),
+    );
+    const scQueries = sc.topQueries
+      .filter((q) => !taken.has(q.query.toLowerCase()))
+      .slice(0, 12)
       .map((q) => `"${q.query}" (${q.impressions} impr, pos ${q.position})`).join(', ');
     const winners = sc.nearWinners.slice(0, 8)
-      .map((w) => `"${(w.key || '').replace(/^https?:\/\/[^/]+/, '')}" (${w.impressions} impr, pos ${w.position})`).join(', ');
+      .map((w) => {
+        const path = (w.key || '').replace(/^https?:\/\/[^/]+/, '');
+        const owns = (w.queries ?? []).length
+          ? ` — owns: ${w.queries.map((q) => `"${q.query}" (pos ${q.position})`).join(', ')}`
+          : '';
+        return `  - "${path}" (${w.impressions} impr, pos ${w.position})${owns}`;
+      }).join('\n');
     lines.push(
       `SEARCH CONSOLE (real Google data): ${sc.impressions} impressions, ${sc.clicks} clicks, avg position ${sc.avgPosition}, appearing for ${sc.queryCount} queries.`,
       `GSC QUERIES YOU ALREADY RANK FOR (cover/strengthen these — proven demand at real positions): ${scQueries || '(none)'}`,
-      `NEAR-WINNERS — pages stuck on page 2 (pos 8-20) with real impressions. REFRESHING ONE INTO THE TOP 10 IS THE HIGHEST-ROI MOVE THIS MONTH. Dedicate slots to sharper/expanded angles on these exact topics: ${winners || '(none yet)'}`,
+      `NEAR-WINNERS — our OWN pages already ranking at positions 8-20. They are the closest thing this domain has to a top-10 result, and they must not be competed with: a new article aimed at a query one of them already owns splits the signal between two of our own URLs and neither one gets there. Every query marked "owns" below is TAKEN — do not plan a slot for it, and do not plan a "sharper" or "expanded" retread of these pages.\n` +
+      `What legitimately helps one of these: a slot that answers the NEXT question a reader has after reading it, targets a DIFFERENT query, and links back to it. That strengthens the near-winner instead of replacing it.\n` +
+      `${winners || '  (none yet)'}`,
     );
   }
 

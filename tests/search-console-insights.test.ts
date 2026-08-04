@@ -35,6 +35,40 @@ describe('nearWinners', () => {
     expect(w).toHaveLength(2);
     expect(w[0].impressions).toBeGreaterThanOrEqual(w[1].impressions); // sorted desc
   });
+
+  // The queries are what make "don't compete with this page" enforceable — a
+  // bare URL path leaves the planner guessing what the page is even about.
+  it('attaches the queries each page owns, biggest first', () => {
+    const w = nearWinners(pages, {
+      pageQueries: [
+        { page: 'p-12', query: 'small demand', impressions: 10, position: 14 },
+        { page: 'p-12', query: 'big demand', impressions: 200, position: 11.44 },
+        { page: 'p-9', query: 'other page', impressions: 50, position: 9 },
+      ],
+    });
+    expect(w[0].queries.map((q) => q.query)).toEqual(['big demand', 'small demand']);
+    expect(w[0].queries[0].position).toBe(11.4);        // rounded to 1dp
+    expect(w[1].queries.map((q) => q.query)).toEqual(['other page']);
+  });
+
+  it('caps queries per page so one page cannot flood the prompt', () => {
+    const many = Array.from({ length: 9 }, (_, i) => ({
+      page: 'p-12', query: `q${i}`, impressions: 100 - i, position: 12,
+    }));
+    expect(nearWinners(pages, { pageQueries: many })[0].queries).toHaveLength(4);
+  });
+
+  it('joins across a trailing-slash mismatch between the two snapshots', () => {
+    const w = nearWinners([page('https://a.com/x', 300, 12, 5, 'post-x')], {
+      pageQueries: [{ page: 'https://a.com/x/', query: 'q', impressions: 5, position: 12 }],
+    });
+    expect(w[0].queries.map((q) => q.query)).toEqual(['q']);
+  });
+
+  it('gives every winner an empty query list when no snapshot exists', () => {
+    // Domains whose last sync predates migration 0032 have no page+query rows.
+    for (const w of nearWinners(pages)) expect(w.queries).toEqual([]);
+  });
 });
 
 describe('summarize', () => {
@@ -48,6 +82,15 @@ describe('summarize', () => {
     expect(v.queryCount).toBe(2);                 // the zero-impression query is dropped
     expect(v.topQueries[0].query).toBe('best widgets'); // sorted by impressions
     expect(v.nearWinners.map((w) => w.key)).toEqual(['p-12']);
+  });
+
+  it('threads the page+query snapshot down to the near-winners', () => {
+    const v = summarize(
+      [page('p-12', 300, 12, 6, 'post-12')],
+      [page('best widgets', 600, 4, 30)],
+      [{ page: 'p-12', query: 'widget sizing', impressions: 90, position: 11 }],
+    );
+    expect(v.nearWinners[0].queries.map((q) => q.query)).toEqual(['widget sizing']);
   });
 });
 
