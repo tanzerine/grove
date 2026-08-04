@@ -89,8 +89,24 @@ describe('ARTICLE_CSS covers the article body', () => {
     // block }`. Without putting these back, every bullet list in an article
     // renders as unmarked paragraphs.
     expect(ARTICLE_CSS).toMatch(/list-style: disc/);
-    expect(ARTICLE_CSS).toMatch(/list-style: decimal/);
     expect(ARTICLE_CSS).toMatch(/display: list-item/);
+    // Ordered lists deliberately do NOT restore `decimal` — the badge treatment
+    // draws the numeral through a counter, so the marker box stays off. That
+    // makes ::before the only thing painting a number, which is why these two
+    // assertions replace the `list-style: decimal` one that used to live here.
+    expect(ARTICLE_CSS).toMatch(/counter-reset: gaol/);
+    expect(ARTICLE_CSS).toMatch(/content: counter\(gaol\)/);
+  });
+
+  it('keeps the numbered badge on the accent token, never a fixed swatch', () => {
+    // This file renders on domains grove does not control; a hardcoded green
+    // badge would land as a grove-coloured chip in the middle of someone
+    // else's palette. The rgba literals are the pre-color-mix fallback and
+    // must always be paired with an --ga-accent declaration that overrides.
+    const badge = ARTICLE_CSS.match(/ol > li::before \{[^}]*\}/)![0];
+    expect(badge).toMatch(/color: var\(--ga-accent\)/);
+    expect(badge).toMatch(/background: color-mix\(in srgb, var\(--ga-accent\)/);
+    expect(badge).toMatch(/border-color: color-mix\(in srgb, var\(--ga-accent\)/);
   });
 });
 
@@ -99,14 +115,25 @@ describe('parity with grove’s own .prose', () => {
     expect(globals).toMatch(new RegExp(`\\.prose ${el}[\\s,{:]`));
   });
 
-  it('restores the list markers preflight strips, like ARTICLE_CSS does', () => {
+  it('restores the bullet markers preflight strips, like ARTICLE_CSS does', () => {
     // The identical assertion has guarded ARTICLE_CSS since it shipped, and
     // globals.css never got one — so `menu, ol, ul { list-style: none }` won on
-    // grove's own hosted article and EVERY numbered step published at
-    // /b/[slug] rendered unnumbered. The ::marker colour rules sitting right
-    // underneath were dead the whole time, styling a marker nothing drew.
+    // grove's own hosted article and EVERY list published at /b/[slug]
+    // rendered unmarked. The ::marker colour rules sitting right underneath
+    // were dead the whole time, styling a marker nothing drew.
     expect(globals).toMatch(/\.prose ul\s*\{[^}]*list-style: disc/);
-    expect(globals).toMatch(/\.prose ol\s*\{[^}]*list-style: decimal/);
+  });
+
+  it('draws numbered steps as badges on both surfaces, not bare numerals', () => {
+    // `^` anchored so this cannot be satisfied by `.gv-app .prose ol`, which
+    // has carried the editor's own badge treatment all along — the point is
+    // that the PUBLISHED article now has one too.
+    expect(globals).toMatch(/^\.prose ol \{[^}]*counter-reset: proseol/m);
+    expect(globals).toMatch(/^\.prose ol > li::before \{[^}]*content: counter\(proseol\)/m);
+    expect(ARTICLE_CSS).toMatch(/counter-reset: gaol/);
+    // Both surfaces suppress the real marker, or the numeral would double up.
+    expect(globals).toMatch(/^\.prose ol > li::marker \{ content: none/m);
+    expect(ARTICLE_CSS).toMatch(/ol > li::marker \{ content: none/);
   });
 
   it('shares the reader-facing measurements that define the look', () => {
