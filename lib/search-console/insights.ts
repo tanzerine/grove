@@ -24,7 +24,57 @@ export type NearWinner = {
   impressions: number;
   clicks: number;
   position: number;
+  /**
+   * The queries this exact page earns impressions on, biggest first.
+   *
+   * A near-winner used to reach the strategist as a bare URL path, which it had
+   * to guess the topic of — so "don't compete with this page" was unenforceable
+   * and the planner happily scheduled a second article on the same query. These
+   * make the instruction concrete. Empty when the page+query snapshot has no
+   * rows for it (nothing was collected before migration 0032).
+   */
+  queries: { query: string; impressions: number; position: number }[];
 };
+
+/** One (page, query) pair from the gsc_page_queries snapshot. */
+export type PageQueryRow = {
+  page: string;
+  query: string;
+  impressions: number;
+  position: number;
+};
+
+/** Enough for the planner to know what's taken without flooding the prompt. */
+const MAX_QUERIES_PER_PAGE = 4;
+
+/** GSC reports the same page with and without a trailing slash across
+ *  dimensions often enough that an exact-string join silently misses rows. */
+function pageKey(url: string): string {
+  return (url ?? '').replace(/\/+$/, '');
+}
+
+/** Group page+query rows by page, biggest impressions first. */
+function queriesByPage(rows: PageQueryRow[]): Map<string, NearWinner['queries']> {
+  const byPage = new Map<string, PageQueryRow[]>();
+  for (const r of rows) {
+    if (!r.page || !r.query) continue;
+    const k = pageKey(r.page);
+    const list = byPage.get(k);
+    if (list) list.push(r); else byPage.set(k, [r]);
+  }
+  const out = new Map<string, NearWinner['queries']>();
+  for (const [k, list] of byPage) {
+    out.set(k, list
+      .sort((a, b) => b.impressions - a.impressions)
+      .slice(0, MAX_QUERIES_PER_PAGE)
+      .map((r) => ({
+        query: r.query,
+        impressions: r.impressions,
+        position: Math.round(r.position * 10) / 10,
+      })));
+  }
+  return out;
+}
 
 export type Visibility = {
   impressions: number;
@@ -53,12 +103,17 @@ export function weightedPosition(rows: MetricRow[]): number {
  */
 export function nearWinners(
   pages: MetricRow[],
-  opts: { minPos?: number; maxPos?: number; minImpressions?: number; limit?: number } = {},
+  opts: {
+    minPos?: number; maxPos?: number; minImpressions?: number; limit?: number;
+    /** page+query snapshot; when absent every winner gets an empty query list. */
+    pageQueries?: PageQueryRow[];
+  } = {},
 ): NearWinner[] {
   const minPos = opts.minPos ?? 8;
   const maxPos = opts.maxPos ?? 20;
   const minImpressions = opts.minImpressions ?? 5;
   const limit = opts.limit ?? 10;
+  const byPage = queriesByPage(opts.pageQueries ?? []);
   return pages
     .filter((p) => p.position >= minPos && p.position <= maxPos && p.impressions >= minImpressions)
     .sort((a, b) => b.impressions - a.impressions)
@@ -69,6 +124,7 @@ export function nearWinners(
       impressions: p.impressions,
       clicks: p.clicks,
       position: Math.round(p.position * 10) / 10,
+      queries: byPage.get(pageKey(p.key)) ?? [],
     }));
 }
 
@@ -153,7 +209,7 @@ export function articleRows(
       b.views - a.views || a.title.localeCompare(b.title));
 }
 
-export function summarize(pages: MetricRow[], queries: MetricRow[]): Visibility {
+export function summarize(pages: MetricRow[], queries: MetricRow[], pageQueries: PageQueryRow[] = []): Visibility {
   const impressions = pages.reduce((a, p) => a + p.impressions, 0);
   const clicks = pages.reduce((a, p) => a + p.clicks, 0);
   const topQueries = [...queries]
@@ -172,6 +228,6 @@ export function summarize(pages: MetricRow[], queries: MetricRow[]): Visibility 
     avgPosition: weightedPosition(pages),
     queryCount: queries.filter((q) => q.impressions > 0).length,
     topQueries,
-    nearWinners: nearWinners(pages),
+    nearWinners: nearWinners(pages, { pageQueries }),
   };
 }

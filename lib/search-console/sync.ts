@@ -155,20 +155,29 @@ export async function dailySeries(domainId: string, days = 90): Promise<DailyPoi
 }
 
 /** Read the most recent snapshot back out for the dashboard / strategist. */
-export async function latestSnapshot(domainId: string): Promise<{ pages: any[]; queries: any[]; date: string | null }> {
+export async function latestSnapshot(domainId: string): Promise<{ pages: any[]; queries: any[]; pageQueries: any[]; date: string | null }> {
   const sb = supabaseAdmin();
   const { data: latest } = await sb
     .from('gsc_metrics').select('date').eq('domain_id', domainId)
     .order('date', { ascending: false }).limit(1).maybeSingle();
   const date = latest?.date ?? null;
-  if (!date) return { pages: [], queries: [], date: null };
+  if (!date) return { pages: [], queries: [], pageQueries: [], date: null };
 
   const { data: rows } = await sb
     .from('gsc_metrics')
     .select('dimension, key, post_id, clicks, impressions, position')
     .eq('domain_id', domainId).eq('date', date);
 
+  // Which queries each page ranks for, from the same sync day. Read separately
+  // because gsc_metrics cannot express the pair (see migration 0032). Empty for
+  // any domain whose last sync predates that table — callers degrade to bare
+  // page URLs rather than failing.
+  const { data: pq } = await sb
+    .from('gsc_page_queries')
+    .select('page, query, impressions, position')
+    .eq('domain_id', domainId).eq('date', date);
+
   const pages = (rows ?? []).filter((r: any) => r.dimension === 'page');
   const queries = (rows ?? []).filter((r: any) => r.dimension === 'query');
-  return { pages, queries, date };
+  return { pages, queries, pageQueries: pq ?? [], date };
 }
