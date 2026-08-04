@@ -99,6 +99,16 @@ describe('parity with grove’s own .prose', () => {
     expect(globals).toMatch(new RegExp(`\\.prose ${el}[\\s,{:]`));
   });
 
+  it('restores the list markers preflight strips, like ARTICLE_CSS does', () => {
+    // The identical assertion has guarded ARTICLE_CSS since it shipped, and
+    // globals.css never got one — so `menu, ol, ul { list-style: none }` won on
+    // grove's own hosted article and EVERY numbered step published at
+    // /b/[slug] rendered unnumbered. The ::marker colour rules sitting right
+    // underneath were dead the whole time, styling a marker nothing drew.
+    expect(globals).toMatch(/\.prose ul\s*\{[^}]*list-style: disc/);
+    expect(globals).toMatch(/\.prose ol\s*\{[^}]*list-style: decimal/);
+  });
+
   it('shares the reader-facing measurements that define the look', () => {
     // If grove retunes its own article and forgets the hosted copy, customers
     // silently drift back to looking different. These are the values a reader

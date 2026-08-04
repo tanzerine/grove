@@ -478,6 +478,16 @@ a { color: inherit; text-decoration: none; }
 
 .prose strong { color: var(--ink); font-weight: 600; background: linear-gradient(transparent 62%, var(--accent-soft, rgba(78,158,106,0.18)) 62%); padding: 0 2px; }
 .prose em { color: var(--clay); }
+/* The preflight reset zeroes `list-style` on every ol/ul (`menu, ol, ul {
+   list-style: none }`), so these have to put it back explicitly. Without them
+   a published article's numbered steps rendered as unnumbered lines and its
+   bullets as bare paragraphs — and the ::marker rules below were dead code,
+   colouring a marker that nothing was drawing. `.gv-app .prose ol` overrides
+   this on purpose further down (it draws its own numbered badges) and still
+   wins on specificity. lib/blog/article-css.ts already restores both for the
+   embed, which is why that surface never showed the bug. */
+.prose ul { list-style: disc; }
+.prose ol { list-style: decimal; }
 .prose ul, .prose ol { margin: 0.8em 0 1.2em; padding-left: 1.6em; }
 .prose ul li, .prose ol li { margin: 0.5em 0; padding-left: 6px; }
 .prose ul li::marker { color: var(--moss); }
