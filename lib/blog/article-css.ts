@@ -150,11 +150,41 @@ export const ARTICLE_CSS = `
 .${ARTICLE_CLASS} em { color: var(--ga-clay); }
 
 .${ARTICLE_CLASS} ul,
-.${ARTICLE_CLASS} ol { margin: 0.8em 0 1.2em; padding-left: 1.6em; }
-.${ARTICLE_CLASS} ul { list-style: disc; }
-.${ARTICLE_CLASS} ol { list-style: decimal; }
+.${ARTICLE_CLASS} ol { margin: 0.8em 0 1.2em; }
+.${ARTICLE_CLASS} ul { list-style: disc; padding-left: 1.6em; }
 .${ARTICLE_CLASS} li { margin: 0.5em 0; padding-left: 6px; display: list-item; }
 .${ARTICLE_CLASS} li::marker { color: var(--ga-accent); }
+
+/* Numbered steps as accent badges, matching grove's own blog (the .prose block
+   in app/globals.css). An ordered list deliberately does NOT restore
+   list-style: the counter draws the numeral, so the marker box stays off.
+
+   The badge follows --ga-accent like everything else here, which means it
+   arrives in the customer's own colour rather than grove's green — a fixed
+   swatch is the one thing this file must never ship. Sized in em off its own
+   font-size so it scales with whatever body size the host page imposes. */
+.${ARTICLE_CLASS} ol { list-style: none; counter-reset: gaol; padding-left: 0; }
+.${ARTICLE_CLASS} ol > li { counter-increment: gaol; position: relative; padding-left: 2.6em; margin: 0.7em 0; }
+.${ARTICLE_CLASS} ol > li::before {
+  content: counter(gaol);
+  position: absolute; left: 0; top: 0.1em;
+  font-size: 0.76em; width: 2.15em; height: 2.15em; border-radius: 0.7em;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--gv-label-font, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-weight: 700;
+  color: var(--ga-accent);
+  /* Second declaration wins wherever color-mix is supported, tinting the badge
+     with the page's own accent; the rgba stays for everyone else. */
+  background: rgba(78, 158, 106, 0.12);
+  background: color-mix(in srgb, var(--ga-accent) 12%, transparent);
+  border: 1px solid rgba(78, 158, 106, 0.28);
+  border-color: color-mix(in srgb, var(--ga-accent) 28%, transparent);
+}
+.${ARTICLE_CLASS} ol > li::marker { content: none; }
+/* Markdown wraps loose list items in <p>; without this the badge sits against
+   a paragraph's own top margin and drifts off its first line. */
+.${ARTICLE_CLASS} ol > li > p { margin: 0 0 0.6em; }
+.${ARTICLE_CLASS} ol > li > p:last-child { margin-bottom: 0; }
 
 .${ARTICLE_CLASS} blockquote {
   margin: 2em 0;

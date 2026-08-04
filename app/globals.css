@@ -479,19 +479,46 @@ a { color: inherit; text-decoration: none; }
 .prose strong { color: var(--ink); font-weight: 600; background: linear-gradient(transparent 62%, var(--accent-soft, rgba(78,158,106,0.18)) 62%); padding: 0 2px; }
 .prose em { color: var(--clay); }
 /* The preflight reset zeroes `list-style` on every ol/ul (`menu, ol, ul {
-   list-style: none }`), so these have to put it back explicitly. Without them
-   a published article's numbered steps rendered as unnumbered lines and its
-   bullets as bare paragraphs — and the ::marker rules below were dead code,
-   colouring a marker that nothing was drawing. `.gv-app .prose ol` overrides
-   this on purpose further down (it draws its own numbered badges) and still
-   wins on specificity. lib/blog/article-css.ts already restores both for the
-   embed, which is why that surface never showed the bug. */
-.prose ul { list-style: disc; }
-.prose ol { list-style: decimal; }
-.prose ul, .prose ol { margin: 0.8em 0 1.2em; padding-left: 1.6em; }
-.prose ul li, .prose ol li { margin: 0.5em 0; padding-left: 6px; }
+   list-style: none }`), so a bullet list has to put it back explicitly or it
+   renders as bare paragraphs. */
+.prose ul, .prose ol { margin: 0.8em 0 1.2em; }
+.prose ul { list-style: disc; padding-left: 1.6em; }
+.prose ul li { margin: 0.5em 0; padding-left: 6px; }
 .prose ul li::marker { color: var(--moss); }
-.prose ol li::marker { color: var(--moss); font-family: 'DM Mono', monospace; font-weight: 600; }
+
+/* Numbered steps render as accent badges, the treatment the editor canvas has
+   always used (`.gv-app .prose ol`, further down) — a how-to now reads the same
+   in the editor and on the published page.
+
+   An ordered list therefore does NOT restore `list-style`: the counter below
+   draws the numeral itself, so the marker box stays off and ::before is the
+   only thing painting a number. That is the whole reason the reset above is
+   harmless here while it silently unnumbered every published list before. */
+.prose ol { list-style: none; counter-reset: proseol; padding-left: 0; }
+.prose ol > li { counter-increment: proseol; position: relative; padding-left: 2.6em; margin: 0.7em 0; }
+.prose ol > li::before {
+  content: counter(proseol);
+  position: absolute; left: 0; top: 0.1em;
+  font-size: 0.76em; width: 2.15em; height: 2.15em; border-radius: 0.7em;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'DM Mono', monospace; font-weight: 600;
+  color: var(--moss);
+  /* Tinted off --moss rather than --accent-soft: that token is the <strong>
+     highlight, tuned to sit behind text, and it reads far too hot as a filled
+     chip. Every colour here resolves through a token with no literal fallback,
+     because this surface repaints itself from the customer's captured design —
+     a bare rgba would stamp grove's green into someone else's palette, which
+     tests/hosted-blog-design.test.ts fails the build over. ARTICLE_CSS pairs
+     its color-mix with an rgba on purpose; it ships to hosts that may not
+     support color-mix, and this one doesn't. */
+  background: color-mix(in srgb, var(--moss) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--moss) 28%, transparent);
+}
+.prose ol > li::marker { content: none; }
+/* Markdown wraps loose list items in <p>; without this the badge sits against
+   a paragraph's own top margin and drifts off its first line. */
+.prose ol > li > p { margin: 0 0 0.6em; }
+.prose ol > li > p:last-child { margin-bottom: 0; }
 
 /* Pull quote: blockquote rendered as a magazine-style centered statement. */
 .prose blockquote {
