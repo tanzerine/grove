@@ -28,14 +28,25 @@ export default function ModeToggle({
   const [freq, setFreq] = useState(postsPerWeek);
   const [floor, setFloor] = useState(autoPublishFloor);
   const [saving, setSaving] = useState(false);
+  const [blocked, setBlocked] = useState<string | null>(null);
 
   async function save(patch: { auto_publish?: boolean; posts_per_week?: number; auto_publish_floor?: number }) {
-    setSaving(true);
-    await fetch('/api/domains/settings', {
+    setSaving(true); setBlocked(null);
+    const res = await fetch('/api/domains/settings', {
       method: 'PATCH', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ domain_id: domainId, ...patch }),
     });
-    setSaving(false); r.refresh();
+    setSaving(false);
+    if (!res.ok) {
+      // Roll the optimistic toggle back to what the server still believes —
+      // otherwise the control claims autopilot is on while drafts keep going
+      // to review, and the owner waits for posts that will never publish.
+      if (patch.auto_publish !== undefined) setAuto(!patch.auto_publish);
+      const j = await res.json().catch(() => ({} as { message?: string }));
+      setBlocked(j.message ?? "Couldn't save that — try again.");
+      return;
+    }
+    r.refresh();
   }
 
   const modeHint = auto ? 'Posts publish automatically on schedule' : 'Posts go to the review queue for approval';
@@ -82,6 +93,15 @@ export default function ModeToggle({
         </div>
         <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--gv-faint)', textAlign: 'right', maxWidth: 240 }}>{modeHint}</span>
       </div>
+
+      {/* Why the server refused — most often "no finished draft yet", which is
+          the one thing standing between a new account and unreviewed AI content
+          on their own domain. Worth a full sentence rather than a toast. */}
+      {blocked && (
+        <div role="status" style={{ fontSize: 12.5, lineHeight: 1.45, color: 'var(--gv-soft)', background: 'rgba(224,200,120,0.10)', border: '1px solid rgba(224,200,120,0.30)', borderRadius: 10, padding: '9px 12px' }}>
+          {blocked}
+        </div>
+      )}
 
       {/* Publish bar — only meaningful on autopilot. Below it: manual review. */}
       {auto && (

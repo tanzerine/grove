@@ -9,6 +9,7 @@ import { attachProjectDomain, detachProjectDomain, cnameHint, type DomainAttachR
 import { getQuota } from '@/lib/quota';
 import { canGenerateForUser } from '@/lib/billing';
 import { maxPostsPerWeekForQuota } from '@/lib/plans';
+import { canEnableAutopilot, REVIEWABLE_STATUSES } from '@/lib/autopilot-gate';
 
 const HEX = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
@@ -69,6 +70,29 @@ export async function PATCH(req: Request) {
             max_posts_per_week: max,
           },
           { status: 400 },
+        );
+      }
+    }
+  }
+
+  // Autopilot may not be armed before grove has shown this domain one finished
+  // draft — see lib/autopilot-gate for why. Only the OFF → ON transition is
+  // gated: re-saving a domain that already runs autopilot must never fail, and
+  // turning it OFF is always allowed.
+  if (updates.auto_publish === true) {
+    const { data: row } = await sb
+      .from('domains').select('auto_publish')
+      .eq('id', domain_id).eq('user_id', user.id).maybeSingle();
+    if (!row) return NextResponse.json({ error: 'not found' }, { status: 404 });
+    if (!row.auto_publish) {
+      const { count } = await sb
+        .from('posts').select('id', { count: 'exact', head: true })
+        .eq('domain_id', domain_id).in('status', REVIEWABLE_STATUSES as unknown as string[]);
+      const gate = canEnableAutopilot({ finishedDrafts: count ?? 0 });
+      if (!gate.allowed) {
+        return NextResponse.json(
+          { error: 'autopilot_needs_first_draft', message: gate.reason },
+          { status: 409 },
         );
       }
     }
