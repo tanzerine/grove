@@ -15,6 +15,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
 import { canGenerateForUser } from '@/lib/billing';
+import { enforceNotPaused } from '@/lib/kill-switch';
 import { consumeQuota, releaseQuota, exhaustedMessage } from '@/lib/quota';
 import { generatePost } from '@/lib/pipeline/generate';
 import { runCoverForPost } from '@/lib/pipeline/cover-image';
@@ -122,6 +123,11 @@ export async function POST(req: Request) {
   if (limited) return limited;
 
   const intent = classifyIntent(message);
+  // Platform-wide halt. Above the entitlement read because a paused platform
+  // is not a per-account verdict — nobody generates, entitled or not.
+  const halted = await enforceNotPaused();
+  if (halted) return halted;
+
   const entitled = await canGenerateForUser(user.id, sb);
 
   /* ── write: queue the article pipeline, reply instantly ─────────────── */

@@ -23,6 +23,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { isCronAuthorized } from '@/lib/cron-auth';
 import { runCoverForPost, MAX_COVER_ATTEMPTS } from '@/lib/pipeline/cover-image';
+import { generationPaused } from '@/lib/kill-switch';
 import { runInlineImagesForPost } from '@/lib/pipeline/inline-images';
 
 export const maxDuration = 300;
@@ -36,6 +37,13 @@ const INLINE_LIMIT = 3;
 
 export async function GET(req: Request) {
   if (!isCronAuthorized(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+
+  // Platform-wide halt. Covers are Replicate spend like any other generation,
+  // and this cron is a pure backfill — every post it would have touched is
+  // still waiting for it on the next run.
+  if ((await generationPaused()).paused) {
+    return NextResponse.json({ ok: true, paused: true, covers: 0 });
+  }
 
   const sb = supabaseAdmin();
 

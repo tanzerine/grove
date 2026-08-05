@@ -37,6 +37,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { isCronAuthorized } from '@/lib/cron-auth';
 import { generatePost } from '@/lib/pipeline/generate';
+import { generationPaused } from '@/lib/kill-switch';
 import { pickQueuedFairly } from '@/lib/pipeline/drain-order';
 import { runSocialAdapter } from '@/lib/pipeline/writer';
 import { seedLog } from '@/lib/pipeline/log';
@@ -443,6 +444,8 @@ export async function GET(req: Request) {
   let deferred = 0;
   let overQuota = 0;
   let coversInline = 0;
+  /** Candidates left untouched because the kill switch was engaged. */
+  let pausedAt = 0;
   const exhaustedOwners = new Set<string>();
   for (let i = 0; i < candidates.length; i++) {
     const p = candidates[i];
@@ -455,6 +458,15 @@ export async function GET(req: Request) {
       // Out of time — everything still untouched stays queued and leads the
       // next tick (pickQueuedFairly's ordering rotates who goes first).
       deferred = candidates.length - i;
+      break;
+    }
+    // Platform-wide halt, re-read PER POST rather than once per tick. A tick
+    // runs for up to five minutes, and a kill switch you have to wait out is
+    // not a kill switch — flipping the flag has to stop the very next article,
+    // not the next invocation. Everything untouched stays `queued` and drains
+    // normally once the flag goes back.
+    if ((await generationPaused()).paused) {
+      pausedAt = candidates.length - i;
       break;
     }
     // Skip owners already known to be out of plan this tick, so a customer with
@@ -546,6 +558,10 @@ export async function GET(req: Request) {
     covers_inline: coversInline,
     deferred,
     over_quota: overQuota,
+    // Non-zero means the kill switch stopped the drain mid-tick, with this many
+    // candidates left queued. Reported so a paused platform is visibly paused in
+    // the cron output rather than looking like an idle one.
+    paused_at: pausedAt,
     gsc_synced: gscSynced,
     // Telemetry for capacity planning — how this tick sized itself.
     capacity: {
