@@ -16,6 +16,7 @@ import { unmaterializedSlots } from '@/lib/strategy/materialize';
 import DashSearch from './DashSearch';
 import type { SearchablePost } from '@/lib/post-search';
 import { getEntitlement } from '@/lib/billing';
+import { shareOutcome, latestChannelErrors, type ShareRecord } from '@/lib/social/health';
 
 // ACCENT is the lime fill/border; ACCENT_INK is the olive to use whenever the
 // accent has to read as text (lime is ~1.1:1 on the white canvas).
@@ -247,6 +248,21 @@ export default async function OverviewPage() {
   const flight = inPipeline.filter((p) => ['queued', 'researching', 'writing'].includes(p.status));
   const agentItems: { icon: string; title: string; detail: string; attn: boolean; action?: { label: string; href: string } }[] = [];
   if (inReview.length) agentItems.push({ icon: 'eye', title: `${inReview.length} draft${inReview.length === 1 ? '' : 's'} need review`, detail: 'Approve to let autopilot publish them', attn: true, action: { label: 'Review', href: '/dashboard/pipeline' } });
+  // A cross-post channel that has stopped working is invisible everywhere else:
+  // the connection still reads "Connected", and nothing would give the owner a
+  // reason to open Social settings and look. `all` is newest-first, so a later
+  // success clears the warning on its own once the channel is fixed.
+  const brokenChannels = Object.keys(latestChannelErrors(published as any[]));
+  if (brokenChannels.length) {
+    const names = brokenChannels.map((c) => (c === 'x' ? 'X' : c === 'linkedin' ? 'LinkedIn' : c)).join(' and ');
+    agentItems.push({
+      icon: 'alert',
+      title: `${names} cross-posting stopped`,
+      detail: 'The last share failed — check the connection',
+      attn: true,
+      action: { label: 'Fix', href: '/dashboard/connections' },
+    });
+  }
   if (flight[0]) agentItems.push({ icon: 'search2', title: flight[0].status === 'writing' ? 'Drafting in your voice' : 'Researching live SERP', detail: `“${flight[0].title ?? flight[0].topic}”`, attn: false });
   if (flight[1]) agentItems.push({ icon: 'check', title: 'Next in the queue', detail: `“${flight[1].title ?? flight[1].topic}”`, attn: false });
   while (agentItems.length < 1) agentItems.push({ icon: 'check', title: 'All caught up', detail: 'No drafts in flight right now', attn: false });
@@ -278,12 +294,23 @@ export default async function OverviewPage() {
   };
 
   // ---- channels (real cross-post state of the latest published post) ----
+  //
+  // A FAILED share is also a record, so testing the key for truthiness reported
+  // a dead channel as a green "Posted" — the one state worse than saying
+  // nothing, because it tells the owner cross-posting is working while their
+  // token is revoked. shareOutcome demands an id (or a 2xx) before it says so.
   const latestPub = published[0];
-  const pubSocial = (latestPub?.social_published ?? {}) as Record<string, unknown>;
-  const chState = (key: string) =>
-    pubSocial[key] ? { state: 'Posted', color: ACCENT_INK, dot: ACCENT_INK }
-      : domain?.auto_social ? { state: 'Queued', color: 'var(--gv-dim)', dot: SAGE_DOT }
+  const pubSocial = (latestPub?.social_published ?? {}) as Record<string, ShareRecord>;
+  const chState = (key: string) => {
+    switch (shareOutcome(pubSocial[key])) {
+      case 'posted': return { state: 'Posted', color: ACCENT_INK, dot: ACCENT_INK };
+      case 'dry_run': return { state: 'Dry run', color: 'var(--gv-dim)', dot: SAGE_DOT };
+      case 'failed': return { state: 'Failed', color: 'var(--gv-red-text)', dot: 'var(--gv-red)' };
+      default: return domain?.auto_social
+        ? { state: 'Queued', color: 'var(--gv-dim)', dot: SAGE_DOT }
         : { state: 'Off', color: 'var(--gv-faint)', dot: 'var(--gv-fainter)' };
+    }
+  };
   const channels = latestPub
     ? [
         { name: 'Blog post', dot: ACCENT_INK, color: ACCENT_INK, state: 'Published' },

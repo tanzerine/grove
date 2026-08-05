@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { captureClient } from '@/lib/analytics/capture-client';
+import type { ConnectionHealth, ConnectionHealthState } from '@/lib/social/health';
 
 const CONNECT_ERRORS: Record<string, string> = {
   not_configured: "That platform isn't set up yet — its API keys are missing from the environment.",
@@ -15,7 +16,21 @@ const CONNECT_ERRORS: Record<string, string> = {
 export type PlatformView = {
   id: 'x' | 'linkedin';
   configured: boolean;
-  connection: { account_handle: string | null; connected_at: string } | null;
+  connection: {
+    account_handle: string | null;
+    connected_at: string;
+    /** Computed server-side in lib/social/health — the reason a channel that
+     *  looks connected may have stopped posting. */
+    health: ConnectionHealth;
+  } | null;
+};
+
+// Badge colors per health state. 'ok' renders no badge at all — a healthy
+// channel should stay quiet rather than add another green thing to scan past.
+const HEALTH_STYLE: Record<Exclude<ConnectionHealthState, 'ok'>, { fg: string; bg: string }> = {
+  expiring: { fg: 'var(--gv-amber)', bg: 'rgba(224,200,120,0.14)' },
+  expired: { fg: 'var(--gv-red-text)', bg: 'rgba(201,127,127,0.14)' },
+  failing: { fg: 'var(--gv-red-text)', bg: 'rgba(201,127,127,0.14)' },
 };
 
 const META: Record<PlatformView['id'], { label: string; blurb: string; color: string }> = {
@@ -192,25 +207,46 @@ export default function ConnectionsClient({
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {platforms.map((p) => {
           const m = META[p.id];
+          const health = p.connection?.health;
+          const unhealthy = health && health.state !== 'ok' ? health : null;
+          const badge = unhealthy ? HEALTH_STYLE[unhealthy.state as Exclude<ConnectionHealthState, 'ok'>] : null;
           return (
-            <div key={p.id} style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 14, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div key={p.id} style={{ background: 'var(--gv-card)', border: `1px solid ${unhealthy ? 'rgba(201,127,127,0.28)' : 'var(--gv-line)'}`, borderRadius: 14, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
               <div style={{ width: 40, height: 40, borderRadius: 10, background: m.color, border: '1px solid rgba(255,255,255,0.14)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontFamily: 'Inter', flexShrink: 0 }}>
                 {m.label[0]}
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 15, fontWeight: 600 }}>{m.label}</div>
-                <div style={{ fontSize: 13, color: 'var(--clay)', marginTop: 2 }}>
-                  {p.connection
-                    ? <>Connected{p.connection.account_handle ? ` as ${p.connection.account_handle}` : ''}.</>
-                    : m.blurb}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 15, fontWeight: 600 }}>{m.label}</span>
+                  {unhealthy && badge && (
+                    <span style={{ fontSize: 11, fontFamily: 'DM Mono', color: badge.fg, background: badge.bg, borderRadius: 999, padding: '2px 8px' }}>
+                      {unhealthy.label}
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: 13, color: unhealthy ? 'var(--gv-red-soft)' : 'var(--clay)', marginTop: 2 }}>
+                  {unhealthy?.detail
+                    ?? (p.connection
+                      ? <>Connected{p.connection.account_handle ? ` as ${p.connection.account_handle}` : ''}.</>
+                      : m.blurb)}
                 </div>
               </div>
               {!p.configured ? (
                 <span style={{ fontSize: 12, color: 'var(--clay)', fontFamily: 'DM Mono' }}>not set up</span>
               ) : p.connection ? (
-                <button onClick={() => disconnect(p.id)} disabled={busy === p.id} className="btn btn-ghost btn-sm">
-                  {busy === p.id ? '…' : 'Disconnect'}
-                </button>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  {/* Reconnect runs the same OAuth popup as Connect — upsert on
+                      (domain_id, platform) replaces the dead tokens in place, so
+                      the owner never has to disconnect first and lose the row. */}
+                  {health?.needsReconnect && (
+                    <button onClick={() => connect(p.id)} disabled={connecting === p.id} className="btn btn-primary btn-sm">
+                      {connecting === p.id ? 'Connecting…' : 'Reconnect'}
+                    </button>
+                  )}
+                  <button onClick={() => disconnect(p.id)} disabled={busy === p.id} className="btn btn-ghost btn-sm">
+                    {busy === p.id ? '…' : 'Disconnect'}
+                  </button>
+                </div>
               ) : (
                 <button
                   onClick={() => connect(p.id)}

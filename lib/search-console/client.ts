@@ -9,7 +9,10 @@
  * Redirect URI to register in the Google Cloud console:
  *   {NEXT_PUBLIC_APP_URL}/api/search-console/callback
  *
- * Scope: webmasters.readonly — we only ever READ performance data.
+ * Scope: `webmasters` (read-write). It always has been — addSite needs it, and
+ * so does submitSitemap. The old "readonly, we only ever READ" note here was
+ * stale and cost us: sitemaps were generated for years and never submitted,
+ * because the write scope we already held looked unavailable.
  */
 import { supabaseAdmin } from '../supabase/admin';
 import { encryptToken, decryptToken } from '../social/crypto';
@@ -199,6 +202,64 @@ export async function addSite(accessToken: string, siteUrl: string): Promise<voi
   });
   // 200/204 = added; 409 = already there — both fine.
   if (!r.ok && r.status !== 409) throw new Error(`gsc sites.add failed: ${await r.text()}`);
+}
+
+/* ───────────────────────────── sitemap submission ────────────────────────── */
+
+/**
+ * Is `sitemapUrl` inside the property `siteUrl`, i.e. will Google accept it?
+ *
+ * Search Console only accepts a sitemap that lives under the property it is
+ * submitted to. Submitting the grove-hosted mirror (trygroveai.com/b/slug/…)
+ * to a customer's `sc-domain:acme.com` is rejected — grove doesn't own that
+ * host from Google's point of view — so the submission is skipped rather than
+ * retried daily into a log nobody reads. It DOES land for the two cases that
+ * matter: a customer on a CNAME'd hostname (blog.acme.com, inside their domain
+ * property) and grove's own blog on its own property.
+ *
+ * Pure so the "can we actually submit this?" decision is unit-tested — getting
+ * it wrong either drops a submission silently or hammers Google with 403s.
+ */
+export function sitemapInProperty(siteUrl: string, sitemapUrl: string): boolean {
+  let host: string;
+  try { host = new URL(sitemapUrl).hostname.toLowerCase(); } catch { return false; }
+
+  // Domain property: covers the apex and every subdomain, any scheme.
+  if (siteUrl.toLowerCase().startsWith('sc-domain:')) {
+    const apex = siteUrl.slice('sc-domain:'.length).toLowerCase().replace(/\.$/, '');
+    return !!apex && (host === apex || host.endsWith(`.${apex}`));
+  }
+
+  // URL-prefix property: the sitemap must sit under the prefix path.
+  try {
+    const prop = new URL(siteUrl);
+    if (prop.hostname.toLowerCase() !== host) return false;
+    const prefix = prop.pathname.endsWith('/') ? prop.pathname : `${prop.pathname}/`;
+    const path = new URL(sitemapUrl).pathname;
+    return path.startsWith(prefix);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Submit (or re-submit) a sitemap to a Search Console property.
+ *
+ * PUT is idempotent — Google treats a repeat as "I know, I have it" — so this
+ * is safe to run on every sync, which is what makes it self-healing: a blog
+ * that gains its first post, or a customer who connects a hostname later, is
+ * picked up on the next daily pass with no extra bookkeeping.
+ *
+ * Uses the `webmasters` scope grove already holds (it has always been the
+ * read-WRITE scope, because addSite needs it — the header comment claiming
+ * webmasters.readonly was stale). No re-consent required.
+ */
+export async function submitSitemap(accessToken: string, siteUrl: string, sitemapUrl: string): Promise<void> {
+  const r = await fetch(
+    `${API_BASE}/sites/${encodeURIComponent(siteUrl)}/sitemaps/${encodeURIComponent(sitemapUrl)}`,
+    { method: 'PUT', headers: { authorization: `Bearer ${accessToken}` } },
+  );
+  if (!r.ok) throw new Error(`gsc sitemaps.submit failed (${r.status}): ${await r.text()}`);
 }
 
 /* ─────────────────────────── connection storage ─────────────────────────── */
