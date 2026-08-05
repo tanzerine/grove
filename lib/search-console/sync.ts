@@ -6,7 +6,11 @@
  * outage or a revoked token must never break the tick — it just logs and skips.
  */
 import { supabaseAdmin } from '../supabase/admin';
-import { accessTokenFromRefresh, getConnection, querySearchAnalytics, type GscRow } from './client';
+import { blogHomeUrl, servedBlogBaseFor } from '../seo';
+import {
+  accessTokenFromRefresh, getConnection, querySearchAnalytics,
+  sitemapInProperty, submitSitemap, type GscRow,
+} from './client';
 
 function ymd(d: Date): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
@@ -26,7 +30,12 @@ function postIdForUrl(url: string, slugIndex: Map<string, string>): string | nul
   } catch { return null; }
 }
 
-export type SyncResult = { ok: boolean; pages: number; queries: number; pageQueries?: number; reason?: string };
+export type SyncResult = {
+  ok: boolean; pages: number; queries: number; pageQueries?: number; reason?: string;
+  /** Did this pass hand the blog's sitemap to Google? False when the blog is
+   *  empty, or when the sitemap sits outside the connected property. */
+  sitemapSubmitted?: boolean;
+};
 
 export async function syncDomain(domainId: string): Promise<SyncResult> {
   const conn = await getConnection(domainId);
@@ -135,9 +144,53 @@ export async function syncDomain(domainId: string): Promise<SyncResult> {
     if (error) console.error('[gsc sync] page_queries upsert failed', domainId, error.message);
   }
 
+  // Tell Google the sitemap exists. Grove has always GENERATED sitemaps and
+  // never submitted one, so a new blog waited on organic discovery — on an SEO
+  // product, the slowest possible start. PUT is idempotent, so running it on
+  // every sync is also the self-heal: a blog that gains its first post, or a
+  // customer who connects a hostname months later, is picked up on the next
+  // pass without any extra bookkeeping.
+  const sitemapSubmitted = await submitBlogSitemap(domainId, conn.siteUrl, accessToken, (posts ?? []).length);
+
   await sb.from('domains').update({ gsc_synced_at: new Date().toISOString() }).eq('id', domainId);
 
-  return { ok: true, pages: pageRows.length, queries: queryRows.length, pageQueries: pageQueryUpsert.length };
+  return { ok: true, pages: pageRows.length, queries: queryRows.length, pageQueries: pageQueryUpsert.length, sitemapSubmitted };
+}
+
+/**
+ * Submit this domain's blog sitemap to its connected property, when that is
+ * something Google will actually accept.
+ *
+ * Strictly best-effort: the snapshot above is the caller's real job, and a
+ * rejected submission must never turn a good sync into a failed one.
+ *
+ * Two guards before the call:
+ *   - an EMPTY blog has nothing to crawl, and submitting it is the same mistake
+ *     the app-level robots.txt was making (see lib/robots-sitemaps).
+ *   - the sitemap must live inside the property, or Google rejects it. Built
+ *     from servedBlogBaseFor — never canonical_blog_base, which is rendered by
+ *     the customer and has no sitemap.xml (same rule as the per-blog robots).
+ */
+async function submitBlogSitemap(
+  domainId: string, siteUrl: string, accessToken: string, publishedCount: number,
+): Promise<boolean> {
+  if (publishedCount === 0) return false;
+  const sb = supabaseAdmin();
+  const { data: domain } = await sb
+    .from('domains').select('*') // '*': survives pre-0026 DB
+    .eq('id', domainId).maybeSingle();
+  if (!domain?.blog_slug) return false;
+
+  const sitemapUrl = `${blogHomeUrl(domain.blog_slug, servedBlogBaseFor(domain))}/sitemap.xml`;
+  if (!sitemapInProperty(siteUrl, sitemapUrl)) return false;
+
+  try {
+    await submitSitemap(accessToken, siteUrl, sitemapUrl);
+    return true;
+  } catch (e: any) {
+    console.error('[gsc sync] sitemap submit failed', domainId, e?.message ?? e);
+    return false;
+  }
 }
 
 export type DailyPoint = { date: string; clicks: number; impressions: number; ctr: number; position: number };
