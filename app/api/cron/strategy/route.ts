@@ -51,6 +51,7 @@ import { ensureMonthlyStrategy, type EnsureDomain } from '@/lib/strategy/ensure'
 import { planningQueue, planningTargets } from '@/lib/strategy/rollover';
 import { splitStrategyBudget } from '@/lib/llm';
 import { entitledUserSet } from '@/lib/billing';
+import { generationPaused } from '@/lib/kill-switch';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -69,6 +70,14 @@ type Attempt = {
 
 export async function GET(req: Request) {
   if (!isCronAuthorized(req)) return NextResponse.json({ ok: false }, { status: 401 });
+
+  // Platform-wide halt. A plan build is a strategy-model call per domain — the
+  // most expensive single LLM call the product makes — so a paused platform
+  // skips the whole tick rather than part of one. Nothing is lost: planning is
+  // idempotent per month and the next tick picks up exactly where this left off.
+  if ((await generationPaused()).paused) {
+    return NextResponse.json({ ok: true, paused: true, planned: 0 });
+  }
 
   const sb = supabaseAdmin();
   const startedAt = Date.now();

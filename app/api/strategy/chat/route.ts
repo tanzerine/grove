@@ -22,6 +22,7 @@ import {
 } from '@/lib/strategy/plan-chat';
 import { planChatBudget, applyPlanRevision } from '@/lib/strategy/apply-revision';
 import { enforceEntitlement } from '@/lib/billing';
+import { enforceNotPaused } from '@/lib/kill-switch';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -78,6 +79,10 @@ export async function POST(req: Request) {
   if (limited) return limited;
 
   // Cost-bearing generation is a paid feature: no live subscription, no LLM run.
+  // Platform-wide halt, checked before anything is reserved or spent.
+  const halted = await enforceNotPaused();
+  if (halted) return halted;
+
   const blocked = await enforceEntitlement(user.id, 'strategy_chat');
   if (blocked) return blocked;
 

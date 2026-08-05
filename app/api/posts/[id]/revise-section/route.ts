@@ -4,6 +4,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { reviseSection } from '@/lib/pipeline/revise';
 import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
 import { enforceEntitlement } from '@/lib/billing';
+import { enforceNotPaused } from '@/lib/kill-switch';
 import { captureServer } from '@/lib/analytics/capture-server';
 
 export const maxDuration = 60;
@@ -23,6 +24,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (limited) return limited;
 
   // Cost-bearing generation is a paid feature: no live subscription, no LLM run.
+  // Platform-wide halt, checked before anything is reserved or spent.
+  const halted = await enforceNotPaused();
+  if (halted) return halted;
+
   const blocked = await enforceEntitlement(user.id, 'revise', sb);
   if (blocked) return blocked;
 

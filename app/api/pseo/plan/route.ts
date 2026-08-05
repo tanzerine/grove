@@ -4,6 +4,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { planProgrammaticSet } from '@/lib/pseo';
 import type { SiteProfile } from '@/lib/pipeline/site-profile';
 import { enforceEntitlement } from '@/lib/billing';
+import { enforceNotPaused } from '@/lib/kill-switch';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -21,6 +22,10 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
   // Cost-bearing generation is a paid feature: no live subscription, no LLM run.
+  // Platform-wide halt, checked before anything is reserved or spent.
+  const halted = await enforceNotPaused();
+  if (halted) return halted;
+
   const blocked = await enforceEntitlement(user.id, 'pseo_plan', sb);
   if (blocked) return blocked;
 

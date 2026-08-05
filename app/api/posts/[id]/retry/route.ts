@@ -5,6 +5,7 @@ import { generatePost } from '@/lib/pipeline/generate';
 import { runCoverForPost } from '@/lib/pipeline/cover-image';
 import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
 import { enforceEntitlement } from '@/lib/billing';
+import { enforceNotPaused } from '@/lib/kill-switch';
 import { enforceQuota, releaseQuota } from '@/lib/quota';
 
 export const maxDuration = 300;
@@ -31,6 +32,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (limited) return limited;
 
   // Cost-bearing generation is a paid feature: no live subscription, no LLM run.
+  // Platform-wide halt, checked before anything is reserved or spent.
+  const halted = await enforceNotPaused();
+  if (halted) return halted;
+
   const blocked = await enforceEntitlement(user.id, 'retry', sb);
   if (blocked) return blocked;
 
