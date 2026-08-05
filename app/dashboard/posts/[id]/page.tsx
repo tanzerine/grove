@@ -16,7 +16,8 @@ import { summarizeReadiness, type Readiness } from '@/lib/readiness';
 import Icon from '../../gv-icons';
 import { DashHeader } from '../../gv-chrome';
 import { PLATFORMS } from '@/lib/social/providers';
-import { blogPostUrl, canonicalBaseFor } from '@/lib/seo';
+import { appBase } from '@/lib/seo';
+import { viewLiveTarget } from '@/lib/embed-seo';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
@@ -156,9 +157,11 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
              a custom_blog_hostname grove serves). Hand-building /b/{slug} here
              sent "View live" to the grove-hosted mirror while every other
              surface — embed API, rel=canonical, sitemap, RSS, social — pointed
-             at the customer's domain. */
-          publicUrl={p.status === 'published' && domain?.blog_slug && p.slug
-            ? blogPostUrl(domain.blog_slug, p.slug, canonicalBaseFor(domain))
+             at the customer's domain. The URL was only half the answer though:
+             with no base connected it still resolves to grove's mirror, so the
+             target carries the host and the warning too. */
+          live={p.status === 'published' && domain?.blog_slug && p.slug
+            ? viewLiveTarget(domain, p.slug, appBase())
             : null}
           hasCover={!!p.cover_image_url}
           hasInlineImages={hasInlineImages}

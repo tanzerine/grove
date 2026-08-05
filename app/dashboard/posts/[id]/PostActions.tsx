@@ -1,12 +1,14 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import Link from 'next/link';
 import Icon from '../../gv-icons';
 import { captureClient } from '@/lib/analytics/capture-client';
+import type { ViewLiveTarget } from '@/lib/embed-seo';
 
 export default function PostActions({
-  id, status, published, publicUrl, hasCover, hasInlineImages, children,
-}: { id: string; status: string; published: boolean; publicUrl: string | null; hasCover: boolean; hasInlineImages: boolean; children?: React.ReactNode }) {
+  id, status, published, live, hasCover, hasInlineImages, children,
+}: { id: string; status: string; published: boolean; live: ViewLiveTarget | null; hasCover: boolean; hasInlineImages: boolean; children?: React.ReactNode }) {
   const r = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -76,9 +78,18 @@ export default function PostActions({
           <Icon name="check" size={15} /> {busy === 'approve' ? 'Publishing…' : 'Approve & publish'}
         </button>
       )}
-      {published && publicUrl && (
-        <a className="gv-tool" style={{ ...tool, textDecoration: 'none' }} href={publicUrl} target="_blank" rel="noreferrer">
+      {/* The host rides along with the label. A customer with two blog surfaces
+          (grove's subdomain and their own site's copy) can't otherwise tell
+          which one this opens, and one with none can't tell it's leaving their
+          domain entirely. */}
+      {published && live && (
+        <a className="gv-tool" style={{ ...tool, textDecoration: 'none' }} href={live.url} target="_blank" rel="noreferrer">
           <Icon name="view" size={14} /> View live
+          {live.host && (
+            <span style={{ fontWeight: 500, color: live.offDomain ? 'var(--gv-amber)' : 'var(--gv-faint)' }}>
+              {live.host}
+            </span>
+          )}
         </a>
       )}
       {(status === 'failed' || status === 'review' || status === 'scheduled' || status === 'published') && (
@@ -103,6 +114,23 @@ export default function PostActions({
       <button className="gv-tool gv-danger" style={{ ...tool, marginLeft: 'auto', background: 'transparent', color: 'var(--gv-dim)' }} onClick={del} disabled={!!busy}>
         <Icon name="trash" size={14} /> {busy === 'delete' ? '…' : 'Delete'}
       </button>
+
+      {/* Last child + flexBasis:100% so it wraps onto its own row under the
+          buttons instead of splitting them. Published, on grove's domain, and
+          nothing in the product said so at the one moment the customer is
+          looking straight at it. */}
+      {published && live?.warning && (
+        <div style={{ flexBasis: '100%', display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 4, background: 'rgba(224,200,120,0.08)', border: '1px solid rgba(224,200,120,0.28)', borderRadius: 12, padding: '12px 14px' }}>
+          <span style={{ display: 'flex', color: 'var(--gv-amber)', flexShrink: 0, marginTop: 1 }}><Icon name="alert" size={15} /></span>
+          <div style={{ fontSize: 12.5, lineHeight: 1.55, color: 'var(--gv-soft)' }}>
+            <b style={{ color: 'var(--gv-amber)' }}>This article is published on grove&rsquo;s domain, not yours.</b>{' '}
+            {live.warning}{' '}
+            <Link href="/dashboard/embed" style={{ color: 'var(--gv-accent)', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+              Connect your domain →
+            </Link>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
