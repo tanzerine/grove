@@ -359,3 +359,30 @@ export function capacityReport(input: {
     oversubscribed: committed > postsPerMonth,
   };
 }
+
+/** Mirrors `maxDuration` in app/api/cron/scheduler/route.ts. */
+export const SCHEDULER_MAX_DURATION_SEC = 300;
+
+/**
+ * Posts the platform can physically produce in a month, all customers combined.
+ *
+ * The ceiling every "can we promise this?" question resolves against — the
+ * oversold-subscription flag on the admin overview, and the warning shown when
+ * a beta coupon is minted for more free posts than Grove can make. Pass recent
+ * generation durations to price it against measured cost; with none it falls
+ * back to DEFAULT_GENERATION_MS, which is the honest answer before there is
+ * anything to measure.
+ *
+ * Reads env and vercel.json, so it is not pure — the arithmetic underneath it
+ * (`capacityReport`) is, and that is what the tests pin.
+ */
+export function deliverablePostsPerMonth(samples: number[] = []): number {
+  return capacityReport({
+    ticksPerDay: schedulerTicksPerDay(),
+    postsPerTick: postsPerTick(
+      resolveTickBudgetMs(SCHEDULER_MAX_DURATION_SEC, process.env.GROVE_TICK_BUDGET_MS),
+      estimateGenerationMs(samples),
+    ),
+    committedPerMonth: 0,
+  }).postsPerMonth;
+}

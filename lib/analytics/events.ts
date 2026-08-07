@@ -54,7 +54,7 @@ export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
  * cardinality stays bounded no matter how much traffic arrives.
  */
 export const RATE_BUCKETS = [
-  'assist', 'billing', 'crawl', 'gen', 'gsc', 'img',
+  'assist', 'betaredeem', 'billing', 'crawl', 'feedback', 'gen', 'gsc', 'img',
   'interview', 'llm', 'planchat', 'refundreq', 'repo', 'strategy', 'upload',
 ] as const;
 export type RateBucket = (typeof RATE_BUCKETS)[number] | 'unknown';
@@ -175,6 +175,26 @@ export type EventMap = {
   subscription_canceled: { plan?: string };
   refund_requested: { reason: string; plan?: string };
 
+  // ── beta programme ──────────────────────────────────────────────────────
+  // The free-beta funnel, measured end to end: how many tried a code, how many
+  // got in, and — the only number that decides whether the beta was worth
+  // running — how many converted before the grant lapsed.
+  /** A code was submitted. `ok` false + `problem` is the whole reason this
+   *  fires on failure too: a campaign whose codes are mostly 'expired' or
+   *  'exhausted' is losing signups silently, and the customer won't report it. */
+  beta_code_submitted: { ok: boolean; problem?: string };
+  beta_redeemed: { code: string; posts_quota: number; days: number };
+  /** Fired once when a lapsed-beta account is refused generation, which is the
+   *  moment the free run converts or churns. */
+  beta_expired_blocked: Record<string, never>;
+
+  // ── customer feedback ───────────────────────────────────────────────────
+  /** `kind` separates the three doors (testimonial / shortcoming / complaint).
+   *  Deliberately carries no free text — the message itself lives in Postgres
+   *  where it is access-controlled, not in a third-party analytics store. */
+  feedback_submitted: { kind: string; area?: string; severity?: string; rating?: number; consent_publish?: boolean };
+  testimonial_published: { feedback_id: string };
+
   // ── friction ────────────────────────────────────────────────────────────
   // The three walls a customer can hit. These are the highest-value events in
   // the catalogue and the ones the product had no visibility into at all: they
@@ -245,6 +265,11 @@ const EVENT_NAME_SET = {
   subscription_activated: true,
   subscription_canceled: true,
   refund_requested: true,
+  beta_code_submitted: true,
+  beta_redeemed: true,
+  beta_expired_blocked: true,
+  feedback_submitted: true,
+  testimonial_published: true,
   quota_exhausted: true,
   rate_limited: true,
   generation_blocked_unpaid: true,

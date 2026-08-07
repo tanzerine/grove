@@ -26,6 +26,18 @@ export const LIMITS = {
   upload: { limit: 80, windowSec: 3600 },
   llm: { limit: 60, windowSec: 3600 },      // lighter single LLM calls
   crawl: { limit: 10, windowSec: 3600 },    // outbound site crawl + profiler
+  // Beta coupon redemption. Deliberately the tightest bucket here, and not
+  // because redeeming is expensive — it's a handful of queries. A redeem
+  // endpoint is a guessing oracle: it takes a string and says whether that
+  // string is worth money. Someone with a legitimate code needs one or two
+  // attempts, so 10/hour costs a real customer nothing and makes enumerating
+  // the code space pointless.
+  redeem: { limit: 10, windowSec: 3600 },
+  // Customer→owner feedback. Every submission emails the owner, so this is the
+  // one customer-facing write that lands in a human's inbox — generous enough
+  // that nobody with three real things to say is ever turned away, tight enough
+  // that a script can't bury the inbox it exists to fill.
+  feedback: { limit: 12, windowSec: 3600 },
 } as const;
 
 export type RateResult = { ok: boolean; retryAfterSec?: number };
