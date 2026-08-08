@@ -23,10 +23,8 @@ import {
   postsPerTick,
   resolveTickBudgetMs,
   schedulerTicksPerDay,
+  SCHEDULER_MAX_DURATION_SEC,
 } from './pipeline/capacity';
-
-/** Mirrors `maxDuration` in app/api/cron/scheduler/route.ts. */
-const SCHEDULER_MAX_DURATION_SEC = 300;
 
 export type Flag = {
   key: string;

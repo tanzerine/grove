@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { isAdminEmail } from '@/lib/admin';
 import { entitlementFrom } from '@/lib/billing';
+import { betaStateFrom } from '@/lib/beta';
+import { openFeedbackCount } from '@/lib/feedback-store';
 import { ACTIVE_DOMAIN_COOKIE } from '@/lib/active-domain';
 import { getOnboarding, EMPTY_ONBOARDING } from '@/lib/onboarding/checklist';
 import { getActivity, EMPTY_ACTIVITY } from '@/lib/notifications/feed';
@@ -50,6 +52,16 @@ export default async function DashLayout({ children }: { children: React.ReactNo
     }
   } catch { /* badges are optional */ }
 
+  // Owner-only: unanswered customer feedback. A complaint that sits unseen is
+  // the one failure this whole funnel exists to prevent, so the count rides the
+  // nav on every page rather than waiting to be discovered on the admin view.
+  if (isAdminEmail(user.email)) {
+    try {
+      const open = await openFeedbackCount();
+      if (open) badges.feedback = open;
+    } catch { /* badges are optional */ }
+  }
+
   // Real plan label for the sidebar chip + entitlement (best-effort; never
   // blocks render). `entitled` gates every cost-bearing action in the UI and
   // is the single source the client reads to decide "run it" vs "tease it";
@@ -59,11 +71,15 @@ export default async function DashLayout({ children }: { children: React.ReactNo
   let entitled = false;
   try {
     const { data: sub } = await sb
-      // `*` so entitlementFrom sees `comped` (0030) — a comped account must
-      // not have its cost-bearing UI actions greyed out.
+      // `*` so entitlementFrom sees `comped` (0030) and the beta grant (0033) —
+      // neither may have its cost-bearing UI actions greyed out.
       .from('subscriptions').select('*').eq('user_id', user.id).maybeSingle();
     const isActive = sub?.stripe_status && ['active', 'trialing', 'past_due'].includes(sub.stripe_status);
     if (isActive && sub?.plan) plan = sub.plan.charAt(0).toUpperCase() + sub.plan.slice(1);
+    // A live beta is its own chip. Labelling it "Free" would be wrong twice
+    // over: it isn't the free tier (it generates, and it expires), and it hides
+    // the one fact a beta tester needs in front of them — that this runs out.
+    else if (betaStateFrom(sub).active) plan = 'Beta';
     entitled = entitlementFrom(sub).canGenerate;
   } catch { /* chip is cosmetic; stay un-entitled on error */ }
 

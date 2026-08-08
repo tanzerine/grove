@@ -2,7 +2,9 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { PLANS, PLAN_IDS, isPlanId, resolvePriceId } from '@/lib/plans';
 import { quotaFrom } from '@/lib/quota';
+import { betaStateFrom, hasLivePaidSubscription } from '@/lib/beta';
 import BillingClient from './BillingClient';
+import BetaPanel from './BetaPanel';
 import { DashHeader } from '../gv-chrome';
 
 /** This month's posts used vs included, so the ceiling is visible before it's hit. */
@@ -53,11 +55,18 @@ export default async function BillingPage() {
     posts_quota?: number | null;
     posts_used?: number | null;
     cycle_resets_at?: string | null;
+    beta_code?: string | null;
+    beta_expires_at?: string | null;
+    beta_posts_quota?: number | null;
   } | null = null;
   try {
     const { data } = await sb
       .from('subscriptions')
-      .select('plan, stripe_status, stripe_customer_id, stripe_price_id, current_period_end, posts_quota, posts_used, cycle_resets_at')
+      // `*` rather than a column list, for the reason lib/quota documents: a
+      // column this page reads but the database hasn't got yet (0033's beta_*)
+      // fails a named select outright, and here that would blank the whole
+      // billing page rather than just hiding the beta panel.
+      .select('*')
       .eq('user_id', user.id)
       .maybeSingle();
     sub = data;
@@ -75,13 +84,23 @@ export default async function BillingPage() {
     ? resolvePriceId(sub?.stripe_price_id)?.interval ?? null
     : null;
 
+  const beta = betaStateFrom(sub);
+
+  // The meter is shown to accounts that can actually generate — paid OR on a
+  // live beta grant, which is metered just as strictly. It stays hidden from an
+  // account with neither, whose row still carries the schema's default quota:
+  // "0 of 4 posts used" is a promise we haven't made to someone who can't
+  // generate at all.
+  const showMeter = (isActive || beta.active) && quota.enforced && quota.limit !== null;
+
   return (
     <>
       <DashHeader title="Billing" subtitle="Your plan & payments" />
       <div className="gv-body">
-        {isActive && quota.enforced && (
+        {showMeter && (
           <QuotaMeter used={quota.used} limit={quota.limit!} resetsAt={quota.resetsAt} />
         )}
+        <BetaPanel beta={beta} hasPaidPlan={hasLivePaidSubscription(sub)} />
         <BillingClient
           plans={PLAN_IDS.map((id) => PLANS[id])}
           currentPlan={currentPlan}

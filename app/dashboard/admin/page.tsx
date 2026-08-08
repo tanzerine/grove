@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { isAdminEmail } from '@/lib/admin';
 import { getAdminStats } from '@/lib/admin-stats';
 import { detectAnomalies } from '@/lib/anomaly';
+import { feedbackStats } from '@/lib/feedback-store';
+import { betaStats } from '@/lib/beta-store';
 import { DashHeader } from '../gv-chrome';
 
 export const dynamic = 'force-dynamic';
@@ -20,7 +22,9 @@ export default async function AdminOverviewPage() {
   if (!user) redirect('/login');
   if (!isAdminEmail(user.email)) redirect('/dashboard');
 
-  const [s, flags] = await Promise.all([getAdminStats(), detectAnomalies()]);
+  const [s, flags, fb, beta] = await Promise.all([
+    getAdminStats(), detectAnomalies(), feedbackStats(), betaStats(),
+  ]);
   const maxRef = Math.max(1, ...s.referrals.map((r) => r.count));
 
   const cards = [
@@ -29,6 +33,10 @@ export default async function AdminOverviewPage() {
     { label: 'Active subscriptions', value: s.subs.active.toLocaleString(), sub: planMix(s.subs.byPlan) },
     { label: 'MRR', value: `$${s.subs.mrrUsd.toLocaleString()}`, sub: 'from active plans' },
     { label: 'Pending refunds', value: s.refunds.pending.toLocaleString(), sub: `${s.refunds.refunded} refunded total`, href: '/dashboard/admin/refunds' },
+    // The beta funnel's two ends: who is testing right now, and who has run out
+    // and is therefore either about to pay or about to leave.
+    { label: 'Live betas', value: beta.active.toLocaleString(), sub: `${beta.expired} expired · ${beta.committedPostsPerMonth} free posts/mo`, href: '/dashboard/admin/beta' },
+    { label: 'Open feedback', value: fb.open.toLocaleString(), sub: fb.blockers ? `${fb.blockers} BLOCKING` : `${fb.publishable} ready to publish`, href: '/dashboard/admin/feedback' },
   ];
 
   return (
@@ -64,7 +72,10 @@ export default async function AdminOverviewPage() {
           </div>
 
           {/* metric cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14 }} className="gv-grid5">
+          {/* auto-fit rather than a fixed count: cards get added here as the
+              product grows, and a hardcoded column count silently orphans the
+              last row every time one does */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 14 }} className="gv-grid5">
             {cards.map((c) => {
               const inner = (
                 <>

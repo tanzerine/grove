@@ -32,6 +32,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from './supabase/admin';
 import { PLANS, isPlanId, planForPriceId } from './plans';
 import { captureServer } from './analytics/capture-server';
+import { effectiveBeta } from './beta';
 
 export type QuotaRow = {
   plan?: string | null;
@@ -39,8 +40,13 @@ export type QuotaRow = {
   posts_used?: number | null;
   cycle_resets_at?: string | null;
   stripe_price_id?: string | null;
+  stripe_status?: string | null;
   /** Not metered at all — internal/dogfooding/comped. See migration 0030. */
   comped?: boolean | null;
+  /** Free beta grant — metered against its own allowance. See migration 0033. */
+  beta_code?: string | null;
+  beta_expires_at?: string | null;
+  beta_posts_quota?: number | null;
 };
 
 export type QuotaState = {
@@ -80,13 +86,21 @@ const SELECT = '*';
  * (a comped account, a bespoke deal) is honoured rather than silently reset to
  * the tier default on the next check.
  */
-export function limitFor(row: QuotaRow | null | undefined): number | null {
+export function limitFor(row: QuotaRow | null | undefined, now: Date = new Date()): number | null {
   if (!row) return null;
   // Checked FIRST, before posts_quota is even read. That ordering is the whole
   // design: the Stripe webhook keeps posts_quota faithfully in sync with the
   // plan on every event, and a comped account simply isn't measured against
   // it — so the override can't be clobbered by a renewal.
   if (row.comped) return null;
+  // A live beta grant (migration 0033), also before posts_quota is read — and
+  // for the same reason. A beta account has never checked out, so its
+  // posts_quota is whatever the schema defaulted to, NOT what the coupon
+  // granted; reading it would meter a 12-post beta at the default 4.
+  // `effectiveBeta` returns null once a real subscription is live, so upgrading
+  // mid-beta hands metering straight back to the plan the customer paid for.
+  const beta = effectiveBeta(row, now);
+  if (beta) return beta.postsQuota;
   // A price id that isn't in the catalogue means Stripe and lib/plans have
   // drifted. The row's quota is then whatever it happened to hold — often the
   // schema default of 4 — so enforcing it would throttle a customer who may be
@@ -113,7 +127,7 @@ export function cycleExpired(cycleResetsAt: string | null | undefined, now: Date
 
 /** Current usage, with any due cycle reset already applied. */
 export function quotaFrom(row: QuotaRow | null | undefined, now: Date = new Date()): QuotaState {
-  const limit = limitFor(row);
+  const limit = limitFor(row, now);
   const expired = cycleExpired(row?.cycle_resets_at, now);
   const used = expired ? 0 : Math.max(0, Math.floor(row?.posts_used ?? 0));
   const resetsAt = expired ? nextCycleReset(now) : row!.cycle_resets_at!;

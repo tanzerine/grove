@@ -97,6 +97,23 @@ strategy's failure was silent: squeezed into 120s, it sat under
 the cheap workhorse instead of the strategy model. If you add a step that needs
 minutes rather than seconds, give it a route, not a slice.
 
+**Free beta + feedback funnel** (0033/0034) — `lib/beta.ts` is the pure grant
+logic and settles the precedence every reader follows: **comped > live Stripe >
+beta grant > plan catalogue**. A beta grant is deliberately *not* `comped`: it is
+bounded on both axes (`beta_posts_quota` posts/month, expiring at
+`beta_expires_at`) because platform capacity is a fixed ~720 posts/month and an
+unmetered guest spends a paying customer's share. `/dashboard/admin/beta` shows
+what share of capacity is being given away. Codes live in `beta_coupons` (RLS on,
+**no policy** — service-role reads only, so codes can't be enumerated) and
+redemption is guarded by a CAS on `redeemed_count` plus `unique(user_id)` on
+`beta_redemptions`. Customer→owner feedback is one table with a `kind`
+discriminator (testimonial | shortcoming | complaint) — `lib/feedback.ts` for the
+vocabulary, `lib/feedback-store.ts` for the queries, `/dashboard/admin/feedback`
+for triage. **A testimonial reaches the landing page only when it is both
+`consent_publish` and `published`**, checked on the way in (the admin PATCH) and
+again on the way out (`publishedTestimonials`). The landing renders nothing when
+there are no real quotes — that page has always refused invented social proof.
+
 Other key surfaces:
 - `lib/agent-brief.ts` — plain-English weekly brief on the dashboard home.
 - `lib/seo.ts` — **single source for every public blog URL** (`blogHomeUrl`,

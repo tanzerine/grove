@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import GroveEmbed from '@/components/GroveEmbed';
 import SiteNav from '@/components/SiteNav';
 import { ANNUAL_DISCOUNT, PLANS, formatUsd, monthlyPriceUsd, yearlyPriceUsd } from '@/lib/plans';
+import type { Testimonial } from '@/lib/feedback';
 
 /* Faithful port of the "Grove Landing" design comp (dark / accent #A2FF01,
    GT Walsheim display + Inter body). Structure, spacing and every animation
@@ -70,7 +71,21 @@ const CSS = `
 }
 `;
 
-export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
+export default function Landing({
+  loggedIn = false,
+  testimonials = [],
+}: {
+  loggedIn?: boolean;
+  /**
+   * Real, consented customer quotes (lib/feedback-store). Empty by default and
+   * empty is a valid state — the section simply doesn't render. This page has
+   * always refused invented social proof (see the `stats` array below, which
+   * dropped the comp's "+312% growth" and "4.9★"), and a testimonials block
+   * that falls back to placeholders when nobody has written one would be the
+   * same lie in a nicer font.
+   */
+  testimonials?: Testimonial[];
+}) {
   const router = useRouter();
   const [domain, setDomain] = useState('');
   const [billing, setBilling] = useState<'monthly' | 'annual'>('monthly');
@@ -1122,6 +1137,43 @@ export default function Landing({ loggedIn = false }: { loggedIn?: boolean }) {
       </section>
 
       {/* FAQ */}
+      {/* WHAT CUSTOMERS SAY — rendered only when there is something real to
+          render. See the `testimonials` prop for why there is no fallback. */}
+      {testimonials.length > 0 && (
+        <section id="testimonials" style={{ padding: '30px 24px 120px', maxWidth: 1120, margin: '0 auto' }}>
+          <div className="gv-r" style={{ maxWidth: 620, marginBottom: 30 }}>
+            <div style={eyebrow}>In their words</div>
+            <h2 style={h2Style}>What customers actually say.</h2>
+            <p style={leadStyle}>
+              Every quote below was written by someone running Grove on their own domain, published
+              with their permission, and left exactly as they wrote it.
+            </p>
+          </div>
+          <div className="gv-r" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 18 }}>
+            {testimonials.map((t, i) => (
+              <figure key={i} style={{ margin: 0, background: '#0a0a09', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 18, padding: 26, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 18 }}>
+                <blockquote style={{ margin: 0, fontSize: 15.5, lineHeight: 1.65, color: '#e6e7e3' }}>
+                  “{t.quote}”
+                </blockquote>
+                <figcaption style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span aria-hidden style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0, background: 'rgba(162,255,1,0.14)', color: ACCENT, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13 }}>
+                    {t.initials}
+                  </span>
+                  <span>
+                    <span style={{ display: 'block', fontSize: 14, fontWeight: 600, color: '#f4f4f2' }}>
+                      {t.url ? (
+                        <a href={t.url} rel="nofollow noopener" style={{ color: 'inherit', textDecoration: 'none' }}>{t.name}</a>
+                      ) : t.name}
+                    </span>
+                    {t.role && <span style={{ display: 'block', fontSize: 12.5, color: '#7c7f77' }}>{t.role}</span>}
+                  </span>
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section id="faq" style={{ padding: '30px 24px 90px', maxWidth: 1120, margin: '0 auto' }}>
         <div className="gv-faqgrid" style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 40, alignItems: 'start' }}>
           <div className="gv-r">
