@@ -172,7 +172,7 @@ describe('relevantKnowledge', () => {
 
 const row = (over: Partial<ContentRow>): ContentRow => ({
   postId: 'p1', title: 'A title', path: '/a', views: 0,
-  clicks: 1, impressions: 200, ctr: 0.005, position: 12,
+  clicks: 1, impressions: 200, ctr: 0.005, position: 12, publishedAt: null,
   ...over,
 });
 
