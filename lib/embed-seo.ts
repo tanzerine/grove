@@ -130,3 +130,44 @@ function sameHost(hostname: string | null | undefined, base: string): boolean {
 export function crawlableArticleUrl(domain: DomainLike, postSlug: string): string {
   return blogPostUrl(domain.blog_slug ?? '', postSlug, canonicalBaseFor(domain));
 }
+
+export type ViewLiveTarget = {
+  /** Absolute URL the button opens. */
+  url: string;
+  /** Exact host, shown beside the label. Not www-stripped: the whole point is
+   *  that the destination matches what the browser will show. */
+  host: string;
+  /** True when `url` is on GROVE's domain rather than the customer's. */
+  offDomain: boolean;
+  /** What to tell them and what to do about it; null when nothing is wrong. */
+  warning: string | null;
+};
+
+/**
+ * Where the dashboard's "View live" button goes, and whether that lands the
+ * customer on their own domain.
+ *
+ * The URL by itself was never enough. With no base connected, `blogPostUrl`
+ * resolves to grove's mirror — so the first thing a brand-new customer saw
+ * after their first publish was their article on trygroveai.com, opened by a
+ * button that said nothing about where it was going. That is the opposite of
+ * the thing they bought, and the product already knew: `embedSeoStatus` has
+ * classified that state and written the fix all along, it just wasn't read
+ * anywhere near the button. Reusing both here is what keeps the post page and
+ * the embed page from telling a customer two different stories.
+ *
+ * `app-origin` is deliberately NOT off-domain: grove's own row publishes to
+ * grove's own domain, so the mirror warning would be false there.
+ */
+export function viewLiveTarget(
+  domain: DomainLike,
+  postSlug: string,
+  hostedBase = 'https://trygroveai.com',
+): ViewLiveTarget {
+  const seo = embedSeoStatus(domain, hostedBase);
+  const url = crawlableArticleUrl(domain, postSlug);
+  const offDomain = seo.state === 'hash-only';
+  let host = '';
+  try { host = new URL(url).host; } catch { host = ''; }
+  return { url, host, offDomain, warning: offDomain ? seo.fix : null };
+}
