@@ -35,6 +35,17 @@ const fmtCompact = (n: number): string => {
   return n.toLocaleString();
 };
 
+/* Publish dates render in the viewer's timezone, en-US, like LocalTime — the
+   server renders them in UTC, so the <time> that carries this needs
+   suppressHydrationWarning. The year is dropped for the current year: on the
+   common case (a blog publishing now) it's noise in a narrow column. */
+const fmtDate = (iso: string): string => {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', ...(sameYear ? {} : { year: 'numeric' }) });
+};
+
 type PeriodKey = '7d' | '30d' | '90d' | '12mo';
 
 export default function AnalyticsDashboard({
@@ -220,7 +231,7 @@ export default function AnalyticsDashboard({
   // Live accounts see EVERY published article (GSC clicks/impressions merged
   // across the article's URLs + first-party tracked views), not "top pages" —
   // on a young blog top-pages is the homepage and /pricing, never the articles.
-  type PostRow = { title: string; keyword: string; views?: string; clicks: string; impr: string; ctr: string; pos: string; posChange: string; up: boolean; spark: number[] | null };
+  type PostRow = { title: string; keyword: string; published?: string | null; views?: string; clicks: string; impr: string; ctr: string; pos: string; posChange: string; up: boolean; spark: number[] | null };
   const samplePosts: PostRow[] = [
     { title: 'The SaaS founder’s guide to compounding traffic', keyword: 'compounding organic traffic', clicks: '9,120', impr: '184k', ctr: '4.9%', pos: '3', posChange: '▲12', up: true, spark: [10, 14, 18, 22, 30, 38, 46, 52] },
     { title: 'How to write for answer engines', keyword: 'write for answer engines', clicks: '6,740', impr: '142k', ctr: '4.7%', pos: '2', posChange: '▲8', up: true, spark: [6, 9, 12, 18, 24, 30, 40, 48] },
@@ -237,6 +248,7 @@ export default function AnalyticsDashboard({
         .map((c) => ({
           title: c.title,
           keyword: c.path,
+          published: c.publishedAt,
           views: c.views.toLocaleString(),
           clicks: c.clicks.toLocaleString(),
           impr: fmtCompact(c.impressions),
@@ -247,9 +259,10 @@ export default function AnalyticsDashboard({
           spark: null,
         }))
     : sampleOn ? samplePosts : [];
-  // Live: Post | Views | Clicks | Impressions | CTR | Avg pos (every article).
-  // Sample keeps the illustrative 30-day trend sparkline column.
-  const tableCols = articlesLive ? '1fr 90px 100px 120px 80px 90px' : '1fr 110px 120px 80px 90px 110px';
+  // Live: Post | Published | Views | Clicks | Impressions | CTR | Avg pos
+  // (every article). Sample keeps the illustrative 30-day trend sparkline
+  // column and has no real publish dates to show.
+  const tableCols = articlesLive ? '1fr 100px 90px 100px 120px 80px 90px' : '1fr 110px 120px 80px 90px 110px';
 
   // ── rank distribution ───────────────────────────────────────────────────────
   // Positions 1–3 is the one band worth calling out (page-one, top of search);
@@ -629,6 +642,7 @@ export default function AnalyticsDashboard({
           </div>
           <div className="gv-tbl" style={{ display: 'grid', gridTemplateColumns: tableCols, padding: '11px 22px', fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-fainter)', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
             <span>Post</span>
+            {articlesLive && <span className="gv-cell-off" style={{ textAlign: 'right' }}>Published</span>}
             {articlesLive && <span style={{ textAlign: 'right' }}>Views</span>}
             <span style={{ textAlign: 'right' }}>Clicks</span><span className="gv-cell-off" style={{ textAlign: 'right' }}>Impressions</span><span className="gv-cell-off" style={{ textAlign: 'right' }}>CTR</span><span className="gv-cell-off" style={{ textAlign: 'right' }}>Avg. pos</span>
             {!articlesLive && <span className="gv-cell-off" style={{ textAlign: 'right' }}>30-day trend</span>}
@@ -644,6 +658,13 @@ export default function AnalyticsDashboard({
                     <span style={{ display: 'block', fontSize: 11.5, color: 'var(--gv-faint)' }}>{p.keyword}</span>
                   </span>
                 </div>
+                {articlesLive && (
+                  <span className="gv-cell-off" style={{ fontSize: 12.5, color: 'var(--gv-dim)', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    {p.published
+                      ? <time dateTime={p.published} suppressHydrationWarning>{fmtDate(p.published)}</time>
+                      : '—'}
+                  </span>
+                )}
                 {articlesLive && <span style={{ fontSize: 13, fontWeight: 700, textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: 'var(--gv-ink)' }}>{p.views}</span>}
                 <span style={{ fontSize: 13, fontWeight: 600, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{p.clicks}</span>
                 <span className="gv-cell-off" style={{ fontSize: 12.5, color: 'var(--gv-dim)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{p.impr}</span>

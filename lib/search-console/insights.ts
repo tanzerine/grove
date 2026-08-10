@@ -156,9 +156,13 @@ export type ContentRow = {
   impressions: number;
   ctr: number;           // 0..1
   position: number;
+  publishedAt: string | null;  // ISO instant the article went live (null if unset)
 };
 
-export type ArticleInfo = { id: string; title: string | null; slug: string | null; reads?: number | null };
+export type ArticleInfo = {
+  id: string; title: string | null; slug: string | null;
+  reads?: number | null; published_at?: string | null;
+};
 
 /**
  * One row per published article — the dashboard's job is "show me every
@@ -202,6 +206,7 @@ export function articleRows(
         impressions,
         ctr: impressions > 0 ? Math.round((clicks / impressions) * 1000) / 1000 : 0,
         position: weightedPosition(rows),
+        publishedAt: post.published_at ?? null,
       };
     })
     .sort((a, b) =>

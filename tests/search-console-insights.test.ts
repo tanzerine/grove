@@ -145,4 +145,11 @@ describe('articleRows', () => {
     expect(rows[0].path).toBe('/alpha');
     expect(rows[0].title).toBe('Alpha');
   });
+
+  it('carries the publish date through, and reads null when the post has none', () => {
+    const dated = { ...art('a', 'Alpha', 'alpha', 0), published_at: '2026-08-04T09:30:00Z' };
+    const rows = articleRows([], [dated, art('b', 'Beta', 'beta', 0)]);
+    expect(rows.find((r) => r.postId === 'a')!.publishedAt).toBe('2026-08-04T09:30:00Z');
+    expect(rows.find((r) => r.postId === 'b')!.publishedAt).toBeNull();
+  });
 });

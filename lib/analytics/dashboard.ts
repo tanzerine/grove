@@ -80,7 +80,7 @@ export async function loadAnalytics(
   let posts: ArticleInfo[] = [];
   try {
     const { data } = await supabaseAdmin()
-      .from('posts').select('id, title, slug, reads')
+      .from('posts').select('id, title, slug, reads, published_at')
       .eq('domain_id', domainId).eq('status', 'published')
       .order('published_at', { ascending: false });
     posts = (data ?? []) as ArticleInfo[];
