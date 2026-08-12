@@ -24,6 +24,10 @@ const SECTIONS: Section[] = [
     { href: '/dashboard/voice', label: 'Brand voice', icon: 'voice', match: (p) => p.startsWith('/dashboard/voice') },
     { href: '/dashboard/connections', label: 'Social', icon: 'social', match: (p) => p.startsWith('/dashboard/connections') },
     { href: '/dashboard/embed', label: 'Embed', icon: 'embed', match: (p) => p.startsWith('/dashboard/embed') },
+    // Sits beside Embed because it answers the same question — how do grove's
+    // articles reach the customer's site — for the customer who already has a
+    // content layer and doesn't want a script tag.
+    { href: '/dashboard/mcp', label: 'Content API', icon: 'bolt', match: (p) => p.startsWith('/dashboard/mcp') },
   ]},
   { head: 'Account', items: [
     { href: '/dashboard/billing', label: 'Billing', icon: 'billing', match: (p) => p.startsWith('/dashboard/billing') },

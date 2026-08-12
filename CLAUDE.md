@@ -143,6 +143,34 @@ Other key surfaces:
   (`tests/embed-head.test.ts` runs that round-trip against a fake DOM — an
   article canonical left on the list view is worse than none). Subfolder
   customers get proxy configs from `lib/rewrite-snippets.ts`.
+- **MCP content API** (`lib/mcp/`, `app/api/mcp`, `/dashboard/mcp`) — the answer
+  for a customer with a *thick* blog: they already have a content layer (MDX in
+  a repo, a CMS, their own pipeline) and want grove's articles INSIDE it, not an
+  embed beside it. Their coding agent connects over MCP and pulls finished
+  articles already shaped for that layer. **This is a second distribution path,
+  not a replacement** — embed, hosted mirror and MCP all serve the same posts.
+  - Transport is Streamable HTTP, stateless, hand-rolled (no SDK): one POST of
+    JSON-RPC in, one JSON response out, no session id, no SSE. `lib/mcp/protocol.ts`
+    is the framing; `GET /api/mcp` is deliberately 405 (grove never pushes).
+  - Auth is a per-user bearer key, `gv_mcp_…`, **stored only as sha256** and
+    looked up by that digest (0035). `lib/mcp/auth.ts` is the entire security
+    boundary: handlers run on the service-role client, so every query is scoped
+    by hand through `resolveSite()` — a posts query without a resolved
+    `domain_id` is a cross-tenant read. `mcp_keys` has RLS with **no policy**
+    (service-role only, same reasoning as `beta_coupons`).
+  - `pull_new` is the incremental sync and `mcp_deliveries` is its ledger: the
+    agent records where each article went live, so the next pull returns only
+    what's genuinely new and the dashboard can show what actually shipped.
+  - **Two things break silently once the customer renders the articles**: the
+    analytics beacon stops firing (so `reads`, the whole reporting surface and
+    the monthly strategy loop go blind) and grove's mirror stays canonical. The
+    `integration_guide` tool leads with both, and `set_canonical_base` writes
+    the same `domains.canonical_blog_base` the dashboard form does — via
+    `normalizeCanonicalBase`, never raw.
+  - Formatters live in `lib/mcp/format.ts`. `mdx` escapes `{` and bare `<`
+    **outside code fences**: markdown renderers tolerate them, the MDX compiler
+    doesn't, and an import that breaks the customer's build is worse than no
+    import at all.
 - **grove eats its own dogfood**: `/blog` (`app/blog/page.tsx`) and the landing's
   "Our blog runs on grove" section mount that same embed via
   `components/GroveEmbed.tsx`, against grove's own `trygroveai.com` domain row.
@@ -175,14 +203,17 @@ Other key surfaces:
 ## Supabase
 
 - Project ref `lojgijnjagaozrrpjlbj`. CLI is linked locally (no `.env` in repo —
-  secrets live in Vercel). Migrations in `supabase/migrations/` (0001–0029).
+  secrets live in Vercel). Migrations in `supabase/migrations/` (0001–0035).
 - History was repaired so 0001–0009 are marked applied; `npm run db:push` applies
   only new ones. **Always run `supabase migration list` first instead of trusting
   this file** — as of 2026-07-26, **0001–0029 are all applied** (verified against
   `information_schema`, not just the migration list). 0029
   (`strategies.planned_by`) records which model built each plan; the insert in
   `lib/strategy/ensure.ts` retries without the column, so an unapplied migration
-  there degrades to "no diagnostic" rather than "no plan".
+  there degrades to "no diagnostic" rather than "no plan". 0035 (`mcp_keys`,
+  `mcp_deliveries`) was authored later and has NOT been verified against live
+  schema — until it is applied, the Content API page lists no keys and creating
+  one 400s; nothing else in the product touches those tables.
 - **A migration can reach production without anyone running `db:push` here.**
   0029 was authored and merged in one session and was already live before that
   session ever pushed — the column comment matched the migration file verbatim,

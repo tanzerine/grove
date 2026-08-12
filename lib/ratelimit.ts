@@ -38,6 +38,11 @@ export const LIMITS = {
   // that nobody with three real things to say is ever turned away, tight enough
   // that a script can't bury the inbox it exists to fill.
   feedback: { limit: 12, windowSec: 3600 },
+  // MCP calls from a customer's agent. Generous because an agent doing a first
+  // import of a year's archive legitimately makes hundreds of calls in a row
+  // (pull, write, record, repeat) — and none of them costs an LLM token on
+  // grove's side. It exists to stop a runaway loop, not to pace a real sync.
+  mcp: { limit: 600, windowSec: 3600 },
 } as const;
 
 export type RateResult = { ok: boolean; retryAfterSec?: number };
