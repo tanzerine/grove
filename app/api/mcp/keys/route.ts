@@ -2,7 +2,7 @@
  * MCP key management for the signed-in owner.
  *
  * Reads and writes go through the SERVICE-ROLE client even though the caller is
- * authenticated as a user: mcp_keys has RLS with no policy on purpose (0035),
+ * authenticated as a user: mcp_keys has RLS with no policy on purpose (0036),
  * so a credential digest is unreachable with a user key. Every query here is
  * therefore scoped by hand to `user.id` — that scoping is the access control.
  */

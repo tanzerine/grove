@@ -23,7 +23,7 @@ export default async function Page() {
   const { data: { user } } = await sb.auth.getUser();
 
   // Domains through the user's own client (RLS); keys through the service-role
-  // client because mcp_keys is deliberately policy-less (migration 0035) —
+  // client because mcp_keys is deliberately policy-less (migration 0036) —
   // scoped by hand to this user, which is the access check.
   const { data: domains } = await sb
     .from('domains')

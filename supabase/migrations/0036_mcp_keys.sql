@@ -1,6 +1,12 @@
 -- ─────────────────────────────────────────────────────────────
--- 0035_mcp_keys.sql
+-- 0036_mcp_keys.sql
 -- MCP access for customers who already own a content layer.
+--
+-- NUMBERED 0036, NOT 0035. This was written as 0035; by the time it was pushed,
+-- 0035 was `outreach_prospects` — authored on another branch, already applied,
+-- and absent from this working tree. `ls supabase/migrations/` answers "what
+-- does my branch know", not "what is the next free version". Check
+-- `supabase migration list` against the live project before numbering one.
 --
 -- WHO THIS IS FOR. The embed (public/embed.js) and the hosted mirror both
 -- assume grove renders the article. A customer with a *thick* blog already has
@@ -93,6 +99,11 @@ alter table public.mcp_deliveries enable row level security;
 -- owner may read their own through the ordinary session client. Writes stay
 -- service-role only — they arrive from the MCP endpoint, which has already
 -- resolved the key to a user and a domain.
+-- Dropped first so the whole file is re-runnable: every other statement here is
+-- `if not exists`, and a bare `create policy` against an existing one would be
+-- the single statement that fails a replay (a db:push after the migration was
+-- applied out-of-band, a db reset, a fresh environment).
+drop policy if exists "read own mcp deliveries" on public.mcp_deliveries;
 create policy "read own mcp deliveries" on public.mcp_deliveries
   for select using (
     exists (select 1 from public.domains d where d.id = mcp_deliveries.domain_id and d.user_id = auth.uid())

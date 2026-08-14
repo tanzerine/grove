@@ -153,7 +153,7 @@ Other key surfaces:
     JSON-RPC in, one JSON response out, no session id, no SSE. `lib/mcp/protocol.ts`
     is the framing; `GET /api/mcp` is deliberately 405 (grove never pushes).
   - Auth is a per-user bearer key, `gv_mcp_…`, **stored only as sha256** and
-    looked up by that digest (0035). `lib/mcp/auth.ts` is the entire security
+    looked up by that digest (0036). `lib/mcp/auth.ts` is the entire security
     boundary: handlers run on the service-role client, so every query is scoped
     by hand through `resolveSite()` — a posts query without a resolved
     `domain_id` is a cross-tenant read. `mcp_keys` has RLS with **no policy**
@@ -203,17 +203,26 @@ Other key surfaces:
 ## Supabase
 
 - Project ref `lojgijnjagaozrrpjlbj`. CLI is linked locally (no `.env` in repo —
-  secrets live in Vercel). Migrations in `supabase/migrations/` (0001–0035).
+  secrets live in Vercel). Migrations in `supabase/migrations/` (0001–0036, with
+  0035 missing locally — see the version-collision note below).
 - History was repaired so 0001–0009 are marked applied; `npm run db:push` applies
   only new ones. **Always run `supabase migration list` first instead of trusting
   this file** — as of 2026-07-26, **0001–0029 are all applied** (verified against
   `information_schema`, not just the migration list). 0029
   (`strategies.planned_by`) records which model built each plan; the insert in
   `lib/strategy/ensure.ts` retries without the column, so an unapplied migration
-  there degrades to "no diagnostic" rather than "no plan". 0035 (`mcp_keys`,
-  `mcp_deliveries`) was authored later and has NOT been verified against live
-  schema — until it is applied, the Content API page lists no keys and creating
-  one 400s; nothing else in the product touches those tables.
+  there degrades to "no diagnostic" rather than "no plan". 0036 (`mcp_keys`,
+  `mcp_deliveries`) was applied 2026-08-14 and verified against
+  `information_schema` — both tables exist, RLS on, `mcp_keys` with zero
+  policies as intended.
+- **Version numbers collide, because branches don't see each other's migrations.**
+  0035 (`outreach_prospects`) reached production from another branch and does
+  NOT exist in this working tree; the MCP migration was written as 0035, found
+  the number taken at push time, and became 0036. So: **`list_migrations`
+  against the live project is the only source of truth for the next free
+  number** — `ls supabase/migrations/` tells you what this branch knows, which
+  is a different question. A local file whose version is already applied under a
+  different name is the failure to look for.
 - **A migration can reach production without anyone running `db:push` here.**
   0029 was authored and merged in one session and was already live before that
   session ever pushed — the column comment matched the migration file verbatim,
