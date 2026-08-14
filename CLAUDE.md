@@ -203,7 +203,7 @@ Other key surfaces:
   secrets live in Vercel). Migrations in `supabase/migrations/` (0001–0035).
 - History was repaired so 0001–0009 are marked applied; `npm run db:push` applies
   only new ones. **Always run `supabase migration list` first instead of trusting
-  this file** — as of 2026-07-26, **0001–0029 are all applied** (verified against
+  this file** — as of 2026-08-14, **0001–0035 are all applied** (verified against
   `information_schema`, not just the migration list). 0029
   (`strategies.planned_by`) records which model built each plan; the insert in
   `lib/strategy/ensure.ts` retries without the column, so an unapplied migration
@@ -232,6 +232,13 @@ Other key surfaces:
   checklist. Both attach paths no-op when
   `VERCEL_API_TOKEN`/`VERCEL_PROJECT_ID` are unset (manual attach is the
   fallback), so the feature still serves once the host is added by hand.
+- **Applying a migration through the Supabase MCP re-keys it.** `apply_migration`
+  records the row under a generated timestamp version (`20260812122243`), not the
+  repo's `0035`. The CLI then reads 0035 as unapplied and `db push` re-runs the
+  file — harmless when it's `if not exists` throughout, and not harmless
+  otherwise. 0035 was repaired by hand (`update schema_migrations set version`).
+  If you apply through the MCP, check `schema_migrations` and re-key it to match
+  the filename.
 - `supabase/.temp/` is gitignored (CLI artifacts).
 
 ## Env vars that gate features (set in Vercel, not the repo)
