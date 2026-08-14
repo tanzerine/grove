@@ -114,6 +114,31 @@ for triage. **A testimonial reaches the landing page only when it is both
 again on the way out (`publishedTestimonials`). The landing renders nothing when
 there are no real quotes — that page has always refused invented social proof.
 
+**Beta-tester outreach** (0035, `lib/outreach/`) — the top of that same funnel:
+find Reddit posts whose author describes a problem Grove solves, and draft the
+DM that offers them a beta code. `/dashboard/admin/outreach`.
+- `screen.ts` (pure) — six `PainKind`s, each with patterns, a weight and, in
+  `dm.ts`, its own bridge paragraph. Scoring is deliberately **asymmetric**:
+  pain earns points slowly, and a `hard` blocker (`no_dm`, `competitor`,
+  `for_hire`, `anti_ai`, deleted author) forces tier `skip` at any score. The
+  expensive failure is never a missed prospect; it's a pitch sent to someone who
+  said don't. Every verdict carries **evidence** — the author's own sentence —
+  which is both what makes it auditable and what the DM's first line quotes.
+- `dm.ts` (pure) — opener (their words) + bridge (per pain) + fixed spine. The
+  spine is byte-identical in every variant on purpose: the honest caveat ("it
+  won't get you a paying customer this month") only means something if it went
+  out in every message. `personalize.ts` may rewrite **the opener and nothing
+  else**, and falls back to the deterministic draft on any failure.
+- **There is no send path anywhere in this feature, and adding one would be a
+  mistake.** No OAuth, no Reddit write scope; drafts are copied out by a human.
+  The review step between a regex score and a stranger's inbox is the product.
+- `outreach_prospects` is unique on `(source, lower(author))` — that index is
+  the guarantee nobody is DMed twice, including people already marked `skipped`.
+- Reddit's public JSON needs no auth but **blocks datacenter IPs and
+  unidentified clients**; set `GROVE_REDDIT_USER_AGENT` to a real contact
+  string. `fetchListing` says so in the 403 message rather than looking like a
+  bad query.
+
 Other key surfaces:
 - `lib/agent-brief.ts` — plain-English weekly brief on the dashboard home.
 - `lib/seo.ts` — **single source for every public blog URL** (`blogHomeUrl`,
@@ -175,7 +200,7 @@ Other key surfaces:
 ## Supabase
 
 - Project ref `lojgijnjagaozrrpjlbj`. CLI is linked locally (no `.env` in repo —
-  secrets live in Vercel). Migrations in `supabase/migrations/` (0001–0029).
+  secrets live in Vercel). Migrations in `supabase/migrations/` (0001–0035).
 - History was repaired so 0001–0009 are marked applied; `npm run db:push` applies
   only new ones. **Always run `supabase migration list` first instead of trusting
   this file** — as of 2026-07-26, **0001–0029 are all applied** (verified against

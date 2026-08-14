@@ -11,7 +11,7 @@
  * views still render before migration 0033 is applied.
  */
 import { supabaseAdmin } from './supabase/admin';
-import { betaStateFrom, couponProblem, type CouponProblem } from './beta';
+import { betaStateFrom, couponProblem, normalizeCode, type CouponProblem } from './beta';
 
 export type CouponRecord = {
   id: string;
@@ -53,6 +53,26 @@ export async function listCoupons(limit = 100): Promise<CouponWithState[]> {
     }));
   } catch {
     return [];
+  }
+}
+
+/**
+ * One coupon by code, or null.
+ *
+ * `code` is normalised on the way in for the same reason the redeem endpoint
+ * does it: the stored form is upper-case alphanumeric, so a lookup on the raw
+ * string a human typed would miss a code that exists.
+ */
+export async function couponByCode(code: string): Promise<CouponRecord | null> {
+  try {
+    const { data } = await supabaseAdmin()
+      .from('beta_coupons')
+      .select('*')
+      .eq('code', normalizeCode(code))
+      .maybeSingle();
+    return (data as CouponRecord) ?? null;
+  } catch {
+    return null;
   }
 }
 
