@@ -17,14 +17,19 @@ import { describe, it, expect } from 'vitest';
 const SRC = readFileSync(path.join(process.cwd(), 'public/embed.js'), 'utf8');
 
 /**
- * The other half of what the embed renders. embed.js draws the list; this route
- * builds the ARTICLE — its TOC card, rail and CTA — server-side, as a string of
- * inline styles injected into the same mount root. It sits outside embed.js, so
- * the stylesheet contract above never covered it, and it shipped a light grey
- * TOC panel into every dark customer site for as long as dark mode existed.
+ * The other half of what the embed renders. embed.js draws the list; this
+ * module builds the ARTICLE — its TOC card, rail and CTA — server-side, as a
+ * string of inline styles injected into the same mount root. It sits outside
+ * embed.js, so the stylesheet contract above never covered it, and it shipped a
+ * light grey TOC panel into every dark customer site for as long as dark mode
+ * existed.
+ *
+ * It used to live inside the embed's article route; it moved to lib/blog so the
+ * MCP server's html format renders the same layout instead of a copy of it. The
+ * contract below follows the code, not the route.
  */
 const ARTICLE_ROUTE = readFileSync(
-  path.join(process.cwd(), 'app/api/embed/host/[hostname]/article/[slug]/route.ts'),
+  path.join(process.cwd(), 'lib/blog/article-html.ts'),
   'utf8',
 );
 

@@ -5,6 +5,7 @@ import CustomHostnameForm from './CustomHostnameForm';
 import BannerLinkForm from './BannerLinkForm';
 import ThemeColorsForm from './ThemeColorsForm';
 import EmbedTabs from './EmbedTabs';
+import McpPanel from './McpPanel';
 import RewriteSnippets from './RewriteSnippets';
 import { resolveBranding } from '@/lib/blog-theme';
 import { embedSeoStatus } from '@/lib/embed-seo';
@@ -83,6 +84,11 @@ export default async function Page() {
               fullNote={seo ? (seo.crawlable ? seo.detail : `${seo.detail} ${seo.fix}`) : undefined}
               fullNoteWarn={!!seo && !seo.crawlable}
             />
+
+            {/* THE OTHER PATH: sites that already have a content layer. The
+                embed above renders grove's markup inside a page; this renders
+                nothing and hands the articles to the customer's own build. */}
+            <McpPanel domainId={domain?.id ?? null} groveBase={groveBase} hostname={domain?.hostname ?? 'yoursite.com'} />
 
             {/* STEP 3: CUSTOMIZE */}
             {domain && (

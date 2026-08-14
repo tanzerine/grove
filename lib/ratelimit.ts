@@ -38,6 +38,14 @@ export const LIMITS = {
   // that nobody with three real things to say is ever turned away, tight enough
   // that a script can't bury the inbox it exists to fill.
   feedback: { limit: 12, windowSec: 3600 },
+  // The MCP server. Sized against what the work actually costs a customer:
+  // a first full sync is one list call plus one get_article per article, so a
+  // 60-post blog spends ~65 calls in a couple of minutes and a re-sync spends
+  // one. A cap shaped like the buckets above would fail the very first
+  // integration halfway through, leaving half a blog on their site. Every call
+  // is a read of the customer's own content — the expensive endpoints are
+  // elsewhere — so this is loose on purpose and still bounds a runaway loop.
+  mcp: { limit: 400, windowSec: 3600 },
 } as const;
 
 export type RateResult = { ok: boolean; retryAfterSec?: number };

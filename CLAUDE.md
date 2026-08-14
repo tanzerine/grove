@@ -151,6 +151,37 @@ Other key surfaces:
   never a bare `<script async>` — the bare tag can beat hydration and React
   then deletes the mounted DOM. The cards point at the grove-hosted articles
   (`data-article-base`) so they stay crawlable.
+- **MCP server** (`/api/mcp`, `lib/mcp/`) — the path for a customer who already
+  has a **thick content layer** (their own `/blog` route, components, MDX or
+  CMS). The embed renders grove's markup inside their page; MCP renders nothing
+  and hands their *coding agent* the articles so they land in their own build.
+  `protocol.ts` is the JSON-RPC/Streamable-HTTP envelope (hand-rolled and
+  stateless — a Vercel route has no process to keep a session in; GET/DELETE are
+  405 on purpose), `tools.ts` the catalog, `server.ts` the Supabase-backed
+  handlers, `format.ts`/`sync.ts` the pure file + diff logic. Six tools:
+  `describe_blog`, `list_articles`, `get_article` (mdx|md|html|json),
+  `plan_sync`, `integration_kit`, `set_article_base`. Auth is a per-domain key
+  (`mcp_keys`, 0035) — sha256 stored, token shown once, minted on
+  `/dashboard/embed`.
+  - **The checksum hashes the BODY, so the MCP list selects `body_md` where the
+    embed list must not.** `posts.updated_at` is only ever *read* in this repo
+    (0032 wrote the column; nothing writes it outside a refresh), so a
+    metadata-only checksum would call an edited article current forever and the
+    customer's site would serve the stale copy silently. The body never crosses
+    the wire — the customer gets 16 characters.
+  - **`set_article_base` is the only write, and it is fenced.** It moves
+    `canonical_blog_base`, i.e. every absolute URL grove emits, so it accepts
+    only the key's own hostname, a subdomain of it, or the CNAME'd blog host
+    (`baseBelongsToDomain`, `tests/mcp-article-base.test.ts`). Note the
+    suffix trap: `notacme.com` ends with `acme.com`.
+  - Setting the base changes every `canonical_url`, hence every checksum — the
+    tool says so in its response, because the next sync legitimately rewrites
+    every file.
+- `lib/blog/article-html.ts` + `lib/analytics/beacon.ts` — extracted from the
+  embed article route and the hosted post page respectively, because MCP is a
+  **third** consumer of both. A copied article layout is how the same post got a
+  boxy inline TOC on one surface and a sidebar on another; a copied beacon would
+  be worse, since `reads` feed the monthly plan.
 - `app/dashboard/QualityCharts.tsx` — ScoreRing / RubricBars / QualityColumns;
   `bandColor()` is the single source for score-band colors (≥70 moss, ≥40 amber, else red).
 
@@ -175,7 +206,7 @@ Other key surfaces:
 ## Supabase
 
 - Project ref `lojgijnjagaozrrpjlbj`. CLI is linked locally (no `.env` in repo —
-  secrets live in Vercel). Migrations in `supabase/migrations/` (0001–0029).
+  secrets live in Vercel). Migrations in `supabase/migrations/` (0001–0035).
 - History was repaired so 0001–0009 are marked applied; `npm run db:push` applies
   only new ones. **Always run `supabase migration list` first instead of trusting
   this file** — as of 2026-07-26, **0001–0029 are all applied** (verified against
@@ -183,6 +214,11 @@ Other key surfaces:
   (`strategies.planned_by`) records which model built each plan; the insert in
   `lib/strategy/ensure.ts` retries without the column, so an unapplied migration
   there degrades to "no diagnostic" rather than "no plan".
+- **0035 (`mcp_keys`) was authored without a way to verify it live** — this
+  session had no linked CLI and the Supabase MCP call needed approval. Until it
+  is applied, the MCP server has nowhere to look a key up: minting returns the
+  Postgres error verbatim and `/api/mcp` 401s every call. Nothing else regresses
+  (no other surface reads that table). Verify before assuming it shipped.
 - **A migration can reach production without anyone running `db:push` here.**
   0029 was authored and merged in one session and was already live before that
   session ever pushed — the column comment matched the migration file verbatim,

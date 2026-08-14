@@ -174,6 +174,43 @@ Each step is independently re-runnable. The manager agent's prompts read
 the strategy's `notes` field so it can hold the writer to the explicit
 "this month we're moving away from X, into Y" pivot.
 
+## 5. Distribution: where the articles are read
+
+The loop above produces articles; three surfaces put them in front of readers,
+and they differ only in who owns the markup.
+
+| Surface | Who renders | Who owns the URL |
+| --- | --- | --- |
+| Hosted blog (`/b/{slug}`, CNAME'd host) | grove | grove, or the customer's CNAME |
+| `public/embed.js` | grove, inside the customer's page | the customer's page, one URL |
+| **MCP server** (`/api/mcp`) | **the customer's own build** | **the customer, one URL per article** |
+
+The third exists for a site with a **thick content layer** — its own `/blog`
+route, its own card components, its own MDX pipeline. It cannot use the embed
+(the embed brings markup, and they already have markup), and it will not move
+to a hosted blog. Its integration is "pull the article into MY layer", which
+used to mean hand-writing a client against the embed API.
+
+The MCP server makes that a thing their coding agent does: `describe_blog`
+reports the state, `list_articles`/`get_article` hand over the content in the
+shape their layer wants (mdx | md | html | json), `plan_sync` says what changed
+since last time, `integration_kit` supplies the analytics beacon and canonical
+tag, and `set_article_base` closes the loop by telling grove which URLs the
+articles now live at.
+
+That last tool is the part that matters to the loop rather than to the
+integration. Layer 4 aggregates `post_events`, and layer 1 plans against them.
+An article rendered on the customer's site with no beacon is invisible to the
+strategy build; an article whose URL grove doesn't know keeps grove's mirror
+canonical, so the two copies compete and the customer's ranks second. Both are
+silent, which is why the server states them in `instructions` at handshake time
+rather than leaving them to a tool description nobody may call.
+
+Auth is one key per domain (`mcp_keys`, 0035), sha256-stored and shown once.
+Every query is scoped to the row that key resolved to — no tool accepts a
+domain id — so the blast radius of a leaked key is one blog, and the only write
+it can make is fenced to that blog's own hostname.
+
 ## Where this lives
 
 - `supabase/migrations/0005_agentic.sql` — schema for `strategies`, `post_evaluations`, `post_events`.
@@ -189,6 +226,11 @@ the strategy's `notes` field so it can hold the writer to the explicit
   invocation: planning needs the whole function to itself (see the route's
   docstring for why sharing a tick silently demoted it to the workhorse model).
 - `app/api/cron/weekly-digest/route.ts` — weekly progress heartbeat + owner digest.
+- `lib/mcp/` + `app/api/mcp/` — the MCP server: `protocol.ts` (JSON-RPC /
+  Streamable HTTP envelope), `tools.ts` (catalog + prompts + resources),
+  `server.ts` (handlers), `format.ts` (checksum, frontmatter, MDX escaping),
+  `sync.ts` (the re-sync plan), `keys.ts` (mint/hash/read a key).
+- `supabase/migrations/0035_mcp_keys.sql` — per-domain API keys for it.
 
 All four layers are independent enough to evolve separately; the strategy
 record is the contract between them.

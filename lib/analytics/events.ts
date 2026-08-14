@@ -55,7 +55,7 @@ export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
  */
 export const RATE_BUCKETS = [
   'assist', 'betaredeem', 'billing', 'crawl', 'feedback', 'gen', 'gsc', 'img',
-  'interview', 'llm', 'planchat', 'refundreq', 'repo', 'strategy', 'upload',
+  'interview', 'llm', 'mcp', 'planchat', 'refundreq', 'repo', 'strategy', 'upload',
 ] as const;
 export type RateBucket = (typeof RATE_BUCKETS)[number] | 'unknown';
 
@@ -195,6 +195,15 @@ export type EventMap = {
   feedback_submitted: { kind: string; area?: string; severity?: string; rating?: number; consent_publish?: boolean };
   testimonial_published: { feedback_id: string };
 
+  // ── mcp (customer's own content layer) ──────────────────────────────────
+  /** An owner minted an API key for the MCP server — intent to integrate. */
+  mcp_key_created: Record<string, never>;
+  /** A coding agent completed the MCP handshake. Captured on `initialize`
+   *  rather than per tool call: one event per client session is the adoption
+   *  signal, and `client` says whether that's Claude Code, Cursor or something
+   *  else — which is the only place grove can learn what customers build in. */
+  mcp_connected: { client?: string; client_version?: string };
+
   // ── friction ────────────────────────────────────────────────────────────
   // The three walls a customer can hit. These are the highest-value events in
   // the catalogue and the ones the product had no visibility into at all: they
@@ -270,6 +279,8 @@ const EVENT_NAME_SET = {
   beta_expired_blocked: true,
   feedback_submitted: true,
   testimonial_published: true,
+  mcp_key_created: true,
+  mcp_connected: true,
   quota_exhausted: true,
   rate_limited: true,
   generation_blocked_unpaid: true,
