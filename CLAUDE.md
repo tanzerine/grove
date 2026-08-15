@@ -134,10 +134,18 @@ DM that offers them a beta code. `/dashboard/admin/outreach`.
   The review step between a regex score and a stranger's inbox is the product.
 - `outreach_prospects` is unique on `(source, lower(author))` — that index is
   the guarantee nobody is DMed twice, including people already marked `skipped`.
-- Reddit's public JSON needs no auth but **blocks datacenter IPs and
-  unidentified clients**; set `GROVE_REDDIT_USER_AGENT` to a real contact
-  string. `fetchListing` says so in the 403 message rather than looking like a
-  bad query.
+- **Anonymous Reddit reads 403 from Vercel and a User-Agent does not fix it** —
+  the block is on the IP range, not the client string. Confirmed in production
+  on the first scan. The fix is app-only OAuth: set `GROVE_REDDIT_CLIENT_ID` /
+  `GROVE_REDDIT_CLIENT_SECRET` (a "script" app at reddit.com/prefs/apps) and
+  `fetchListing` reads from `oauth.reddit.com` instead, at a documented 100
+  req/min. Unset → falls back to anonymous `www.reddit.com`, which works from a
+  laptop. `GROVE_REDDIT_USER_AGENT` is still required either way.
+  **The app-only token does not weaken the no-send rule**: `client_credentials`
+  carries no user context, so it cannot message, post or vote — messaging needs
+  a user-authorized write scope, which nothing here requests or stores.
+  The 403 message differs depending on whether we were authenticated, because
+  "get credentials" is the wrong advice for someone who already has them.
 
 Other key surfaces:
 - `lib/agent-brief.ts` — plain-English weekly brief on the dashboard home.

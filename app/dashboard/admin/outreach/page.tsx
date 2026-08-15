@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { isAdminEmail } from '@/lib/admin';
 import { listCoupons } from '@/lib/beta-store';
 import { listProspects, outreachStats } from '@/lib/outreach/store';
+import { hasRedditAuth } from '@/lib/outreach/reddit';
 import OutreachAdmin from './OutreachAdmin';
 import { DashHeader } from '../../gv-chrome';
 
@@ -48,6 +49,19 @@ export default async function AdminOutreachPage() {
               </div>
             ))}
           </div>
+          {/* Reddit 403s anonymous reads from cloud IPs, so on Vercel a scan
+              without credentials fails every time. Say so before the click,
+              not in the error afterwards. */}
+          {!hasRedditAuth() && (
+            <p style={{ fontSize: 12.5, color: 'var(--gv-amber)', margin: '10px 0 0', lineHeight: 1.55 }}>
+              Reading Reddit anonymously — this works locally but Reddit blocks datacenter IPs, so a scan
+              from the deployed app will almost certainly 403. Set{' '}
+              <code style={{ fontFamily: 'var(--font-mono, monospace)' }}>GROVE_REDDIT_CLIENT_ID</code> and{' '}
+              <code style={{ fontFamily: 'var(--font-mono, monospace)' }}>GROVE_REDDIT_CLIENT_SECRET</code>{' '}
+              (a “script” app at reddit.com/prefs/apps, two minutes) to read over app-only OAuth instead.
+              It is a read-only token — it cannot post or message.
+            </p>
+          )}
           {usable.length === 0 && (
             <p style={{ fontSize: 12.5, color: 'var(--gv-amber)', margin: '10px 0 0', lineHeight: 1.55 }}>
               No live beta code to offer. Mint one on the Beta codes page first — a DM whose only ask is

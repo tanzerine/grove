@@ -2,16 +2,24 @@
  * Reading Reddit — URL building and listing parsing are pure; only `fetchListing`
  * touches the network.
  *
- * Reddit's public JSON is read-only and needs no OAuth: append `.json` to any
- * listing path. It does need an honest, identifying `User-Agent` — the default
- * Node/undici one is refused outright — and it rate-limits unauthenticated
- * callers hard, which is why `harvest` caps the number of requests rather than
- * running the full subreddit × query cross product.
+ * Two ways in, same parsing:
  *
- * NOTHING HERE WRITES TO REDDIT. There is no send path, no comment path, no
- * OAuth. Drafts are copied out by a human. Reddit's own rules treat automated
- * unsolicited messaging as spam, and a machine that can send is a machine that
- * will eventually send something nobody read first.
+ *  - **Anonymous** — append `.json` to any listing path on www.reddit.com. Works
+ *    from a laptop, and 403s from most cloud IPs including Vercel's.
+ *  - **App-only OAuth** — set `GROVE_REDDIT_CLIENT_ID`/`_SECRET` and reads go to
+ *    oauth.reddit.com instead. This is what makes the scan work from a server
+ *    at all, and it lifts the rate limit to a documented 100 req/min.
+ *
+ * Either way an identifying `User-Agent` is required; the default Node/undici
+ * one is refused outright.
+ *
+ * NOTHING HERE WRITES TO REDDIT. No send path, no comment path, no vote path.
+ * The app-only token is deliberately the *powerless* kind: it carries no user
+ * context, so it cannot message anyone even if something tried — messaging
+ * needs a user-authorized token with a write scope, which nothing in this
+ * codebase requests or stores. Drafts are copied out by a human. Reddit's rules
+ * treat automated unsolicited messaging as spam, and a machine that can send is
+ * a machine that will eventually send something nobody read first.
  */
 import type { RedditPost } from './screen';
 
@@ -134,6 +142,99 @@ function userAgent(): string {
   return process.env.GROVE_REDDIT_USER_AGENT ?? 'web:grove-outreach:0.1 (by /u/grove-seo)';
 }
 
+/* ─────────────────────── app-only OAuth (the fix for 403) ─────────────────── */
+
+/**
+ * Reddit serves anonymous JSON from residential IPs and 403s most cloud ranges,
+ * Vercel's included. A `User-Agent` alone does not fix that — the block is on
+ * the IP, and the only durable answer is to stop being anonymous.
+ *
+ * So when `GROVE_REDDIT_CLIENT_ID`/`_SECRET` are set we take an **application-
+ * only** token (`grant_type=client_credentials`) and read from
+ * `oauth.reddit.com`, which is served to datacenters and raises the rate limit
+ * from "whatever Reddit feels like" to a documented 100 requests/minute.
+ *
+ * THIS IS NOT A SEND PATH, and it must never become one. An app-only token
+ * carries **no user context**: it is not logged in as anybody, so it cannot
+ * message, post, vote or comment — those all require a user-authorized token
+ * with a write scope, which nothing here requests and nothing here stores. The
+ * "no OAuth" line in this feature's design was always about *user write* auth.
+ * Reading public listings as an identified application is the opposite of that:
+ * it is Reddit's own supported, rate-limited, attributable way to do this.
+ *
+ * Without credentials everything below no-ops and the public host is used, so
+ * this stays a drop-in upgrade rather than a hard requirement.
+ */
+const OAUTH_HOST = 'oauth.reddit.com';
+const PUBLIC_HOST = 'www.reddit.com';
+
+export function hasRedditAuth(): boolean {
+  return Boolean(process.env.GROVE_REDDIT_CLIENT_ID && process.env.GROVE_REDDIT_CLIENT_SECRET);
+}
+
+/**
+ * Per-instance token cache.
+ *
+ * Reddit's app-only tokens last 24h. A serverless instance lives minutes, so
+ * this saves the token round-trip across the dozen listing requests in ONE
+ * scan, which is the whole point — not cross-invocation caching, which would
+ * need storage and isn't worth it for a chore that runs by hand.
+ * Expiry is deliberately pessimistic by 60s so a token can't die mid-scan.
+ */
+let cachedToken: { token: string; expiresAt: number } | null = null;
+
+/** Exported for tests — a module-level cache otherwise leaks between cases. */
+export function resetRedditAuth(): void {
+  cachedToken = null;
+}
+
+async function accessToken(timeoutMs: number): Promise<string> {
+  const now = Date.now();
+  if (cachedToken && cachedToken.expiresAt > now) return cachedToken.token;
+
+  const id = process.env.GROVE_REDDIT_CLIENT_ID ?? '';
+  const secret = process.env.GROVE_REDDIT_CLIENT_SECRET ?? '';
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), timeoutMs);
+  try {
+    const res = await fetch(`https://${PUBLIC_HOST}/api/v1/access_token`, {
+      method: 'POST',
+      headers: {
+        authorization: `Basic ${Buffer.from(`${id}:${secret}`).toString('base64')}`,
+        'content-type': 'application/x-www-form-urlencoded',
+        'user-agent': userAgent(),
+      },
+      body: 'grant_type=client_credentials',
+      signal: ctl.signal,
+      cache: 'no-store',
+    });
+    if (!res.ok) {
+      // 401 here is credentials, not IP — a different fix from the 403 below,
+      // and worth separating so nobody re-reads the network docs for a typo.
+      throw new RedditFetchError(
+        res.status,
+        res.status === 401
+          ? 'Reddit rejected the app credentials (401). Check GROVE_REDDIT_CLIENT_ID and GROVE_REDDIT_CLIENT_SECRET, and that the app at reddit.com/prefs/apps is type "script" or "web app".'
+          : `Reddit would not issue a token (${res.status}).`,
+      );
+    }
+    const json = (await res.json()) as { access_token?: string; expires_in?: number };
+    if (!json.access_token) throw new RedditFetchError(0, 'Reddit issued no access token.');
+    const ttl = Number.isFinite(json.expires_in) ? Number(json.expires_in) : 3600;
+    cachedToken = { token: json.access_token, expiresAt: now + Math.max(0, ttl - 60) * 1000 };
+    return cachedToken.token;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** The same listing, on whichever host we're entitled to read it from. */
+export function hostFor(url: string, authed = hasRedditAuth()): string {
+  const u = new URL(url);
+  u.hostname = authed ? OAUTH_HOST : PUBLIC_HOST;
+  return u.toString();
+}
+
 export class RedditFetchError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -146,21 +247,35 @@ export async function fetchListing(url: string, timeoutMs = 10_000): Promise<Red
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), timeoutMs);
   try {
-    const res = await fetch(url, {
-      headers: { 'user-agent': userAgent(), accept: 'application/json' },
+    const authed = hasRedditAuth();
+    const headers: Record<string, string> = {
+      'user-agent': userAgent(),
+      accept: 'application/json',
+    };
+    if (authed) headers.authorization = `Bearer ${await accessToken(timeoutMs)}`;
+
+    const res = await fetch(hostFor(url, authed), {
+      headers,
       signal: ctl.signal,
       cache: 'no-store',
     });
     if (!res.ok) {
       // 403 from a datacenter IP is the common one and it is NOT a bug in the
       // query — Reddit blocks cloud ranges. Say so, because the alternative is
-      // an afternoon spent debugging a perfectly good URL.
+      // an afternoon spent debugging a perfectly good URL. The advice differs
+      // sharply depending on whether we were authenticated when it happened:
+      // unauthenticated, the fix is credentials; authenticated, a 403 means the
+      // token is fine but the app lacks access, which is a different problem.
       const hint =
         res.status === 403
-          ? ' — Reddit blocks many datacenter IPs and unidentified clients; set GROVE_REDDIT_USER_AGENT to a real contact string, or run the scan from somewhere else.'
+          ? authed
+            ? ' — the app token was accepted but this listing was refused. Check the app is still approved at reddit.com/prefs/apps.'
+            : ' — Reddit blocks anonymous reads from datacenter IPs (Vercel included), and a User-Agent alone does not fix it. Set GROVE_REDDIT_CLIENT_ID and GROVE_REDDIT_CLIENT_SECRET to read over app-only OAuth (2 minutes at reddit.com/prefs/apps), or run the scan from a residential connection.'
           : res.status === 429
             ? ' — rate limited; lower maxRequests or wait a minute.'
-            : '';
+            : res.status === 401
+              ? ' — the app token was refused. Check GROVE_REDDIT_CLIENT_ID/SECRET.'
+              : '';
       throw new RedditFetchError(res.status, `Reddit returned ${res.status}${hint}`);
     }
     return parseListing(await res.json());
