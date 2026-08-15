@@ -6,8 +6,11 @@
  * returns nothing at all. These tests pin that a bad row is skipped rather than
  * repaired or fatal.
  */
-import { describe, it, expect } from 'vitest';
-import { redditSearchUrl, parseListing, harvest, DEFAULT_SUBREDDITS } from '../lib/outreach/reddit';
+import { describe, it, expect, afterEach } from 'vitest';
+import {
+  redditSearchUrl, parseListing, harvest, DEFAULT_SUBREDDITS,
+  hostFor, hasRedditAuth, resetRedditAuth, fetchListing,
+} from '../lib/outreach/reddit';
 import type { RedditPost } from '../lib/outreach/screen';
 
 describe('redditSearchUrl', () => {
@@ -142,5 +145,143 @@ describe('harvest', () => {
     // r/SEO is mostly people who sell SEO — every post there trips a blocker.
     expect(DEFAULT_SUBREDDITS).not.toContain('SEO');
     expect(DEFAULT_SUBREDDITS).toContain('SaaS');
+  });
+});
+
+/**
+ * App-only OAuth: the difference between a scan that works from Vercel and one
+ * that 403s. Reddit serves anonymous JSON to laptops and refuses most cloud IPs,
+ * so the host we read from has to follow whether we hold credentials.
+ */
+describe('reading as an identified app', () => {
+  const ENV = { ...process.env };
+  afterEach(() => {
+    process.env = { ...ENV };
+    resetRedditAuth();
+  });
+
+  function withCreds() {
+    process.env.GROVE_REDDIT_CLIENT_ID = 'id123';
+    process.env.GROVE_REDDIT_CLIENT_SECRET = 'secret456';
+  }
+  function withoutCreds() {
+    delete process.env.GROVE_REDDIT_CLIENT_ID;
+    delete process.env.GROVE_REDDIT_CLIENT_SECRET;
+  }
+
+  it('needs BOTH halves of the credential before it counts as authed', () => {
+    withoutCreds();
+    expect(hasRedditAuth()).toBe(false);
+    process.env.GROVE_REDDIT_CLIENT_ID = 'id123';
+    expect(hasRedditAuth()).toBe(false); // half a credential is not a credential
+    process.env.GROVE_REDDIT_CLIENT_SECRET = 'secret456';
+    expect(hasRedditAuth()).toBe(true);
+  });
+
+  it('reads from oauth.reddit.com when authed and www when not, path untouched', () => {
+    const url = redditSearchUrl({ query: 'no traffic', subreddit: 'SaaS' });
+    const anon = new URL(hostFor(url, false));
+    const authed = new URL(hostFor(url, true));
+    expect(anon.hostname).toBe('www.reddit.com');
+    expect(authed.hostname).toBe('oauth.reddit.com');
+    // Only the host may change — a rewritten query is a silently different scan.
+    expect(authed.pathname).toBe(anon.pathname);
+    expect(authed.search).toBe(anon.search);
+  });
+
+  it('sends a bearer token, once, across a whole scan', async () => {
+    withCreds();
+    const calls: { url: string; headers: Record<string, string> }[] = [];
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async (input: any, init: any = {}) => {
+      const url = String(input);
+      calls.push({ url, headers: (init.headers ?? {}) as Record<string, string> });
+      if (url.includes('/api/v1/access_token')) {
+        return new Response(JSON.stringify({ access_token: 'tok_abc', expires_in: 86_400 }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ data: { children: [] } }), { status: 200 });
+    }) as typeof fetch;
+
+    try {
+      const u = redditSearchUrl({ query: 'a', subreddit: 'SaaS' });
+      await fetchListing(u);
+      await fetchListing(u);
+
+      const tokenCalls = calls.filter((c) => c.url.includes('/api/v1/access_token'));
+      const listingCalls = calls.filter((c) => !c.url.includes('/api/v1/access_token'));
+      // Cached: two listings, one token round-trip.
+      expect(tokenCalls).toHaveLength(1);
+      expect(listingCalls).toHaveLength(2);
+      expect(tokenCalls[0].headers.authorization).toMatch(/^Basic /);
+      for (const c of listingCalls) {
+        expect(c.url).toContain('oauth.reddit.com');
+        expect(c.headers.authorization).toBe('Bearer tok_abc');
+        expect(c.headers['user-agent']).toBeTruthy();
+      }
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it('never sends an Authorization header when there are no credentials', async () => {
+    withoutCreds();
+    const seen: Record<string, string>[] = [];
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async (input: any, init: any = {}) => {
+      seen.push((init.headers ?? {}) as Record<string, string>);
+      expect(String(input)).toContain('www.reddit.com');
+      return new Response(JSON.stringify({ data: { children: [] } }), { status: 200 });
+    }) as typeof fetch;
+
+    try {
+      await fetchListing(redditSearchUrl({ query: 'a', subreddit: 'SaaS' }));
+      expect(seen[0].authorization).toBeUndefined();
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it('tells you to get credentials on an anonymous 403, not to fiddle with the UA', async () => {
+    withoutCreds();
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async () => new Response('blocked', { status: 403 })) as typeof fetch;
+    try {
+      await expect(fetchListing(redditSearchUrl({ query: 'a' }))).rejects.toThrow(
+        /GROVE_REDDIT_CLIENT_ID/,
+      );
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it('gives different advice for a 403 that happened WITH a valid token', async () => {
+    withCreds();
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async (input: any) =>
+      String(input).includes('/api/v1/access_token')
+        ? new Response(JSON.stringify({ access_token: 't', expires_in: 3600 }), { status: 200 })
+        : new Response('nope', { status: 403 })) as typeof fetch;
+    try {
+      // Suggesting "set credentials" to someone who already has them is the
+      // wrong-answer failure this branch exists to prevent.
+      const err = await fetchListing(redditSearchUrl({ query: 'a' })).catch((e) => e as Error);
+      expect(err.message).toMatch(/token was accepted/);
+      expect(err.message).not.toMatch(/GROVE_REDDIT_CLIENT_ID/);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it('names bad credentials as bad credentials, not as a network problem', async () => {
+    withCreds();
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async () => new Response('unauthorized', { status: 401 })) as typeof fetch;
+    try {
+      await expect(fetchListing(redditSearchUrl({ query: 'a' }))).rejects.toThrow(
+        /rejected the app credentials/,
+      );
+    } finally {
+      globalThis.fetch = realFetch;
+    }
   });
 });
