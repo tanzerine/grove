@@ -176,6 +176,34 @@ Other key surfaces:
   (`tests/embed-head.test.ts` runs that round-trip against a fake DOM — an
   article canonical left on the list view is worse than none). Subfolder
   customers get proxy configs from `lib/rewrite-snippets.ts`.
+- **MCP content API** (`lib/mcp/`, `app/api/mcp`, `/dashboard/mcp`) — the answer
+  for a customer with a *thick* blog: they already have a content layer (MDX in
+  a repo, a CMS, their own pipeline) and want grove's articles INSIDE it, not an
+  embed beside it. Their coding agent connects over MCP and pulls finished
+  articles already shaped for that layer. **This is a second distribution path,
+  not a replacement** — embed, hosted mirror and MCP all serve the same posts.
+  - Transport is Streamable HTTP, stateless, hand-rolled (no SDK): one POST of
+    JSON-RPC in, one JSON response out, no session id, no SSE. `lib/mcp/protocol.ts`
+    is the framing; `GET /api/mcp` is deliberately 405 (grove never pushes).
+  - Auth is a per-user bearer key, `gv_mcp_…`, **stored only as sha256** and
+    looked up by that digest (0036). `lib/mcp/auth.ts` is the entire security
+    boundary: handlers run on the service-role client, so every query is scoped
+    by hand through `resolveSite()` — a posts query without a resolved
+    `domain_id` is a cross-tenant read. `mcp_keys` has RLS with **no policy**
+    (service-role only, same reasoning as `beta_coupons`).
+  - `pull_new` is the incremental sync and `mcp_deliveries` is its ledger: the
+    agent records where each article went live, so the next pull returns only
+    what's genuinely new and the dashboard can show what actually shipped.
+  - **Two things break silently once the customer renders the articles**: the
+    analytics beacon stops firing (so `reads`, the whole reporting surface and
+    the monthly strategy loop go blind) and grove's mirror stays canonical. The
+    `integration_guide` tool leads with both, and `set_canonical_base` writes
+    the same `domains.canonical_blog_base` the dashboard form does — via
+    `normalizeCanonicalBase`, never raw.
+  - Formatters live in `lib/mcp/format.ts`. `mdx` escapes `{` and bare `<`
+    **outside code fences**: markdown renderers tolerate them, the MDX compiler
+    doesn't, and an import that breaks the customer's build is worse than no
+    import at all.
 - **grove eats its own dogfood**: `/blog` (`app/blog/page.tsx`) and the landing's
   "Our blog runs on grove" section mount that same embed via
   `components/GroveEmbed.tsx`, against grove's own `trygroveai.com` domain row.
@@ -208,14 +236,25 @@ Other key surfaces:
 ## Supabase
 
 - Project ref `lojgijnjagaozrrpjlbj`. CLI is linked locally (no `.env` in repo —
-  secrets live in Vercel). Migrations in `supabase/migrations/` (0001–0035).
+  secrets live in Vercel). Migrations in `supabase/migrations/` (0001–0036).
 - History was repaired so 0001–0009 are marked applied; `npm run db:push` applies
   only new ones. **Always run `supabase migration list` first instead of trusting
-  this file** — as of 2026-08-14, **0001–0035 are all applied** (verified against
+  this file** — as of 2026-08-14, **0001–0036 are all applied** (verified against
   `information_schema`, not just the migration list). 0029
   (`strategies.planned_by`) records which model built each plan; the insert in
   `lib/strategy/ensure.ts` retries without the column, so an unapplied migration
-  there degrades to "no diagnostic" rather than "no plan".
+  there degrades to "no diagnostic" rather than "no plan". 0036 (`mcp_keys`,
+  `mcp_deliveries`) is the newest: both tables exist, RLS on, `mcp_keys` with
+  zero policies as intended.
+- **Version numbers collide, because branches don't see each other's migrations.**
+  0036 (`mcp_keys`) was written as 0035 on a branch cut before 0035
+  (`outreach_prospects`) existed anywhere local; by push time that number was
+  already applied in production, and the file had to be renumbered. Both are in
+  the tree now, which is exactly what makes this easy to forget. So: **the live
+  `migration list` is the only source of truth for the next free number** —
+  `ls supabase/migrations/` tells you what your branch knows, which is a
+  different question. A local file whose version is already applied under a
+  different name is the failure to look for.
 - **A migration can reach production without anyone running `db:push` here.**
   0029 was authored and merged in one session and was already live before that
   session ever pushed — the column comment matched the migration file verbatim,
@@ -244,9 +283,10 @@ Other key surfaces:
   records the row under a generated timestamp version (`20260812122243`), not the
   repo's `0035`. The CLI then reads 0035 as unapplied and `db push` re-runs the
   file — harmless when it's `if not exists` throughout, and not harmless
-  otherwise. 0035 was repaired by hand (`update schema_migrations set version`).
-  If you apply through the MCP, check `schema_migrations` and re-key it to match
-  the filename.
+  otherwise. 0035 was repaired by hand (`update schema_migrations set version`),
+  and 0036 hit exactly the same thing a fortnight later — assume it happens every
+  time. If you apply through the MCP, check `schema_migrations` and re-key it to
+  match the filename.
 - `supabase/.temp/` is gitignored (CLI artifacts).
 
 ## Env vars that gate features (set in Vercel, not the repo)
