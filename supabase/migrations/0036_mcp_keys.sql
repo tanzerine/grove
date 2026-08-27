@@ -2,11 +2,11 @@
 -- 0036_mcp_keys.sql
 -- MCP access for customers who already own a content layer.
 --
--- NUMBERED 0036, NOT 0035. This was written as 0035; by the time it was pushed,
--- 0035 was `outreach_prospects` — authored on another branch, already applied,
--- and absent from this working tree. `ls supabase/migrations/` answers "what
--- does my branch know", not "what is the next free version". Check
--- `supabase migration list` against the live project before numbering one.
+-- NUMBERED 0036, NOT 0035. This was written as 0035, on a branch cut before
+-- `outreach_prospects` existed locally; by push time that number was already
+-- applied in production. `ls supabase/migrations/` answers "what does my branch
+-- know", not "what is the next free version" — check `supabase migration list`
+-- against the live project before numbering one.
 --
 -- WHO THIS IS FOR. The embed (public/embed.js) and the hosted mirror both
 -- assume grove renders the article. A customer with a *thick* blog already has
