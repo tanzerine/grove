@@ -416,7 +416,7 @@ export function language(code: unknown): Language {
 
 /**
  * The language of a domain row. One accessor so no caller reaches for
- * `domain.language` raw and gets `undefined` on a row read before 0035 ran.
+ * `domain.language` raw and gets `undefined` on a row read before 0037 ran.
  */
 export function languageForDomain(domain: { language?: string | null } | null | undefined): Language {
   return language(domain?.language);

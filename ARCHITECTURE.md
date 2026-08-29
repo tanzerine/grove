@@ -141,6 +141,15 @@ Source is the post page itself: a small inline `<script>` blob that:
 - emits `exit` via `navigator.sendBeacon` on `pagehide`,
 - emits `conversion` when a `data-conv` element is clicked.
 
+**When grove doesn't render the article, nothing in that list happens.** A
+customer whose own content layer serves the post (the MCP path, or a
+server-rendered route consuming the embed API) has taken over the page, and the
+beacon only fires if their template carries it. That is why the MCP
+`integration_guide` tool leads with the snippet and why every article payload
+returns `post_id` + `domain_id`: without those events the analytics layer sees
+nothing, and the strategy layer below plans the next month against silence
+rather than against a real zero.
+
 Aggregation runs in `lib/analytics/summarize.ts` and produces the report
 the manager agent reads at month-end:
 
@@ -184,6 +193,8 @@ the strategy's `notes` field so it can hold the writer to the explicit
 - `lib/pipeline/manager.ts`, `lib/pipeline/manager-rubric.ts` — evaluator.
 - `lib/analytics/track.ts`, `lib/analytics/summarize.ts` — analytics.
 - `app/api/track/route.ts` — public ingest endpoint.
+- `lib/mcp/`, `app/api/mcp/route.ts` — the MCP content API: how articles reach a
+  customer's own content layer, and where their agent is told to keep the beacon.
 - `app/b/[slug]/[post]/page.tsx` — inline tracker beacon.
 - `app/api/cron/strategy/route.ts` — the loop. Hourly, ONE domain per
   invocation: planning needs the whole function to itself (see the route's

@@ -192,7 +192,7 @@ async function generatePostInner(postId: string, opts: GenerateOptions = {}) {
   const topic: string = post.topic ?? domain.hostname;
   // The domain's publication language drives every downstream stage: the
   // brief's title, the article body, what the post-processor splices in, and
-  // how the validator measures length. Rows written before migration 0035 have
+  // how the validator measures length. Rows written before migration 0037 have
   // no column at all, which languageForDomain reads as English.
   const lang = languageForDomain(domain);
 

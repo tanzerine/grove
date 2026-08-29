@@ -55,7 +55,7 @@ export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
  */
 export const RATE_BUCKETS = [
   'assist', 'betaredeem', 'billing', 'crawl', 'feedback', 'gen', 'gsc', 'img',
-  'interview', 'llm', 'planchat', 'refundreq', 'repo', 'strategy', 'upload',
+  'interview', 'llm', 'mcp', 'planchat', 'refundreq', 'repo', 'strategy', 'upload',
 ] as const;
 export type RateBucket = (typeof RATE_BUCKETS)[number] | 'unknown';
 

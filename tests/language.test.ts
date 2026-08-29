@@ -36,7 +36,7 @@ describe('normalizeLang', () => {
     expect(normalizeLang(42)).toBe('en');
   });
 
-  it('reads a domain row, including one written before migration 0035', () => {
+  it('reads a domain row, including one written before migration 0037', () => {
     expect(languageForDomain({ language: 'ko' }).code).toBe('ko');
     expect(languageForDomain({}).code).toBe('en');
     expect(languageForDomain(null).code).toBe('en');

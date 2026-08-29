@@ -114,7 +114,40 @@ for triage. **A testimonial reaches the landing page only when it is both
 again on the way out (`publishedTestimonials`). The landing renders nothing when
 there are no real quotes — that page has always refused invented social proof.
 
-**Publication language** (0035) — `domains.language` (`en | ko | es | zh`,
+**Beta-tester outreach** (0035, `lib/outreach/`) — the top of that same funnel:
+find Reddit posts whose author describes a problem Grove solves, and draft the
+DM that offers them a beta code. `/dashboard/admin/outreach`.
+- `screen.ts` (pure) — six `PainKind`s, each with patterns, a weight and, in
+  `dm.ts`, its own bridge paragraph. Scoring is deliberately **asymmetric**:
+  pain earns points slowly, and a `hard` blocker (`no_dm`, `competitor`,
+  `for_hire`, `anti_ai`, deleted author) forces tier `skip` at any score. The
+  expensive failure is never a missed prospect; it's a pitch sent to someone who
+  said don't. Every verdict carries **evidence** — the author's own sentence —
+  which is both what makes it auditable and what the DM's first line quotes.
+- `dm.ts` (pure) — opener (their words) + bridge (per pain) + fixed spine. The
+  spine is byte-identical in every variant on purpose: the honest caveat ("it
+  won't get you a paying customer this month") only means something if it went
+  out in every message. `personalize.ts` may rewrite **the opener and nothing
+  else**, and falls back to the deterministic draft on any failure.
+- **There is no send path anywhere in this feature, and adding one would be a
+  mistake.** No OAuth, no Reddit write scope; drafts are copied out by a human.
+  The review step between a regex score and a stranger's inbox is the product.
+- `outreach_prospects` is unique on `(source, lower(author))` — that index is
+  the guarantee nobody is DMed twice, including people already marked `skipped`.
+- **Anonymous Reddit reads 403 from Vercel and a User-Agent does not fix it** —
+  the block is on the IP range, not the client string. Confirmed in production
+  on the first scan. The fix is app-only OAuth: set `GROVE_REDDIT_CLIENT_ID` /
+  `GROVE_REDDIT_CLIENT_SECRET` (a "script" app at reddit.com/prefs/apps) and
+  `fetchListing` reads from `oauth.reddit.com` instead, at a documented 100
+  req/min. Unset → falls back to anonymous `www.reddit.com`, which works from a
+  laptop. `GROVE_REDDIT_USER_AGENT` is still required either way.
+  **The app-only token does not weaken the no-send rule**: `client_credentials`
+  carries no user context, so it cannot message, post or vote — messaging needs
+  a user-authorized write scope, which nothing here requests or stores.
+  The 403 message differs depending on whether we were authenticated, because
+  "get credentials" is the wrong advice for someone who already has them.
+
+**Publication language** (0037) — `domains.language` (`en | ko | es | zh`,
 default `en`) is the single input, and `lib/language.ts` is the single source
 for every consequence: the writer/refiner/manager prompt fragments, the research
 queries (a Korean article is researched against Korean sources), the scaffold
@@ -163,6 +196,34 @@ Other key surfaces:
   (`tests/embed-head.test.ts` runs that round-trip against a fake DOM — an
   article canonical left on the list view is worse than none). Subfolder
   customers get proxy configs from `lib/rewrite-snippets.ts`.
+- **MCP content API** (`lib/mcp/`, `app/api/mcp`, `/dashboard/mcp`) — the answer
+  for a customer with a *thick* blog: they already have a content layer (MDX in
+  a repo, a CMS, their own pipeline) and want grove's articles INSIDE it, not an
+  embed beside it. Their coding agent connects over MCP and pulls finished
+  articles already shaped for that layer. **This is a second distribution path,
+  not a replacement** — embed, hosted mirror and MCP all serve the same posts.
+  - Transport is Streamable HTTP, stateless, hand-rolled (no SDK): one POST of
+    JSON-RPC in, one JSON response out, no session id, no SSE. `lib/mcp/protocol.ts`
+    is the framing; `GET /api/mcp` is deliberately 405 (grove never pushes).
+  - Auth is a per-user bearer key, `gv_mcp_…`, **stored only as sha256** and
+    looked up by that digest (0036). `lib/mcp/auth.ts` is the entire security
+    boundary: handlers run on the service-role client, so every query is scoped
+    by hand through `resolveSite()` — a posts query without a resolved
+    `domain_id` is a cross-tenant read. `mcp_keys` has RLS with **no policy**
+    (service-role only, same reasoning as `beta_coupons`).
+  - `pull_new` is the incremental sync and `mcp_deliveries` is its ledger: the
+    agent records where each article went live, so the next pull returns only
+    what's genuinely new and the dashboard can show what actually shipped.
+  - **Two things break silently once the customer renders the articles**: the
+    analytics beacon stops firing (so `reads`, the whole reporting surface and
+    the monthly strategy loop go blind) and grove's mirror stays canonical. The
+    `integration_guide` tool leads with both, and `set_canonical_base` writes
+    the same `domains.canonical_blog_base` the dashboard form does — via
+    `normalizeCanonicalBase`, never raw.
+  - Formatters live in `lib/mcp/format.ts`. `mdx` escapes `{` and bare `<`
+    **outside code fences**: markdown renderers tolerate them, the MDX compiler
+    doesn't, and an import that breaks the customer's build is worse than no
+    import at all.
 - **grove eats its own dogfood**: `/blog` (`app/blog/page.tsx`) and the landing's
   "Our blog runs on grove" section mount that same embed via
   `components/GroveEmbed.tsx`, against grove's own `trygroveai.com` domain row.
@@ -195,14 +256,25 @@ Other key surfaces:
 ## Supabase
 
 - Project ref `lojgijnjagaozrrpjlbj`. CLI is linked locally (no `.env` in repo —
-  secrets live in Vercel). Migrations in `supabase/migrations/` (0001–0029).
+  secrets live in Vercel). Migrations in `supabase/migrations/` (0001–0036).
 - History was repaired so 0001–0009 are marked applied; `npm run db:push` applies
   only new ones. **Always run `supabase migration list` first instead of trusting
-  this file** — as of 2026-07-26, **0001–0029 are all applied** (verified against
+  this file** — as of 2026-08-14, **0001–0036 are all applied** (verified against
   `information_schema`, not just the migration list). 0029
   (`strategies.planned_by`) records which model built each plan; the insert in
   `lib/strategy/ensure.ts` retries without the column, so an unapplied migration
-  there degrades to "no diagnostic" rather than "no plan".
+  there degrades to "no diagnostic" rather than "no plan". 0036 (`mcp_keys`,
+  `mcp_deliveries`) is the newest: both tables exist, RLS on, `mcp_keys` with
+  zero policies as intended.
+- **Version numbers collide, because branches don't see each other's migrations.**
+  0036 (`mcp_keys`) was written as 0035 on a branch cut before 0035
+  (`outreach_prospects`) existed anywhere local; by push time that number was
+  already applied in production, and the file had to be renumbered. Both are in
+  the tree now, which is exactly what makes this easy to forget. So: **the live
+  `migration list` is the only source of truth for the next free number** —
+  `ls supabase/migrations/` tells you what your branch knows, which is a
+  different question. A local file whose version is already applied under a
+  different name is the failure to look for.
 - **A migration can reach production without anyone running `db:push` here.**
   0029 was authored and merged in one session and was already live before that
   session ever pushed — the column comment matched the migration file verbatim,
@@ -227,6 +299,14 @@ Other key surfaces:
   checklist. Both attach paths no-op when
   `VERCEL_API_TOKEN`/`VERCEL_PROJECT_ID` are unset (manual attach is the
   fallback), so the feature still serves once the host is added by hand.
+- **Applying a migration through the Supabase MCP re-keys it.** `apply_migration`
+  records the row under a generated timestamp version (`20260812122243`), not the
+  repo's `0035`. The CLI then reads 0035 as unapplied and `db push` re-runs the
+  file — harmless when it's `if not exists` throughout, and not harmless
+  otherwise. 0035 was repaired by hand (`update schema_migrations set version`),
+  and 0036 hit exactly the same thing a fortnight later — assume it happens every
+  time. If you apply through the MCP, check `schema_migrations` and re-key it to
+  match the filename.
 - `supabase/.temp/` is gitignored (CLI artifacts).
 
 ## Env vars that gate features (set in Vercel, not the repo)

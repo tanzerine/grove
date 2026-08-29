@@ -24,6 +24,10 @@ const SECTIONS: Section[] = [
     { href: '/dashboard/voice', label: 'Brand voice', icon: 'voice', match: (p) => p.startsWith('/dashboard/voice') },
     { href: '/dashboard/connections', label: 'Social', icon: 'social', match: (p) => p.startsWith('/dashboard/connections') },
     { href: '/dashboard/embed', label: 'Embed', icon: 'embed', match: (p) => p.startsWith('/dashboard/embed') },
+    // Sits beside Embed because it answers the same question — how do grove's
+    // articles reach the customer's site — for the customer who already has a
+    // content layer and doesn't want a script tag.
+    { href: '/dashboard/mcp', label: 'Content API', icon: 'bolt', match: (p) => p.startsWith('/dashboard/mcp') },
   ]},
   { head: 'Account', items: [
     { href: '/dashboard/billing', label: 'Billing', icon: 'billing', match: (p) => p.startsWith('/dashboard/billing') },
@@ -40,6 +44,7 @@ export default function SideNav({ badges = {}, isAdmin = false }: { badges?: Rec
         { href: '/dashboard/admin/refunds', label: 'Refunds', icon: 'billing', match: (p: string) => p.startsWith('/dashboard/admin/refunds') },
         { href: '/dashboard/admin/feedback', label: 'Feedback', icon: 'voice', badgeKey: 'feedback', match: (p: string) => p.startsWith('/dashboard/admin/feedback') },
         { href: '/dashboard/admin/beta', label: 'Beta codes', icon: 'strategy', match: (p: string) => p.startsWith('/dashboard/admin/beta') },
+        { href: '/dashboard/admin/outreach', label: 'Outreach', icon: 'target', match: (p: string) => p.startsWith('/dashboard/admin/outreach') },
       ] }]
     : SECTIONS;
   return (
