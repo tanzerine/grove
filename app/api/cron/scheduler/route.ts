@@ -60,6 +60,7 @@ import { consumeQuota, quotaForUsers, releaseQuota, shareAllowance } from '@/lib
 import { publishToSocials } from '@/lib/social/publish';
 import { syncDomain } from '@/lib/search-console/sync';
 import { captureServer } from '@/lib/analytics/capture-server';
+import { languageForDomain } from '@/lib/language';
 
 export const maxDuration = 300;
 
@@ -240,7 +241,7 @@ export async function GET(req: Request) {
       // generate the social copy on demand if it wasn't created earlier
       let social = (p as any).social;
       if (!social && domain.site_profile?.business?.name && (p as any).body_md && (p as any).title) {
-        social = await runSocialAdapter({ title: (p as any).title, body_md: (p as any).body_md }, domain.site_profile);
+        social = await runSocialAdapter({ title: (p as any).title, body_md: (p as any).body_md }, domain.site_profile, languageForDomain(domain).code);
         await sb.from('posts').update({ social }).eq('id', p.id);
       }
       const res = await publishToSocials(

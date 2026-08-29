@@ -15,6 +15,7 @@
 import { llmCall, extractJson } from './llm';
 import { gatherKeywordDemand, classifyIntent, type SearchIntent } from './strategy/keywords';
 import type { SiteProfile } from './pipeline/site-profile';
+import { language, briefLanguageRule, writerLanguageRules, type LangCode } from './language';
 
 export type PseoPageSpec = { keyword: string; intent: SearchIntent; title: string };
 export type PseoPlan = { seed: string; pages: PseoPageSpec[] };
@@ -34,6 +35,9 @@ export async function planProgrammaticSet(
   profile: SiteProfile,
   seed: string,
   count = 6,
+  /** Blog's publication language — pSEO pages publish onto the same blog as
+   *  everything else, so they follow it too. */
+  lang: LangCode = 'en',
 ): Promise<PseoPlan> {
   const n = Math.min(Math.max(count, 1), MAX_PAGES);
   const clean = seed.trim();
@@ -55,7 +59,8 @@ export async function planProgrammaticSet(
   let titles: Record<string, string> = {};
   try {
     const { text } = await llmCall({
-      system: `You write specific, click-worthy but honest SEO page titles. Avoid "Ultimate Guide", "Everything You Need to Know", and year stamps. Output ONE raw JSON object: {"titles":[{"keyword","title"}]} — one entry per input keyword, title <= 65 chars.`,
+      system: `You write specific, click-worthy but honest SEO page titles. Avoid "Ultimate Guide", "Everything You Need to Know", and year stamps. Output ONE raw JSON object: {"titles":[{"keyword","title"}]} — one entry per input keyword, title <= 65 chars.
+${briefLanguageRule(lang)}`,
       user: `Business: ${profile.business.name} (${profile.business.industry}). Audience: ${profile.business.target_audience}.\nWrite one page title per keyword below. The title must clearly target that exact search:\n${keywords.map((k) => `- ${k}`).join('\n')}`,
       json: true,
       maxTokens: 800,
@@ -85,7 +90,9 @@ export type PseoPageContent = { meta_title: string; meta_description: string; bo
 export async function generateProgrammaticPage(
   profile: SiteProfile,
   spec: PseoPageSpec,
+  lang: LangCode = 'en',
 ): Promise<PseoPageContent> {
+  const lg = language(lang);
   const productRule =
     spec.intent === 'transactional'
       ? `This is a buyer query — mention ${profile.business.name} as the obvious option where it genuinely fits, and end with a single, low-key CTA paragraph linking the reader to the product.`
@@ -98,9 +105,10 @@ export async function generateProgrammaticPage(
 RULES
 - Open with a direct 2-3 sentence answer to the query. No "in today's world" throat-clearing.
 - Then back it up: 3-5 short H2 sections with specifics, examples, and steps.
-- End with a section headed exactly "## FAQ": 2-3 real follow-up questions as "### Question" each, with a tight answer under each. (This powers FAQ structured data + AI answers.)
-- 700-1000 words. Plain, confident, skimmable. Markdown only. No H1 (the title is rendered separately).
+- End with a section headed exactly "## ${lg.labels.faq}": 2-3 real follow-up questions as "### Question" each, with a tight answer under each. (This powers FAQ structured data + AI answers.)
+- ${lg.length.unit === 'char' ? '1300-1900 characters' : '700-1000 words'}. Plain, confident, skimmable. Markdown only. No H1 (the title is rendered separately).
 - ${productRule}
+${writerLanguageRules(lg)}
 
 OUTPUT: one raw JSON object. No markdown fences. Keys: meta_title (<=60 chars), meta_description (<=155 chars), body_md.`;
 

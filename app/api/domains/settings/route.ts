@@ -10,6 +10,10 @@ import { getQuota } from '@/lib/quota';
 import { canGenerateForUser } from '@/lib/billing';
 import { maxPostsPerWeekForQuota } from '@/lib/plans';
 import { canEnableAutopilot, REVIEWABLE_STATUSES } from '@/lib/autopilot-gate';
+import { LANG_CODES } from '@/lib/language';
+
+// zod wants a non-empty tuple; LANG_CODES is the single source of the list.
+const LANG_CODES_TUPLE = LANG_CODES as unknown as [string, ...string[]];
 
 const HEX = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
@@ -18,6 +22,9 @@ const schema = z.object({
   auto_publish: z.boolean().optional(),
   auto_social: z.boolean().optional(),
   posts_per_week: z.number().min(1).max(14).optional(),
+  // Language every future article is written in (lib/language.ts). Existing
+  // posts are NOT translated — this steers what the pipeline writes next.
+  language: z.enum(LANG_CODES_TUPLE).optional(),
   // autopilot quality bar: min manager score (0-100) to publish without a human.
   auto_publish_floor: z.number().int().min(0).max(100).optional(),
   // empty string clears the webhook; a URL sets it (https only).

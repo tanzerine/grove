@@ -165,9 +165,70 @@
     };
     return _trackTeardown;
   }
-  function fmtDate(d) {
+
+  /* ─────────────────────────── strings ───────────────────────────
+     embed.js draws its own chrome around the customer's articles, so a Korean
+     blog rendered "Latest articles / min read / Clear" over Korean cards. The
+     API tells us the blog's language (`language` on the feed and article
+     payloads); this table is the mirror of lib/language.ts's ReaderUi, kept
+     here because a static script on someone else's page can't import it.
+
+     Keys are BASE codes: 'zh-Hans' resolves to zh. Anything unknown is English.
+     `data-lang` on the mount div pins it, and the document's own lang is the
+     next-best guess — both matter only for the first paint, before the feed
+     that carries the real answer has come back. */
+  var STRINGS = {
+    en: {
+      locale: 'en-US', loading: 'Loading…', theBlog: 'The blog', fromTheBlog: 'From the blog',
+      latest: 'Latest articles', readTheBlog: 'Read the blog →', searchPh: 'Search articles…',
+      all: 'All', featured: '★ Featured', article: 'Article', by: 'By ', minRead: ' min read',
+      noMatch: 'No articles match', clear: 'Clear', newer: '← Newer', older: 'Older →',
+      page: 'Page', backAll: '← All articles',
+      soon: 'New articles are on the way — check back soon.',
+      failed: "Couldn't load the blog. Please try again later."
+    },
+    ko: {
+      locale: 'ko-KR', loading: '불러오는 중…', theBlog: '블로그', fromTheBlog: '블로그에서',
+      latest: '최근 글', readTheBlog: '블로그 보기 →', searchPh: '글 검색…',
+      all: '전체', featured: '★ 추천', article: '아티클', by: '', minRead: '분 분량',
+      noMatch: '검색 결과가 없습니다', clear: '지우기', newer: '← 최신', older: '이전 →',
+      page: '페이지', backAll: '← 전체 글',
+      soon: '새 글을 준비하고 있습니다. 곧 다시 확인해 주세요.',
+      failed: '블로그를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'
+    },
+    es: {
+      locale: 'es-ES', loading: 'Cargando…', theBlog: 'El blog', fromTheBlog: 'Del blog',
+      latest: 'Últimos artículos', readTheBlog: 'Ver el blog →', searchPh: 'Buscar artículos…',
+      all: 'Todos', featured: '★ Destacado', article: 'Artículo', by: 'Por ', minRead: ' min de lectura',
+      noMatch: 'No hay artículos que coincidan', clear: 'Limpiar', newer: '← Más recientes', older: 'Más antiguos →',
+      page: 'Página', backAll: '← Todos los artículos',
+      soon: 'Pronto habrá nuevos artículos: vuelve en unos días.',
+      failed: 'No se pudo cargar el blog. Inténtalo de nuevo más tarde.'
+    },
+    zh: {
+      locale: 'zh-CN', loading: '加载中…', theBlog: '博客', fromTheBlog: '来自博客',
+      latest: '最新文章', readTheBlog: '查看博客 →', searchPh: '搜索文章…',
+      all: '全部', featured: '★ 精选', article: '文章', by: '', minRead: ' 分钟阅读',
+      noMatch: '没有匹配的文章', clear: '清除', newer: '← 更新', older: '更早 →',
+      page: '第', backAll: '← 全部文章',
+      soon: '新文章正在路上，请稍后再来。',
+      failed: '博客加载失败，请稍后重试。'
+    }
+  };
+  function strings(code) {
+    var base = String(code || '').toLowerCase().split(/[-_]/)[0];
+    return STRINGS[base] || STRINGS.en;
+  }
+  /** Best guess before the feed answers: the mount's data-lang, then the page's. */
+  function initialLang(root) {
+    var attr = root && root.getAttribute && root.getAttribute('data-lang');
+    if (attr) return attr;
+    try { return document.documentElement.getAttribute('lang') || 'en'; } catch (e) { return 'en'; }
+  }
+
+  function fmtDate(d, locale) {
     if (!d) return '';
-    try { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+    try { return new Date(d).toLocaleDateString(locale || 'en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
     catch (e) { return String(d).slice(0, 10); }
   }
   // Deterministic soft cover for posts without an image.
@@ -644,18 +705,19 @@
     if (a) root.style.setProperty('--gv-accent', a);
   }
 
-  function cardHTML(p, href) {
+  function cardHTML(p, href, T) {
+    T = T || STRINGS.en;
     var cover = p.cover_image_url
       ? '<div class="gv-cover" style="background-image:url(' + esc(p.cover_image_url) + ')"></div>'
       : '<div class="gv-cover" style="--gv-ph:' + bgFor(p.slug) + '">' + esc(initial(p.title)) + '</div>';
-    var foot = p.author ? esc(p.author) : ((p.read_minutes || 5) + ' min read');
+    var foot = p.author ? esc(p.author) : ((p.read_minutes || 5) + T.minRead);
     return '<a class="gv-card" href="' + esc(href) + '">' + cover +
       '<div class="gv-cardbody">' +
-        '<div><span class="gv-badge">' + esc(p.genre || 'Article') + '</span></div>' +
+        '<div><span class="gv-badge">' + esc(p.genre || T.article) + '</span></div>' +
         '<div class="gv-title">' + esc(p.title) + '</div>' +
         (p.excerpt ? '<div class="gv-ex">' + esc(p.excerpt) + '</div>' : '') +
         '<div class="gv-byline" style="margin-top:auto;padding-top:14px">' + foot +
-          (p.date ? ' · ' + fmtDate(p.date) : '') + '</div>' +
+          (p.date ? ' · ' + fmtDate(p.date, T.locale) : '') + '</div>' +
       '</div></a>';
   }
 
@@ -666,16 +728,17 @@
     getJSON(api(host, '?limit=' + count)).then(function (d) {
       var posts = d.posts || [];
       if (!posts.length) return;
+      var T = strings(d.language || initialLang(root));
       root.className = 'gv' + themeClass(root);
       applyBranding(root, d.branding);
       applyDesign(root, window, document);
       root.innerHTML =
         '<div class="gv-head"><div>' +
-          '<div class="gv-kicker">From the blog</div>' +
-          '<div class="gv-h" style="font-size:20px">Latest articles</div>' +
-        '</div><a class="gv-link" href="' + esc(blogUrl) + '">Read the blog →</a></div>' +
+          '<div class="gv-kicker">' + esc(T.fromTheBlog) + '</div>' +
+          '<div class="gv-h" style="font-size:20px">' + esc(T.latest) + '</div>' +
+        '</div><a class="gv-link" href="' + esc(blogUrl) + '">' + esc(T.readTheBlog) + '</a></div>' +
         '<div class="gv-grid">' +
-          posts.map(function (p) { return cardHTML(p, blogUrl.replace(/\/$/, '') + '/' + p.slug); }).join('') +
+          posts.map(function (p) { return cardHTML(p, blogUrl.replace(/\/$/, '') + '/' + p.slug, T); }).join('') +
         '</div>';
     }).catch(function () {});
   }
@@ -712,7 +775,9 @@
   function mountBlog(root, host) {
     root.className = 'gv' + themeClass(root);
     applyDesign(root, window, document); // theme the loading state too, not just the result
-    root.innerHTML = '<div class="gv-empty">Loading…</div>';
+    // Best guess until the feed answers with the blog's real language.
+    var T = strings(initialLang(root));
+    root.innerHTML = '<div class="gv-empty">' + esc(T.loading) + '</div>';
     var HASH = '#grove/';
     // Cards link to real, crawlable article URLs ({base}/{slug}) whenever a base
     // exists; the in-page hash reader is the FALLBACK for domains that have
@@ -733,13 +798,17 @@
 
     loadAll(host).then(function (r) {
       var posts = r.posts;
+      T = strings(r.language || initialLang(root));
       if (!artBase && r.blog_base) artBase = r.blog_base;
       applyBranding(root, r.branding);
       applyDesign(root, window, document); // re-run: --gv-on-accent depends on the branding accent
-      if (!posts.length) { root.innerHTML = '<div class="gv-empty">New articles are on the way — check back soon.</div>'; return; }
-      var genres = ['All'];
-      posts.forEach(function (p) { var g = p.genre || 'Article'; if (genres.indexOf(g) < 0) genres.push(g); });
-      var state = { genre: 'All', q: '', page: 1 };
+      if (!posts.length) { root.innerHTML = '<div class="gv-empty">' + esc(T.soon) + '</div>'; return; }
+      // ALL is a sentinel, not a label — the chip prints T.all, but the state
+      // compares against a value no translated genre can collide with.
+      var ALL = '\u0000all';
+      var genres = [ALL];
+      posts.forEach(function (p) { var g = p.genre || T.article; if (genres.indexOf(g) < 0) genres.push(g); });
+      var state = { genre: ALL, q: '', page: 1 };
 
       function route() {
         var h = location.hash || '';
@@ -748,15 +817,15 @@
       }
 
       function renderArticle(slug) {
-        root.innerHTML = '<div class="gv-empty">Loading…</div>';
+        root.innerHTML = '<div class="gv-empty">' + esc(T.loading) + '</div>';
         getJSON(api(host, '/article/' + encodeURIComponent(slug))).then(function (d) {
           var a = d.article; if (!a) { location.hash = ''; return; }
           var cover = a.cover_image_url ? '<img class="gv-art-cover" src="' + esc(a.cover_image_url) + '" alt="">' : '';
           root.innerHTML =
-            '<span class="gv-back">← All articles</span>' +
-            '<div><span class="gv-badge">' + esc(a.genre || 'Article') + '</span></div>' +
+            '<span class="gv-back">' + esc(T.backAll) + '</span>' +
+            '<div><span class="gv-badge">' + esc(a.genre || T.article) + '</span></div>' +
             '<h1 class="gv-art-title">' + esc(a.title) + '</h1>' +
-            '<div class="gv-art-meta">' + (a.author ? 'By ' + esc(a.author) + ' · ' : '') + fmtDate(a.published_at) + '</div>' +
+            '<div class="gv-art-meta">' + (a.author ? T.by + esc(a.author) + ' · ' : '') + fmtDate(a.published_at, T.locale) + '</div>' +
             cover + '<div class="grove-article">' + (a.html || '') + '</div>';
           root.querySelector('.gv-back').addEventListener('click', function () { location.hash = ''; });
           setHead(a.canonical_url, a.json_ld);
@@ -768,7 +837,7 @@
       function filtered() {
         var q = state.q.trim().toLowerCase();
         return posts.filter(function (p) {
-          var mg = state.genre === 'All' || (p.genre || 'Article') === state.genre;
+          var mg = state.genre === ALL || (p.genre || T.article) === state.genre;
           var ms = !q || (p.title || '').toLowerCase().indexOf(q) >= 0 || (p.excerpt || '').toLowerCase().indexOf(q) >= 0;
           return mg && ms;
         });
@@ -777,7 +846,7 @@
       function renderList() {
         if (_trackTeardown) { _trackTeardown(); _trackTeardown = null; } // stop the article tracker
         clearHead(); // put the page's own canonical back before showing the list
-        var isDefault = state.genre === 'All' && !state.q.trim();
+        var isDefault = state.genre === ALL && !state.q.trim();
         var PER = 9;
         var plan = planList(filtered(), isDefault, state.page, PER);
         state.page = plan.page;
@@ -792,33 +861,33 @@
               ? '<div class="gv-feat-media" style="background-image:url(' + esc(feat.cover_image_url) + ')"></div>'
               : '<div class="gv-feat-media" style="--gv-ph:' + bgFor(feat.slug) + '">' + esc(initial(feat.title)) + '</div>') +
             '<div class="gv-feat-body">' +
-              '<div><span class="gv-badge" style="background:var(--gv-accent);color:var(--gv-on-accent)">★ Featured</span> ' +
-              '<span class="gv-badge">' + esc(feat.genre || 'Article') + '</span></div>' +
+              '<div><span class="gv-badge" style="background:var(--gv-accent);color:var(--gv-on-accent)">' + esc(T.featured) + '</span> ' +
+              '<span class="gv-badge">' + esc(feat.genre || T.article) + '</span></div>' +
               '<div class="gv-feat-title">' + esc(feat.title) + '</div>' +
               (feat.excerpt ? '<div class="gv-ex" style="font-size:15px;-webkit-line-clamp:3">' + esc(feat.excerpt) + '</div>' : '') +
-              '<div class="gv-byline">' + (feat.author ? 'By ' + esc(feat.author) + ' · ' : '') + fmtDate(feat.date) + '</div>' +
+              '<div class="gv-byline">' + (feat.author ? T.by + esc(feat.author) + ' · ' : '') + fmtDate(feat.date, T.locale) + '</div>' +
             '</div></a>'
         ) : '';
 
         var gridHTML = items.length
-          ? '<div class="gv-grid">' + items.map(function (p) { return cardHTML(p, href(p.slug)); }).join('') + '</div>'
+          ? '<div class="gv-grid">' + items.map(function (p) { return cardHTML(p, href(p.slug), T); }).join('') + '</div>'
           : plan.noMatch
-            ? '<div class="gv-empty">No articles match' + (state.q ? ' “' + esc(state.q) + '”' : '') + '. <span class="gv-link" data-clear style="cursor:pointer">Clear</span></div>'
+            ? '<div class="gv-empty">' + esc(T.noMatch) + (state.q ? ' “' + esc(state.q) + '”' : '') + '. <span class="gv-link" data-clear style="cursor:pointer">' + esc(T.clear) + '</span></div>'
             : '';
 
         var pagerHTML = pages > 1
-          ? '<div class="gv-pager"><button class="gv-pg" data-prev' + (state.page <= 1 ? ' disabled' : '') + '>← Newer</button>' +
-            '<span style="font-family:var(--gv-label-font,inherit);font-size:12px;color:var(--gv-muted)">Page ' + state.page + ' / ' + pages + '</span>' +
-            '<button class="gv-pg" data-next' + (state.page >= pages ? ' disabled' : '') + '>Older →</button></div>'
+          ? '<div class="gv-pager"><button class="gv-pg" data-prev' + (state.page <= 1 ? ' disabled' : '') + '>' + esc(T.newer) + '</button>' +
+            '<span style="font-family:var(--gv-label-font,inherit);font-size:12px;color:var(--gv-muted)">' + esc(T.page) + ' ' + state.page + ' / ' + pages + '</span>' +
+            '<button class="gv-pg" data-next' + (state.page >= pages ? ' disabled' : '') + '>' + esc(T.older) + '</button></div>'
           : '';
 
         root.innerHTML =
           '<div class="gv-head"><div>' +
-            '<div class="gv-kicker">The blog</div>' +
-            '<div class="gv-h" style="font-size:24px;font-weight:700">Latest articles</div>' +
-          '</div><input class="gv-search" type="search" placeholder="Search articles…" value="' + esc(state.q) + '"></div>' +
+            '<div class="gv-kicker">' + esc(T.theBlog) + '</div>' +
+            '<div class="gv-h" style="font-size:24px;font-weight:700">' + esc(T.latest) + '</div>' +
+          '</div><input class="gv-search" type="search" placeholder="' + esc(T.searchPh) + '" value="' + esc(state.q) + '"></div>' +
           '<div class="gv-chips">' + genres.map(function (g) {
-            return '<button class="gv-chip' + (state.genre === g ? ' on' : '') + '" data-genre="' + esc(g) + '">' + esc(g) + '</button>';
+            return '<button class="gv-chip' + (state.genre === g ? ' on' : '') + '" data-genre="' + esc(g) + '">' + esc(g === ALL ? T.all : g) + '</button>';
           }).join('') + '</div>' +
           featHTML + gridHTML + pagerHTML;
 
@@ -829,26 +898,27 @@
         });
         var prev = root.querySelector('[data-prev]'); if (prev) prev.addEventListener('click', function () { if (state.page > 1) { state.page--; renderList(); window.scrollTo({ top: root.getBoundingClientRect().top + window.scrollY - 20, behavior: 'smooth' }); } });
         var next = root.querySelector('[data-next]'); if (next) next.addEventListener('click', function () { if (state.page < pages) { state.page++; renderList(); window.scrollTo({ top: root.getBoundingClientRect().top + window.scrollY - 20, behavior: 'smooth' }); } });
-        var clr = root.querySelector('[data-clear]'); if (clr) clr.addEventListener('click', function () { state.q = ''; state.genre = 'All'; state.page = 1; renderList(); });
+        var clr = root.querySelector('[data-clear]'); if (clr) clr.addEventListener('click', function () { state.q = ''; state.genre = ALL; state.page = 1; renderList(); });
       }
 
       window.addEventListener('hashchange', route);
       route();
     }).catch(function () {
-      root.innerHTML = '<div class="gv-empty">Couldn\'t load the blog. Please try again later.</div>';
+      root.innerHTML = '<div class="gv-empty">' + esc(T.failed) + '</div>';
     });
   }
 
   // page through the host feed (cap 240) so search/filter/pagination is client-side
   function loadAll(host) {
-    var all = [], branding = null, blogBase = null;
+    var all = [], branding = null, blogBase = null, lang = null;
     function page(n) {
       return getJSON(api(host, '?limit=24&page=' + n)).then(function (d) {
         all = all.concat(d.posts || []);
         if (!branding) branding = d.branding || null;
         if (!blogBase) blogBase = d.blog_base || null;
+        if (!lang) lang = d.language || null;
         if (n < (d.pages || 1) && n < 10) return page(n + 1);
-        return { posts: all, branding: branding, blog_base: blogBase };
+        return { posts: all, branding: branding, blog_base: blogBase, language: lang };
       });
     }
     return page(1);
@@ -857,13 +927,14 @@
   /* ───────────────────────── legacy simple list ───────────────────────── */
   function mountFeed(root, host) {
     getJSON(api(host, '?limit=12')).then(function (d) {
+      var T = strings(d.language || initialLang(root));
       root.className = 'gv' + themeClass(root);
       applyBranding(root, d.branding);
       applyDesign(root, window, document);
       root.innerHTML =
-        '<div class="gv-kicker">From the ' + esc(d.domain || '') + ' blog</div>' +
+        '<div class="gv-kicker">' + esc(T.fromTheBlog) + (d.domain ? ' · ' + esc(d.domain) : '') + '</div>' +
         '<div class="gv-grid">' + (d.posts || []).map(function (p) {
-          return cardHTML(p, p.url || '#');
+          return cardHTML(p, p.url || '#', T);
         }).join('') + '</div>';
     }).catch(function () {});
   }

@@ -3,6 +3,7 @@ import { buildRssXml, canonicalBaseFor } from '@/lib/seo';
 import { mdToHtml } from '@/lib/markdown';
 import { stripLeadingH1 } from '@/lib/article-body';
 import { genreFor, authorFor } from '@/lib/blog-genre';
+import { languageForDomain } from '@/lib/language';
 
 export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }> }) {
   const { slug } = await ctx.params;
@@ -17,7 +18,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
     .eq('domain_id', domain.id).eq('status', 'published')
     .order('published_at', { ascending: false }).limit(50);
 
-  const author = authorFor((domain as any).site_profile, domain.hostname);
+  const lg = languageForDomain(domain);
+  const author = authorFor((domain as any).site_profile, domain.hostname, lg.code);
   const items = (posts ?? []).map((p) => ({
     slug: p.slug,
     title: p.title,
@@ -27,7 +29,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
     // Readers show the item <title> themselves — the body's own H1 would
     // print the title twice.
     contentHtml: p.body_md ? mdToHtml(stripLeadingH1(p.body_md)) : null,
-    category: genreFor((p as any).format, p.title).label,
+    category: genreFor((p as any).format, p.title, lg.code).label,
     author,
   }));
 
@@ -35,6 +37,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
     hostname: domain.hostname,
     blogSlug: slug,
     canonicalBase: canonicalBaseFor(domain),
+    inLanguage: lg.tag,
     items,
   });
   return new Response(xml, {

@@ -3,6 +3,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { runSocialAdapter } from '@/lib/pipeline/writer';
 import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
+import { languageForDomain } from '@/lib/language';
 
 export const maxDuration = 120;
 
@@ -15,7 +16,7 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   if (limited) return limited;
 
   const { id } = await ctx.params;
-  const { data: post } = await sb.from('posts').select('*, domains(site_profile)').eq('id', id).single();
+  const { data: post } = await sb.from('posts').select('*, domains(site_profile, language)').eq('id', id).single();
   if (!post) return NextResponse.json({ error: 'not found' }, { status: 404 });
   if (!post.body_md || !post.title) return NextResponse.json({ error: 'article not ready' }, { status: 400 });
 
@@ -23,7 +24,11 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   if (!profile?.business?.name) return NextResponse.json({ error: 'site profile missing — wait a moment' }, { status: 400 });
 
   try {
-    const generated = await runSocialAdapter({ title: post.title, body_md: post.body_md }, profile);
+    const generated = await runSocialAdapter(
+      { title: post.title, body_md: post.body_md },
+      profile,
+      languageForDomain((post as any).domains).code,
+    );
     // Regenerating copy must not reset the owner's per-channel opt-outs.
     const prevDisabled = (post.social as { disabled?: string[] } | null)?.disabled;
     const social = prevDisabled?.length ? { ...generated, disabled: prevDisabled } : generated;

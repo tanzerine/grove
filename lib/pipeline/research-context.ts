@@ -14,6 +14,7 @@ import { webSearch, type SearchResult } from '../search';
 import { gatherQuestions } from '../strategy/keywords';
 import { analyzeSerp, type SerpCoverage } from './serp';
 import type { SiteProfile } from './site-profile';
+import { language, type LangCode } from '../language';
 
 export type ResearchContext = {
   primary: SearchResult[];
@@ -31,7 +32,11 @@ export async function gatherContext(
   topic: string,
   profile: SiteProfile,
   targetKeyword?: string,
+  /** Publication language — the shaped queries below are written in it, so a
+   *  Korean article is researched against Korean sources it can actually cite. */
+  lang: LangCode = 'en',
 ): Promise<ResearchContext> {
+  const lg = language(lang);
   const industry = profile.business.industry ?? '';
   const audience = profile.business.target_audience ?? '';
 
@@ -42,8 +47,8 @@ export async function gatherContext(
   const [primaryTopic, primaryKw, competitor, pain, questions, serp] = await Promise.all([
     webSearch(topic, 5),
     kw && kw.toLowerCase() !== topic.toLowerCase() ? webSearch(kw, 3) : Promise.resolve([]),
-    webSearch(`best tools alternatives ${topic}`, 3),
-    webSearch(`${topic} mistakes problems pitfalls ${audience}`, 3),
+    webSearch(lg.queries.competitor(topic), 3),
+    webSearch(lg.queries.pain(topic, audience), 3),
     // Free PAA proxy — what people actually ask about this exact query.
     gatherQuestions(kw || topic, { limit: 8 }).catch(() => [] as string[]),
     // Real SERP analysis — what the live top-ranking pages cover (one advanced

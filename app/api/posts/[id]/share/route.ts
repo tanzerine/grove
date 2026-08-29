@@ -13,6 +13,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { publishToSocials } from '@/lib/social/publish';
 import { runSocialAdapter } from '@/lib/pipeline/writer';
+import { languageForDomain } from '@/lib/language';
 
 export const maxDuration = 120;
 
@@ -56,7 +57,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   let social = post.social;
   if (!social && domain.site_profile?.business?.name && post.body_md && post.title) {
     try {
-      social = await runSocialAdapter({ title: post.title, body_md: post.body_md }, domain.site_profile);
+      social = await runSocialAdapter({ title: post.title, body_md: post.body_md }, domain.site_profile, languageForDomain(domain).code);
       await supabaseAdmin().from('posts').update({ social }).eq('id', id);
     } catch { /* copy generation failing must not block the share — composeShare falls back to the title */ }
   }

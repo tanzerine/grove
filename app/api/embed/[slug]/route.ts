@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { blogPostUrl, canonicalBaseFor } from '@/lib/seo';
 import { genreFor, authorFor } from '@/lib/blog-genre';
+import { languageForDomain } from '@/lib/language';
 
 export async function GET(req: Request, ctx: { params: Promise<{ slug: string }> }) {
   const { slug } = await ctx.params;
@@ -22,11 +23,13 @@ export async function GET(req: Request, ctx: { params: Promise<{ slug: string }>
     .order('published_at', { ascending: false })
     .range((page - 1) * limit, page * limit - 1);
 
-  const author = authorFor((domain as any).site_profile, domain.hostname);
+  const lg = languageForDomain(domain);
+  const author = authorFor((domain as any).site_profile, domain.hostname, lg.code);
   const total = count ?? posts?.length ?? 0;
 
   return NextResponse.json({
     domain: domain.hostname,
+    language: lg.tag,
     page,
     pages: Math.max(1, Math.ceil(total / limit)),
     total,
@@ -35,7 +38,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ slug: string }>
       excerpt: p.meta_description,
       url: blogPostUrl(slug, p.slug, canonicalBaseFor(domain)),
       date: p.published_at,
-      genre: genreFor(p.format, p.title).label,
+      genre: genreFor(p.format, p.title, lg.code).label,
       author,
     })),
   }, { headers: { 'access-control-allow-origin': '*' } });

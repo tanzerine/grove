@@ -29,6 +29,7 @@ import { llmCall, extractJson } from '../llm';
 import type { SiteProfile } from './site-profile';
 import type { ResearchContext } from './research-context';
 import type { RepoKnowledge } from './repo-knowledge';
+import { briefLanguageRule, type LangCode } from '../language';
 
 /**
  * Marketing funnel position for this article:
@@ -109,6 +110,10 @@ export async function refineTopic(
   context: ResearchContext,
   targetKeyword?: string,
   repoKb?: RepoKnowledge | null,
+  /** Publication language of the domain — the brief's reader-facing strings
+   *  (title, hook, angle, FAQ questions) are written in it, because the writer
+   *  is told to use the title VERBATIM as the article's H1. */
+  lang: LangCode = 'en',
 ): Promise<RefinedBrief> {
   const competitorList = context.competitor.map((s) => `- ${s.title}`).join('\n') || '(none)';
   const painList = context.pain.map((s) => `- ${s.title}`).join('\n') || '(none)';
@@ -159,7 +164,8 @@ only when the topic genuinely calls for it.
 
 CRITICAL OUTPUT RULES
 - One raw JSON object. No backticks. No code fences. Plain text values.
-- All string values single-line — no embedded newlines.`;
+- All string values single-line — no embedded newlines.
+${briefLanguageRule(lang)}`;
 
   const user = `BUSINESS
 Name: ${profile.business.name}
