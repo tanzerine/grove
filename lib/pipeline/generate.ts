@@ -14,6 +14,7 @@ import { runMetered, summarize, describeCost } from '../cost-meter';
 import { evaluateDraft, composeRewriteInstructions, holdForReview, resolvePublishFloor } from './manager';
 import { toManagerDraft } from './draft-adapter';
 import { postSlug } from '../slug';
+import { languageForDomain, contentLength } from '../language';
 import { captureServer } from '../analytics/capture-server';
 import { nextPublishSlot } from '../strategy/schedule';
 import type { Strategy, PostSlot } from '../strategy/build';
@@ -189,6 +190,11 @@ async function generatePostInner(postId: string, opts: GenerateOptions = {}) {
   if (!post) throw new Error('post not found');
   const domain = (post as any).domains;
   const topic: string = post.topic ?? domain.hostname;
+  // The domain's publication language drives every downstream stage: the
+  // brief's title, the article body, what the post-processor splices in, and
+  // how the validator measures length. Rows written before migration 0037 have
+  // no column at all, which languageForDomain reads as English.
+  const lang = languageForDomain(domain);
 
   // If this post was materialized from a strategy slot, recover the slot's
   // validated target keyword so research + the refiner can aim the article at
@@ -256,7 +262,7 @@ async function generatePostInner(postId: string, opts: GenerateOptions = {}) {
     await appendLog(postId, 'research', 'start',
       `Tavily for "${topic}"${targetKeyword ? ` + keyword "${targetKeyword}"` : ''}`);
     try {
-      context = await withRetry(() => gatherContext(topic, profile, targetKeyword), 'research');
+      context = await withRetry(() => gatherContext(topic, profile, targetKeyword, lang.code), 'research');
       await appendLog(postId, 'research', 'done',
         `${context.primary.length} primary, ${context.competitor.length} competitor, ${context.pain.length} pain` +
         `${context.serp.subtopics.length ? `, ${context.serp.subtopics.length} SERP subtopics` : ''}`);
@@ -264,7 +270,8 @@ async function generatePostInner(postId: string, opts: GenerateOptions = {}) {
 
     await appendLog(postId, 'topic_refiner', 'start', 'picking angle + title');
     try {
-      brief = await withRetry(() => refineTopic(topic, profile, context, targetKeyword, repoKb), 'topic_refiner');
+      brief = await withRetry(
+        () => refineTopic(topic, profile, context, targetKeyword, repoKb, lang.code), 'topic_refiner');
       await appendLog(postId, 'topic_refiner', 'done', `${brief.format}: ${brief.title}`);
     } catch (e) { await failAt(postId, 'topic_refiner', e, keepLive); return; }
 
@@ -293,13 +300,14 @@ async function generatePostInner(postId: string, opts: GenerateOptions = {}) {
       sources_provided: [],
     };
     await appendLog(postId, 'writer', 'done',
-      `${writer.blog_post.split(/\s+/).length} words (reused draft)`);
+      `${contentLength(writer.blog_post, lang)} ${lang.length.unitLabel} (reused draft)`);
   } else {
     await appendLog(postId, 'writer', 'start', `drafting ${brief.format}`);
     try {
       writer = await withRetry(
-        () => runWriter({ brief, profile, context, kb, hostname: domain.hostname }), 'writer');
-      await appendLog(postId, 'writer', 'done', `${writer.blog_post.split(/\s+/).length} words`);
+        () => runWriter({ brief, profile, context, kb, hostname: domain.hostname, lang: lang.code }), 'writer');
+      await appendLog(postId, 'writer', 'done',
+        `${contentLength(writer.blog_post, lang)} ${lang.length.unitLabel}`);
     } catch (e) { await failAt(postId, 'writer', e, keepLive); return; }
 
     if (!writer.blog_post || writer.blog_post.length < 200) {
@@ -330,7 +338,7 @@ async function generatePostInner(postId: string, opts: GenerateOptions = {}) {
     // withRetry like every other model call — a transient provider blip (E004
     // "temporarily unavailable") shouldn't leave a good draft ungraded.
     evaluation = await withRetry(() => evaluateDraft({
-      attempt: 1, brief, strategy, slot, draft: toManagerDraft(writer),
+      attempt: 1, brief, strategy, slot, draft: toManagerDraft(writer), lang: lang.code,
     }), 'manager');
     await persistEvaluation(postId, strategy?.id ?? null, 1, evaluation);
     await appendLog(postId, 'manager', 'done',
@@ -339,12 +347,12 @@ async function generatePostInner(postId: string, opts: GenerateOptions = {}) {
     if (!reuseDraft && evaluation.action === 'rewrite') {
       await appendLog(postId, 'writer', 'start', `rewrite — applying manager notes`);
       writer = await runWriter({
-        brief, profile, context, kb, hostname: domain.hostname,
+        brief, profile, context, kb, hostname: domain.hostname, lang: lang.code,
         managerNotes: composeRewriteInstructions(evaluation),
         previousDraft: writer.blog_post,
       });
       await appendLog(postId, 'writer', 'done',
-        `${writer.blog_post.split(/\s+/).length} words (rewrite)`);
+        `${contentLength(writer.blog_post, lang)} ${lang.length.unitLabel} (rewrite)`);
       // Persist the rewritten draft too, for the same resume reason.
       await sb.from('posts').update({
         body_md: writer.blog_post,
@@ -353,7 +361,7 @@ async function generatePostInner(postId: string, opts: GenerateOptions = {}) {
       }).eq('id', postId);
 
       evaluation = await withRetry(() => evaluateDraft({
-        attempt: 2, brief, strategy, slot, draft: toManagerDraft(writer),
+        attempt: 2, brief, strategy, slot, draft: toManagerDraft(writer), lang: lang.code,
       }), 'manager');
       await persistEvaluation(postId, strategy?.id ?? null, 2, evaluation);
       await appendLog(postId, 'manager', 'done',
@@ -378,6 +386,7 @@ async function generatePostInner(postId: string, opts: GenerateOptions = {}) {
   const researchText = [...context.primary, ...context.competitor, ...context.pain]
     .map((s) => `${s.title} ${s.snippet}`).join('\n');
   const validation = validatePost(writer.blog_post, {
+    lang: lang.code,
     title,
     intent: brief.marketing_intent,
     serpSubtopics: context.serp.subtopics,
@@ -391,9 +400,11 @@ async function generatePostInner(postId: string, opts: GenerateOptions = {}) {
       issues: (evaluation.issues ?? []).filter((i) => i.severity !== 'note').map((i) => `${i.rule}: ${i.note}`),
     };
   }
-  // CJK/emoji-only titles produce no ASCII — fall back to post-{id8} so the
-  // article never publishes at the blog-home URL with an empty slug.
-  const slug = postSlug(title, postId);
+  // CJK/emoji-only titles produce no ASCII — fall back to the writer's ASCII
+  // slug hint (asked for in CJK languages, so the URL still carries keywords)
+  // and then to post-{id8}, so the article never publishes at the blog-home
+  // URL with an empty slug.
+  const slug = postSlug(title, postId, writer.slug_hint);
 
   // Autopilot ships unless something is actually WRONG (see holdForReview) —
   // fatal signals only, not "could be better." The score bar is per-domain

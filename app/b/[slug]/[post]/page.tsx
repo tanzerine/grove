@@ -7,7 +7,8 @@ import { extractFaq } from '@/lib/faq';
 import { jsonLdScript, blogHomeUrl, blogPostUrl, subdomainSlugFromHost, isCustomBlogHost, canonicalBaseFor, servedBlogBaseFor, buildArticleGraph } from '@/lib/seo';
 import { pickRelated } from '@/lib/related-posts';
 import { injectInternalLinks } from '@/lib/internal-links';
-import { genreFor, authorFor } from '@/lib/blog-genre';
+import { genreFor, authorFor, authorIsOrg } from '@/lib/blog-genre';
+import { languageForDomain, readMinutes, contentLength } from '@/lib/language';
 import { blogThemeVars, resolveBranding } from '@/lib/blog-theme';
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
@@ -130,16 +131,21 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   // Share buttons and JSON-LD must spread THAT url, not the mirror's.
   const pageUrl = blogPostUrl(slug, post, canonicalBaseFor(domain));
   const credit = (p as any).cover_image_credit as { name?: string; profile_url?: string } | null;
-  const author = authorFor(profile, domain.hostname);
-  const genre = genreFor((p as any).format, p.title);
-  const readMin = Math.max(1, Math.round((p.body_md ?? '').split(/\s+/).length / 225));
+  // Publication language: the byline, the genre chip, every piece of chrome
+  // below, the reading time (characters per minute, not words, for CJK) and
+  // the lang attribute on <main> all come from it.
+  const lg = languageForDomain(domain);
+  const t = lg.ui;
+  const author = authorFor(profile, domain.hostname, lg.code);
+  const genre = genreFor((p as any).format, p.title, lg.code);
+  const readMin = readMinutes(p.body_md ?? '', lg);
   // A refresh rewrites the article at the same URL and keeps published_at
   // pointing at first publication, so this byline is the only place a reader
   // can see the facts were brought up to date. Suppressed when it lands on the
   // publish date itself, where it would just repeat the line before it.
   const updatedAt = (p as any).updated_at as string | null;
   const updatedLabel = updatedAt && updatedAt.slice(0, 10) !== (p.published_at ?? '').slice(0, 10)
-    ? ` · Updated ${new Date(updatedAt).toLocaleDateString()}`
+    ? t.updated(new Date(updatedAt).toLocaleDateString(lg.locale))
     : '';
   const shareX = `https://twitter.com/intent/tweet?text=${encodeURIComponent(p.title ?? '')}&url=${encodeURIComponent(pageUrl)}`;
   const shareLi = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(pageUrl)}`;
@@ -159,21 +165,22 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
     businessName,
     homeUrl,
     authorName: author,
-    authorIsOrg: author.endsWith('Team'),
+    authorIsOrg: authorIsOrg(profile),
     genreLabel: genre.label,
-    wordCount: (p.body_md ?? '').split(/\s+/).filter(Boolean).length,
+    wordCount: contentLength(p.body_md ?? '', lg),
+    inLanguage: lg.tag,
     faqs,
     canonicalBase: canonicalBaseFor(domain),
   });
 
   return (
-    <main className="post-shell" style={themeStyle}>
+    <main className="post-shell" lang={lg.tag} style={themeStyle}>
       <div id="rp" className="read-progress" aria-hidden />
       {/* Was `← {hostname}`, which was this page's only navigation and pointed
           at the blog index while being labelled with the site — the nav in the
           layout now carries the way back to the site itself, so this can say
           what it actually does. */}
-      <a href={prefix || '/'} className="mono" style={{ fontSize: 12, color: 'var(--moss)' }}>← All articles</a>
+      <a href={prefix || '/'} className="mono" style={{ fontSize: 12, color: 'var(--moss)' }}>{t.allArticles}</a>
 
       <div className="post-grid" style={{ marginTop: 18 }}>
         <div className="post-main">
@@ -183,7 +190,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
               {genre.label}
             </span>
             <p className="mono" style={{ color: 'var(--clay)', fontSize: 12, margin: 0 }}>
-              By {author} · {new Date(p.published_at!).toLocaleDateString()}{updatedLabel} · {readMin} min read
+              {t.by(author)} · {new Date(p.published_at!).toLocaleDateString(lg.locale)}{updatedLabel} · {t.readTime(readMin)}
             </p>
           </div>
 
@@ -200,7 +207,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
               />
               {credit?.name && (
                 <figcaption className="mono" style={{ fontSize: 11, color: 'var(--clay)', marginTop: 6 }}>
-                  Image: {credit.profile_url
+                  {t.imageCredit}: {credit.profile_url
                     ? <a href={credit.profile_url} target="_blank" rel="noopener noreferrer">{credit.name}</a>
                     : credit.name}
                 </figcaption>
@@ -220,25 +227,25 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
 
           {/* "Try {business}" banner — links where the owner points it, tracked as a conversion */}
           <aside className="cta-banner">
-            <div className="cta-kicker">Powered by {businessName}</div>
-            <h3>Try {businessName}</h3>
+            <div className="cta-kicker">{t.poweredBy(businessName)}</div>
+            <h3>{t.tryBusiness(businessName)}</h3>
             {subline && <p>{subline}</p>}
             <a className="cta-btn" href={ctaUrl} target="_blank" rel="noopener noreferrer" data-conv>
-              Visit {businessName} →
+              {t.visitBusiness(businessName)}
             </a>
           </aside>
 
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 26, flexWrap: 'wrap' }}>
-            <span className="mono" style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--clay)' }}>Share</span>
+            <span className="mono" style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--clay)' }}>{t.share}</span>
             <a className="share-btn" href={shareX} target="_blank" rel="noopener noreferrer">X / Twitter</a>
             <a className="share-btn" href={shareLi} target="_blank" rel="noopener noreferrer">LinkedIn</a>
-            <button className="share-btn" id="cpy" data-url={pageUrl} type="button">Copy link</button>
+            <button className="share-btn" id="cpy" data-url={pageUrl} data-copied={t.copied} type="button">{t.copyLink}</button>
           </div>
 
           {related.length > 0 && (
             <section style={{ marginTop: 36 }} aria-label="Related articles">
               <div className="mono" style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--clay)', marginBottom: 12 }}>
-                Keep reading
+                {t.keepReading}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
                 {related.map((rp) => (
@@ -263,7 +270,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
 
         {toc.length >= 2 && (
           <aside className="toc-rail" aria-label="Table of contents">
-            <div className="toc-title">On this page</div>
+            <div className="toc-title">{t.onThisPage}</div>
             <ol>
               {toc.map((item, i) => (
                 <li key={`${item.id}-${i}`} className={item.level === 3 ? 'lvl3' : undefined}>
@@ -285,7 +292,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
         dangerouslySetInnerHTML={{
           __html:
             `(function(){var b=document.getElementById('rp');if(b){addEventListener('scroll',function(){var h=document.documentElement;var m=h.scrollHeight-h.clientHeight;b.style.width=(m>0?h.scrollTop/m*100:0)+'%';},{passive:true});}` +
-            `var c=document.getElementById('cpy');if(c){c.addEventListener('click',function(){if(!navigator.clipboard)return;navigator.clipboard.writeText(c.getAttribute('data-url')).then(function(){var t=c.textContent;c.textContent='Copied ✓';setTimeout(function(){c.textContent=t;},1600);});});}})();`,
+            `var c=document.getElementById('cpy');if(c){c.addEventListener('click',function(){if(!navigator.clipboard)return;navigator.clipboard.writeText(c.getAttribute('data-url')).then(function(){var t=c.textContent;c.textContent=c.getAttribute('data-copied')||'Copied';setTimeout(function(){c.textContent=t;},1600);});});}})();`,
         }}
       />
     </main>

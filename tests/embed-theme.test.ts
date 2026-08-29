@@ -117,7 +117,9 @@ describe('stylesheet theming contract', () => {
     expect(base).toContain('--gv-on-accent:#fff');
     expect(dark).toContain('--gv-on-accent:');
     expect(SRC).toContain('.gv-chip.on{background:var(--gv-accent);color:var(--gv-on-accent)');
-    expect(SRC).toContain('background:var(--gv-accent);color:var(--gv-on-accent)">★ Featured');
+    // The featured badge's label is per-language now (STRINGS.*.featured), so
+    // this pins the pairing, not the English word that used to follow it.
+    expect(SRC).toContain(`background:var(--gv-accent);color:var(--gv-on-accent)">' + esc(T.featured)`);
   });
 });
 

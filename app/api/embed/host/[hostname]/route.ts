@@ -10,6 +10,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import { blogPostUrl, sanitizeEmbedHost, appBase, canonicalBaseFor } from '@/lib/seo';
 import { embedSeoStatus } from '@/lib/embed-seo';
 import { genreFor, authorFor } from '@/lib/blog-genre';
+import { languageForDomain } from '@/lib/language';
 import { brandingPayload, resolveBranding } from '@/lib/blog-theme';
 import { resolveBlogDomain } from '@/lib/blog-domain';
 
@@ -63,11 +64,16 @@ export async function GET(req: Request, ctx: { params: Promise<{ hostname: strin
     .order('published_at', { ascending: false })
     .range((page - 1) * limit, page * limit - 1);
 
-  const author = authorFor((domain as any).site_profile, domain.hostname);
+  const lg = languageForDomain(domain);
+  const author = authorFor((domain as any).site_profile, domain.hostname, lg.code);
   const total = count ?? posts?.length ?? 0;
 
   return NextResponse.json({
     domain: domain.hostname,
+    // The blog's language. embed.js renders its own chrome ("Latest articles",
+    // "min read", the search box) and has no other way to know which language
+    // the cards it is about to draw are written in.
+    language: lg.tag,
     page,
     pages: Math.max(1, Math.ceil(total / limit)),
     total,
@@ -95,7 +101,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ hostname: strin
       // Kept for back-compat; the embed falls back to a sensible default. Not
       // computed from the body anymore (see the select note above).
       read_minutes: null,
-      genre: genreFor(p.format, p.title).label,
+      genre: genreFor(p.format, p.title, lg.code).label,
       author,
     })),
   }, {

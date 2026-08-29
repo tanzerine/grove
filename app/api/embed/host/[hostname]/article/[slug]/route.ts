@@ -7,7 +7,8 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { mdToHtml, extractToc } from '@/lib/markdown';
 import { stripLeadingH1, stripLeadingCoverImage } from '@/lib/article-body';
-import { genreFor, authorFor } from '@/lib/blog-genre';
+import { genreFor, authorFor, authorIsOrg } from '@/lib/blog-genre';
+import { languageForDomain, contentLength, type Language } from '@/lib/language';
 import { pickRelated } from '@/lib/related-posts';
 import { sanitizeEmbedHost, buildArticleGraph, canonicalBaseFor } from '@/lib/seo';
 import { crawlableArticleUrl } from '@/lib/embed-seo';
@@ -67,6 +68,10 @@ export async function GET(_req: Request, ctx: { params: Promise<{ hostname: stri
 
   // Enrich the payload so the TOC + "Try {business}" CTA show on the customer's
   // own site (which renders what we return here, not Grove's hosted page).
+  // Everything this route hands back — the CTA copy, the TOC heading, the
+  // chrome inside `html` — is chrome the customer renders verbatim, so it has
+  // to speak the language the article is written in.
+  const lg = languageForDomain(domain);
   const business = (domain as any).site_profile?.business ?? null;
   const businessName: string = business?.name || domain.hostname.replace(/^www\./, '');
   const subline: string = business?.value_props?.[0] || business?.description || '';
@@ -89,7 +94,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ hostname: stri
     post.cover_image_url,
   );
   const toc = extractToc(rawBody);
-  const cta = { headline: `Try ${businessName}`, subline, url: ctaUrl };
+  const cta = { headline: lg.ui.tryBusiness(businessName), subline, url: ctaUrl };
 
   // Siblings for "Keep reading" — returned as structured data so the customer
   // can link to their own article URLs rather than grove's hosted pages.
@@ -107,16 +112,16 @@ export async function GET(_req: Request, ctx: { params: Promise<{ hostname: stri
   // show them (fallback). html: a self-contained, responsive 2-column layout
   // (article + sticky right rail + polished CTA) — render THIS field to get the
   // true sidebar with no CSS work on the customer's side.
-  const enrichedBody = enrichBody(rawBody, { toc, cta, businessName, theme });
-  const html = buildHtmlField(rawBody, toc, cta, businessName, theme);
+  const enrichedBody = enrichBody(rawBody, { toc, cta, businessName, theme, lang: lg });
+  const html = buildHtmlField(rawBody, toc, cta, businessName, theme, lg);
 
   // The head signals for the in-page hash reader. A fragment can never be its
   // own indexable URL, so when embed.js opens an article it points rel=canonical
   // at the crawlable copy (the customer's own base when they have one, grove's
   // mirror otherwise) and injects the same Article @graph the hosted page emits.
   // It's the one piece of SEO a script CAN deliver, and it costs one field here.
-  const author = authorFor((domain as any).site_profile, domain.hostname);
-  const genre = genreFor((post as any).format, post.title);
+  const author = authorFor((domain as any).site_profile, domain.hostname, lg.code);
+  const genre = genreFor((post as any).format, post.title, lg.code);
   const canonicalUrl = crawlableArticleUrl(domain, post.slug);
   const jsonLd = buildArticleGraph({
     hostname: domain.hostname,
@@ -130,15 +135,17 @@ export async function GET(_req: Request, ctx: { params: Promise<{ hostname: stri
     businessName,
     homeUrl,
     authorName: author,
-    authorIsOrg: author.endsWith('Team'),
+    authorIsOrg: authorIsOrg((domain as any).site_profile),
     genreLabel: genre.label,
-    wordCount: (post.body_md ?? '').split(/\s+/).filter(Boolean).length,
+    wordCount: contentLength(post.body_md ?? '', lg),
+    inLanguage: lg.tag,
     faqs: extractFaq(post.body_md ?? ''),
     canonicalBase: canonicalBaseFor(domain),
   });
 
   return NextResponse.json({
     domain: domain.hostname,
+    language: lg.tag,               // BCP-47 — set it on the element you render `html` into
     article: {
       post_id: post.id,                  // for first-party analytics beacons
       domain_id: domain.id,              // (pairs with post_id when posting to /api/track)
@@ -187,7 +194,7 @@ function esc(s: string): string {
  * string on their own page without embed.js resolves the fallbacks and sees
  * exactly what they see today.
  */
-function tocHtml(toc: Toc[]): string {
+function tocHtml(toc: Toc[], lang: Language): string {
   const items = toc.map((t) =>
     `<li style="margin:${t.level === 3 ? '3px 0 3px 18px' : '5px 0'}">` +
     `<a href="#${esc(t.id)}" style="color:var(--gv-ink,#3a4a3f);text-decoration:none">${esc(t.text)}</a></li>`,
@@ -197,19 +204,19 @@ function tocHtml(toc: Toc[]): string {
   // --gv-surface, not --gv-raise: only the surface properties are themed by
   // data-theme alone; --gv-raise exists only once embed.js has measured a page.
   return `<div style="margin:10px 0 30px;padding:22px 26px;border:1px solid var(--gv-line,#e6e2d6);border-radius:var(--gv-radius,14px);background:var(--gv-surface,#faf9f5)">` +
-    `<div style="font-family:var(--gv-label-font,ui-monospace,monospace);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--gv-muted,#7a8a7d);margin-bottom:12px">Table of contents</div>` +
+    `<div style="font-family:var(--gv-label-font,ui-monospace,monospace);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--gv-muted,#7a8a7d);margin-bottom:12px">${esc(lang.ui.tableOfContents)}</div>` +
     `<ol style="margin:0;padding-left:20px;font-size:15px;line-height:1.6;color:var(--gv-ink,#3a4a3f)">${items}</ol></div>`;
 }
 
 type Cta = { headline: string; subline: string; url: string };
 
 /** Polished, self-contained CTA box (dark gradient card + pill button), inline-styled. */
-function ctaHtml(cta: Cta, name: string, theme: EmbedTheme): string {
+function ctaHtml(cta: Cta, name: string, theme: EmbedTheme, lang: Language): string {
   return `<div style="clear:both;margin:48px 0 8px;padding:40px 36px;border-radius:18px;background:linear-gradient(135deg,${theme.bannerFrom},${theme.bannerTo});color:${theme.bannerText};text-align:center;box-shadow:0 12px 40px rgba(20,20,20,.18)">` +
-    `<div style="font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:${theme.bannerMuted}">Powered by ${esc(name)}</div>` +
+    `<div style="font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:${theme.bannerMuted}">${esc(lang.ui.poweredBy(name))}</div>` +
     `<div style="font-size:27px;font-weight:700;line-height:1.2;margin:10px 0 8px;color:${theme.bannerText}">${esc(cta.headline)}</div>` +
     (cta.subline ? `<p style="color:${theme.bannerMuted};font-size:15.5px;line-height:1.6;margin:0 auto 22px;max-width:48ch">${esc(cta.subline)}</p>` : '') +
-    `<a href="${esc(cta.url)}" data-conv style="display:inline-block;background:${theme.btn};color:${theme.btnText};text-decoration:none;padding:14px 30px;border-radius:999px;font-weight:700;font-size:15px;box-shadow:0 6px 18px rgba(20,20,20,.25)">Visit ${esc(name)} &rarr;</a></div>`;
+    `<a href="${esc(cta.url)}" data-conv style="display:inline-block;background:${theme.btn};color:${theme.btnText};text-decoration:none;padding:14px 30px;border-radius:999px;font-weight:700;font-size:15px;box-shadow:0 6px 18px rgba(20,20,20,.25)">${esc(lang.ui.visitBusiness(name))}</a></div>`;
 }
 
 /**
@@ -226,13 +233,13 @@ function ctaHtml(cta: Cta, name: string, theme: EmbedTheme): string {
  * which is the right assumption for a consumer with no measured page and the
  * wrong one everywhere embed.js has already done better.
  */
-function buildHtmlField(rawBody: string, toc: Toc[], cta: Cta, name: string, theme: EmbedTheme): string {
+function buildHtmlField(rawBody: string, toc: Toc[], cta: Cta, name: string, theme: EmbedTheme, lang: Language): string {
   // rawBody already has its leading H1 stripped — the customer's page renders
   // the title from the `title` field.
   const article = mdToHtml(rawBody);
   const hasToc = toc.length >= 2;
   const tocAside = hasToc
-    ? `<aside class="grv-toc"><div class="grv-toc-t">On this page</div><ol>` +
+    ? `<aside class="grv-toc"><div class="grv-toc-t">${esc(lang.ui.onThisPage)}</div><ol>` +
       toc.map((t) => `<li class="${t.level === 3 ? 'grv-l3' : ''}"><a href="#${esc(t.id)}">${esc(t.text)}</a></li>`).join('') +
       `</ol></aside>`
     : '';
@@ -254,9 +261,9 @@ function buildHtmlField(rawBody: string, toc: Toc[], cta: Cta, name: string, the
     `@media(max-width:820px){.grv-wrap{grid-template-columns:1fr}.grv-toc{display:none}}` +
     `</style>`;
   const ctaBox =
-    `<div class="grv-cta"><div class="k">Powered by ${esc(name)}</div><h3>${esc(cta.headline)}</h3>` +
+    `<div class="grv-cta"><div class="k">${esc(lang.ui.poweredBy(name))}</div><h3>${esc(cta.headline)}</h3>` +
     (cta.subline ? `<p>${esc(cta.subline)}</p>` : '') +
-    `<a href="${esc(cta.url)}" data-conv>Visit ${esc(name)} &rarr;</a></div>`;
+    `<a href="${esc(cta.url)}" data-conv>${esc(lang.ui.visitBusiness(name))}</a></div>`;
   return `<div class="grv-root">${style}<div class="grv-wrap"><div class="grv-body">${article}</div>${tocAside}</div>${ctaBox}</div>`;
 }
 
@@ -267,13 +274,13 @@ function buildHtmlField(rawBody: string, toc: Toc[], cta: Cta, name: string, the
  */
 function enrichBody(
   bodyMd: string,
-  opts: { toc: Toc[]; cta: { headline: string; subline: string; url: string }; businessName: string; theme: EmbedTheme },
+  opts: { toc: Toc[]; cta: { headline: string; subline: string; url: string }; businessName: string; theme: EmbedTheme; lang: Language },
 ): string {
-  const { toc, cta, businessName, theme } = opts;
+  const { toc, cta, businessName, theme, lang } = opts;
   let body = bodyMd;
 
   if (toc.length >= 2) {
-    const block = tocHtml(toc);
+    const block = tocHtml(toc, lang);
     const lines = body.split('\n');
     let at = 0;
     const h1 = lines.findIndex((l) => /^#\s/.test(l));
@@ -285,5 +292,5 @@ function enrichBody(
     body = lines.join('\n');
   }
 
-  return `${body}\n\n${ctaHtml(cta, businessName, theme)}\n`;
+  return `${body}\n\n${ctaHtml(cta, businessName, theme, lang)}\n`;
 }

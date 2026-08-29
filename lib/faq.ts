@@ -12,9 +12,20 @@
  * app/ (the /b article page) and trivial to unit-test.
  */
 
+import { faqHeadingPattern } from './language';
+
 export type FaqPair = { question: string; answer: string };
 
-const FAQ_HEADING = /\b(faq|faqs|frequently asked|common questions|q\s*&\s*a)\b/i;
+/**
+ * Which H2 headings open a FAQ section — in EVERY supported language, not just
+ * the domain's own. A body is a body: matching only the configured language
+ * would leave a Korean article's 자주 묻는 질문 unseen and let the post-processor
+ * staple a second, English "## FAQ" underneath it.
+ *
+ * `\b` is useless against CJK (there is no word boundary between 자주 and 묻는),
+ * so the ASCII alternatives keep their boundaries and the rest match as-is.
+ */
+const FAQ_HEADING = faqHeadingPattern();
 
 /** Strip inline markdown to clean text for schema / counting. */
 function stripMd(s: string): string {

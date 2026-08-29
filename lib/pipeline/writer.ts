@@ -15,6 +15,7 @@ import type { SiteProfile } from './site-profile';
 import type { ResearchContext } from './research-context';
 import { flatSources } from './research-context';
 import type { RefinedBrief, MarketingIntent } from './topic-refiner';
+import { language, writerLanguageRules, type LangCode } from '../language';
 
 /**
  * Per-intent marketing rules block. The funnel position decides whether
@@ -66,6 +67,13 @@ export type WriterOutput = {
   meta_title: string;
   meta_description: string;
   sources_provided: { url: string; title: string }[];
+  /**
+   * ASCII slug the model supplies for CJK articles. A Korean or Chinese title
+   * slugifies to nothing at all (lib/slug.ts strips to `[a-z0-9]`), so every
+   * such article would otherwise publish at `post-{id8}` with no keyword in
+   * its URL. Absent for Latin-script languages, which slug fine from the title.
+   */
+  slug_hint?: string;
 };
 
 export async function runWriter(opts: {
@@ -74,10 +82,14 @@ export async function runWriter(opts: {
   context: ResearchContext;
   kb?: string;
   hostname?: string;
+  /** Publication language of the domain (lib/language.ts). Default 'en'. */
+  lang?: LangCode;
   managerNotes?: string;       // present on rewrite passes
   previousDraft?: string;       // present on rewrite passes
 }): Promise<WriterOutput> {
   const { brief, profile, context, kb = '', hostname, managerNotes, previousDraft } = opts;
+  const lg = language(opts.lang);
+  const [lenLo, lenHi] = lg.length.target;
   const { business, voice } = profile;
   const homeUrl = hostname ? `https://${hostname.replace(/^https?:\/\//, '').replace(/\/$/, '')}` : '';
   const sources = flatSources(context);
@@ -194,7 +206,7 @@ E-E-A-T RULES (not optional)
 - TRUSTWORTHINESS: include 1+ honest hedge ("but it depends…", "this won't work if…")
 
 ANSWER-ENGINE OPTIMIZATION (AEO/GEO — how AI search & featured snippets pick you up)
-- TL;DR: right after the opening hook (before the first H2), add a line "**Key takeaways**"
+- TL;DR: right after the opening hook (before the first H2), add a line "**${lg.labels.takeaways}**"
   followed by 3–5 tight bullets, each ≤ 15 words, stating the article's ACTUAL conclusions —
   the lines a reader (or an AI assistant) could quote standalone. Be specific
   ("Paper filters trap oils, so the cup tastes cleaner"), never a teaser ("we'll explore taste").
@@ -204,10 +216,10 @@ ANSWER-ENGINE OPTIMIZATION (AEO/GEO — how AI search & featured snippets pick y
 - STAT DENSITY: include at least 2 concrete, checkable numbers (a year, a count, a %, a
   measured result), each with its inline source link. Specific cited stats are what AI
   engines actually quote.
-- FAQ: end the article with a section headed exactly "## FAQ". Answer EACH reader question
+- FAQ: end the article with a section headed exactly "## ${lg.labels.faq}". Answer EACH reader question
   from the brief as a "### <question>" heading followed by a tight 40–80 word answer that
   resolves it directly and stands alone. 2–4 Q&As.
-- If the marketing rules call for a closing CTA paragraph, it goes RIGHT BEFORE "## FAQ"
+- If the marketing rules call for a closing CTA paragraph, it goes RIGHT BEFORE "## ${lg.labels.faq}"
   so the FAQ stays the final section.
 - Stay informational, not salesy, in the body — answer engines demote promotional tone.
   (The brand placement is already specified in the marketing rules; don't add more.)
@@ -228,8 +240,8 @@ STRUCTURE
 - inline \`code\` for product names / technical terms
 
 LENGTH (non-negotiable)
-- 900–1400 words for the main body, PLUS the short FAQ (2–4 Q&As). A draft under
-  800 words will be auto-rejected as thin.
+- ${lenLo}–${lenHi} ${lg.length.unitLabel} for the main body, PLUS the short FAQ (2–4 Q&As).
+  A draft under ${lg.length.floor} is flagged as thin.
   Don't pad — go deeper: more concrete detail per section, not more sections.
 
 NEVER SEND THE READER ELSEWHERE
@@ -257,20 +269,24 @@ DO NOT
 
 ${qualityRulesPrompt()}
 
+${writerLanguageRules(lg)}
+
 ${kb ? `CUSTOMER KNOWLEDGE BASE (weave specific details from this):\n${kb}\n` : ''}
 
 OUTPUT FORMAT — exact delimiters, nothing else:
 
 ---BLOG_POST---
-[the article — open with the hook line, # heading is the brief's title, 900–1400 words, ending with the ## FAQ section]
+[the article — open with the hook line, # heading is the brief's title, ${lenLo}–${lenHi} ${lg.length.unitLabel}, ending with the ## ${lg.labels.faq} section]
 ---KEY_TAKEAWAYS---
-[the same 3–5 "Key takeaways" bullets from the article, one "- " bullet per line, each ≤ 15 words]
+[the same 3–5 "${lg.labels.takeaways}" bullets from the article, one "- " bullet per line, each ≤ 15 words]
 ---FAQ---
 [the same FAQ from the article: each Q&A as a "### <question>" heading followed by its 40–80 word answer]
 ---META_TITLE---
 [the brief's title verbatim]
 ---META_DESCRIPTION---
-[under 155 chars — capture the promise]`;
+[under 155 chars — capture the promise]${lg.script === 'cjk' ? `
+---SLUG---
+[the URL slug: lowercase ASCII English keywords, hyphen-separated, 3-8 words, no ${lg.nativeName} characters]` : ''}`;
 
   const rewriteBlock = managerNotes && previousDraft
     ? `\n\nMANAGER REWRITE — this is round 2. Apply the notes surgically; keep what works.\n${managerNotes}\n\nPREVIOUS DRAFT (edit this — don't restart from scratch):\n${previousDraft.slice(0, 9000)}\n`
@@ -308,14 +324,15 @@ Deliver the article now. Open with the hook line verbatim. Use the title as your
     businessName: business.name,
     hostname,
     intent: brief.marketing_intent,
+    lang: lg.code,
   });
   // AEO safety net — models routinely skip the in-body "Key takeaways" and FAQ
   // (0 of the first 28 published posts had takeaways, 1 had a FAQ, despite the
   // prompt demanding both). They follow OUTPUT delimiters far more reliably, so
   // we collect the blocks as sections and splice them in when the body lacks
   // them; the CTA is already in place, so the FAQ still lands last.
-  body = ensureTakeaways(body, parsed.key_takeaways);
-  body = ensureFaqSection(body, parsed.faq);
+  body = ensureTakeaways(body, parsed.key_takeaways, lg.code);
+  body = ensureFaqSection(body, parsed.faq, lg.code);
 
   // Title already computed above (canonical, forced onto the H1).
   // Prefer a usable model description; otherwise fall back to the strongest
@@ -332,7 +349,24 @@ Deliver the article now. Open with the hook line verbatim. Use the title as your
     meta_title: title,
     meta_description: metaDesc,
     sources_provided: sources.map((s) => ({ url: s.url, title: s.title })),
+    slug_hint: cleanSlugHint(parsed.slug),
   };
+}
+
+/**
+ * The model's ASCII slug suggestion, sanitized to the same alphabet postSlug
+ * produces. Returns undefined when it gave nothing usable (or answered in the
+ * article's own script, which is exactly the case this field exists to avoid)
+ * — the caller then falls back to the id-derived slug.
+ */
+function cleanSlugHint(raw: string | undefined): string | undefined {
+  const cleaned = (raw ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80)
+    .replace(/-+$/, '');
+  return cleaned.length >= 3 ? cleaned : undefined;
 }
 
 function parseSections(text: string) {
@@ -354,6 +388,7 @@ function parseSections(text: string) {
     faq: out['faq'] ?? '',
     meta_title: out['meta_title'] ?? '',
     meta_description: out['meta_description'] ?? '',
+    slug: out['slug'] ?? '',
   };
 }
 
@@ -400,8 +435,12 @@ export function parseSocialOutput(text: string): SocialOutput {
 export async function runSocialAdapter(
   article: { title: string; body_md: string },
   profile: SiteProfile,
+  /** Language of the article — the posts are written in it too. A Korean
+   *  article promoted by an English tweet reads as a different company. */
+  lang: LangCode = 'en',
 ): Promise<SocialOutput> {
   const { business, voice } = profile;
+  const lg = language(lang);
   const system = `You adapt articles into native social posts. Voice: ${voice.persona}. ${voice.tone}.`;
 
   // Task + format spec live in the USER prompt (the manager's proven pattern):
@@ -415,11 +454,13 @@ ${article.body_md.slice(0, 8000)}
 TASK: Adapt the article above into native posts for X and LinkedIn.
 Each platform gets its own treatment — no copy-paste between them.
 Write for ${business.name}'s audience: ${business.target_audience}.
+${lg.code === 'en' ? '' : `Write BOTH posts in ${lg.englishName} (${lg.nativeName}) — the same language as the article. Not English, not bilingual.
+`}
 
 Return JSON only — no prose before or after it:
 {
-  "x": "ONE single tweet — NOT a thread. A sharp hook plus the article's core insight, on one line. HARD LIMIT: under 200 characters (under 100 if writing in Korean/CJK — X counts those double). No numbering, no thread emoji, no URL — the article link is appended automatically",
-  "linkedin": "1500–2200 chars, story-led, line breaks every 1–2 sentences, no hashtag spam, end with a question"
+  "x": "ONE single tweet — NOT a thread. A sharp hook plus the article's core insight, on one line. HARD LIMIT: under ${lg.script === 'cjk' ? 100 : 200} characters${lg.script === 'cjk' ? ' — X counts CJK characters double' : ''}. No numbering, no thread emoji, no URL — the article link is appended automatically",
+  "linkedin": "${lg.script === 'cjk' ? '700–1100' : '1500–2200'} chars, story-led, line breaks every 1–2 sentences, no hashtag spam, end with a question"
 }`;
   const { text } = await llmCall({ system, user, json: true, maxTokens: 3000 });
   const out = parseSocialOutput(text);

@@ -18,6 +18,7 @@ import { BANNED_PHRASES, phraseBoundaryRe } from './quality-rules';
 import type { SearchResult } from '../search';
 import { extractTakeaways } from '../takeaways';
 import { extractFaq } from '../faq';
+import { language, takeawaysLabelPattern, faqHeadingPattern, type LangCode } from '../language';
 
 const REPLACEMENTS: Record<string, string> = {
   elevate: 'lift',
@@ -224,9 +225,11 @@ export function ensureHomepageCta(
     businessName: string;
     hostname?: string;
     intent?: 'editorial' | 'contextual' | 'conversion';
+    /** Language of the article — decides the fallback CTA sentence. */
+    lang?: LangCode;
   },
 ): string {
-  const { businessName, hostname, intent = 'contextual' } = opts;
+  const { businessName, hostname, intent = 'contextual', lang = 'en' } = opts;
   if (intent === 'editorial') return body;
   if (!hostname || !businessName) return body;
 
@@ -276,12 +279,16 @@ export function ensureHomepageCta(
   // AND a verb that suggests next-step framing.
   const paras = next.trim().split(/\n{2,}/);
   const tail = paras.slice(-2).join('\n\n');
+  // A non-English tail can't be sniffed for English next-step verbs — the link
+  // in the last two paragraphs IS the signal there. Appending a second,
+  // translated CTA under a perfectly good one is the worse failure.
   const hasClosingCta =
     new RegExp(`https?://(?:www\\.)?${escapedHost}`, 'i').test(tail) &&
-    /\b(open|generate|sketch|ship|bake|build|launch|design|prototype|explore)\b/i.test(tail);
+    (lang !== 'en' ||
+      /\b(open|generate|sketch|ship|bake|build|launch|design|prototype|explore)\b/i.test(tail));
 
   if (!hasClosingCta) {
-    const cta = `\n\nIf this is the kind of work you're shipping, that's the gap we built [${businessName}](https://${host}) to close — open it the next time you hit this wall.\n`;
+    const cta = `\n\n${language(lang).ctaSentence(businessName, `https://${host}`)}\n`;
     next = next.trimEnd() + cta;
   }
 
@@ -316,16 +323,24 @@ export function capCitations(body: string, max = 4): string {
  * normalized to "- item" form; fewer than 2 usable bullets → no-op (a fake
  * one-line TL;DR is worse than none).
  */
-export function ensureTakeaways(body: string, sectionMd?: string | null): string {
+export function ensureTakeaways(
+  body: string,
+  sectionMd?: string | null,
+  lang: LangCode = 'en',
+): string {
   if (extractTakeaways(body).length > 0) return body;
+  const label = language(lang).labels.takeaways;
+  const labelLine = takeawaysLabelPattern();
   const bullets = (sectionMd ?? '')
     .split('\n')
     .map((l) => l.match(/^\s*(?:[-*+]|\d+[.)])\s+(.*\S)\s*$/)?.[1])
-    .filter((s): s is string => !!s && !/^key takeaways/i.test(s))
+    // the model sometimes repeats the label as its own first bullet — in any
+    // language, since the label it was given is the domain's, not English's.
+    .filter((s): s is string => !!s && !labelLine.test(s))
     .slice(0, 5);
   if (bullets.length < 2) return body;
 
-  const block = `**Key takeaways**\n\n${bullets.map((b) => `- ${b}`).join('\n')}`;
+  const block = `**${label}**\n\n${bullets.map((b) => `- ${b}`).join('\n')}`;
   const lines = body.split('\n');
   let inFence = false;
   for (let i = 0; i < lines.length; i++) {
@@ -345,17 +360,23 @@ export function ensureTakeaways(body: string, sectionMd?: string | null): string
  * `### ` heading. Appending keeps the prompt's contract that FAQ is the final
  * section (any closing CTA paragraph lands right before it).
  */
-export function ensureFaqSection(body: string, sectionMd?: string | null): string {
+export function ensureFaqSection(
+  body: string,
+  sectionMd?: string | null,
+  lang: LangCode = 'en',
+): string {
   if (extractFaq(body).length > 0) return body;
   const raw = (sectionMd ?? '').trim();
   if (!raw) return body;
 
+  const heading = language(lang).labels.faq;
+  const repeatedHeading = new RegExp(`^#{1,6}\\s*(?:${faqHeadingPattern().source})\\s*$`, 'gim');
   const content = raw
-    .replace(/^#{1,6}\s*faqs?\s*$/gim, '')                    // model repeated the FAQ heading
+    .replace(repeatedHeading, '')                             // model repeated the FAQ heading
     .replace(/^#{1,6}\s+/gm, '### ')                          // every remaining heading is a question
     .replace(/^(?:\*\*)?Q(?:uestion)?[:.]\s*(.+?)(?:\*\*)?\s*$/gim, '### $1')
     .trim();
-  const candidate = `${body.trimEnd()}\n\n## FAQ\n\n${content}\n`;
+  const candidate = `${body.trimEnd()}\n\n## ${heading}\n\n${content}\n`;
   // Only ship it if the result actually parses as Q&As — otherwise the section
   // would be schema-less noise at the end of the article.
   return extractFaq(candidate).length >= 1 ? candidate : body;

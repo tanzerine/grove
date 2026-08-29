@@ -8,6 +8,9 @@ import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
 import type { SiteProfile } from '@/lib/pipeline/site-profile';
 import { enforceEntitlement } from '@/lib/billing';
 import { consumeQuota, releaseQuota, exhaustedMessage } from '@/lib/quota';
+import { languageForDomain } from '@/lib/language';
+import { randomUUID } from 'crypto';
+import { postSlug } from '@/lib/slug';
 
 export const maxDuration = 300;
 
@@ -21,8 +24,15 @@ const body = z.object({
   })).min(1).max(12),
 });
 
-function slugify(s: string) {
-  return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
+/**
+ * Page slug. Delegates to the pipeline's own slugger so a title with no ASCII
+ * (every Korean or Chinese pSEO title, now that the set is generated in the
+ * blog's language) falls back to a unique `post-{id}` instead of an empty
+ * string — which collided on `posts (domain_id, slug)` and failed the insert
+ * for every page after the first.
+ */
+function slugify(title: string, keyword: string) {
+  return postSlug(title, randomUUID().replace(/-/g, ''), keyword);
 }
 
 // Generate the previewed set: one lean page per spec, each routed to review.
@@ -46,10 +56,11 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: 'invalid' }, { status: 400 });
 
   const { data: domain } = await sb
-    .from('domains').select('id, site_profile').eq('id', parsed.data.domain_id).single();
+    .from('domains').select('id, site_profile, language').eq('id', parsed.data.domain_id).single();
   if (!domain) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
   const profile = (domain as any).site_profile as SiteProfile | null;
+  const lang = languageForDomain(domain).code;
   if (!profile?.business?.name) {
     return NextResponse.json({ error: 'no_profile' }, { status: 409 });
   }
@@ -82,13 +93,13 @@ export async function POST(req: Request) {
 
   for (const spec of parsed.data.pages as PseoPageSpec[]) {
     try {
-      const content = await generateProgrammaticPage(profile, spec);
+      const content = await generateProgrammaticPage(profile, spec, lang);
       const { data, error } = await admin.from('posts').insert({
         domain_id: parsed.data.domain_id,
         status: 'review',
         topic: spec.keyword,
         title: spec.title,
-        slug: slugify(spec.title),
+        slug: slugify(spec.title, spec.keyword),
         body_md: content.body_md,
         meta_title: content.meta_title,
         meta_description: content.meta_description,

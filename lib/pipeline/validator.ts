@@ -3,6 +3,7 @@ import { extractFaq } from '../faq';
 import { extractTakeaways } from '../takeaways';
 import { coverageGap } from './serp';
 import { findUnsupportedClaims } from './claims';
+import { language, contentLength, splitSentences, type LangCode } from '../language';
 
 export type Validation = { passed: boolean; issues: string[]; stats: Record<string, number> };
 
@@ -41,9 +42,13 @@ export type ValidateOpts = {
   title?: string;
   /** Funnel position — gates CTA / brand-link expectations. */
   intent?: 'editorial' | 'contextual' | 'conversion';
-  /** Word-count floor. Drafts under this are flagged THIN. Default 800. */
+  /** Language the draft was written in. Decides the unit length is measured
+   *  in (words vs characters), the sentence terminators, and what counts as
+   *  first-person experience. Default 'en'. */
+  lang?: LangCode;
+  /** Length floor, in the language's own unit. Defaults to the language's. */
   wordFloor?: number;
-  /** Word-count ceiling. Default 1900 (body + a short FAQ). */
+  /** Length ceiling, in the language's own unit. Defaults to the language's. */
   wordCeiling?: number;
   /** Consensus subtopics from SERP analysis — flagged if the draft skips them. */
   serpSubtopics?: string[];
@@ -81,7 +86,9 @@ function norm(s: string): string {
 export function validatePost(post: string, opts: ValidateOpts = {}): Validation {
   const issues: string[] = [];
   const lower = post.toLowerCase();
-  const { intent, wordFloor = 800, wordCeiling = 1900 } = opts;
+  const lang = language(opts.lang);
+  const { intent, wordFloor = lang.length.floor, wordCeiling = lang.length.ceiling } = opts;
+  const [targetLo, targetHi] = lang.length.target;
 
   // whole-phrase only — "robustness"/"underscored" must not flag as banned
   for (const p of BANNED_PHRASES) if (phraseBoundaryRe(p).test(post)) issues.push(`BANNED_PHRASE: '${p}'`);
@@ -89,14 +96,17 @@ export function validatePost(post: string, opts: ValidateOpts = {}): Validation 
   const em = (post.match(/—/g) || []).length;
   if (em > 2) issues.push(`EM_DASH_OVERUSE: ${em} (max 2)`);
 
-  const sents = post.split(/(?<=[.!?])\s+/).filter((s) => s.trim());
+  // Sentence splitting and "short" are both per-language: Chinese ends
+  // sentences with 。 and never a space, and a 12-WORD yardstick reads a whole
+  // Korean paragraph as one long sentence.
+  const sents = splitSentences(post, lang);
   if (sents.length) {
-    const wc = sents.map((s) => s.split(/\s+/).length);
-    const shortPct = (wc.filter((w) => w < 12).length / sents.length) * 100;
+    const len = sents.map((s) => contentLength(s, lang));
+    const shortPct = (len.filter((w) => w < lang.shortSentence).length / sents.length) * 100;
     if (shortPct < 30) issues.push(`LOW_SENTENCE_VARIETY: ${shortPct.toFixed(0)}% short sentences (target 40%+)`);
   }
 
-  if (!/\bI (tried|tested|ran|saw|noticed|found|built|used)\b/.test(post))
+  if (!lang.firstPerson.test(post))
     issues.push('MISSING_EXPERIENCE: no first-person experience line');
 
   const citations = (post.match(/\[[^\]]+\]\(https?:\/\/[^\)]+\)/g) || []).length;
@@ -107,19 +117,20 @@ export function validatePost(post: string, opts: ValidateOpts = {}): Validation 
   for (const s of RECYCLED_STATS) if (lower.includes(s.toLowerCase())) issues.push(`RECYCLED_STAT: '${s}'`);
 
   // ── word-count gate: thin posts are the #1 quality failure observed ──────
-  const wordCount = post.split(/\s+/).filter(Boolean).length;
-  if (wordCount < wordFloor) issues.push(`THIN_CONTENT: ${wordCount} words (floor ${wordFloor}, target 900–1400)`);
-  if (wordCount > wordCeiling) issues.push(`OVERLONG: ${wordCount} words (ceiling ${wordCeiling})`);
+  const unit = lang.length.unitLabel;
+  const wordCount = contentLength(post, lang);
+  if (wordCount < wordFloor) issues.push(`THIN_CONTENT: ${wordCount} ${unit} (floor ${wordFloor}, target ${targetLo}–${targetHi})`);
+  if (wordCount > wordCeiling) issues.push(`OVERLONG: ${wordCount} ${unit} (ceiling ${wordCeiling})`);
 
   // ── FAQ section: powers FAQPage schema + AI-answer extraction (AEO/GEO) ──
   const faqs = extractFaq(post);
   if (faqs.length < 2)
-    issues.push(`MISSING_FAQ: ${faqs.length} Q&A pairs under a "## FAQ" heading (target 2–4 — drives FAQ schema + AI answers)`);
+    issues.push(`MISSING_FAQ: ${faqs.length} Q&A pairs under a "## ${lang.labels.faq}" heading (target 2–4 — drives FAQ schema + AI answers)`);
 
   // ── Key takeaways: the extractable TL;DR that AI engines + snippets quote ──
   const takeaways = extractTakeaways(post);
   if (takeaways.length < 3)
-    issues.push(`MISSING_KEY_TAKEAWAYS: ${takeaways.length} bullets under a "Key takeaways" intro (target 3–5 — extractable summary for AI + snippets)`);
+    issues.push(`MISSING_KEY_TAKEAWAYS: ${takeaways.length} bullets under a "${lang.labels.takeaways}" intro (target 3–5 — extractable summary for AI + snippets)`);
 
   // ── SERP coverage gap: consensus subtopics the ranking pages cover but we don't ──
   const serpGap = coverageGap(opts.serpSubtopics ?? [], post);

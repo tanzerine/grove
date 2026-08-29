@@ -191,6 +191,8 @@ export function buildRssXml(opts: {
   hostname: string;
   blogSlug: string;
   canonicalBase?: string | null;
+  /** BCP-47 tag for <language>. Defaults to 'en' — see lib/language.ts. */
+  inLanguage?: string;
   items: {
     slug: string | null;
     title?: string | null;
@@ -240,7 +242,7 @@ export function buildRssXml(opts: {
 <link>${escapeXml(blogUrl)}</link>
 <atom:link href="${escapeXml(`${blogHomeUrl(blogSlug)}/rss.xml`)}" rel="self" type="application/rss+xml"/>
 <description>${escapeXml(`Articles by ${hostname}`)}</description>
-<language>en</language>
+<language>${escapeXml(opts.inLanguage ?? 'en')}</language>
 <lastBuildDate>${lastBuild}</lastBuildDate>
 ${xmlItems}
 </channel>

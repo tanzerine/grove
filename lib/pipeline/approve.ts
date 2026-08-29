@@ -12,6 +12,7 @@ import { ensurePostSlug } from '../post-slug';
 import { publishToSocials } from '../social/publish';
 import { runSocialAdapter } from './writer';
 import { captureServer } from '../analytics/capture-server';
+import { languageForDomain } from '../language';
 
 export async function approveAndPublish(
   sb: SupabaseClient,
@@ -51,7 +52,7 @@ export async function approveAndPublish(
       let social = (post as any).social;
       if (!social && domain.site_profile?.business?.name && (post as any).body_md && (post as any).title) {
         try {
-          social = await runSocialAdapter({ title: (post as any).title, body_md: (post as any).body_md }, domain.site_profile);
+          social = await runSocialAdapter({ title: (post as any).title, body_md: (post as any).body_md }, domain.site_profile, languageForDomain(domain).code);
           await supabaseAdmin().from('posts').update({ social }).eq('id', id);
         } catch { /* composeShare falls back to the title */ }
       }

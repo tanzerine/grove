@@ -147,6 +147,26 @@ DM that offers them a beta code. `/dashboard/admin/outreach`.
   The 403 message differs depending on whether we were authenticated, because
   "get credentials" is the wrong advice for someone who already has them.
 
+**Publication language** (0037) — `domains.language` (`en | ko | es | zh`,
+default `en`) is the single input, and `lib/language.ts` is the single source
+for every consequence: the writer/refiner/manager prompt fragments, the research
+queries (a Korean article is researched against Korean sources), the scaffold
+labels the post-processor splices in (`핵심 요약` / `## 자주 묻는 질문`, never a
+translated variant — the extractors in `lib/takeaways.ts` and `lib/faq.ts` match
+every language's labels so a correct article never gets a second, English
+section stapled on), the fallback CTA sentence, the genre labels and byline, the
+`inLanguage`/`<html lang>`/RSS `<language>` tags, and the reader chrome on the
+hosted blog + `embed.js` (which gets `language` in the feed payload and mirrors
+the string table itself — a static script on someone else's page can't import
+`lib/`). **Length is measured in the language's own unit**: words for Latin
+scripts, non-space characters for CJK, because `split(/\s+/)` reads a full
+Chinese article as a few dozen "words" and a correct Korean one as thin. CJK
+titles can't slugify, so the writer returns an ASCII `slug_hint` that
+`postSlug(title, id, hint)` uses. The owner picks the language on
+`/dashboard/voice`; existing posts are never retranslated. Adding a language is
+one entry in `LANGUAGES` plus one line in the migration's CHECK — **only `en`
+and `ko` have been exercised end to end**; `es`/`zh` are wired but unproven.
+
 Other key surfaces:
 - `lib/agent-brief.ts` — plain-English weekly brief on the dashboard home.
 - `lib/seo.ts` — **single source for every public blog URL** (`blogHomeUrl`,

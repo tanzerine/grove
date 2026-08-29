@@ -15,6 +15,7 @@ import { llmCall, extractJson } from '../llm';
 import { rubricPromptBlock } from './manager-rubric';
 import type { RefinedBrief } from './topic-refiner';
 import type { Strategy, Pillar, PostSlot } from '../strategy/build';
+import { language, type LangCode } from '../language';
 
 export type EvaluationIssue = {
   rule: string;           // rubric rule id
@@ -43,6 +44,9 @@ export type ManagerInput = {
   draft: { body_md: string; meta_title: string; meta_description: string };
   strategy?: Strategy | null;
   slot?: PostSlot | null;       // the publishing_plan slot this article was meant to fill
+  /** Language the draft was commissioned in. Without it the editor grades a
+   *  Korean article against an English rubric and flags correct work. */
+  lang?: LangCode;
 };
 
 /** The bar the WRITER is pushed to hit: on attempt 1, an approved draft scoring
@@ -147,6 +151,7 @@ export function missingAxes(raw: any, hasStrategy: boolean): string[] {
 
 export async function evaluateDraft(input: ManagerInput): Promise<Evaluation> {
   const { attempt, brief, draft, strategy, slot } = input;
+  const lg = language(input.lang);
   const pillar = slot && strategy
     ? strategy.pillars.find((p) => p.id === slot.pillar_id) ?? null
     : null;
@@ -190,7 +195,19 @@ You provide the four axis scores; the SYSTEM computes the weighted overall — s
 just rate the axes accurately, don't compute an overall yourself.
 
 OUTPUT: ONE raw JSON object, no preamble, no markdown.
-
+${lg.code === 'en' ? '' : `
+LANGUAGE — this blog publishes in ${lg.englishName} (${lg.nativeName}), and the draft
+is correct to be written in it. Write your OWN output (issue notes, rewrite_brief,
+reject_reason) in English — it is read by the operator, not the reader. Judge the
+draft as a native ${lg.englishName} editor would:
+- Craft means natural ${lg.englishName} prose. Translationese, English sentence rhythm,
+  and over-formal register are craft FAILURES worth flagging.
+- The rubric's English-specific yardsticks (word counts per sentence, English
+  conjunction openers, banned English phrases) do not apply. Judge their intent.
+- The takeaways lead-in should read "${lg.labels.takeaways}" and the FAQ heading
+  "## ${lg.labels.faq}". An English heading in a ${lg.englishName} article is an issue.
+- Do NOT flag the article for not being in English.
+`}
 RUBRIC
 ${rubricPromptBlock()}`;
 

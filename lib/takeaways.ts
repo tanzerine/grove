@@ -7,10 +7,13 @@
  * what wins list-style featured snippets. This pulls the bullets back out so
  * the validator can confirm they're there.
  *
- * Pure + dependency-free so it's safe to import anywhere and easy to unit-test.
+ * Label matching is language-aware (lib/language.ts) — a Korean article's
+ * "핵심 요약" block is a takeaways block.
  */
+import { takeawaysLabelPattern } from './language';
 
-const LABEL = /^\s*(?:#{2,4}\s*|\*\*\s*|__\s*)?(?:key takeaways|takeaways|tl;?dr|the short version|in short)\b/i;
+/** The takeaways lead-in in every supported language (see lib/language.ts). */
+const LABEL = takeawaysLabelPattern();
 const BULLET = /^\s*(?:[-*+]|\d+[.)])\s+(.*\S)\s*$/;
 
 function stripMd(s: string): string {

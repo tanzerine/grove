@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { jsonLdScript, blogHomeUrl, blogPostUrl, subdomainSlugFromHost, isCustomBlogHost, canonicalBaseFor, servedBlogBaseFor } from '@/lib/seo';
-import { genreFor, authorFor, type Genre } from '@/lib/blog-genre';
+import { genreFor, authorFor, authorIsOrg, type Genre } from '@/lib/blog-genre';
+import { languageForDomain, type Language } from '@/lib/language';
 import { blogThemeVars, fallbackPalette, resolveBranding } from '@/lib/blog-theme';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -75,7 +76,9 @@ export default async function BlogIndex({
   const host = (await headers()).get('host');
   const onBlogHost = !!subdomainSlugFromHost(host) || isCustomBlogHost(host, domain);
   const prefix = onBlogHost ? '' : `/b/${slug}`;
-  const author = authorFor((domain as any).site_profile, domain.hostname);
+  const lg = languageForDomain(domain);
+  const t = lg.ui;
+  const author = authorFor((domain as any).site_profile, domain.hostname, lg.code);
 
   // Customer palette (manual override wins over crawl): retints --moss (chips,
   // card hovers, featured badge, tags) and drives the coverless-card fallback
@@ -91,7 +94,7 @@ export default async function BlogIndex({
   // genres present across the whole catalog → filter chips
   const genreById = new Map<string, Genre>();
   for (const p of all) {
-    const g = genreFor(p.format, p.title);
+    const g = genreFor(p.format, p.title, lg.code);
     if (!genreById.has(g.id)) genreById.set(g.id, g);
   }
 
@@ -158,19 +161,20 @@ export default async function BlogIndex({
           headline: p.title,
           url: blogPostUrl(slug, p.slug!, ldBase),
           datePublished: p.published_at ?? undefined,
-          author: { '@type': author.endsWith('Team') ? 'Organization' : 'Person', name: author },
+          author: { '@type': authorIsOrg((domain as any).site_profile) ? 'Organization' : 'Person', name: author },
+          inLanguage: lg.tag,
         })),
       },
     ],
   };
 
   return (
-    <main className="wrap" style={{ maxWidth: 1080, padding: 'clamp(28px, 6vw, 54px) clamp(16px, 3vw, 28px) 80px', ...themeStyle }}>
+    <main className="wrap" lang={lg.tag} style={{ maxWidth: 1080, padding: 'clamp(28px, 6vw, 54px) clamp(16px, 3vw, 28px) 80px', ...themeStyle }}>
       {/* header: title left, search top-right */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 24, flexWrap: 'wrap' }}>
         <div>
-          <h1 className="display" style={{ fontSize: 'clamp(30px, 6.5vw, 48px)', margin: 0, overflowWrap: 'anywhere' }}>The {domain.hostname} blog</h1>
-          <p className="lede" style={{ marginTop: 8 }}>Grown by grove. Updated on autopilot.</p>
+          <h1 className="display" style={{ fontSize: 'clamp(30px, 6.5vw, 48px)', margin: 0, overflowWrap: 'anywhere' }}>{t.blogTitle(domain.hostname)}</h1>
+          <p className="lede" style={{ marginTop: 8 }}>{t.tagline}</p>
         </div>
         <form method="GET" action={prefix || '/'} style={{ display: 'flex', gap: 8 }}>
           {tag && <input type="hidden" name="tag" value={tag} />}
@@ -178,18 +182,18 @@ export default async function BlogIndex({
             type="search"
             name="q"
             defaultValue={q}
-            placeholder="Search articles…"
-            aria-label="Search articles"
+            placeholder={`${t.search}…`}
+            aria-label={t.search}
             className="blog-search"
           />
-          <button type="submit" className="btn btn-ghost btn-sm">Search</button>
+          <button type="submit" className="btn btn-ghost btn-sm">{t.searchButton}</button>
         </form>
       </div>
 
       {/* genre filter chips */}
       {genreById.size > 1 && (
         <div style={{ display: 'flex', gap: 8, marginTop: 26, flexWrap: 'wrap' }}>
-          <Chip href={mk({ tag: '', page: 1 })} active={!tag}>All</Chip>
+          <Chip href={mk({ tag: '', page: 1 })} active={!tag}>{t.allGenres}</Chip>
           {Array.from(genreById.values()).map((g) => (
             <Chip key={g.id} href={mk({ tag: g.id, page: 1 })} active={tag === g.id}>{g.label}</Chip>
           ))}
@@ -201,14 +205,14 @@ export default async function BlogIndex({
         <Link href={`${prefix}/${featured.slug}`} className="feat-card">
           <div style={{ flex: '1 1 55%', padding: '32px 34px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <span className="mono" style={{ fontSize: 10, letterSpacing: '0.12em', background: 'var(--moss)', color: 'white', borderRadius: 999, padding: '3px 10px' }}>FEATURED</span>
-              <GenreTag genre={genreFor(featured.format, featured.title)} />
+              <span className="mono" style={{ fontSize: 10, letterSpacing: '0.12em', background: 'var(--moss)', color: 'white', borderRadius: 999, padding: '3px 10px' }}>{t.featured}</span>
+              <GenreTag genre={genreFor(featured.format, featured.title, lg.code)} />
             </div>
             <h2 style={{ fontFamily: 'Inter', fontSize: 32, lineHeight: 1.12, margin: '14px 0 0' }}>{featured.title}</h2>
             {featured.meta_description && (
               <p style={{ color: 'var(--clay)', fontSize: 15, lineHeight: 1.6, margin: '10px 0 0' }}>{featured.meta_description}</p>
             )}
-            <Byline author={author} date={featured.published_at} reads={featured.reads} />
+            <Byline author={author} date={featured.published_at} reads={featured.reads} lang={lg} />
           </div>
           {featured.cover_image_url
             ? <Image src={featured.cover_image_url} alt="" width={750} height={500} sizes="(max-width: 700px) 100vw, 45vw" priority className="feat-media" />
@@ -219,12 +223,12 @@ export default async function BlogIndex({
       {/* article grid — 9 per page */}
       {pageItems.length === 0 ? (
         <p style={{ marginTop: 40, color: 'var(--clay)' }}>
-          {q || tag ? <>No articles match{q ? <> “{q}”</> : null}. <Link href={mk({ q: '', tag: '', page: 1 })} style={{ color: 'var(--moss)' }}>Clear filters</Link></> : 'No articles yet.'}
+          {q || tag ? <>{t.noMatch}{q ? <> “{q}”</> : null}. <Link href={mk({ q: '', tag: '', page: 1 })} style={{ color: 'var(--moss)' }}>{t.clearFilters}</Link></> : t.noResults}
         </p>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 18, marginTop: 28 }}>
           {pageItems.map((p) => {
-            const g = genreFor(p.format, p.title);
+            const g = genreFor(p.format, p.title, lg.code);
             return (
               <Link key={p.slug} href={`${prefix}/${p.slug}`} className="bi-card">
                 {p.cover_image_url
@@ -239,7 +243,7 @@ export default async function BlogIndex({
                     </p>
                   )}
                   <div style={{ marginTop: 'auto' }}>
-                    <Byline author={author} date={p.published_at} />
+                    <Byline author={author} date={p.published_at} lang={lg} />
                   </div>
                 </div>
               </Link>
@@ -252,12 +256,12 @@ export default async function BlogIndex({
       {pages > 1 && (
         <nav aria-label="Pages" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 14, marginTop: 44 }}>
           {current > 1
-            ? <Link href={mk({ page: current - 1 })} className="pagenav-link">← Newer</Link>
-            : <span className="pagenav-link off">← Newer</span>}
-          <span className="mono" style={{ fontSize: 12, color: 'var(--clay)' }}>Page {current} / {pages}</span>
+            ? <Link href={mk({ page: current - 1 })} className="pagenav-link">{t.newer}</Link>
+            : <span className="pagenav-link off">{t.newer}</span>}
+          <span className="mono" style={{ fontSize: 12, color: 'var(--clay)' }}>{t.pageOf(current, pages)}</span>
           {current < pages
-            ? <Link href={mk({ page: current + 1 })} className="pagenav-link">Older →</Link>
-            : <span className="pagenav-link off">Older →</span>}
+            ? <Link href={mk({ page: current + 1 })} className="pagenav-link">{t.older}</Link>
+            : <span className="pagenav-link off">{t.older}</span>}
         </nav>
       )}
 
@@ -294,10 +298,13 @@ function GenreTag({ genre }: { genre: Genre }) {
   );
 }
 
-function Byline({ author, date, reads }: { author: string; date: string | null; reads?: number | null }) {
+function Byline(
+  { author, date, reads, lang }:
+  { author: string; date: string | null; reads?: number | null; lang: Language },
+) {
   return (
     <p className="mono" style={{ fontSize: 11.5, color: 'var(--clay)', margin: '14px 0 0' }}>
-      By {author}{date ? ` · ${new Date(date).toLocaleDateString()}` : ''}{reads && reads > 0 ? ` · ${reads} reads` : ''}
+      {lang.ui.by(author)}{date ? ` · ${new Date(date).toLocaleDateString(lang.locale)}` : ''}{reads && reads > 0 ? ` · ${lang.ui.reads(reads)}` : ''}
     </p>
   );
 }
