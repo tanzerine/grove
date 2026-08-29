@@ -11,7 +11,7 @@ import { z } from 'zod';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { appBase, blogHomeUrl, blogPostUrl, canonicalBaseFor, normalizeCanonicalBase, buildArticleGraph } from '@/lib/seo';
 import { crawlableArticleUrl } from '@/lib/embed-seo';
-import { authorFor, genreFor } from '@/lib/blog-genre';
+import { authorFor, genreFor, authorIsOrg } from '@/lib/blog-genre';
 import { extractFaq } from '@/lib/faq';
 import { orFilter, queryTokens, searchPosts, type SearchablePost } from '@/lib/post-search';
 import { trafficSources, engagement, funnel, type EventRow } from '@/lib/analytics/aggregate';
@@ -22,9 +22,10 @@ import { integrationGuide } from './guide';
 import { hasScope } from './keys';
 import { toolByName } from './tools';
 import type { McpContext } from './auth';
+import { languageForDomain, contentLength } from '../language';
 
 const DOMAIN_COLUMNS =
-  'id,hostname,blog_slug,canonical_blog_base,custom_blog_hostname,site_profile,cta_url,verified_at';
+  'id,hostname,blog_slug,canonical_blog_base,custom_blog_hostname,site_profile,cta_url,verified_at,language';
 
 const POST_CARD_COLUMNS =
   'id,slug,title,topic,status,meta_description,published_at,updated_at,scheduled_at,created_at,cover_image_url,format:research->brief->>format';
@@ -85,8 +86,8 @@ function contentPostFrom(post: any, domain: DomainRow): ContentPost {
     updated_at: post.updated_at,
     cover_image_url: post.cover_image_url,
     cover_image_credit: post.cover_image_credit,
-    author: authorFor(domain.site_profile, domain.hostname),
-    genre: genreFor(post.format, post.title).label,
+    author: authorFor(domain.site_profile, domain.hostname, languageForDomain(domain).code),
+    genre: genreFor(post.format, post.title, languageForDomain(domain).code).label,
     // Where grove itself considers this article canonical: the customer's own
     // base once they have one, grove's mirror until then. Same answer the embed
     // gives, from the same helper — the imported file must not disagree with
@@ -103,7 +104,7 @@ function cardFor(post: any, domain: DomainRow, delivered?: { external_url: strin
     title: post.title,
     status: post.status,
     description: post.meta_description ?? null,
-    genre: genreFor(post.format, post.title).label,
+    genre: genreFor(post.format, post.title, languageForDomain(domain).code).label,
     published_at: post.published_at ?? null,
     updated_at: post.updated_at ?? null,
     cover: post.cover_image_url ?? null,
@@ -121,7 +122,10 @@ function cardFor(post: any, domain: DomainRow, delivered?: { external_url: strin
 function jsonLdFor(post: any, domain: DomainRow) {
   const business = domain.site_profile?.business ?? null;
   const hostname = String(domain.hostname).replace(/^https?:\/\//, '').replace(/\/$/, '');
-  const author = authorFor(domain.site_profile, domain.hostname);
+  // Same language the hosted page and the embed use — a customer rendering
+  // this @graph must not declare English over a Korean article.
+  const lg = languageForDomain(domain);
+  const author = authorFor(domain.site_profile, domain.hostname, lg.code);
   return buildArticleGraph({
     hostname: domain.hostname,
     blogSlug: domain.blog_slug ?? '',
@@ -134,9 +138,10 @@ function jsonLdFor(post: any, domain: DomainRow) {
     businessName: business?.name || hostname,
     homeUrl: `https://${hostname}`,
     authorName: author,
-    authorIsOrg: author.endsWith('Team'),
-    genreLabel: genreFor(post.format, post.title).label,
-    wordCount: (post.body_md ?? '').split(/\s+/).filter(Boolean).length,
+    authorIsOrg: authorIsOrg(domain.site_profile),
+    genreLabel: genreFor(post.format, post.title, lg.code).label,
+    wordCount: contentLength(post.body_md ?? '', lg),
+    inLanguage: lg.tag,
     faqs: extractFaq(post.body_md ?? ''),
     canonicalBase: canonicalBaseFor(domain as any),
   });
