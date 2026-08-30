@@ -69,7 +69,7 @@ export default async function Page() {
 
   return (
     <>
-      <DashHeader title={t('Content API')} subtitle="grove's articles, inside the blog you already run" />
+      <DashHeader title={t('Content API')} subtitle={t("grove's articles, inside the blog you already run")} />
       <div className="gv-body">
         <p style={{ fontSize: 14, color: 'var(--gv-dim)', lineHeight: 1.6, margin: '0 0 22px', maxWidth: 640 }}>
           Already have a content layer — MDX in a repo, a CMS, your own pipeline? Connect your coding agent to grove

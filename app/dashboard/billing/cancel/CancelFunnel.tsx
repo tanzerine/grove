@@ -98,7 +98,7 @@ export default function CancelFunnel({ reasons, plan }: { reasons: RefundReason[
           <h2 style={Title}>{t('What could we have done better?')}</h2>
           <p style={Sub}>{t('Optional, but the most useful thing you can leave us.')}</p>
           <textarea value={feedback} onChange={(e) => setFeedback(e.target.value)} rows={4}
-            placeholder="The one thing that would've made Grove worth keeping…" style={textArea} maxLength={2000} />
+            placeholder={t("The one thing that would've made Grove worth keeping…")} style={textArea} maxLength={2000} />
           <label style={{ display: 'block', fontSize: 13.5, color: 'var(--gv-dim)', margin: '18px 0 7px' }}>
             {t('What would bring you back?')}
           </label>

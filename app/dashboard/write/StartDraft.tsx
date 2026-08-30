@@ -269,7 +269,7 @@ export default function StartDraft({ domainId, hostname, runs, onQueued, onDismi
         <div>
           <div style={desc}>{t('Give a seed term — grove drafts one focused page per real search, into your pipeline.')}</div>
           <input value={seed} onChange={(e) => setSeed(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && seed.trim().length >= 2 && previewSet()}
-            placeholder="Seed term — e.g. 'cold brew'" className="gv-prompt" style={field} />
+            placeholder={t("Seed term — e.g. 'cold brew'")} className="gv-prompt" style={field} />
           <div style={{ display: 'flex', gap: 8 }}>
             <select value={count} onChange={(e) => setCount(Number(e.target.value))} aria-label={t('Number of pages')}
               style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '9px 10px', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 12, cursor: 'pointer' }}>

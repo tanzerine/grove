@@ -76,8 +76,13 @@ function unwrapped(): Finding[] {
     // A JSX text node: `>  Some words here  <` with no braces inside, so
     // anything already wrapped in {t('…')} is skipped by construction.
     for (const m of src.matchAll(/>\s*([A-Za-z][^<>{}\n]{3,200}?)\s*</g)) push(m[1]);
-    // User-facing attributes. A `{t('…')}` value starts with `{` and is skipped.
-    for (const m of src.matchAll(/(?:placeholder|aria-label|title|alt)=(["'])([^"'{][^"']{3,200}?)\1/g)) push(m[2]);
+    // User-facing attributes. Each quote style is matched separately so the
+    // OTHER quote may appear inside the value: the first version of this
+    // forbade both, and silently skipped every placeholder containing an
+    // apostrophe — "What should the picture show? (blank = …you're in)" among
+    // them. A checker that quietly matches nothing is worse than no checker.
+    for (const m of src.matchAll(/(?:placeholder|aria-label|title|alt)="([^"{][^"]{2,200}?)"/g)) push(m[1]);
+    for (const m of src.matchAll(/(?:placeholder|aria-label|title|alt)='([^'{][^']{2,200}?)'/g)) push(m[1]);
   }
   return found;
 }
@@ -104,5 +109,9 @@ describe('no unwrapped English in the customer dashboard', () => {
     expect(isProse("m.role === 'user' ? (")).toBe(false);   // code, not copy
     expect(isProse('results.length && (')).toBe(false);
     expect(decode('didn&apos;t')).toBe("didn't");
+    // The regression that let real placeholders through: an apostrophe inside
+    // a double-quoted attribute value.
+    const withApostrophe = `placeholder="What should it show? (you're in)"`;
+    expect([...withApostrophe.matchAll(/placeholder="([^"{][^"]{2,200}?)"/g)]).toHaveLength(1);
   });
 });
