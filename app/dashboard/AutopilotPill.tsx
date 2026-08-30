@@ -1,11 +1,13 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useT } from './i18n';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
 
 export default function AutopilotPill({ domainId, autoPublish }: { domainId?: string; autoPublish: boolean }) {
+  const t = useT();
   const r = useRouter();
   const [on, setOn] = useState(autoPublish);
   const [saving, setSaving] = useState(false);
@@ -39,7 +41,7 @@ export default function AutopilotPill({ domainId, autoPublish }: { domainId?: st
         {/* ACCENT_INK, not ACCENT — solid lime on the pill's own pale-lime wash
             measures ~1.1:1, the dot all but vanishes into its own background. */}
         <span style={{ width: 7, height: 7, borderRadius: '50%', background: on ? ACCENT_INK : 'var(--gv-faint)', animation: on ? 'gvPulse 2.4s ease-in-out infinite' : 'none' }} />
-        {on ? 'Autopilot on' : 'Autopilot off'}
+        {on ? t('Autopilot on') : t('Autopilot off')}
       </button>
       {blocked && (
         <div role="status" onClick={() => setBlocked(null)}

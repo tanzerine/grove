@@ -13,6 +13,7 @@ import { pipelineCounts } from '@/lib/pipeline/counts';
 import DashShell from './DashShell';
 import ActivityPing from './ActivityPing';
 import type { Chrome } from './chrome-context';
+import { getUiLocale } from '@/lib/i18n/server';
 
 export default async function DashLayout({ children }: { children: React.ReactNode }) {
   const sb = await supabaseServer();
@@ -101,6 +102,7 @@ export default async function DashLayout({ children }: { children: React.ReactNo
     domains: (domains ?? []).map((d) => ({ id: d.id, hostname: d.hostname, verified_at: d.verified_at })),
     onboarding,
     activity,
+    locale: await getUiLocale(),
   };
 
   return (

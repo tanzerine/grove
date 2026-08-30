@@ -2,6 +2,7 @@
 import { createContext, useContext } from 'react';
 import { type Onboarding, EMPTY_ONBOARDING } from '@/lib/onboarding/checklist';
 import { type Activity, EMPTY_ACTIVITY } from '@/lib/notifications/feed';
+import { type UiLocale } from '@/lib/i18n';
 
 export type ChromeDomain = { id: string; hostname: string; verified_at: string | null };
 
@@ -20,6 +21,10 @@ export type Chrome = {
   domains: ChromeDomain[];
   onboarding: Onboarding;
   activity: Activity;
+  /** UI language of the person using grove — NOT the language their blog
+   *  publishes in (that's domains.language). Resolved once in the layout and
+   *  handed down, so every client component reads the same answer. */
+  locale: UiLocale;
 };
 
 const Ctx = createContext<Chrome | null>(null);
@@ -32,7 +37,7 @@ export function useChrome(): Chrome {
   const c = useContext(Ctx);
   if (!c) {
     // Safe fallback so a stray render never throws.
-    return { userId: null, email: null, isAdmin: false, plan: 'Free', entitled: false, activeHostname: null, activeId: null, activeAutoPublish: false, domains: [], onboarding: EMPTY_ONBOARDING, activity: EMPTY_ACTIVITY };
+    return { userId: null, email: null, isAdmin: false, plan: 'Free', entitled: false, activeHostname: null, activeId: null, activeAutoPublish: false, domains: [], onboarding: EMPTY_ONBOARDING, activity: EMPTY_ACTIVITY, locale: 'en' };
   }
   return c;
 }

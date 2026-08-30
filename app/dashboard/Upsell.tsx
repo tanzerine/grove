@@ -15,6 +15,7 @@ import { createContext, useContext, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useChrome } from './chrome-context';
 import Icon from './gv-icons';
+import { useT } from './i18n';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
@@ -24,6 +25,9 @@ const ACCENT_INK = 'var(--gv-accent-ink)';
 type Feature =
   | 'generate' | 'write' | 'pseo' | 'assistant' | 'retry' | 'revise' | 'publish';
 
+/** English source copy. Translated at the render site (t(copy.eyebrow) etc.)
+ *  rather than here: this is module-level, so `t` is not in scope, and baking
+ *  a locale in at import time would freeze it for the whole process. */
 const COPY: Record<Feature, { eyebrow: string; title: string; body: string }> = {
   generate: {
     eyebrow: 'Autopilot is a paid feature',
@@ -92,6 +96,7 @@ export function UpsellProvider({ children }: { children: React.ReactNode }) {
     [entitled],
   );
 
+  const t = useT();
   const copy = feature ? COPY[feature] : null;
 
   return (
@@ -113,26 +118,26 @@ export function UpsellProvider({ children }: { children: React.ReactNode }) {
                 <span style={{ width: 24, height: 24, borderRadius: 7, background: 'rgba(162,255,1,0.14)', border: '1px solid rgba(162,255,1,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Icon name="leaf" size={13} />
                 </span>
-                {copy.eyebrow}
+                {t(copy.eyebrow)}
               </span>
-              <button onClick={() => setFeature(null)} aria-label="Close" style={{ background: 'none', border: 'none', color: 'var(--gv-faint)', cursor: 'pointer', fontSize: 20, lineHeight: 1, padding: 4 }}>×</button>
+              <button onClick={() => setFeature(null)} aria-label={t(t('Close'))} style={{ background: 'none', border: 'none', color: 'var(--gv-faint)', cursor: 'pointer', fontSize: 20, lineHeight: 1, padding: 4 }}>×</button>
             </div>
 
-            <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.25, margin: '0 0 10px', color: 'var(--gv-ink)' }}>{copy.title}</h2>
-            <p style={{ fontSize: 13.5, color: 'var(--gv-soft)', lineHeight: 1.6, margin: '0 0 22px' }}>{copy.body}</p>
+            <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.25, margin: '0 0 10px', color: 'var(--gv-ink)' }}>{t(copy.title)}</h2>
+            <p style={{ fontSize: 13.5, color: 'var(--gv-soft)', lineHeight: 1.6, margin: '0 0 22px' }}>{t(copy.body)}</p>
 
             <div style={{ display: 'flex', gap: 10 }}>
               <button
                 onClick={() => { setFeature(null); r.push('/dashboard/billing'); }}
                 style={{ flex: 1, border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 700, padding: '12px 18px', borderRadius: 11, cursor: 'pointer' }}
               >
-                See plans →
+                {t(t('See plans →'))}
               </button>
               <button
                 onClick={() => setFeature(null)}
                 style={{ border: '1px solid var(--gv-line)', background: 'transparent', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, padding: '12px 18px', borderRadius: 11, cursor: 'pointer' }}
               >
-                Not now
+                {t(t('Not now'))}
               </button>
             </div>
             <div style={{ fontSize: 11.5, color: 'var(--gv-faint)', textAlign: 'center', marginTop: 14 }}>

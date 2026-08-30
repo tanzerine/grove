@@ -1,16 +1,18 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useT } from './i18n';
+import type { T } from '@/lib/i18n';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
 
 // What a given publish bar means, in plain language.
-function floorHint(v: number): string {
-  if (v <= 20) return 'Publishes almost everything — only broken drafts are held';
-  if (v <= 45) return 'Skips weak drafts; publishes the rest (recommended)';
-  if (v <= 70) return 'Only solid drafts auto-publish — more go to review';
-  return 'Only excellent drafts auto-publish — most go to review';
+function floorHint(v: number, t: T): string {
+  if (v <= 20) return t('Publishes almost everything — only broken drafts are held');
+  if (v <= 45) return t('Skips weak drafts; publishes the rest (recommended)');
+  if (v <= 70) return t('Only solid drafts auto-publish — more go to review');
+  return t('Only excellent drafts auto-publish — most go to review');
 }
 
 export default function ModeToggle({
@@ -23,6 +25,7 @@ export default function ModeToggle({
   /** Plan ceiling on cadence; null when the account isn't quota-enforced. */
   maxPostsPerWeek?: number | null;
 }) {
+  const t = useT();
   const r = useRouter();
   const [auto, setAuto] = useState(autoPublish);
   const [freq, setFreq] = useState(postsPerWeek);
@@ -49,26 +52,26 @@ export default function ModeToggle({
     r.refresh();
   }
 
-  const modeHint = auto ? 'Posts publish automatically on schedule' : 'Posts go to the review queue for approval';
+  const modeHint = auto ? t('Posts publish automatically on schedule') : t('Posts go to the review queue for approval');
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '11px 16px', background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 12, margin: '14px 0 4px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>Publishing</span>
+        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>{t('Publishing')}</span>
         <div style={{ display: 'inline-flex', padding: 3, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 999, gap: 2 }}>
           {(['Manual', 'Auto'] as const).map((label) => {
             const active = label === 'Auto' ? auto : !auto;
             return (
               <button key={label} disabled={saving}
-                onClick={() => { const next = label === 'Auto'; setAuto(next); save({ auto_publish: next }); }}
+                onClick={() => { const next = label === t('Auto'); setAuto(next); save({ auto_publish: next }); }}
                 style={{ border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '5px 15px', borderRadius: 999, transition: '.2s', background: active ? ACCENT : 'transparent', color: active ? 'var(--gv-on-accent)' : 'var(--gv-dim)' }}>
-                {label}
+                {t(label)}
               </button>
             );
           })}
         </div>
         <span style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.08)' }} />
-        <span style={{ fontSize: 12, color: 'var(--gv-faint)' }}>Cadence</span>
+        <span style={{ fontSize: 12, color: 'var(--gv-faint)' }}>{t('Cadence')}</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           {[1, 2, 3, 5, 7].map((n) => {
             const active = freq === n;
@@ -106,13 +109,13 @@ export default function ModeToggle({
       {/* Publish bar — only meaningful on autopilot. Below it: manual review. */}
       {auto && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>Publish bar</span>
+          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>{t('Publish bar')}</span>
           <input
             type="range" min={0} max={100} step={5} value={floor} disabled={saving}
             onChange={(e) => setFloor(Number(e.target.value))}
             onPointerUp={() => save({ auto_publish_floor: floor })}
             onKeyUp={() => save({ auto_publish_floor: floor })}
-            aria-label="Minimum quality score to auto-publish"
+            aria-label={t(t('Minimum quality score to auto-publish'))}
             style={{ flex: '1 1 200px', maxWidth: 320, accentColor: 'var(--gv-accent)', cursor: 'pointer' }}
           />
           <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 3, fontVariantNumeric: 'tabular-nums', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '3px 9px' }}>
@@ -120,7 +123,7 @@ export default function ModeToggle({
             <span style={{ fontSize: 9, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>min score</span>
           </span>
           <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--gv-faint)', textAlign: 'right', maxWidth: 300 }}>
-            {floorHint(floor)}. Fatal issues (bad facts, thin or broken content) always go to review.
+            {floorHint(floor, t)}. {t('Fatal issues (bad facts, thin or broken content) always go to review.')}
           </span>
         </div>
       )}

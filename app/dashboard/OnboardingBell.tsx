@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Icon from './gv-icons';
 import { useChrome } from './chrome-context';
 import type { ActivityKind } from '@/lib/notifications/feed';
+import { useT } from './i18n';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
@@ -19,6 +20,7 @@ const ACCENT_INK = 'var(--gv-accent-ink)';
  * Popover mechanics mirror AccountAvatarMenu (outside-click + Escape).
  */
 export default function OnboardingBell() {
+  const t = useT();
   const { onboarding, activity } = useChrome();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -49,7 +51,7 @@ export default function OnboardingBell() {
 
   return (
     <div ref={ref} style={{ position: 'relative' }}>
-      <button type="button" aria-haspopup="menu" aria-expanded={open} title="Notifications"
+      <button type="button" aria-haspopup="menu" aria-expanded={open} title={t(t('Notifications'))}
         onClick={() => setOpen((v) => !v)}
         style={{ position: 'relative', width: 38, height: 38, borderRadius: 10, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', color: 'var(--gv-dim)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Icon name="bell" />
@@ -70,7 +72,7 @@ export default function OnboardingBell() {
             <div style={{ background: 'rgba(162,255,1,0.05)', border: '1px solid rgba(162,255,1,0.2)', borderRadius: 12, padding: 12, marginBottom: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 10.5, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: ACCENT_INK }}>
-                  <Icon name="compass" size={13} /> Get set up
+                  <Icon name="compass" size={13} /> {t(t('Get set up'))}
                 </span>
                 <span style={{ fontSize: 11, color: 'var(--gv-dim)' }}>{onboarding.doneCount} of {onboarding.total} done</span>
               </div>
@@ -91,8 +93,8 @@ export default function OnboardingBell() {
                       <span style={{ flex: 1, minWidth: 0 }}>
                         <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                           <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--gv-ink)' }}>{s.title}</span>
-                          {isNext && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: ACCENT_INK, background: 'rgba(162,255,1,0.12)', border: '1px solid rgba(162,255,1,0.3)', borderRadius: 5, padding: '1px 5px' }}>Next</span>}
-                          {s.optional && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--gv-dim)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 5, padding: '1px 5px' }}>Optional</span>}
+                          {isNext && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: ACCENT_INK, background: 'rgba(162,255,1,0.12)', border: '1px solid rgba(162,255,1,0.3)', borderRadius: 5, padding: '1px 5px' }}>{t(t('Next'))}</span>}
+                          {s.optional && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--gv-dim)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 5, padding: '1px 5px' }}>{t(t('Optional'))}</span>}
                         </span>
                         <span style={{ display: 'block', fontSize: 11.5, color: 'var(--gv-faint)', marginTop: 2, lineHeight: 1.4 }}>{s.desc}</span>
                       </span>
@@ -105,10 +107,10 @@ export default function OnboardingBell() {
 
           {/* ============ ACTIVITY — neutral feed of service events ============ */}
           <div style={{ padding: showSetup ? '2px 4px 0' : '4px' }}>
-            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-dim)', padding: '4px 4px 8px' }}>Activity</div>
+            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-dim)', padding: '4px 4px 8px' }}>{t(t('Activity'))}</div>
             {items.length === 0 ? (
               <div style={{ fontSize: 12, color: 'var(--gv-faint)', padding: '8px 4px 10px' }}>
-                No activity yet — queue a topic and the pipeline starts working.
+                {t(t('No activity yet — queue a topic and the pipeline starts working.'))}
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>

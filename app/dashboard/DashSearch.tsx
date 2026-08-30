@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Icon from './gv-icons';
 import { highlight, searchPosts, type SearchablePost } from '@/lib/post-search';
+import { useT } from './i18n';
 
 const MAX = 8;
 
@@ -17,6 +18,7 @@ const MAX = 8;
  * query currently in the box.
  */
 export default function DashSearch({ seed }: { seed: SearchablePost[] }) {
+  const t = useT();
   const router = useRouter();
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(false);
@@ -110,8 +112,8 @@ export default function DashSearch({ seed }: { seed: SearchablePost[] }) {
           onChange={(e) => { setQ(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}
-          placeholder="Search your articles…"
-          aria-label="Search your articles"
+          placeholder={t(t('Search your articles…'))}
+          aria-label={t(t('Search your articles'))}
           role="combobox"
           aria-expanded={showPanel}
           aria-controls="gv-search-results"
@@ -120,7 +122,7 @@ export default function DashSearch({ seed }: { seed: SearchablePost[] }) {
           style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: 'var(--gv-ink)', fontSize: 13, fontFamily: 'inherit', minWidth: 0 }}
         />
         {q ? (
-          <button type="button" onClick={() => { setQ(''); setServer(null); inputRef.current?.focus(); }} aria-label="Clear search"
+          <button type="button" onClick={() => { setQ(''); setServer(null); inputRef.current?.focus(); }} aria-label={t(t('Clear search'))}
             style={{ background: 'transparent', border: 'none', color: 'var(--gv-soft)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, lineHeight: 1, padding: 2 }}>×</button>
         ) : (
           /* --gv-soft, not --gv-dim/--gv-fainter — this chip sits on the
@@ -130,7 +132,7 @@ export default function DashSearch({ seed }: { seed: SearchablePost[] }) {
       </div>
 
       {showPanel && (
-        <div id="gv-search-results" role="listbox" aria-label="Article search results"
+        <div id="gv-search-results" role="listbox" aria-label={t(t('Article search results'))}
           style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, background: 'var(--gv-pop)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, boxShadow: '0 16px 40px rgba(0,0,0,0.55)', padding: 6, zIndex: 60, maxHeight: 400, overflowY: 'auto' }}>
           {results.map((p, i) => {
             const st = statusOf(p.status);
@@ -146,7 +148,7 @@ export default function DashSearch({ seed }: { seed: SearchablePost[] }) {
                     <Marked text={p.title ?? p.topic ?? 'Untitled'} query={query} />
                   </span>
                   <span style={{ display: 'block', fontSize: 11, color: 'var(--gv-faint)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {[st.label, p.topic && p.topic !== p.title ? p.topic : null, when(p)].filter(Boolean).join(' · ')}
+                    {[t(st.label), p.topic && p.topic !== p.title ? p.topic : null, when(p)].filter(Boolean).join(' · ')}
                   </span>
                 </span>
               </button>
@@ -156,7 +158,7 @@ export default function DashSearch({ seed }: { seed: SearchablePost[] }) {
           {results.length === 0 && (
             <div style={{ padding: '14px 12px', fontSize: 12.5, color: 'var(--gv-faint)' }}>
               {query.length < 2
-                ? 'Keep typing to search your articles…'
+                ? t('Keep typing to search your articles…')
                 : loading ? 'Searching…' : <>No article matches “{query}”.</>}
             </div>
           )}
@@ -183,6 +185,8 @@ function Marked({ text, query }: { text: string; query: string }) {
   );
 }
 
+/** Status label keys. Translated at the call site — this is module-level, so
+ *  `t` is not in scope here and a frozen English label would leak through. */
 function statusOf(status: string | null | undefined): { label: string } {
   switch (status) {
     case 'published': return { label: 'Live' };
