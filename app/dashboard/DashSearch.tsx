@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Icon from './gv-icons';
 import { highlight, searchPosts, type SearchablePost } from '@/lib/post-search';
 import { useT } from './i18n';
+import { msg } from '@/lib/i18n';
 
 const MAX = 8;
 
@@ -189,11 +190,11 @@ function Marked({ text, query }: { text: string; query: string }) {
  *  `t` is not in scope here and a frozen English label would leak through. */
 function statusOf(status: string | null | undefined): { label: string } {
   switch (status) {
-    case 'published': return { label: 'Live' };
-    case 'scheduled': return { label: 'Scheduled' };
-    case 'review': return { label: 'In review' };
-    case 'failed': return { label: 'Failed' };
-    default: return { label: 'Drafting' };
+    case 'published': return { label: msg('Live') };
+    case 'scheduled': return { label: msg('Scheduled') };
+    case 'review': return { label: msg('In review') };
+    case 'failed': return { label: msg('Failed') };
+    default: return { label: msg('Drafting') };
   }
 }
 

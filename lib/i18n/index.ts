@@ -65,6 +65,20 @@ export function translate(locale: UiLocale, source: string, vars?: Vars): string
   return interpolate(bar === -1 ? source : source.slice(0, bar), vars);
 }
 
+/**
+ * Mark a string for translation where it is DEFINED rather than rendered.
+ *
+ * Module-level tables — status maps, upsell copy, prompt chips — can't call
+ * `t`: they are built once per process, so they would freeze whichever locale
+ * loaded the module first. They hold English source strings instead, and the
+ * render site puts them through `t`. That leaves the string invisible to the
+ * extractor in tests/i18n-coverage.test.ts, which is how an untranslated
+ * label would slip past the one check that guards this whole feature.
+ *
+ * `msg` is the identity function. Its only job is to be greppable.
+ */
+export const msg = (source: string): string => source;
+
 export function createT(locale: unknown): T {
   const code = normalizeLang(locale);
   const t = ((source: string, vars?: Vars) => translate(code, source, vars)) as T;

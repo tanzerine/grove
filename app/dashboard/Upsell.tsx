@@ -16,6 +16,7 @@ import { useRouter } from 'next/navigation';
 import { useChrome } from './chrome-context';
 import Icon from './gv-icons';
 import { useT } from './i18n';
+import { msg } from '@/lib/i18n';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
@@ -30,39 +31,39 @@ type Feature =
  *  a locale in at import time would freeze it for the whole process. */
 const COPY: Record<Feature, { eyebrow: string; title: string; body: string }> = {
   generate: {
-    eyebrow: 'Autopilot is a paid feature',
-    title: 'Let grove research, write & publish this for you',
-    body: 'Your plan runs the full pipeline — live SERP research, on-brand drafting, a quality gate, and auto-publish to your blog. Start a plan to queue this topic.',
+    eyebrow: msg('Autopilot is a paid feature'),
+    title: msg('Let grove research, write & publish this for you'),
+    body: msg('Your plan runs the full pipeline — live SERP research, on-brand drafting, a quality gate, and auto-publish to your blog. Start a plan to queue this topic.'),
   },
   write: {
-    eyebrow: 'The writing desk is a paid feature',
-    title: 'Turn any idea into a finished, SEO-ready post',
-    body: 'grove drafts in your voice, adds internal links, and holds the result for your sign-off. Pick a plan to write your first one.',
+    eyebrow: msg('The writing desk is a paid feature'),
+    title: msg('Turn any idea into a finished, SEO-ready post'),
+    body: msg('grove drafts in your voice, adds internal links, and holds the result for your sign-off. Pick a plan to write your first one.'),
   },
   pseo: {
-    eyebrow: 'Programmatic SEO is a paid feature',
-    title: 'Ship one page per real search, at scale',
-    body: 'grove plans a keyword set from live search demand and generates a page for each. Start a plan to build the set.',
+    eyebrow: msg('Programmatic SEO is a paid feature'),
+    title: msg('Ship one page per real search, at scale'),
+    body: msg('grove plans a keyword set from live search demand and generates a page for each. Start a plan to build the set.'),
   },
   assistant: {
-    eyebrow: 'The agent is a paid feature',
-    title: 'Put your marketing agent to work',
-    body: 'Ask it to fix weak titles, build content clusters, or explain your numbers — and it executes. Start a plan to hand it the reins.',
+    eyebrow: msg('The agent is a paid feature'),
+    title: msg('Put your marketing agent to work'),
+    body: msg('Ask it to fix weak titles, build content clusters, or explain your numbers — and it executes. Start a plan to hand it the reins.'),
   },
   retry: {
-    eyebrow: 'Generation is a paid feature',
-    title: 'Re-run this draft through the pipeline',
-    body: 'Retrying re-researches and re-writes with fresh SERP data. Start a plan to run it.',
+    eyebrow: msg('Generation is a paid feature'),
+    title: msg('Re-run this draft through the pipeline'),
+    body: msg('Retrying re-researches and re-writes with fresh SERP data. Start a plan to run it.'),
   },
   revise: {
-    eyebrow: 'AI editing is a paid feature',
-    title: 'Rewrite any section in one click',
-    body: 'grove revises the passage in your brand voice while keeping the rest intact. Start a plan to edit with AI.',
+    eyebrow: msg('AI editing is a paid feature'),
+    title: msg('Rewrite any section in one click'),
+    body: msg('grove revises the passage in your brand voice while keeping the rest intact. Start a plan to edit with AI.'),
   },
   publish: {
-    eyebrow: 'Publishing is a paid feature',
-    title: 'Push this live to your blog',
-    body: 'Publishing sends the post to your hosted blog and cross-posts the social variants. Start a plan to go live.',
+    eyebrow: msg('Publishing is a paid feature'),
+    title: msg('Push this live to your blog'),
+    body: msg('Publishing sends the post to your hosted blog and cross-posts the social variants. Start a plan to go live.'),
   },
 };
 

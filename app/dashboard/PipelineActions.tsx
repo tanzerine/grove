@@ -80,7 +80,7 @@ export default function PipelineActions({ domainId }: { domainId?: string }) {
       {open && (
         <div style={{ marginTop: 14 }}>
           <div style={{ fontSize: 10, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--gv-faint)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ color: ACCENT_INK, display: 'flex' }}><Icon name="sparkle" size={13} /></span> Grove suggests · from your strategy &amp; live SERP
+            <span style={{ color: ACCENT_INK, display: 'flex' }}><Icon name="sparkle" size={13} /></span> {t('Grove suggests · from your strategy & live SERP')}
           </div>
           {suggErr && (
             <p style={{ fontSize: 12, color: 'var(--gv-red-soft)', margin: '0 0 8px' }}>{t(t('Couldn’t generate suggestions — build the site profile first.'))}</p>

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Icon from './gv-icons';
 import { useT } from './i18n';
+import { msg } from '@/lib/i18n';
 
 // ACCENT is the lime fill/border; ACCENT_INK is the olive to use whenever the
 // accent has to read as text (lime is ~1.1:1 on the white canvas).
@@ -22,14 +23,14 @@ export type OvRow = {
 };
 
 const ST: Record<OvRow['s'], { status: string; color: string; bg: string; border: string; dot: string }> = {
-  publishing: { status: 'Publishing|status', color: 'var(--gv-ink)', bg: 'rgba(255,255,255,0.06)', border: 'rgba(255,255,255,0.16)', dot: 'var(--gv-ink)' },
-  review: { status: 'In review', color: 'var(--gv-soft)', bg: 'rgba(255,255,255,0.09)', border: 'rgba(255,255,255,0.22)', dot: 'var(--gv-soft)' },
+  publishing: { status: msg('Publishing|status'), color: 'var(--gv-ink)', bg: 'rgba(255,255,255,0.06)', border: 'rgba(255,255,255,0.16)', dot: 'var(--gv-ink)' },
+  review: { status: msg('In review'), color: 'var(--gv-soft)', bg: 'rgba(255,255,255,0.09)', border: 'rgba(255,255,255,0.22)', dot: 'var(--gv-soft)' },
   /* Label colours sit on a tinted chip, which shaves ~0.3 off the ratio — hence
      --gv-soft rather than the muted tiers, and --gv-red-text rather than the
      border-weight --gv-red. The dots keep the lighter tones for hierarchy. */
-  live: { status: 'Live', color: 'var(--gv-soft)', bg: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.08)', dot: 'var(--gv-dim)' },
-  writing: { status: 'Drafting', color: 'var(--gv-soft)', bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.14)', dot: 'var(--gv-faint)' },
-  failed: { status: 'Failed', color: 'var(--gv-red-text)', bg: 'rgba(201,79,79,0.08)', border: 'rgba(201,79,79,0.22)', dot: 'var(--gv-red)' },
+  live: { status: msg('Live'), color: 'var(--gv-soft)', bg: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.08)', dot: 'var(--gv-dim)' },
+  writing: { status: msg('Drafting'), color: 'var(--gv-soft)', bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.14)', dot: 'var(--gv-faint)' },
+  failed: { status: msg('Failed'), color: 'var(--gv-red-text)', bg: 'rgba(201,79,79,0.08)', border: 'rgba(201,79,79,0.22)', dot: 'var(--gv-red)' },
 };
 
 export default function OverviewPipeline({ groups }: { groups: Record<string, OvRow[]> }) {

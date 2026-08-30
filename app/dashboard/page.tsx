@@ -20,6 +20,7 @@ import { shareOutcome, latestChannelErrors, type ShareRecord } from '@/lib/socia
 import { useT } from './i18n';
 import { getT } from '@/lib/i18n/server';
 import { intlLocale, type T } from '@/lib/i18n';
+import { msg } from '@/lib/i18n';
 
 // ACCENT is the lime fill/border; ACCENT_INK is the olive to use whenever the
 // accent has to read as text (lime is ~1.1:1 on the white canvas).
@@ -36,13 +37,13 @@ const SAGE_DOT = '#93998f';
 // A module-level constant is evaluated once per process, so translating here
 // would serve whichever locale happened to load the module first to everyone.
 const ES: Record<string, { color: string; chipBg: string; name: string; line: React.CSSProperties['borderStyle'] }> = {
-  published: { color: SAGE, chipBg: 'rgba(255,255,255,0.05)', name: 'Published', line: 'solid' },
-  scheduled: { color: 'var(--gv-blue)', chipBg: 'rgba(255,255,255,0.09)', name: 'Scheduled', line: 'dashed' },
-  review: { color: 'var(--gv-amber)', chipBg: 'rgba(255,255,255,0.12)', name: 'In review', line: 'dotted' },
-  draft: { color: 'var(--gv-sky)', chipBg: 'rgba(255,255,255,0.06)', name: 'Draft', line: 'double' },
+  published: { color: SAGE, chipBg: 'rgba(255,255,255,0.05)', name: msg('Published'), line: 'solid' },
+  scheduled: { color: 'var(--gv-blue)', chipBg: 'rgba(255,255,255,0.09)', name: msg('Scheduled'), line: 'dashed' },
+  review: { color: 'var(--gv-amber)', chipBg: 'rgba(255,255,255,0.12)', name: msg('In review'), line: 'dotted' },
+  draft: { color: 'var(--gv-sky)', chipBg: 'rgba(255,255,255,0.06)', name: msg('Draft'), line: 'double' },
   // Matches the calendar page's own 'planned' tier — a slot the agent intends
   // to write but hasn't started, so it reads as the faintest thing on the grid.
-  planned: { color: 'var(--gv-fainter)', chipBg: 'transparent', name: 'Planned', line: 'dashed' },
+  planned: { color: 'var(--gv-fainter)', chipBg: 'transparent', name: msg('Planned'), line: 'dashed' },
 };
 
 function categoryFor(status: string): keyof typeof ES {

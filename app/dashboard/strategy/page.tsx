@@ -380,7 +380,7 @@ export default async function StrategyPage() {
           {/* OKRs */}
           {goals.length > 0 && (
             <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '22px 24px' }}>
-              <div style={{ fontSize: 15, fontWeight: 700 }}>Objective &amp; key results</div>
+              <div style={{ fontSize: 15, fontWeight: 700 }}>{t('Objective & key results')}</div>
               <div style={{ fontSize: 12, color: 'var(--gv-faint)', margin: '3px 0 18px' }}>How this month&apos;s plan is tracking against its targets</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                 {goals.map((g, i) => (

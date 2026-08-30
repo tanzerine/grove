@@ -8,6 +8,7 @@ import { useUpsell } from '../Upsell';
 import { captureClient } from '@/lib/analytics/capture-client';
 import { useT } from '../i18n';
 import type { T } from '@/lib/i18n';
+import { msg } from '@/lib/i18n';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
@@ -15,12 +16,12 @@ const ACCENT_INK = 'var(--gv-accent-ink)';
 // English source strings; translated where they're rendered. Module-level, so
 // `t` is not in scope here (and would freeze one locale for the process).
 const PROMPTS = [
-  'A problem customers keep hitting',
-  'A question I get asked a lot',
-  'Us vs. the alternative',
-  'A mistake beginners make',
-  'Behind the scenes',
-  'A strong opinion I hold',
+  msg('A problem customers keep hitting'),
+  msg('A question I get asked a lot'),
+  msg('Us vs. the alternative'),
+  msg('A mistake beginners make'),
+  msg('Behind the scenes'),
+  msg('A strong opinion I hold'),
 ];
 
 type Tab = 'idea' | 'seo';

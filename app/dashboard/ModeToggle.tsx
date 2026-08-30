@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useT } from './i18n';
 import type { T } from '@/lib/i18n';
+import { msg } from '@/lib/i18n';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
@@ -59,7 +60,7 @@ export default function ModeToggle({
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>{t('Publishing')}</span>
         <div style={{ display: 'inline-flex', padding: 3, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 999, gap: 2 }}>
-          {(['Manual', 'Auto'] as const).map((label) => {
+          {([msg('Manual'), msg('Auto')] as const).map((label) => {
             const active = label === 'Auto' ? auto : !auto;
             return (
               <button key={label} disabled={saving}

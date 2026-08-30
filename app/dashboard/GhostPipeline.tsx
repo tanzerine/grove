@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 import Icon from './gv-icons';
 import { useUpsell } from './Upsell';
 import { useT } from './i18n';
+import { msg } from '@/lib/i18n';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
@@ -25,7 +26,7 @@ const FALLBACK = [
 
 // Deterministic-ish "stage" labels so the ghost queue reads like a live one.
 // Built from `t` at render, not at module load, so they follow the UI language.
-const STAGE_KEYS = ['Researching', 'Drafting', 'Quality gate', 'Ready to publish'];
+const STAGE_KEYS = [msg('Researching'), msg('Drafting'), msg('Quality gate'), msg('Ready to publish')];
 
 export default function GhostPipeline({ domainId, hostname }: { domainId?: string; hostname: string }) {
   const t = useT();
@@ -65,7 +66,7 @@ export default function GhostPipeline({ domainId, hostname }: { domainId?: strin
             </span>
           </div>
           <div style={{ fontSize: 12.5, color: 'var(--gv-faint)', marginTop: 4 }}>
-            These are real topics grove found for your site. Start a plan and it researches, drafts &amp; publishes them for you.
+            {t('These are real topics grove found for your site. Start a plan and it researches, drafts & publishes them for you.')}
           </div>
         </div>
         <button
