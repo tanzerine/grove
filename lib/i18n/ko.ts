@@ -522,4 +522,44 @@ export const KO: Record<string, string> = {
   '“{title}” — {n} reads': '“{title}” — 조회 {n}회',
   'Don\'t want these? Turn off the weekly digest in your dashboard settings.':
     '받고 싶지 않으시면 대시보드 설정에서 주간 리포트를 꺼주세요.',
+
+  /* ── social connections ──────────────────────────────────────────────── */
+  'Social accounts': '소셜 계정',
+  'Auto-share on publish': '발행 시 자동 공유',
+  'Tokens are encrypted at rest. Disconnect any time — Grove keeps no copy after that.':
+    '토큰은 암호화되어 저장됩니다. 언제든 연결을 해제할 수 있고, 해제 후에는 사본을 남기지 않습니다.',
+  'Publish webhook': '발행 웹훅',
+  'Remove': '삭제',
+  'Connect': '연결',
+  'Connecting…': '연결 중…',
+  'Reconnect': '다시 연결',
+  'Hide': '숨기기',
+  'Reveal': '보기',
+  'Connect an account or add a webhook below to enable.': '아래에서 계정을 연결하거나 웹훅을 추가하면 켤 수 있습니다.',
+  'Connection cancelled.': '연결이 취소되었습니다.',
+  'Connection expired or was tampered with. Try again.': '연결이 만료되었거나 변조되었습니다. 다시 시도해 주세요.',
+  'Your session expired. Refresh and try again.': '세션이 만료되었습니다. 새로고침 후 다시 시도해 주세요.',
+  'Enter a valid https:// URL.': '올바른 https:// 주소를 입력해 주세요.',
+  'Could not clear the webhook.': '웹훅을 지우지 못했습니다.',
+  'That platform isn\'t set up yet — its API keys are missing from the environment.':
+    '이 플랫폼은 아직 설정되지 않았습니다. API 키가 등록되어 있지 않아요.',
+  'Couldn\'t connect — the platform rejected the request. Try again.':
+    '연결하지 못했습니다. 플랫폼이 요청을 거부했어요. 다시 시도해 주세요.',
+  'Couldn\'t connect ({code}).': '연결하지 못했습니다 ({code}).',
+  'Couldn\'t connect ({code}). Try again.': '연결하지 못했습니다 ({code}). 다시 시도해 주세요.',
+
+  /* ── billing ─────────────────────────────────────────────────────────── */
+  'Current plan': '현재 플랜',
+  'CURRENT': '사용 중',
+  'No active plan': '활성 플랜 없음',
+  'Monthly': '월간',
+  'Annual': '연간',
+  'Choose plan': '플랜 선택',
+  'Switch to this': '이 플랜으로 변경',
+  'Redirecting…': '이동 중…',
+  'Opening…': '여는 중…',
+  'Something went wrong.': '문제가 발생했습니다.',
+  'Payment received — your plan is being activated. It updates here within a few seconds.':
+    '결제가 확인되었습니다. 플랜을 활성화하는 중이며 몇 초 안에 반영됩니다.',
+  'Checkout canceled — no charge was made.': '결제가 취소되었습니다. 청구된 금액은 없습니다.',
 };
