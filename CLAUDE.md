@@ -166,6 +166,25 @@ titles can't slugify, so the writer returns an ASCII `slug_hint` that
 `/dashboard/voice`; existing posts are never retranslated. Adding a language is
 one entry in `LANGUAGES` plus one line in the migration's CHECK — **only `en`
 and `ko` have been exercised end to end**; `es`/`zh` are wired but unproven.
+- **The language directive belongs in the USER prompt, first, and nowhere
+  else.** The first version put it at the tail of each system prompt and all
+  three models ignored it: grove's first `ko`-configured article came back
+  entirely in English, having read `ko` correctly at every stage (the log said
+  "3874 characters", a unit only `ko` prints). Worse, the manager — also told
+  in its system prompt — read the one correct Korean sentence in the draft (the
+  appended CTA) as a defect, flagged `language_consistency` at severity block,
+  and had the article rewritten into English with a passing score. Same lesson
+  `runSocialAdapter` already carries: this model attends to the user turn.
+- **`languageVerdict` is the check that doesn't trust a prompt.** Script-based,
+  deliberately conservative (returns `unsure` rather than guessing), it drives
+  one enforced redraft in `generate.ts` and then a `WRONG_LANGUAGE` validator
+  flag that is **blocking** — an article in the wrong language is not a quality
+  note, it's the wrong article, and nothing else in `BLOCKING_RULES` catches it
+  because by every other measure the draft is fine.
+- `forceCanonicalH1` stamps `brief.title` onto the H1, so a refiner that drifts
+  back to English puts an English headline (and slug, and social card) on a
+  correct Korean article. `pickTitle` drops the brief's title when it isn't
+  native and takes the model's own.
 
 Other key surfaces:
 - `lib/agent-brief.ts` — plain-English weekly brief on the dashboard home.
