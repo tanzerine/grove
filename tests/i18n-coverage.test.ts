@@ -74,7 +74,7 @@ describe('Korean covers every translated string', () => {
   });
 
   it('keeps every {placeholder} the English source declares', () => {
-    const holes = (s: string) => (s.match(/\{(\w+)\}/g) ?? []).sort();
+    const holes = (s: string): string[] => (s.match(/\{(\w+)\}/g) ?? []).sort();
     const broken: string[] = [];
     for (const [source, ko] of Object.entries(KO)) {
       const a = holes(source), b = holes(ko);
@@ -95,11 +95,12 @@ describe('Korean covers every translated string', () => {
 });
 
 describe('the scaffold catalogues are valid, not complete', () => {
-  for (const [name, dict] of [['es', ES], ['zh', ZH]] as const) {
+  for (const [name, dict] of [['es', ES], ['zh', ZH]] as [string, Record<string, string>][]) {
     it(`${name} has no stray or empty keys`, () => {
-      const orphans = Object.keys(dict).filter((k) => !USED.has(k));
+      const orphans: string[] = Object.keys(dict).filter((k) => !USED.has(k));
       expect(orphans, `keys in ${name}.ts that nothing uses`).toEqual([]);
-      expect(Object.values(dict).filter((v) => !v.trim())).toEqual([]);
+      const empty: string[] = Object.values(dict).filter((v) => !v.trim());
+      expect(empty).toEqual([]);
     });
   }
 

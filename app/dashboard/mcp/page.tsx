@@ -15,10 +15,12 @@ import { TOOLS } from '@/lib/mcp/tools';
 import { DashHeader } from '../gv-chrome';
 import Icon from '../gv-icons';
 import KeyManager, { type KeyRow } from './KeyManager';
+import { getT } from '@/lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Page() {
+  const t = await getT();
   const sb = await supabaseServer();
   const { data: { user } } = await sb.auth.getUser();
 
@@ -67,7 +69,7 @@ export default async function Page() {
 
   return (
     <>
-      <DashHeader title="Content API" subtitle="grove's articles, inside the blog you already run" />
+      <DashHeader title={t('Content API')} subtitle="grove's articles, inside the blog you already run" />
       <div className="gv-body">
         <p style={{ fontSize: 14, color: 'var(--gv-dim)', lineHeight: 1.6, margin: '0 0 22px', maxWidth: 640 }}>
           Already have a content layer — MDX in a repo, a CMS, your own pipeline? Connect your coding agent to grove
@@ -85,19 +87,19 @@ export default async function Page() {
             />
 
             <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '22px 24px' }}>
-              <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 4 }}>Step 3 · Let it work</div>
-              <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.01em', marginBottom: 14 }}>What your agent can do</div>
+              <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 4 }}>{t('Step 3 · Let it work')}</div>
+              <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.01em', marginBottom: 14 }}>{t('What your agent can do')}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {TOOLS.map((t) => (
-                  <div key={t.name} style={{ display: 'flex', gap: 11, alignItems: 'flex-start' }}>
+                {TOOLS.map((tool) => (
+                  <div key={tool.name} style={{ display: 'flex', gap: 11, alignItems: 'flex-start' }}>
                     <span className="mono" style={{ fontSize: 11.5, color: 'var(--gv-accent-ink)', background: 'rgba(162,255,1,0.1)', border: '1px solid rgba(162,255,1,0.24)', borderRadius: 6, padding: '2px 7px', flexShrink: 0, marginTop: 1 }}>
-                      {t.name}
+                      {tool.name}
                     </span>
                     <span style={{ fontSize: 12.5, color: 'var(--gv-dim)', lineHeight: 1.5 }}>
                       {/* First sentence only — the full description is the
                           agent's prompt, not a human's reading material. */}
-                      {t.description.split('. ')[0]}.
-                      {t.scope === 'write' && <span style={{ color: 'var(--gv-fainter)' }}> Needs write-back.</span>}
+                      {tool.description.split('. ')[0]}.
+                      {tool.scope === 'write' && <span style={{ color: 'var(--gv-fainter)' }}> {t('Needs write-back.')}</span>}
                     </span>
                   </div>
                 ))}
@@ -106,7 +108,7 @@ export default async function Page() {
 
             <details className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18 }}>
               <summary style={{ padding: '18px 22px', cursor: 'pointer', listStyle: 'none' }}>
-                <span style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>Advanced · test it by hand</span>
+                <span style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>{t('Advanced · test it by hand')}</span>
                 <span style={{ display: 'block', fontSize: 16, fontWeight: 700, marginTop: 6 }}>It&rsquo;s a plain HTTP endpoint</span>
               </summary>
               <div style={{ padding: '0 22px 22px' }}>
@@ -128,11 +130,11 @@ export default async function Page() {
           {/* RIGHT */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0, position: 'sticky', top: 84 }}>
             <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '20px 22px' }}>
-              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 3 }}>On your site</div>
+              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 3 }}>{t('On your site')}</div>
               <div style={{ fontSize: 12, color: 'var(--gv-faint)', marginBottom: 16 }}>what your layer has taken</div>
 
               {!stats.length ? (
-                <p style={{ fontSize: 13, color: 'var(--gv-faint)', margin: 0 }}>Connect a domain first.</p>
+                <p style={{ fontSize: 13, color: 'var(--gv-faint)', margin: 0 }}>{t('Connect a domain first.')}</p>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {stats.map((s) => (
@@ -149,7 +151,7 @@ export default async function Page() {
                       <div style={{ fontSize: 11, color: 'var(--gv-fainter)', marginTop: 6, lineHeight: 1.5 }}>
                         {s.delivered
                           ? <>Last import {s.lastAt ? new Date(s.lastAt).toLocaleDateString() : '—'}{s.lastUrl ? <> · <span className="mono">{s.lastUrl.replace(/^https?:\/\//, '').slice(0, 34)}</span></> : null}</>
-                          : 'Nothing imported yet.'}
+                          : t('Nothing imported yet.')}
                       </div>
                       {/* The one line that decides who gets the search credit. */}
                       <div style={{ fontSize: 11, color: s.canonical ? 'var(--gv-fainter)' : '#ffb054', marginTop: 5, lineHeight: 1.5 }}>
@@ -166,7 +168,7 @@ export default async function Page() {
             <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '20px 22px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 10 }}>
                 <span style={{ display: 'flex', color: anyDelivered ? 'var(--gv-accent-ink)' : '#ffb054' }}><Icon name={anyDelivered ? 'check' : 'alert'} size={15} /></span>
-                <span style={{ fontSize: 14, fontWeight: 700 }}>Keep the beacon</span>
+                <span style={{ fontSize: 14, fontWeight: 700 }}>{t('Keep the beacon')}</span>
               </div>
               <p style={{ fontSize: 12, color: 'var(--gv-dim)', lineHeight: 1.55, margin: 0 }}>
                 Once your site renders the articles, grove stops seeing readers unless the page fires the analytics
@@ -177,10 +179,10 @@ export default async function Page() {
             </div>
 
             <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '20px 22px' }}>
-              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10 }}>Which one do I want?</div>
+              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10 }}>{t('Which one do I want?')}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 9, fontSize: 12, color: 'var(--gv-dim)', lineHeight: 1.5 }}>
-                <div>— <span style={{ color: 'var(--gv-soft)' }}>No blog yet?</span> Use Embed. One snippet, zero code, grove renders everything.</div>
-                <div>— <span style={{ color: 'var(--gv-soft)' }}>Blog you like, want the posts inside it?</span> This page.</div>
+                <div>— <span style={{ color: 'var(--gv-soft)' }}>{t('No blog yet?')}</span> {t('Use Embed. One snippet, zero code, grove renders everything.')}</div>
+                <div>— <span style={{ color: 'var(--gv-soft)' }}>{t('Blog you like, want the posts inside it?')}</span> {t('This page.')}</div>
                 <div>— Both work at once — the articles are the same articles.</div>
               </div>
             </div>

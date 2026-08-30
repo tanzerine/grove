@@ -457,4 +457,45 @@ export const KO: Record<string, string> = {
   'grove revises the passage in your brand voice while keeping the rest intact. Start a plan to edit with AI.':
     'grove가 나머지는 그대로 두고 해당 문단만 브랜드 목소리로 다시 씁니다. 플랜을 시작하면 AI 편집을 쓸 수 있어요.',
   'LinkedIn': 'LinkedIn',
+
+  /* ── embed page ──────────────────────────────────────────────────────── */
+  'your blog, everywhere': '어디에나 놓는 내 블로그',
+  'Your domain carries the SEO. Embeds are optional on top — they just show posts inside pages you already have.':
+    'SEO는 내 도메인이 가져갑니다. 임베드는 그 위의 선택 사항으로, 이미 있는 페이지 안에 글을 보여줄 뿐입니다.',
+  'Step 1 · Own the SEO': '1단계 · SEO를 내 것으로',
+  'Step 3 · Make it yours': '3단계 · 내 스타일로',
+  'Not needed': '필요 없음',
+  'Connected': '연결됨',
+  'Your blog is already on your own domain': '블로그가 이미 내 도메인에 있습니다',
+  'Serve the blog on your own subdomain': '내 서브도메인에서 블로그 운영하기',
+  'Point a subdomain at grove — we handle pages, canonicals, sitemap and search credit. Zero code.':
+    '서브도메인을 grove로 연결하면 페이지, canonical, 사이트맵, 검색 신뢰도까지 저희가 처리합니다. 코드는 필요 없어요.',
+  'Brand & destination': '브랜드와 연결 대상',
+  'Colors — banner, buttons & accents': '색상 — 배너, 버튼, 포인트',
+  'Advanced · serve articles yourself': '고급 · 글을 직접 서빙하기',
+  'I already render articles on my own site — make those pages canonical':
+    '이미 내 사이트에서 글을 렌더링하고 있습니다. 그 페이지를 canonical로 지정해 주세요',
+  'Setup status': '설정 상태',
+  'Articles in search': '검색에 노출되는 글',
+  'Subdomain': '서브도메인',
+  'Full blog embed': '블로그 전체 임베드',
+  'Homepage widget': '홈페이지 위젯',
+  'How embeds work': '임베드 작동 방식',
+  'Under the hood': '내부 동작',
+  'Customization attrs': '커스터마이징 속성',
+
+  /* ── content API (MCP) ───────────────────────────────────────────────── */
+  'Step 3 · Let it work': '3단계 · 작동시키기',
+  'What your agent can do': '에이전트가 할 수 있는 일',
+  'Needs write-back.': '쓰기 권한이 필요합니다.',
+  'Advanced · test it by hand': '고급 · 직접 테스트하기',
+  'On your site': '내 사이트에서',
+  'Keep the beacon': '측정 코드는 남겨두세요',
+  'Which one do I want?': '어떤 걸 골라야 하나요?',
+  'No blog yet?': '아직 블로그가 없다면?',
+  'Use Embed. One snippet, zero code, grove renders everything.':
+    '임베드를 쓰세요. 스니펫 하나면 코드 없이 grove가 전부 렌더링합니다.',
+  'Blog you like, want the posts inside it?': '마음에 드는 블로그가 있고, 그 안에 글을 넣고 싶다면?',
+  'This page.': '이 페이지입니다.',
+  'Nothing imported yet.': '아직 가져온 글이 없습니다.',
 };
