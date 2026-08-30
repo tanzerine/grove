@@ -8,6 +8,7 @@
  */
 import { supabaseAdmin } from './supabase/admin';
 import { summarizeMonth } from './strategy/review';
+import { createT, type T } from './i18n';
 
 export type BriefStats = {
   hostname: string;
@@ -69,61 +70,88 @@ export async function getBriefStats(domainId: string, hostname: string): Promise
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
-/** Compose the brief as a list of short sentences (joined by the UI). */
-export function composeBrief(s: BriefStats): string[] {
+/**
+ * Compose the brief as a list of short sentences (joined by the UI).
+ *
+ * Every sentence goes through `t` with placeholders rather than string
+ * concatenation, because the pieces do not survive translation: English
+ * pluralises with -s and Korean does not pluralise at all, and "up 12% on last
+ * week" attaches to a different part of the Korean sentence. So each variant
+ * is one whole translatable sentence, and the counts are `{n}` inside it.
+ */
+export function composeBrief(s: BriefStats, t: T = createT('en')): string[] {
   const out: string[] = [];
 
   // Nothing exists yet — onboarding voice.
   if (s.totalPublished === 0 && s.inFlight === 0 && s.inReview === 0) {
-    return ['No articles yet. Queue a topic below and I get to work immediately — research, draft, quality check, publish.'];
+    return [t('No articles yet. Queue a topic below and I get to work immediately — research, draft, quality check, publish.')];
   }
   if (s.totalPublished === 0) {
-    if (s.inFlight > 0) out.push(`I'm drafting your first ${s.inFlight === 1 ? 'article' : `${s.inFlight} articles`} right now.`);
-    if (s.inReview > 0) out.push(`${plural(s.inReview, 'draft')} ${s.inReview === 1 ? 'is' : 'are'} ready for your review.`);
-    if (s.nextScheduledAt) out.push('First publish is scheduled — readers incoming.');
+    if (s.inFlight > 0) {
+      out.push(s.inFlight === 1
+        ? t('I\'m drafting your first article right now.')
+        : t('I\'m drafting your first {n} articles right now.', { n: s.inFlight }));
+    }
+    if (s.inReview > 0) {
+      out.push(s.inReview === 1
+        ? t('1 draft is ready for your review.')
+        : t('{n} drafts are ready for your review.', { n: s.inReview }));
+    }
+    if (s.nextScheduledAt) out.push(t('First publish is scheduled — readers incoming.'));
     return out;
   }
 
   // What I did.
   out.push(s.publishedThisWeek > 0
-    ? `I published ${plural(s.publishedThisWeek, 'new article')} this week.`
-    : 'No new articles went out this week.');
+    ? (s.publishedThisWeek === 1
+      ? t('I published 1 new article this week.')
+      : t('I published {n} new articles this week.', { n: s.publishedThisWeek }))
+    : t('No new articles went out this week.'));
 
-  // What happened.
+  // What happened. The whole sentence is one key per trend, so a translation
+  // can put the comparison wherever its grammar wants it.
   if (s.readsThisWeek > 0) {
-    let delta = '';
+    const n = s.readsThisWeek;
     if (s.readsLastWeek > 0) {
-      const pct = Math.round(((s.readsThisWeek - s.readsLastWeek) / s.readsLastWeek) * 100);
-      if (pct >= 5) delta = ` — up ${pct}% on last week`;
-      else if (pct <= -5) delta = ` — down ${Math.abs(pct)}% from last week`;
-      else delta = ' — steady with last week';
+      const pct = Math.round(((n - s.readsLastWeek) / s.readsLastWeek) * 100);
+      if (pct >= 5) out.push(t('{n} reads — up {pct}% on last week.', { n, pct }));
+      else if (pct <= -5) out.push(t('{n} reads — down {pct}% from last week.', { n, pct: Math.abs(pct) }));
+      else out.push(t('{n} reads — steady with last week.', { n }));
     } else {
-      delta = ' — your first readers';
+      out.push(t('{n} reads — your first readers.', { n }));
     }
-    out.push(`${plural(s.readsThisWeek, 'read')}${delta}.`);
     if (s.conversionsThisWeek > 0) {
-      out.push(`${s.conversionsThisWeek} of them clicked through to ${s.hostname}.`);
+      out.push(t('{n} of them clicked through to {host}.', { n: s.conversionsThisWeek, host: s.hostname }));
     }
     if (s.organicShare >= 0.05) {
-      out.push(`Search engines drove ${Math.round(s.organicShare * 100)}% of readers.`);
+      out.push(t('Search engines drove {pct}% of readers.', { pct: Math.round(s.organicShare * 100) }));
     }
     if (s.topPost) {
-      out.push(`Best performer: “${s.topPost.title}” (${plural(s.topPost.views, 'read')}).`);
+      out.push(t('Best performer: “{title}” ({n} reads).', { title: s.topPost.title, n: s.topPost.views }));
     }
   } else if (s.totalPublished > 0) {
-    out.push('No reads recorded this week yet — search traffic usually takes a few weeks to compound after publishing.');
+    out.push(t('No reads recorded this week yet — search traffic usually takes a few weeks to compound after publishing.'));
   }
 
   // What's next.
-  if (s.inFlight > 0) out.push(`${plural(s.inFlight, 'article')} in the works.`);
+  if (s.inFlight > 0) {
+    out.push(s.inFlight === 1
+      ? t('1 article in the works.')
+      : t('{n} articles in the works.', { n: s.inFlight }));
+  }
 
   return out;
 }
 
 /** The one thing the owner should do next, if anything. */
-export function nextAction(s: BriefStats): { label: string; href: string } | null {
+export function nextAction(s: BriefStats, t: T = createT('en')): { label: string; href: string } | null {
   if (s.inReview > 0) {
-    return { label: `Review ${plural(s.inReview, 'waiting draft')} →`, href: '/dashboard/pipeline' };
+    return {
+      label: s.inReview === 1
+        ? t('Review 1 waiting draft →')
+        : t('Review {n} waiting drafts →', { n: s.inReview }),
+      href: '/dashboard/pipeline',
+    };
   }
   return null;
 }

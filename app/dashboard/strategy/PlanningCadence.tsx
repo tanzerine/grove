@@ -7,6 +7,7 @@
  */
 import { useState } from 'react';
 import Icon from '../gv-icons';
+import { useT } from '../i18n';
 
 const ACCENT_INK = 'var(--gv-accent-ink)';
 
@@ -35,13 +36,14 @@ function Dot({ state }: { state: CadenceItem['state'] }) {
 }
 
 export default function PlanningCadence({ views }: { views: CadenceView[] }) {
+  const t = useT();
   const [sel, setSel] = useState<CadenceView['key']>('weekly');
   const cur = views.find((v) => v.key === sel) ?? views[0];
 
   return (
     <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '20px 24px 22px', marginBottom: 18 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', marginBottom: 16 }}>
-        <span style={{ fontSize: 15, fontWeight: 700 }}>Planning cadence</span>
+        <span style={{ fontSize: 15, fontWeight: 700 }}>{t('Planning cadence')}</span>
         <span style={{ fontSize: 12, color: 'var(--gv-faint)' }}>how the agent breaks the plan down</span>
         <div style={{ marginLeft: 'auto', display: 'inline-flex', padding: 4, background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 999, gap: 3 }}>
           {views.map((v) => {
@@ -60,7 +62,7 @@ export default function PlanningCadence({ views }: { views: CadenceView[] }) {
       )}
       <div style={{ fontSize: 12, color: 'var(--gv-faint)', marginBottom: 12 }}>{cur.period}</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {cur.items.length === 0 && <p style={{ color: 'var(--gv-faint)', fontSize: 13, margin: '6px 0' }}>Nothing scheduled in this window.</p>}
+        {cur.items.length === 0 && <p style={{ color: 'var(--gv-faint)', fontSize: 13, margin: '6px 0' }}>{t('Nothing scheduled in this window.')}</p>}
         {cur.items.map((it, i) => (
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 4px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <Dot state={it.state} />

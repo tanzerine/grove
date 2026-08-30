@@ -8,6 +8,7 @@ import {
   schedulePresets,
   toLocalInputValue,
 } from '@/lib/publish-schedule';
+import { useT } from '../../i18n';
 
 /**
  * "When should this go out?" — the author's own publish time, from the editor.
@@ -33,6 +34,7 @@ export default function SchedulePicker({
   onSchedule: (iso: string) => Promise<void>;
   onClear: () => Promise<void>;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [custom, setCustom] = useState('');
   const [busy, setBusy] = useState(false);
@@ -72,7 +74,7 @@ export default function SchedulePicker({
       await onSchedule(iso);
       setOpen(false);
     } catch (e: any) {
-      setErr(String(e?.message ?? e) || 'Could not schedule this post.');
+      setErr(String(e?.message ?? e) || t('Could not schedule this post.'));
     }
     setBusy(false);
   }
@@ -89,7 +91,7 @@ export default function SchedulePicker({
       await onClear();
       setOpen(false);
     } catch (e: any) {
-      setErr(String(e?.message ?? e) || 'Could not clear the schedule.');
+      setErr(String(e?.message ?? e) || t('Could not clear the schedule.'));
     }
     setBusy(false);
   }
@@ -112,7 +114,7 @@ export default function SchedulePicker({
         <span style={{ display: 'flex' }}><Icon name="calendar" size={14} /></span>
         {scheduledAt
           ? <><LocalTime iso={scheduledAt} />{mounted && <span style={{ color: 'var(--gv-faint)', fontWeight: 500 }}>· {relativeSchedule(scheduledAt, new Date(), { willPublish })}</span>}</>
-          : 'Schedule'}
+          : t('Schedule')}
       </button>
 
       {open && (
@@ -122,7 +124,7 @@ export default function SchedulePicker({
           padding: 14, boxShadow: '0 18px 44px rgba(0,0,0,0.55)',
         }}>
           <div style={{ fontSize: 10, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--gv-faint)', marginBottom: 10 }}>
-            Publish this post
+            {t('Publish this post')}
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -138,7 +140,7 @@ export default function SchedulePicker({
           <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '12px 0' }} />
 
           <label style={{ display: 'block', fontSize: 11.5, fontWeight: 600, color: 'var(--gv-dim)', marginBottom: 7 }}>
-            Or pick a date and time
+            {t('Or pick a date and time')}
           </label>
           <input type="datetime-local" value={custom} onChange={(e) => setCustom(e.target.value)}
             style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 9, padding: '8px 10px', color: 'var(--gv-ink)', fontFamily: 'inherit', fontSize: 12.5, outline: 'none', colorScheme: 'dark' }} />
@@ -148,12 +150,12 @@ export default function SchedulePicker({
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 11 }}>
             <button onClick={commitCustom} disabled={busy} className="gv-btn"
               style={{ display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: '8px 13px', borderRadius: 8, cursor: busy ? 'default' : 'pointer' }}>
-              <Icon name="check" size={13} /> {busy ? 'Saving…' : scheduledAt ? 'Reschedule' : 'Schedule'}
+              <Icon name="check" size={13} /> {busy ? t('Saving…') : scheduledAt ? t('Reschedule') : t('Schedule')}
             </button>
             {scheduledAt && (
               <button onClick={clear} disabled={busy} className="gv-ghost"
                 style={{ border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: 'var(--gv-dim)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '8px 13px', borderRadius: 8, cursor: busy ? 'default' : 'pointer' }}>
-                Unschedule
+                {t('Unschedule')}
               </button>
             )}
           </div>

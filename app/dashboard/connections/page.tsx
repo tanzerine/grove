@@ -4,10 +4,12 @@ import { PLATFORMS, isConfigured } from '@/lib/social/providers';
 import { connectionHealth, latestChannelErrors } from '@/lib/social/health';
 import ConnectionsClient, { type PlatformView } from './ConnectionsClient';
 import { DashHeader } from '../gv-chrome';
+import { getT } from '@/lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ConnectionsPage() {
+  const t = await getT();
   const sb = await supabaseServer();
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return null;
@@ -20,8 +22,8 @@ export default async function ConnectionsPage() {
   if (!domain) {
     return (
       <>
-        <DashHeader title="Social" />
-        <div className="gv-body"><p style={{ color: 'var(--gv-dim)' }}>Connect a domain first.</p></div>
+        <DashHeader title={t('Social')} />
+        <div className="gv-body"><p style={{ color: 'var(--gv-dim)' }}>{t('Connect a domain first.')}</p></div>
       </>
     );
   }
@@ -72,7 +74,7 @@ export default async function ConnectionsPage() {
 
   return (
     <>
-      <DashHeader title="Social" subtitle="cross-post every article to your channels" />
+      <DashHeader title={t('Social')} subtitle={t('cross-post every article to your channels')} />
       <div className="gv-body">
         <ConnectionsClient
           domainId={domain.id}

@@ -3,14 +3,17 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { captureClient } from '@/lib/analytics/capture-client';
 import type { ConnectionHealth, ConnectionHealthState } from '@/lib/social/health';
+import { useT } from '../i18n';
+import { msg } from '@/lib/i18n';
 
+/** English source strings, translated where they're shown (see lib/i18n). */
 const CONNECT_ERRORS: Record<string, string> = {
-  not_configured: "That platform isn't set up yet — its API keys are missing from the environment.",
-  cancelled: 'Connection cancelled.',
-  state_mismatch: 'Connection expired or was tampered with. Try again.',
-  session_expired: 'Your session expired. Refresh and try again.',
-  no_domain: 'Connect a domain first.',
-  connect_failed: "Couldn't connect — the platform rejected the request. Try again.",
+  not_configured: msg("That platform isn't set up yet — its API keys are missing from the environment."),
+  cancelled: msg('Connection cancelled.'),
+  state_mismatch: msg('Connection expired or was tampered with. Try again.'),
+  session_expired: msg('Your session expired. Refresh and try again.'),
+  no_domain: msg('Connect a domain first.'),
+  connect_failed: msg("Couldn't connect — the platform rejected the request. Try again."),
 };
 
 export type PlatformView = {
@@ -44,6 +47,7 @@ export default function ConnectionsClient({
   domainId: string; autoSocial: boolean; platforms: PlatformView[];
   webhookUrl: string | null; webhookSecret: string | null;
 }) {
+  const t = useT();
   const r = useRouter();
   const q = useSearchParams();
   const [auto, setAuto] = useState(autoSocial);
@@ -100,7 +104,7 @@ export default function ConnectionsClient({
         setFlash({ ok: true, text: `Connected ${META[d.platform as PlatformView['id']]?.label ?? d.platform}.` });
         r.refresh();
       } else {
-        setFlash({ ok: false, text: CONNECT_ERRORS[d.error] ?? `Couldn't connect (${d.error}).` });
+        setFlash({ ok: false, text: CONNECT_ERRORS[d.error] ? t(CONNECT_ERRORS[d.error]) : t("Couldn't connect ({code}).", { code: d.error }) });
       }
     }
     window.addEventListener('message', onMessage);
@@ -139,7 +143,7 @@ export default function ConnectionsClient({
     });
     setSavingHook(false);
     if (!res.ok) {
-      setHookErr(url ? 'Enter a valid https:// URL.' : 'Could not clear the webhook.');
+      setHookErr(url ? t('Enter a valid https:// URL.') : t('Could not clear the webhook.'));
       return;
     }
     r.refresh();
@@ -158,7 +162,7 @@ export default function ConnectionsClient({
   return (
     <div>
       <div style={{ marginBottom: 22 }}>
-        <h4 style={{ fontFamily: 'Inter', fontSize: 28, margin: 0 }}>Social accounts</h4>
+        <h4 style={{ fontFamily: 'Inter', fontSize: 28, margin: 0 }}>{t('Social accounts')}</h4>
         <p style={{ fontSize: 14, color: 'var(--clay)', marginTop: 6, maxWidth: 560 }}>
           Connect your accounts and Grove will automatically share each article when it publishes —
           using the channel-native copy it already writes for every post.
@@ -172,16 +176,16 @@ export default function ConnectionsClient({
         <Banner ok>Connected {META[connectedMsg as PlatformView['id']]?.label ?? connectedMsg}.</Banner>
       )}
       {!flash && errorMsg && (
-        <Banner>{CONNECT_ERRORS[errorMsg] ?? `Couldn't connect (${errorMsg}). Try again.`}</Banner>
+        <Banner>{CONNECT_ERRORS[errorMsg] ? t(CONNECT_ERRORS[errorMsg]) : t("Couldn't connect ({code}). Try again.", { code: errorMsg })}</Banner>
       )}
 
       {/* auto-share toggle */}
       <div style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 14, padding: 20, marginBottom: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontSize: 15, fontWeight: 600 }}>Auto-share on publish</div>
+          <div style={{ fontSize: 15, fontWeight: 600 }}>{t('Auto-share on publish')}</div>
           <div style={{ fontSize: 13, color: 'var(--clay)', marginTop: 2 }}>
             {outletCount === 0
-              ? 'Connect an account or add a webhook below to enable.'
+              ? t('Connect an account or add a webhook below to enable.')
               : `When on, every published post is shared to your ${outletCount} ${outletCount === 1 ? 'outlet' : 'outlets'}${webhookActive ? ' (incl. webhook)' : ''}.`}
           </div>
         </div>
@@ -240,7 +244,7 @@ export default function ConnectionsClient({
                       the owner never has to disconnect first and lose the row. */}
                   {health?.needsReconnect && (
                     <button onClick={() => connect(p.id)} disabled={connecting === p.id} className="btn btn-primary btn-sm">
-                      {connecting === p.id ? 'Connecting…' : 'Reconnect'}
+                      {connecting === p.id ? t('Connecting…') : t('Reconnect')}
                     </button>
                   )}
                   <button onClick={() => disconnect(p.id)} disabled={busy === p.id} className="btn btn-ghost btn-sm">
@@ -253,7 +257,7 @@ export default function ConnectionsClient({
                   disabled={connecting === p.id}
                   className="btn btn-primary btn-sm"
                 >
-                  {connecting === p.id ? 'Connecting…' : 'Connect'}
+                  {connecting === p.id ? t('Connecting…') : t('Connect')}
                 </button>
               )}
             </div>
@@ -262,13 +266,13 @@ export default function ConnectionsClient({
       </div>
 
       <p style={{ fontSize: 12, color: 'var(--clay)', marginTop: 16 }}>
-        Tokens are encrypted at rest. Disconnect any time — Grove keeps no copy after that.
+        {t('Tokens are encrypted at rest. Disconnect any time — Grove keeps no copy after that.')}
       </p>
 
       {/* webhook — the no-OAuth path: pipe every publish into Zapier / Make / n8n */}
       <div style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 14, padding: 20, marginTop: 28 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <h4 style={{ fontFamily: 'Inter', fontSize: 20, margin: 0 }}>Publish webhook</h4>
+          <h4 style={{ fontFamily: 'Inter', fontSize: 20, margin: 0 }}>{t('Publish webhook')}</h4>
           {webhookActive && (
             <span style={{ fontSize: 11, fontFamily: 'DM Mono', color: 'var(--moss)', background: 'rgba(89,148,94,0.10)', borderRadius: 999, padding: '2px 8px' }}>
               active
@@ -295,7 +299,7 @@ export default function ConnectionsClient({
           </button>
           {webhookActive && (
             <button onClick={() => { setHook(''); saveWebhook(''); }} disabled={savingHook} className="btn btn-ghost btn-sm">
-              Remove
+              {t('Remove')}
             </button>
           )}
         </div>
@@ -312,7 +316,7 @@ export default function ConnectionsClient({
                 {revealSecret ? webhookSecret : webhookSecret.slice(0, 9) + '•'.repeat(18)}
               </code>
               <button onClick={() => setRevealSecret((v) => !v)} className="btn btn-ghost btn-sm">
-                {revealSecret ? 'Hide' : 'Reveal'}
+                {revealSecret ? t('Hide') : t('Reveal')}
               </button>
             </div>
           </div>

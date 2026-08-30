@@ -17,11 +17,14 @@ import Icon from '../../gv-icons';
 import { DashHeader } from '../../gv-chrome';
 import { PLATFORMS } from '@/lib/social/providers';
 import { blogPostUrl, canonicalBaseFor } from '@/lib/seo';
+import { getT } from '@/lib/i18n/server';
+import type { T } from '@/lib/i18n';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
 
 export default async function PostPage({ params }: { params: Promise<{ id: string }> }) {
+  const t = await getT();
   const { id } = await params;
   const sb = await supabaseServer();
   const { data: p } = await sb.from('posts').select('*, domains(id,blog_slug,hostname,auto_social,social_webhook_url,canonical_blog_base,custom_blog_hostname)').eq('id', id).single();
@@ -88,10 +91,10 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
   const unusual = (managerOverall !== null && managerOverall < 70) || hasBlockingIssues || !!(readiness && readiness.checks.some((c) => !c.ok));
 
   const statusMeta: Record<string, { label: string; color: string; bg: string; border: string }> = {
-    review: { label: 'In review', color: 'var(--gv-amber)', bg: 'rgba(255,255,255,0.08)', border: 'rgba(255,255,255,0.24)' },
-    scheduled: { label: 'Scheduled', color: 'var(--gv-sky)', bg: 'rgba(255,255,255,0.08)', border: 'rgba(255,255,255,0.24)' },
+    review: { label: t('In review'), color: 'var(--gv-amber)', bg: 'rgba(255,255,255,0.08)', border: 'rgba(255,255,255,0.24)' },
+    scheduled: { label: t('Scheduled'), color: 'var(--gv-sky)', bg: 'rgba(255,255,255,0.08)', border: 'rgba(255,255,255,0.24)' },
     published: { label: 'Live', color: ACCENT_INK, bg: 'rgba(162,255,1,0.08)', border: 'rgba(162,255,1,0.24)' },
-    failed: { label: 'Failed', color: 'var(--gv-red)', bg: 'rgba(201,127,127,0.08)', border: 'rgba(201,127,127,0.24)' },
+    failed: { label: t('Failed'), color: 'var(--gv-red)', bg: 'rgba(201,127,127,0.08)', border: 'rgba(201,127,127,0.24)' },
   };
   const sm = statusMeta[p.status] ?? { label: p.status, color: 'var(--gv-dim)', bg: 'rgba(255,255,255,0.03)', border: 'rgba(255,255,255,0.1)' };
   const editable = ['review', 'scheduled', 'published'].includes(p.status);
@@ -104,7 +107,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
             <span style={{ display: 'flex' }}><Icon name="back" size={16} /></span> Pipeline
           </Link>
           <span style={{ color: '#3a4640' }}>/</span>
-          <span style={{ fontSize: 13, color: 'var(--gv-faint)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 320 }}>Reviewing draft</span>
+          <span style={{ fontSize: 13, color: 'var(--gv-faint)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 320 }}>{t('Reviewing draft')}</span>
         </>
       } />
 
@@ -115,7 +118,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: sm.color, animation: 'gvPulse 2.2s ease-in-out infinite' }} />{sm.label}
           </span>
           {managerOverall !== null && (
-            <span title="Manager quality score" style={{ display: 'inline-flex', alignItems: 'baseline', gap: 4, fontVariantNumeric: 'tabular-nums', border: `1px solid color-mix(in srgb, ${bandColor(Number(managerOverall))} 30%, transparent)`, borderRadius: 999, padding: '4px 11px' }}>
+            <span title={t('Manager quality score')} style={{ display: 'inline-flex', alignItems: 'baseline', gap: 4, fontVariantNumeric: 'tabular-nums', border: `1px solid color-mix(in srgb, ${bandColor(Number(managerOverall))} 30%, transparent)`, borderRadius: 999, padding: '4px 11px' }}>
               <span style={{ fontSize: 12.5, fontWeight: 700, color: bandColor(Number(managerOverall)) }}>{managerOverall}</span>
               <span style={{ fontSize: 9.5, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--gv-faint)' }}>score</span>
             </span>
@@ -136,7 +139,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
                look like an autopilot that had stopped working. */
             <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.25 }}>
               <span style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>
-                {p.status === 'scheduled' ? 'Publishes' : 'Planned for'}
+                {p.status === 'scheduled' ? t('Publishes') : t('Planned for')}
               </span>
               <span style={{ fontSize: 13, fontWeight: 700, color: p.status === 'scheduled' ? ACCENT_INK : 'var(--gv-soft)' }}>
                 <LocalTime iso={p.scheduled_at} />
@@ -165,13 +168,13 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
         >
           {editable && (
             <ProcessDrawer unusual={unusual}>
-              {readiness && <ReadinessCard r={readiness} />}
-              {evals && evals.length > 0 && <ManagerCard evals={evals as any} />}
-              {validation?.stats && p.body_md && <AeoCard report={scoreAeo(validation.stats)} />}
-              {hasSerp && <SerpCard subtopics={serp.subtopics as string[]} body={p.body_md!} />}
-              {sources.length > 0 && <SourcesCard sources={sources} />}
+              {readiness && <ReadinessCard t={t} r={readiness} />}
+              {evals && evals.length > 0 && <ManagerCard t={t} evals={evals as any} />}
+              {validation?.stats && p.body_md && <AeoCard t={t} report={scoreAeo(validation.stats)} />}
+              {hasSerp && <SerpCard t={t} subtopics={serp.subtopics as string[]} body={p.body_md!} />}
+              {sources.length > 0 && <SourcesCard t={t} sources={sources} />}
               <div style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '20px 22px' }}>
-                <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-faint)', marginBottom: 14 }}>Pipeline timeline</div>
+                <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-faint)', marginBottom: 14 }}>{t('Pipeline timeline')}</div>
                 <PipelineTimeline log={(p.generation_log ?? []) as any} status={p.status} />
               </div>
             </ProcessDrawer>
@@ -180,8 +183,8 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
 
         {p.status === 'failed' && (
           <div style={{ background: 'rgba(201,127,127,0.08)', border: '1px solid rgba(201,127,127,0.3)', color: 'var(--gv-red-soft)', padding: 18, borderRadius: 12, marginTop: 20 }}>
-            <b>Generation failed.</b>
-            <div style={{ fontSize: 12, marginTop: 6, fontFamily: 'ui-monospace, monospace' }}>{validation?.error ?? 'Unknown error'}</div>
+            <b>{t('Generation failed.')}</b>
+            <div style={{ fontSize: 12, marginTop: 6, fontFamily: 'ui-monospace, monospace' }}>{validation?.error ?? t('Unknown error')}</div>
           </div>
         )}
 
@@ -233,12 +236,12 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
               )}
             </div>
             <div className="gv-rail" style={{ display: 'flex', flexDirection: 'column', gap: 16, position: 'sticky', top: 78 }}>
-              {readiness && <ReadinessCard r={readiness} />}
-              {evals && evals.length > 0 && <ManagerCard evals={evals as any} />}
-              {validation?.stats && p.body_md && <AeoCard report={scoreAeo(validation.stats)} />}
-              {hasSerp && <SerpCard subtopics={serp.subtopics as string[]} body={p.body_md!} />}
+              {readiness && <ReadinessCard t={t} r={readiness} />}
+              {evals && evals.length > 0 && <ManagerCard t={t} evals={evals as any} />}
+              {validation?.stats && p.body_md && <AeoCard t={t} report={scoreAeo(validation.stats)} />}
+              {hasSerp && <SerpCard t={t} subtopics={serp.subtopics as string[]} body={p.body_md!} />}
               <div style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '20px 22px' }}>
-                <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-faint)', marginBottom: 14 }}>Pipeline timeline</div>
+                <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-faint)', marginBottom: 14 }}>{t('Pipeline timeline')}</div>
                 <PipelineTimeline log={(p.generation_log ?? []) as any} status={p.status} />
               </div>
             </div>
@@ -255,14 +258,14 @@ function card(extra: React.CSSProperties = {}): React.CSSProperties {
   return { background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '20px 22px', ...extra };
 }
 
-function ReadinessCard({ r }: { r: Readiness }) {
+function ReadinessCard({ r, t }: { r: Readiness; t: T }) {
   return (
     <div className="gv-card" style={{ background: 'var(--gv-card-grad)', border: '1px solid rgba(162,255,1,0.2)', borderRadius: 18, padding: '20px 22px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
         <span style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(162,255,1,0.14)', border: '1px solid rgba(162,255,1,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: ACCENT_INK, flexShrink: 0 }}><Icon name="check" size={16} /></span>
         <div style={{ fontFamily: "'Newsreader', Georgia, serif", fontSize: 20, fontWeight: 500, color: 'var(--gv-ink)', lineHeight: 1.2 }}>{r.headline}</div>
       </div>
-      <p style={{ fontSize: 12.5, color: 'var(--gv-dim)', lineHeight: 1.55, margin: '13px 0 15px' }}>Built to rank on Google and get quoted by AI — written in your voice.</p>
+      <p style={{ fontSize: 12.5, color: 'var(--gv-dim)', lineHeight: 1.55, margin: '13px 0 15px' }}>{t('Built to rank on Google and get quoted by AI — written in your voice.')}</p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
         {r.checks.map((c) => (
           <div key={c.label} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13 }}>
@@ -273,7 +276,7 @@ function ReadinessCard({ r }: { r: Readiness }) {
       </div>
       {r.notes.length > 0 && (
         <div style={{ marginTop: 14, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 12 }}>
-          <div style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 7 }}>Worth a look</div>
+          <div style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 7 }}>{t('Worth a look')}</div>
           <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: 'var(--gv-soft)', lineHeight: 1.65 }}>
             {r.notes.map((t, i) => <li key={i}>{t}</li>)}
           </ul>
@@ -287,13 +290,13 @@ type EvalIssue = { rule?: string; severity: string; note?: string };
 type EvalRow = { attempt: number; action: string; scores: RubricScores | null; issues: EvalIssue[] | null; created_at: string };
 const SEV_DOT: Record<string, string> = { block: 'var(--gv-red)', rewrite: 'var(--gv-amber)', note: 'var(--gv-accent)' };
 
-function ManagerCard({ evals }: { evals: EvalRow[] }) {
+function ManagerCard({ evals, t }: { evals: EvalRow[]; t: T }) {
   const latest = evals[evals.length - 1];
   const overall = Number(latest.scores?.overall ?? 0);
   const actionLabel: Record<string, { text: string; color: string }> = {
-    approve: { text: 'Approved by the manager agent', color: ACCENT_INK },
-    rewrite: { text: 'Sent back for rewrite', color: 'var(--gv-amber)' },
-    reject: { text: 'Rejected — routed to your review', color: 'var(--gv-red)' },
+    approve: { text: t('Approved by the manager agent'), color: ACCENT_INK },
+    rewrite: { text: t('Sent back for rewrite'), color: 'var(--gv-amber)' },
+    reject: { text: t('Rejected — routed to your review'), color: 'var(--gv-red)' },
   };
   const act = actionLabel[latest.action] ?? { text: latest.action, color: 'var(--gv-dim)' };
   const issues = latest.issues ?? [];
@@ -322,11 +325,11 @@ function ManagerCard({ evals }: { evals: EvalRow[] }) {
   );
 }
 
-function AeoCard({ report }: { report: ReturnType<typeof scoreAeo> }) {
+function AeoCard({ report, t }: { report: ReturnType<typeof scoreAeo>; t: T }) {
   return (
     <div className="gv-card" style={card()}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-        <span style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-faint)' }}>AI-search readiness</span>
+        <span style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-faint)' }}>{t('AI-search readiness')}</span>
         <span style={{ fontFamily: "'Newsreader', Georgia, serif", fontSize: 20, color: bandColor(report.score) }}>{report.score}<span style={{ fontSize: 12, color: 'var(--gv-faint)' }}>/100</span></span>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -338,16 +341,16 @@ function AeoCard({ report }: { report: ReturnType<typeof scoreAeo> }) {
           </div>
         ))}
       </div>
-      <p style={{ fontSize: 11, color: 'var(--gv-fainter)', lineHeight: 1.5, margin: '14px 0 0' }}>How ready this article is to be quoted by ChatGPT, Perplexity &amp; Google AI Overviews.</p>
+      <p style={{ fontSize: 11, color: 'var(--gv-fainter)', lineHeight: 1.5, margin: '14px 0 0' }}>{t('How ready this article is to be quoted by ChatGPT, Perplexity & Google AI Overviews.')}</p>
     </div>
   );
 }
 
-function SerpCard({ subtopics, body }: { subtopics: string[]; body: string }) {
+function SerpCard({ subtopics, body, t }: { subtopics: string[]; body: string; t: T }) {
   const missing = new Set(coverageGap(subtopics, body, 99).map((s) => s.toLowerCase()));
   return (
     <div className="gv-card" style={card()}>
-      <span style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-faint)' }}>What&apos;s ranking for this topic</span>
+      <span style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-faint)' }}>{t('What’s ranking for this topic')}</span>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
         {subtopics.map((s) => {
           const gap = missing.has(s.toLowerCase());
@@ -358,15 +361,15 @@ function SerpCard({ subtopics, body }: { subtopics: string[]; body: string }) {
           );
         })}
       </div>
-      <p style={{ fontSize: 11, color: 'var(--gv-fainter)', lineHeight: 1.5, margin: '14px 0 0' }}>Consensus subtopics from live top-ranking pages. <span style={{ color: 'var(--gv-red)' }}>Amber</span> = a gap this draft doesn’t cover yet.</p>
+      <p style={{ fontSize: 11, color: 'var(--gv-fainter)', lineHeight: 1.5, margin: '14px 0 0' }}>{t('Consensus subtopics from live top-ranking pages.')} <span style={{ color: 'var(--gv-red)' }}>Amber</span> = a gap this draft doesn’t cover yet.</p>
     </div>
   );
 }
 
-function SourcesCard({ sources }: { sources: { name: string; host: string; icon: string }[] }) {
+function SourcesCard({ sources, t }: { sources: { name: string; host: string; icon: string }[]; t: T }) {
   return (
     <div className="gv-card" style={card()}>
-      <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-faint)', marginBottom: 14 }}>Sources cited</div>
+      <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-faint)', marginBottom: 14 }}>{t('Sources cited')}</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {sources.map((src, si) => (
           <div key={si} className="gv-qrow" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 9 }}>

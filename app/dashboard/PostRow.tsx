@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import LocalTime from './LocalTime';
 import Icon from './gv-icons';
+import { useT } from './i18n';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
@@ -29,9 +30,10 @@ function visuals(status: string, stuck: boolean) {
    interpolates, because only the server has the domain row the precedence
    depends on — the old blogSlug prop could only ever produce the mirror URL. */
 export default function PostRow({ p, score, blogBase }: { p: any; score?: { overall: number; action: string } | null; blogBase?: string | null }) {
+  const t = useT();
   const r = useRouter();
   const [busy, setBusy] = useState<null | 'retry' | 'delete' | 'regen' | 'approve'>(null);
-  const errorMsg = p.status === 'failed' ? (p.validation?.error ?? 'Unknown error') : null;
+  const errorMsg = p.status === 'failed' ? (p.validation?.error ?? t('Unknown error')) : null;
   const failedAt = p.validation?.failed_at;
 
   const ageMin = (Date.now() - new Date(p.created_at).getTime()) / 60_000;
@@ -39,12 +41,12 @@ export default function PostRow({ p, score, blogBase }: { p: any; score?: { over
   const v = visuals(p.status, stuck);
 
   const STEP_LABELS: Record<string, string> = {
-    site_profile: 'Crawling your site…',
-    research: 'Searching the web…',
-    topic_refiner: 'Picking an angle…',
-    writer: 'Drafting the article…',
-    persist: 'Saving draft…',
-    cover_image: 'Finding cover image…',
+    site_profile: t('Crawling your site…'),
+    research: t('Searching the web…'),
+    topic_refiner: t('Picking an angle…'),
+    writer: t('Drafting the article…'),
+    persist: t('Saving draft…'),
+    cover_image: t('Finding cover image…'),
   };
   const log = (p.generation_log ?? []) as { step: string; event: string; message?: string }[];
   const latest = log.length ? log[log.length - 1] : null;
@@ -60,11 +62,11 @@ export default function PostRow({ p, score, blogBase }: { p: any; score?: { over
     r.refresh();
   }
   async function del() {
-    if (busy) return; if (!confirm('Delete this post?')) return; setBusy('delete');
+    if (busy) return; if (!confirm(t('Delete this post?'))) return; setBusy('delete');
     await fetch(`/api/posts/${p.id}`, { method: 'DELETE' }); setBusy(null); r.refresh();
   }
   async function regenerate() {
-    if (busy) return; if (!confirm('Rewrite this article from scratch? This replaces the current draft.')) return; setBusy('regen');
+    if (busy) return; if (!confirm(t('Rewrite this article from scratch? This replaces the current draft.'))) return; setBusy('regen');
     // mode:'fresh' is what makes this a rewrite — without it the pipeline
     // reuses the persisted draft and re-scores the same words (see regrade).
     const res = await fetch(`/api/posts/${p.id}/retry`, {
@@ -112,12 +114,12 @@ export default function PostRow({ p, score, blogBase }: { p: any; score?: { over
 
   const meta: React.ReactNode =
     p.status === 'published' ? <>Live{p.published_at ? <> · <LocalTime iso={p.published_at} withTime={false} /></> : ''}{typeof p.reads === 'number' ? ` · ${p.reads} reads` : ''}</> :
-    p.status === 'scheduled' ? (p.scheduled_at ? <>Publishes <LocalTime iso={p.scheduled_at} /></> : 'Scheduled') :
+    p.status === 'scheduled' ? (p.scheduled_at ? <>{t('Publishes')} <LocalTime iso={p.scheduled_at} /></> : 'Scheduled') :
     p.status === 'review' ? <>{p.validation?.stats?.word_count ?? '—'} words · ready for you</> :
     stuck ? `Stuck at ${p.status} for ${Math.round(ageMin)}m — click Retry` :
     p.status === 'failed' ? `Failed${failedAt ? ` at ${failedAt}` : ''}: ${String(errorMsg).slice(0, 60)}` :
     currentStep ? currentStep :
-    p.status === 'writing' ? 'Drafting…' : p.status === 'researching' ? 'Gathering sources…' : (p.topic ?? 'Queued');
+    p.status === 'writing' ? 'Drafting…' : p.status === 'researching' ? t('Gathering sources…') : (p.topic ?? t('Queued'));
 
   const btn = (label: string, onClick: () => void, primary = false, key?: string) => (
     <button key={key} className="gv-btn" onClick={onClick} disabled={!!busy}
@@ -158,14 +160,14 @@ export default function PostRow({ p, score, blogBase }: { p: any; score?: { over
         ) : null}
 
         <div className="pactions" style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
-          {p.status === 'review' && btn(busy === 'approve' ? '…' : 'Approve', approve, true, 'a')}
-          {needsRegrade && btn(busy === 'regen' ? '…' : 'Re-run check', regrade, false, 'rg')}
-          {showRetry && btn(busy === 'retry' ? 'Retrying…' : 'Retry', retry, true, 'r')}
-          {showRegen && btn(busy === 'regen' ? '…' : 'Regenerate', regenerate, false, 'g')}
-          {showDelete && btn(busy === 'delete' ? '…' : 'Delete', del, false, 'd')}
+          {p.status === 'review' && btn(busy === 'approve' ? '…' : t('Approve'), approve, true, 'a')}
+          {needsRegrade && btn(busy === 'regen' ? '…' : t('Re-run check'), regrade, false, 'rg')}
+          {showRetry && btn(busy === 'retry' ? t('Retrying…') : t('Retry'), retry, true, 'r')}
+          {showRegen && btn(busy === 'regen' ? '…' : t('Regenerate'), regenerate, false, 'g')}
+          {showDelete && btn(busy === 'delete' ? '…' : t('Delete'), del, false, 'd')}
           {p.status === 'published' && blogBase && p.slug && (
             <a className="gv-btn" href={`${blogBase}/${p.slug}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}
-              style={{ border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.03)', color: 'var(--gv-soft)', fontSize: 12.5, fontWeight: 600, padding: '7px 15px', borderRadius: 9, textDecoration: 'none', whiteSpace: 'nowrap' }}>View ↗</a>
+              style={{ border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.03)', color: 'var(--gv-soft)', fontSize: 12.5, fontWeight: 600, padding: '7px 15px', borderRadius: 9, textDecoration: 'none', whiteSpace: 'nowrap' }}>{t('View ↗')}</a>
           )}
         </div>
       </div>
@@ -182,7 +184,7 @@ export default function PostRow({ p, score, blogBase }: { p: any; score?: { over
               <span className="gv-think" style={{ animationDelay: '.3s' }} />
             </span>
             <span style={{ fontSize: 12.5, color: 'var(--gv-soft)', fontWeight: 500, flex: '1 1 auto', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {currentStep ?? (p.status === 'writing' ? 'Drafting the article…' : p.status === 'researching' ? 'Researching live SERP…' : 'Working…')}
+              {currentStep ?? (p.status === 'writing' ? t('Drafting the article…') : p.status === 'researching' ? t('Researching live SERP…') : t('Working…'))}
             </span>
             <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--gv-fainter)', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
               {p.status === 'researching' || p.status === 'queued' ? 'research' : 'draft'}

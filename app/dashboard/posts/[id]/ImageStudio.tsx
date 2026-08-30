@@ -2,6 +2,7 @@
 import { useRef, useState } from 'react';
 import Icon from '../../gv-icons';
 import { MAX_UPLOAD_MB, UPLOAD_ACCEPT, uploadImage } from './upload-image';
+import { useT } from '../../i18n';
 
 /**
  * The editor's image tool: generate one, or bring your own.
@@ -37,6 +38,7 @@ export default function ImageStudio({
   onInsert: (image: Result) => void | Promise<void>;
   onClose: () => void;
 }) {
+  const t = useT();
   const [mode, setMode] = useState<Mode>('generate');
   const [hint, setHint] = useState('');
   const [busy, setBusy] = useState(false);
@@ -61,7 +63,7 @@ export default function ImageStudio({
       await onInsert(image);
       setInserted(true);
     } catch (e: any) {
-      setErr(e?.message ?? 'Could not upload that image.');
+      setErr(e?.message ?? t('Could not upload that image.'));
     }
     setBusy(false);
   }
@@ -78,7 +80,7 @@ export default function ImageStudio({
         body: JSON.stringify({ domain_id: domainId, hint: asHint || undefined, ...contextOf() }),
       });
       const j = await res.json().catch(() => ({}));
-      if (!res.ok || !j.url) setErr(j.error ?? 'Could not generate an image. Try again.');
+      if (!res.ok || !j.url) setErr(j.error ?? t('Could not generate an image. Try again.'));
       else setResult({ url: j.url, alt: j.alt ?? '' });
     } catch { setErr('Something went wrong. Try again.'); }
     setBusy(false);
@@ -95,17 +97,17 @@ export default function ImageStudio({
     <div style={{ border: '1px solid var(--gv-line)', borderRadius: 12, background: 'rgba(255,255,255,0.015)', padding: '13px 14px', marginBottom: 18 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 11 }}>
         <span style={{ display: 'flex', color: ACCENT_INK }}><Icon name="image" size={15} /></span>
-        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--gv-ink)' }}>Add an image</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--gv-ink)' }}>{t('Add an image')}</span>
         <span style={{ fontSize: 11.5, color: 'var(--gv-faint)' }}>
           {mode === 'generate' ? 'generated in your house style, inserted at the cursor' : 'your own file, inserted at the cursor'}
         </span>
-        <button onClick={onClose} className="gv-ghost" aria-label="Close image tool"
+        <button onClick={onClose} className="gv-ghost" aria-label={t('Close image tool')}
           style={{ marginLeft: 'auto', display: 'flex', border: 'none', background: 'transparent', color: 'var(--gv-dim)', cursor: 'pointer', padding: 2 }}>
           <Icon name="x" size={14} />
         </button>
       </div>
 
-      <div role="tablist" aria-label="Image source" style={{ display: 'flex', gap: 4, marginBottom: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: 3, width: 'fit-content' }}>
+      <div role="tablist" aria-label={t('Image source')} style={{ display: 'flex', gap: 4, marginBottom: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: 3, width: 'fit-content' }}>
         {(['generate', 'upload'] as const).map((m) => (
           <button
             key={m}
@@ -120,7 +122,7 @@ export default function ImageStudio({
               color: mode === m ? 'var(--gv-on-accent)' : 'var(--gv-dim)',
             }}>
             <Icon name={m === 'generate' ? 'sparkle' : 'image'} size={12} />
-            {m === 'generate' ? 'Generate' : 'Upload'}
+            {m === 'generate' ? t('Generate') : t('Upload')}
           </button>
         ))}
       </div>
@@ -145,7 +147,7 @@ export default function ImageStudio({
             }}>
             <span style={{ display: 'flex', color: dragOver ? ACCENT_INK : 'var(--gv-dim)' }}><Icon name="image" size={19} /></span>
             <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--gv-soft)' }}>
-              {busy ? 'Uploading…' : 'Drop an image here, or click to choose one'}
+              {busy ? t('Uploading…') : t('Drop an image here, or click to choose one')}
             </span>
             <span style={{ fontSize: 11, color: 'var(--gv-faint)' }}>
               PNG, JPEG, WebP or GIF · up to {MAX_UPLOAD_MB} MB
@@ -159,7 +161,7 @@ export default function ImageStudio({
             onChange={(e) => { takeFile(e.target.files?.[0]); e.target.value = ''; }}
           />
           <p style={{ fontSize: 11, color: 'var(--gv-faint)', margin: '9px 0 0' }}>
-            You can also paste an image, or drag one straight onto the page.
+            {t('You can also paste an image, or drag one straight onto the page.')}
           </p>
         </>
       ) : (
@@ -175,7 +177,7 @@ export default function ImageStudio({
         />
         <button onClick={() => generate()} disabled={busy} className="gv-btn"
           style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0, border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, padding: '0 14px', borderRadius: 10, cursor: busy ? 'default' : 'pointer' }}>
-          <Icon name="sparkle" size={13} /> {busy ? 'Drawing…' : 'Generate'}
+          <Icon name="sparkle" size={13} /> {busy ? t('Drawing…') : t('Generate')}
         </button>
       </div>
 
@@ -199,7 +201,7 @@ export default function ImageStudio({
       {err && <p style={{ fontSize: 12, color: 'var(--gv-red)', margin: '10px 0 0' }}>{err}</p>}
       {inserted && !result && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 11, fontSize: 12, color: ACCENT_INK }}>
-          <span style={{ display: 'flex' }}><Icon name="check" size={13} /></span> Inserted into the draft.
+          <span style={{ display: 'flex' }}><Icon name="check" size={13} /></span> {t('Inserted into the draft.')}
         </div>
       )}
 
@@ -210,15 +212,15 @@ export default function ImageStudio({
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 10 }}>
             <button onClick={insert} className="gv-btn"
               style={{ display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: '7px 13px', borderRadius: 8, cursor: 'pointer' }}>
-              <Icon name="check" size={13} /> Insert at cursor
+              <Icon name="check" size={13} /> {t('Insert at cursor')}
             </button>
             <button onClick={() => generate()} className="gv-ghost"
               style={{ display: 'flex', alignItems: 'center', gap: 6, border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '7px 13px', borderRadius: 8, cursor: 'pointer' }}>
-              <Icon name="refresh" size={13} /> Try another
+              <Icon name="refresh" size={13} /> {t('Try another')}
             </button>
             <button onClick={() => setResult(null)} className="gv-ghost"
               style={{ border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: 'var(--gv-dim)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '7px 13px', borderRadius: 8, cursor: 'pointer' }}>
-              Discard
+              {t('Discard')}
             </button>
           </div>
         </div>

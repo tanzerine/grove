@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import type { ChromeDomain } from './chrome-context';
+import { useT } from './i18n';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
@@ -13,6 +14,7 @@ const ACCENT_INK = 'var(--gv-accent-ink)';
  * page re-scopes to the chosen site.
  */
 export default function SiteSwitcher({ domains, activeId }: { domains: ChromeDomain[]; activeId: string | null }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [switching, setSwitching] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
@@ -52,7 +54,7 @@ export default function SiteSwitcher({ domains, activeId }: { domains: ChromeDom
           background: 'var(--gv-pop)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12,
           boxShadow: '0 16px 40px rgba(0,0,0,0.55)', padding: 6, zIndex: 60, maxHeight: 360, overflowY: 'auto',
         }}>
-          <div style={{ padding: '6px 10px 8px', fontSize: 10.5, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>Your sites</div>
+          <div style={{ padding: '6px 10px 8px', fontSize: 10.5, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>{t('Your sites')}</div>
           {domains.map((d) => {
             const isActive = d.id === activeId;
             return (
@@ -71,7 +73,7 @@ export default function SiteSwitcher({ domains, activeId }: { domains: ChromeDom
           <Link href="/onboarding/domain" className="gv-nav" onClick={() => setOpen(false)}
             style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 10px', borderRadius: 9, fontSize: 13, color: ACCENT_INK, textDecoration: 'none' }}>
             <span style={{ width: 26, height: 26, borderRadius: 7, border: '1px dashed rgba(162,255,1,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, lineHeight: 1 }}>+</span>
-            Connect another website
+            {t('Connect another website')}
           </Link>
         </div>
       )}
@@ -81,7 +83,7 @@ export default function SiteSwitcher({ domains, activeId }: { domains: ChromeDom
         style={{ display: 'flex', alignItems: 'center', gap: 11, width: '100%', border: '1px solid rgba(255,255,255,0.09)', background: 'rgba(255,255,255,0.02)', borderRadius: 12, padding: '11px 13px', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
         <Avatar host={active?.hostname ?? 'grove'} active />
         <span style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--gv-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{active?.hostname ?? 'No site yet'}</span>
+          <span style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--gv-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{active?.hostname ?? t('No site yet')}</span>
           <span style={{ display: 'block', fontSize: 11, color: 'var(--gv-faint)' }}>{domains.length > 1 ? `${domains.length} sites · switch` : 'manage site'}</span>
         </span>
         <span style={{ color: 'var(--gv-faint)', fontSize: 13, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }}>⌄</span>

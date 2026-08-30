@@ -16,6 +16,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Icon from './gv-icons';
 import { useUpsell } from './Upsell';
+import { useT } from './i18n';
 
 const ACCENT = 'var(--gv-accent)';
 const SAGE = '#9aa094';
@@ -38,6 +39,7 @@ export default function AgentInsight({
   /** Primary CTA when there's no cluster to build (e.g. drafts are waiting). */
   action?: { label: string; href: string };
 }) {
+  const t = useT();
   const r = useRouter();
   const { gate } = useUpsell();
   const [pages, setPages] = useState<Page[] | null>(null);
@@ -55,11 +57,11 @@ export default function AgentInsight({
         body: JSON.stringify({ domain_id: cluster.domainId, seed: cluster.seed, count: SPOKES }),
       });
       const j = await res.json().catch(() => ({}));
-      if (res.status === 409) setErr('I need your site profile before I can plan a cluster.');
-      else if (res.status === 402) setErr(j.message ?? 'An active plan is required to generate content.');
-      else if (!res.ok || !j.pages?.length) setErr('Couldn’t find enough related searches to cluster around this one.');
+      if (res.status === 409) setErr(t('I need your site profile before I can plan a cluster.'));
+      else if (res.status === 402) setErr(j.message ?? t('An active plan is required to generate content.'));
+      else if (!res.ok || !j.pages?.length) setErr(t('Couldn’t find enough related searches to cluster around this one.'));
       else setPages(j.pages);
-    } catch { setErr('Something went wrong. Try again.'); }
+    } catch { setErr(t('Something went wrong. Try again.')); }
     setPlanning(false);
   }
 
@@ -74,8 +76,8 @@ export default function AgentInsight({
       });
       const j = await res.json().catch(() => ({}));
       if (res.ok && j.created > 0) { r.push('/dashboard/pipeline'); r.refresh(); return; }
-      setErr(j.message ?? 'Generation failed — nothing was written.');
-    } catch { setErr('Something went wrong. Try again.'); }
+      setErr(j.message ?? t('Generation failed — nothing was written.'));
+    } catch { setErr(t('Something went wrong. Try again.')); }
     setGenerating(false);
   }
 
@@ -94,7 +96,7 @@ export default function AgentInsight({
   return (
     <div style={{ marginTop: 18, padding: '14px 15px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: SAGE, marginBottom: 8 }}>
-        <span style={{ display: 'flex' }}><Icon name="answers" /></span> Agent insight
+        <span style={{ display: 'flex' }}><Icon name="answers" /></span> {t('Agent insight')}
       </div>
       <div style={{ fontSize: 12.5, color: 'var(--gv-soft)', lineHeight: 1.55 }}>{text}</div>
 
@@ -130,13 +132,13 @@ export default function AgentInsight({
                 {generating ? `Writing ${pages.length}…` : `Write ${pages.length} page${pages.length === 1 ? '' : 's'}`}
               </button>
               <button onClick={() => { setPages(null); setErr(null); }} disabled={generating} className="gv-ghost" style={ghost}>
-                Not now
+                {t('Not now')}
               </button>
             </>
           ) : (
             <button onClick={plan} disabled={planning} className="gv-btn" style={{ ...primary, opacity: planning ? 0.7 : 1 }}>
               <Icon name="sparkle" size={11} />
-              {planning ? 'Finding related searches…' : 'Build the cluster'}
+              {planning ? t('Finding related searches…') : t('Build the cluster')}
             </button>
           )
         ) : action ? (
@@ -144,7 +146,7 @@ export default function AgentInsight({
         ) : null}
 
         {!generating && (
-          <Link href="/dashboard/strategy" className="gv-ghost" style={cluster || action ? ghost : primary}>Review plan</Link>
+          <Link href="/dashboard/strategy" className="gv-ghost" style={cluster || action ? ghost : primary}>{t('Review plan')}</Link>
         )}
       </div>
     </div>

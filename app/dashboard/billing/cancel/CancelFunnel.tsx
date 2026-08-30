@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { RefundReason } from '@/lib/refunds';
 import { captureClient } from '@/lib/analytics/capture-client';
+import { useT } from '../../i18n';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
@@ -14,6 +15,7 @@ const LINE = 'rgba(255,255,255,0.08)';
 // (3) confirm → submit. Submitting records the request + emails the owner;
 // the actual refund is approved by the owner (no money moves here).
 export default function CancelFunnel({ reasons, plan }: { reasons: RefundReason[]; plan: string | null }) {
+  const t = useT();
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [reason, setReason] = useState('');
@@ -34,7 +36,7 @@ export default function CancelFunnel({ reasons, plan }: { reasons: RefundReason[
     setBusy(false);
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
-      return setErr(j.error ?? 'Something went wrong. Please try again.');
+      return setErr(j.error ?? t('Something went wrong. Please try again.'));
     }
     captureClient('refund_requested', { reason, plan: plan ?? undefined });
     setDone(true);
@@ -45,7 +47,7 @@ export default function CancelFunnel({ reasons, plan }: { reasons: RefundReason[
       <Shell>
         <div style={{ textAlign: 'center', padding: '24px 8px' }}>
           <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'rgba(162,255,1,0.14)', color: ACCENT_INK, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: 24 }}>✓</div>
-          <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--gv-ink)', margin: '0 0 8px' }}>Request received</h2>
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--gv-ink)', margin: '0 0 8px' }}>{t('Request received')}</h2>
           <p style={{ fontSize: 14.5, color: 'var(--gv-dim)', lineHeight: 1.6, maxWidth: 420, margin: '0 auto 20px' }}>
             Thanks for the feedback — it genuinely helps. We&apos;ll review your refund and email you once it&apos;s
             processed. Refunds return to your card within a few business days.
@@ -85,33 +87,33 @@ export default function CancelFunnel({ reasons, plan }: { reasons: RefundReason[
             ))}
           </div>
           <Nav>
-            <Link href="/dashboard/billing" style={GhostLink}>Never mind, keep my plan</Link>
-            <button onClick={() => setStep(2)} disabled={!reason} style={primaryBtn(!reason)}>Continue →</button>
+            <Link href="/dashboard/billing" style={GhostLink}>{t('Never mind, keep my plan')}</Link>
+            <button onClick={() => setStep(2)} disabled={!reason} style={primaryBtn(!reason)}>{t('Continue →')}</button>
           </Nav>
         </>
       )}
 
       {step === 2 && (
         <>
-          <h2 style={Title}>What could we have done better?</h2>
-          <p style={Sub}>Optional, but the most useful thing you can leave us.</p>
+          <h2 style={Title}>{t('What could we have done better?')}</h2>
+          <p style={Sub}>{t('Optional, but the most useful thing you can leave us.')}</p>
           <textarea value={feedback} onChange={(e) => setFeedback(e.target.value)} rows={4}
             placeholder="The one thing that would've made Grove worth keeping…" style={textArea} maxLength={2000} />
           <label style={{ display: 'block', fontSize: 13.5, color: 'var(--gv-dim)', margin: '18px 0 7px' }}>
-            What would bring you back?
+            {t('What would bring you back?')}
           </label>
           <textarea value={comeback} onChange={(e) => setComeback(e.target.value)} rows={3}
             placeholder="A feature, a price, a result…" style={textArea} maxLength={2000} />
           <Nav>
             <button onClick={() => setStep(1)} style={GhostBtn}>← Back</button>
-            <button onClick={() => setStep(3)} style={primaryBtn(false)}>Continue →</button>
+            <button onClick={() => setStep(3)} style={primaryBtn(false)}>{t('Continue →')}</button>
           </Nav>
         </>
       )}
 
       {step === 3 && (
         <>
-          <h2 style={Title}>Confirm your refund request</h2>
+          <h2 style={Title}>{t('Confirm your refund request')}</h2>
           <p style={Sub}>
             We&apos;ll cancel your subscription and process a full refund after a quick review. You&apos;ll get a
             confirmation email. Refunds land back on your card within a few business days.
@@ -124,7 +126,7 @@ export default function CancelFunnel({ reasons, plan }: { reasons: RefundReason[
           <Nav>
             <button onClick={() => setStep(2)} disabled={busy} style={GhostBtn}>← Back</button>
             <button onClick={submit} disabled={busy} style={primaryBtn(busy)}>
-              {busy ? 'Submitting…' : 'Request refund'}
+              {busy ? t('Submitting…') : t('Request refund')}
             </button>
           </Nav>
         </>

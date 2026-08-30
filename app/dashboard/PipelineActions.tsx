@@ -4,11 +4,13 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Icon from './gv-icons';
 import { useUpsell } from './Upsell';
+import { useT } from './i18n';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
 
 export default function PipelineActions({ domainId }: { domainId?: string }) {
+  const t = useT();
   const r = useRouter();
   const { gate } = useUpsell();
   const [topic, setTopic] = useState('');
@@ -67,21 +69,21 @@ export default function PipelineActions({ domainId }: { domainId?: string }) {
           style={{ flex: '1 1 220px', minWidth: 0, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 10, padding: '11px 14px', color: 'var(--gv-ink)', fontSize: 13.5, fontFamily: 'inherit', outline: 'none' }}
         />
         <button onClick={suggest} disabled={suggesting || !domainId} className="gv-ghost" style={ghost}>
-          <Icon name="sparkle" size={13} />{suggesting ? 'Thinking…' : 'Suggest'}
+          <Icon name="sparkle" size={13} />{suggesting ? t('Thinking…') : t('Suggest')}
         </button>
         <button onClick={enqueue} disabled={busy || !topic.trim()} className="gv-btn"
           style={{ border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '11px 18px', borderRadius: 10, cursor: 'pointer', whiteSpace: 'nowrap', opacity: busy || !topic.trim() ? 0.6 : 1 }}>
-          {busy ? '…' : 'Queue topic'}
+          {busy ? '…' : t('Queue topic')}
         </button>
       </div>
 
       {open && (
         <div style={{ marginTop: 14 }}>
           <div style={{ fontSize: 10, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--gv-faint)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ color: ACCENT_INK, display: 'flex' }}><Icon name="sparkle" size={13} /></span> Grove suggests · from your strategy &amp; live SERP
+            <span style={{ color: ACCENT_INK, display: 'flex' }}><Icon name="sparkle" size={13} /></span> {t('Grove suggests · from your strategy & live SERP')}
           </div>
           {suggErr && (
-            <p style={{ fontSize: 12, color: 'var(--gv-red-soft)', margin: '0 0 8px' }}>Couldn’t generate suggestions — build the site profile first.</p>
+            <p style={{ fontSize: 12, color: 'var(--gv-red-soft)', margin: '0 0 8px' }}>{t(t('Couldn’t generate suggestions — build the site profile first.'))}</p>
           )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {suggestions.map((s, i) => (
@@ -97,7 +99,7 @@ export default function PipelineActions({ domainId }: { domainId?: string }) {
 
       <div style={{ fontSize: 12, color: 'var(--gv-faint)', marginTop: 12 }}>
         Prefer to write it yourself?{' '}
-        <Link href="/dashboard/write" style={{ color: ACCENT_INK, fontWeight: 600 }}>Open the writing desk →</Link>
+        <Link href="/dashboard/write" style={{ color: ACCENT_INK, fontWeight: 600 }}>{t(t('Open the writing desk →'))}</Link>
       </div>
     </div>
   );

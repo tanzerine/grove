@@ -2,8 +2,10 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { getActiveDomain } from '@/lib/active-domain';
 import { DashHeader } from '../gv-chrome';
 import { blogHomeUrl, canonicalBaseFor } from '@/lib/seo';
+import { getT } from '@/lib/i18n/server';
 
 export default async function Page() {
+  const t = await getT();
   const sb = await supabaseServer();
   const domain = await getActiveDomain(sb);
   const { data: posts } = await sb.from('posts').select('*').eq('domain_id', domain?.id).eq('status', 'published').order('published_at', { ascending: false });
@@ -15,7 +17,7 @@ export default async function Page() {
 
   return (
     <>
-      <DashHeader title="Published" subtitle="everything that’s live on your blog" />
+      <DashHeader title={t('Published')} subtitle={t('everything that’s live on your blog')} />
       <div className="gv-body">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {(posts ?? []).map((p) => (
@@ -28,7 +30,7 @@ export default async function Page() {
             <span className="badge live"><span className="d" />LIVE</span>
           </a>
         ))}
-        {(posts?.length ?? 0) === 0 && <p className="lede">Nothing published yet.</p>}
+        {(posts?.length ?? 0) === 0 && <p className="lede">{t('Nothing published yet.')}</p>}
       </div>
       </div>
     </>

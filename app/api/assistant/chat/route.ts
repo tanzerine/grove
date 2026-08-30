@@ -31,6 +31,7 @@ import { resolvePost, extractReschedule, type PostRef } from '@/lib/assistant/pi
 import { approveAndPublish } from '@/lib/pipeline/approve';
 import { gatherSignals, signalsBlock } from '@/lib/assistant/context';
 import { relevantKnowledge } from '@/lib/assistant/knowledge';
+import { getUiLocale } from '@/lib/i18n/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -456,6 +457,7 @@ export async function POST(req: Request) {
       signalsMd: signalsBlock(signals),
       planMd: contextForPrompt(agentCtx.plan_md, agentCtx.progress_md, 3000),
       history,
+      locale: await getUiLocale(),
     });
     // Only ship a proposal that would actually trigger an action — anything
     // that triages back to an answer intent would loop, so it's dropped.

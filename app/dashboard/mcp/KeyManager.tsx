@@ -11,6 +11,7 @@
 import { useState } from 'react';
 import Icon from '../gv-icons';
 import CopySnippet from '../embed/CopySnippet';
+import { useT } from '../i18n';
 
 export type KeyRow = {
   id: string;
@@ -55,6 +56,7 @@ export default function KeyManager({ initialKeys, sites, endpoint }: {
   sites: Site[];
   endpoint: string;
 }) {
+  const t = useT();
   const [keys, setKeys] = useState<KeyRow[]>(initialKeys);
   const [secret, setSecret] = useState<string | null>(null);
   const [name, setName] = useState('Content layer');
@@ -77,17 +79,17 @@ export default function KeyManager({ initialKeys, sites, endpoint }: {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          name: name.trim() || 'Content layer',
+          name: name.trim() || t('Content layer'),
           domain_id: siteId || null,
           scopes: writable ? ['read', 'write'] : ['read'],
         }),
       });
       const body = await res.json();
-      if (!res.ok) { setError(body?.error ?? 'Could not create the key.'); return; }
+      if (!res.ok) { setError(body?.error ?? t('Could not create the key.')); return; }
       setKeys((k) => [body.key, ...k]);
       setSecret(body.secret);
     } catch {
-      setError('Could not reach grove. Try again.');
+      setError(t('Could not reach grove. Try again.'));
     } finally {
       setBusy(false);
     }
@@ -107,27 +109,27 @@ export default function KeyManager({ initialKeys, sites, endpoint }: {
     <>
       {/* ── create ─────────────────────────────────────────────── */}
       <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '22px 24px' }}>
-        <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 4 }}>Step 1 · Create a key</div>
-        <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.01em', marginBottom: 6 }}>One key per agent</div>
+        <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 4 }}>{t('Step 1 · Create a key')}</div>
+        <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.01em', marginBottom: 6 }}>{t('One key per agent')}</div>
         <p style={{ fontSize: 13, color: 'var(--gv-dim)', lineHeight: 1.55, margin: '0 0 16px', maxWidth: 620 }}>
           Shown once, then stored only as a hash — grove can&rsquo;t show it to you again. Revoke and make a new one if it goes missing.
         </p>
 
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={60} placeholder="What is it for?" style={{ ...fieldStyle(), flex: '1 1 200px' }} />
+          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={60} placeholder={t('What is it for?')} style={{ ...fieldStyle(), flex: '1 1 200px' }} />
           {sites.length > 1 && (
             <select value={siteId} onChange={(e) => setSiteId(e.target.value)} style={{ ...fieldStyle(), flex: '0 1 200px' }}>
-              <option value="">All my sites</option>
+              <option value="">{t('All my sites')}</option>
               {sites.map((s) => <option key={s.id} value={s.id}>{s.hostname}</option>)}
             </select>
           )}
           <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12.5, color: 'var(--gv-dim)', cursor: 'pointer' }}>
             <input type="checkbox" checked={writable} onChange={(e) => setWritable(e.target.checked)} />
-            Allow write-back
+            {t('Allow write-back')}
           </label>
           <button onClick={create} disabled={busy} className="gv-primary"
             style={{ border: 'none', background: 'var(--gv-accent)', color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '9px 18px', borderRadius: 8, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1 }}>
-            {busy ? 'Creating…' : 'Create key'}
+            {busy ? t('Creating…') : t('Create key')}
           </button>
         </div>
         <p style={{ fontSize: 11.5, color: 'var(--gv-fainter)', lineHeight: 1.5, margin: '10px 0 0', maxWidth: 620 }}>
@@ -149,8 +151,8 @@ export default function KeyManager({ initialKeys, sites, endpoint }: {
 
       {/* ── connect ────────────────────────────────────────────── */}
       <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '22px 24px' }}>
-        <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 4 }}>Step 2 · Connect your agent</div>
-        <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.01em', marginBottom: 6 }}>Point it at grove</div>
+        <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 4 }}>{t('Step 2 · Connect your agent')}</div>
+        <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.01em', marginBottom: 6 }}>{t('Point it at grove')}</div>
         <p style={{ fontSize: 13, color: 'var(--gv-dim)', lineHeight: 1.55, margin: '0 0 16px', maxWidth: 620 }}>
           Run this in the repository that holds your blog{secret ? '' : ' — the key below is a placeholder until you create one'}.
           Then ask it to <span style={{ color: 'var(--gv-soft)' }}>&ldquo;import the new grove articles&rdquo;</span>.
@@ -163,9 +165,9 @@ export default function KeyManager({ initialKeys, sites, endpoint }: {
 
       {/* ── keys ───────────────────────────────────────────────── */}
       <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '22px 24px' }}>
-        <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>Your keys</div>
+        <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>{t('Your keys')}</div>
         {!keys.length ? (
-          <p style={{ fontSize: 13, color: 'var(--gv-faint)', margin: 0 }}>No keys yet.</p>
+          <p style={{ fontSize: 13, color: 'var(--gv-faint)', margin: 0 }}>{t('No keys yet.')}</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {keys.map((k) => {
@@ -193,7 +195,7 @@ export default function KeyManager({ initialKeys, sites, endpoint }: {
                   ) : (
                     <button onClick={() => revoke(k.id)} disabled={busy} className="gv-ghost"
                       style={{ border: '1px solid rgba(255,255,255,0.14)', background: 'transparent', color: 'var(--gv-dim)', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, padding: '5px 11px', borderRadius: 7, cursor: 'pointer' }}>
-                      Revoke
+                      {t('Revoke')}
                     </button>
                   )}
                 </div>

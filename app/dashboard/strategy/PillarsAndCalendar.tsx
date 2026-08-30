@@ -7,6 +7,8 @@
  */
 import { useState } from 'react';
 import Icon from '../gv-icons';
+import { useT } from '../i18n';
+import { msg } from '@/lib/i18n';
 
 export type PillarCard = {
   key: string; name: string; color: string; chipBorder: string;
@@ -16,28 +18,30 @@ export type CalItem = { day: string; title: string; kw: string; track: ('done' |
 export type CalRow = { key: string; name: string; color: string; posts: number; cells: CalItem[][] };
 export type Week = { label: string; dates: string };
 
+/** English source strings; translated where they're rendered (see lib/i18n). */
 const TRACK_STAGES = [
-  { name: 'Research', icon: 'search2' },
-  { name: 'Draft', icon: 'pen' },
-  { name: 'Review', icon: 'manager' },
-  { name: 'Publish', icon: 'publish' },
+  { name: msg('Research'), icon: 'search2' },
+  { name: msg('Draft'), icon: 'pen' },
+  { name: msg('Review'), icon: 'manager' },
+  { name: msg('Publish'), icon: 'publish' },
 ];
 
 export default function PillarsAndCalendar({
   pillars, rows, weeks, footNote,
 }: { pillars: PillarCard[]; rows: CalRow[]; weeks: Week[]; footNote: string }) {
+  const t = useT();
   const [focus, setFocus] = useState<string | null>(null);
 
   return (
     <>
       {/* ===== CONTENT PILLARS ===== */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 2px 12px' }}>
-        <span style={{ fontSize: 15, fontWeight: 700 }}>Content pillars</span>
+        <span style={{ fontSize: 15, fontWeight: 700 }}>{t('Content pillars')}</span>
         <span style={{ fontSize: 12, color: 'var(--gv-faint)' }}>where the month&apos;s writing is aimed</span>
         {focus && (
           <button onClick={() => setFocus(null)} className="gv-ghost"
             style={{ marginLeft: 'auto', fontSize: 11.5, fontWeight: 600, color: 'var(--gv-dim)', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.02)', borderRadius: 999, padding: '5px 12px', cursor: 'pointer', fontFamily: 'inherit' }}>
-            Clear focus ✕
+            {t('Clear focus ✕')}
           </button>
         )}
       </div>
@@ -77,9 +81,9 @@ export default function PillarsAndCalendar({
             <span style={{ width: 28, height: 28, borderRadius: 9, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.14)', color: 'var(--gv-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Icon name="sparkle" size={15} />
             </span>
-            <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--gv-soft)', lineHeight: 1.25 }}>Add a pillar</span>
+            <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--gv-soft)', lineHeight: 1.25 }}>{t('Add a pillar')}</span>
             <span style={{ fontSize: 11.5, color: 'var(--gv-faint)', lineHeight: 1.45 }}>
-              Tell the strategist what else this month should cover and it reworks the plan.
+              {t('Tell the strategist what else this month should cover and it reworks the plan.')}
             </span>
           </a>
         )}
@@ -89,12 +93,12 @@ export default function PillarsAndCalendar({
       <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '22px 24px 24px', overflow: 'hidden' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 18 }}>
           <span style={{ display: 'flex', color: 'var(--gv-soft)' }}><Icon name="calendar" size={16} /></span>
-          <span style={{ fontSize: 15, fontWeight: 700 }}>The month at a glance</span>
+          <span style={{ fontSize: 15, fontWeight: 700 }}>{t('The month at a glance')}</span>
           <span style={{ fontSize: 12, color: 'var(--gv-faint)' }}>each card shows the tools the agent runs to ship it</span>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
             {TRACK_STAGES.map((s) => (
               <span key={s.name} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--gv-dim)' }}>
-                <span style={{ display: 'flex', color: 'var(--gv-faint)' }}><Icon name={s.icon} size={12} /></span>{s.name}
+                <span style={{ display: 'flex', color: 'var(--gv-faint)' }}><Icon name={s.icon} size={12} /></span>{t(s.name)}
               </span>
             ))}
           </div>
@@ -131,7 +135,7 @@ export default function PillarsAndCalendar({
                         <div style={{ display: 'flex', alignItems: 'center', gap: 1, marginTop: 'auto', paddingTop: 4, width: '100%' }}>
                           {it.track.map((st, si) => (
                             <span key={si} style={{ display: 'contents' }}>
-                              <span title={TRACK_STAGES[si].name} style={{ width: 16, height: 16, minWidth: 0, borderRadius: 5, background: st === 'done' ? 'rgba(162,255,1,0.1)' : 'rgba(255,255,255,0.05)', border: `1px solid ${st === 'done' ? 'rgba(162,255,1,0.3)' : 'rgba(255,255,255,0.12)'}`, color: st === 'done' ? 'var(--gv-accent-ink)' : 'var(--gv-faint)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 1 }}>
+                              <span title={t(TRACK_STAGES[si].name)} style={{ width: 16, height: 16, minWidth: 0, borderRadius: 5, background: st === 'done' ? 'rgba(162,255,1,0.1)' : 'rgba(255,255,255,0.05)', border: `1px solid ${st === 'done' ? 'rgba(162,255,1,0.3)' : 'rgba(255,255,255,0.12)'}`, color: st === 'done' ? 'var(--gv-accent-ink)' : 'var(--gv-faint)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 1 }}>
                                 <Icon name={TRACK_STAGES[si].icon} size={9} />
                               </span>
                               {si < it.track.length - 1 && <span style={{ color: '#4a4d44', fontSize: 7, display: 'flex', flexShrink: 0 }}><Icon name="chevR" size={7} /></span>}

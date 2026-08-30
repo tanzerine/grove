@@ -11,6 +11,7 @@ import {
   kindConfig,
   type FeedbackKind,
 } from '@/lib/feedback';
+import { useT } from '../i18n';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
@@ -34,6 +35,7 @@ export default function FeedbackForm({
   defaultName: string;
   isBeta: boolean;
 }) {
+  const t = useT();
   const [kind, setKind] = useState<FeedbackKind>(initialKind);
   const [body, setBody] = useState('');
   const [headline, setHeadline] = useState('');
@@ -84,7 +86,7 @@ export default function FeedbackForm({
     });
     const j = await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) return setErr(j.message ?? j.error ?? 'Something went wrong. Please try again.');
+    if (!res.ok) return setErr(j.message ?? j.error ?? t('Something went wrong. Please try again.'));
     captureClient('feedback_submitted', { kind, area: area || undefined });
     setSent(kind);
   }
@@ -102,7 +104,7 @@ export default function FeedbackForm({
           <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
             <button type="button" onClick={() => { setSent(null); setBody(''); setHeadline(''); setErr(null); }}
               style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, color: ACCENT_INK }}>
-              Send something else
+              {t('Send something else')}
             </button>
             <Link href="/dashboard" style={{ color: 'var(--gv-dim)', fontSize: 14 }}>← Back to dashboard</Link>
           </div>
@@ -153,7 +155,7 @@ export default function FeedbackForm({
             "this broke my site" is faintly insulting */}
         {!isComplaint && (
           <div style={{ margin: '14px 0 4px' }}>
-            <Label>How is Grove going overall? <Optional /></Label>
+            <Label>{t('How is Grove going overall?')} <Optional /></Label>
             <div style={{ display: 'flex', gap: 6 }}>
               {[1, 2, 3, 4, 5].map((n) => (
                 <button key={n} type="button" onClick={() => setRating(rating === n ? null : n)}
@@ -174,9 +176,9 @@ export default function FeedbackForm({
 
         {/* which part of the product */}
         <div style={{ margin: '18px 0 4px' }}>
-          <Label>{isTestimonial ? 'What stood out most?' : 'Which part of Grove?'} <Optional /></Label>
+          <Label>{isTestimonial ? t('What stood out most?') : t('Which part of Grove?')} <Optional /></Label>
           <select value={area} onChange={(e) => setArea(e.target.value)} style={selectStyle}>
-            <option value="">Choose one…</option>
+            <option value="">{t('Choose one…')}</option>
             {FEEDBACK_AREAS.map((a) => (
               <option key={a.code} value={a.code}>{a.label}</option>
             ))}
@@ -186,7 +188,7 @@ export default function FeedbackForm({
         {/* how bad is it — complaints only */}
         {isComplaint && (
           <div style={{ margin: '18px 0 4px' }}>
-            <Label>How bad is it?</Label>
+            <Label>{t('How bad is it?')}</Label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               {FEEDBACK_SEVERITIES.map((s) => {
                 const on = severity === s.code;
@@ -211,7 +213,7 @@ export default function FeedbackForm({
 
         {/* the message */}
         <div style={{ margin: '18px 0 4px' }}>
-          <Label>{isTestimonial ? 'In your own words' : 'Tell us what happened'}</Label>
+          <Label>{isTestimonial ? t('In your own words') : t('Tell us what happened')}</Label>
           <textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
@@ -221,7 +223,7 @@ export default function FeedbackForm({
             style={textArea}
           />
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: 'var(--gv-fainter)', marginTop: 5 }}>
-            <span>{isComplaint ? 'This goes straight to Grove’s owner.' : ''}</span>
+            <span>{isComplaint ? t('This goes straight to Grove’s owner.') : ''}</span>
             <span>{body.length}/{FEEDBACK_LIMITS.body}</span>
           </div>
         </div>
@@ -241,22 +243,22 @@ export default function FeedbackForm({
             {consent && (
               <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div>
-                  <Label>Credit it to</Label>
+                  <Label>{t('Credit it to')}</Label>
                   <input value={displayName} onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="Your name" maxLength={FEEDBACK_LIMITS.displayName} style={inputStyle} />
+                    placeholder={t('Your name')} maxLength={FEEDBACK_LIMITS.displayName} style={inputStyle} />
                 </div>
                 <div>
-                  <Label>Title & company <Optional /></Label>
+                  <Label>{t('Title & company')} <Optional /></Label>
                   <input value={displayRole} onChange={(e) => setDisplayRole(e.target.value)}
                     placeholder="Founder, Acme" maxLength={FEEDBACK_LIMITS.displayRole} style={inputStyle} />
                 </div>
                 <div>
-                  <Label>Link to your site <Optional /></Label>
+                  <Label>{t('Link to your site')} <Optional /></Label>
                   <input value={displayUrl} onChange={(e) => setDisplayUrl(e.target.value)}
                     placeholder="https://acme.com" maxLength={FEEDBACK_LIMITS.displayUrl} style={inputStyle} />
                 </div>
                 <div>
-                  <Label>A one-line version <Optional /></Label>
+                  <Label>{t('A one-line version')} <Optional /></Label>
                   <input value={headline} onChange={(e) => setHeadline(e.target.value)}
                     placeholder="Three posts a week without touching a draft."
                     maxLength={FEEDBACK_LIMITS.headline} style={inputStyle} />

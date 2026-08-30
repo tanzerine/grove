@@ -9,6 +9,8 @@
 import { useEffect, useState } from 'react';
 import Icon from './gv-icons';
 import { useUpsell } from './Upsell';
+import { useT } from './i18n';
+import { msg } from '@/lib/i18n';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
@@ -23,9 +25,11 @@ const FALLBACK = [
 ];
 
 // Deterministic-ish "stage" labels so the ghost queue reads like a live one.
-const STAGES = ['Researching', 'Drafting', 'Quality gate', 'Ready to publish'];
+// Built from `t` at render, not at module load, so they follow the UI language.
+const STAGE_KEYS = [msg('Researching'), msg('Drafting'), msg('Quality gate'), msg('Ready to publish')];
 
 export default function GhostPipeline({ domainId, hostname }: { domainId?: string; hostname: string }) {
+  const t = useT();
   const { open } = useUpsell();
   const [ideas, setIdeas] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,18 +62,18 @@ export default function GhostPipeline({ domainId, hostname }: { domainId?: strin
           <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
             <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em' }}>Grove is ready to write for {hostname}</span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700, color: ACCENT_INK, background: 'rgba(162,255,1,0.14)', border: '1px solid rgba(162,255,1,0.35)', borderRadius: 6, padding: '3px 8px' }}>
-              <Icon name="lock" size={11} />Preview
+              <Icon name="lock" size={11} />{t(t('Preview'))}
             </span>
           </div>
           <div style={{ fontSize: 12.5, color: 'var(--gv-faint)', marginTop: 4 }}>
-            These are real topics grove found for your site. Start a plan and it researches, drafts &amp; publishes them for you.
+            {t('These are real topics grove found for your site. Start a plan and it researches, drafts & publishes them for you.')}
           </div>
         </div>
         <button
           onClick={() => open('generate')}
           style={{ border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '10px 16px', borderRadius: 10, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
         >
-          Unlock autopilot →
+          {t(t('Unlock autopilot →'))}
         </button>
       </div>
 
@@ -91,7 +95,7 @@ export default function GhostPipeline({ domainId, hostname }: { domainId?: strin
               ) : (
                 <>
                   <span style={{ display: 'block', fontSize: 13.5, fontWeight: 600, color: 'var(--gv-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{idea}</span>
-                  <span style={{ display: 'block', fontSize: 11.5, color: 'var(--gv-faint)', marginTop: 2 }}>{STAGES[i % STAGES.length]} · locked</span>
+                  <span style={{ display: 'block', fontSize: 11.5, color: 'var(--gv-faint)', marginTop: 2 }}>{t(STAGE_KEYS[i % STAGE_KEYS.length])} · {t('locked')}</span>
                 </>
               )}
             </span>

@@ -25,6 +25,7 @@ import {
   createChat, upsertChat, removeChat, parseChats, chatTitle, relativeTime, type Chat,
 } from '@/lib/assistant/chat-store';
 import { parseChatText, type ChatSpan } from '@/lib/assistant/chat-format';
+import { useT } from './i18n';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
@@ -87,6 +88,7 @@ const iconBtnStyle: React.CSSProperties = {
 };
 
 export default function AssistantPanel() {
+  const t = useT();
   const { activeId, activeHostname } = useChrome();
   const { gate } = useUpsell();
   const [open, setOpen] = useState(false);
@@ -222,7 +224,7 @@ export default function AssistantPanel() {
       }]);
       if (d.changes?.length) router.refresh();   // e.g. pipeline badge just grew
     } catch {
-      patchMessages((m) => [...m, { role: 'agent', content: 'Something went wrong — nothing was changed. Try again in a moment.' }]);
+      patchMessages((m) => [...m, { role: 'agent', content: t('Something went wrong — nothing was changed. Try again in a moment.') }]);
     } finally {
       setSending(false);
     }
@@ -244,7 +246,7 @@ export default function AssistantPanel() {
       patchMessages((m) => m.map((x, i) => (i === index ? { ...x, undone: true } : x)));
       router.refresh();
     } catch {
-      patchMessages((m) => [...m, { role: 'agent', content: 'Undo failed — you can still restore titles by hand in the editor.' }]);
+      patchMessages((m) => [...m, { role: 'agent', content: t('Undo failed — you can still restore titles by hand in the editor.') }]);
     }
   };
 
@@ -256,7 +258,7 @@ export default function AssistantPanel() {
         <button
           type="button"
           className="gv-assist-fab gv-btn"
-          aria-label="Open agent chat"
+          aria-label={t('Open agent chat')}
           onClick={() => toggle(true)}
         >
           <Icon name="sparkle" size={19} />
@@ -268,7 +270,7 @@ export default function AssistantPanel() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 16px 12px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <span style={{ color: ACCENT_INK, display: 'flex' }}><Icon name="sparkle" size={16} /></span>
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: 13.5, fontWeight: 700 }}>Agent</div>
+            <div style={{ fontSize: 13.5, fontWeight: 700 }}>{t('Agent')}</div>
             <div style={{ fontSize: 10.5, color: 'var(--gv-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeHostname}</div>
           </div>
           <button
@@ -277,13 +279,13 @@ export default function AssistantPanel() {
             onClick={startNewChat}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6, border: '1px solid rgba(162,255,1,0.3)', background: 'rgba(162,255,1,0.06)', color: ACCENT_INK, fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, padding: '6px 10px', borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap' }}
           >
-            <Icon name="pen" size={12} /> New chat
+            <Icon name="pen" size={12} /> {t('New chat')}
           </button>
           <button
             type="button"
             className="gv-iconbtn"
-            aria-label="Chat history"
-            title="Chat history"
+            aria-label={t('Chat history')}
+            title={t('Chat history')}
             aria-pressed={view === 'history'}
             onClick={() => setView((v) => (v === 'history' ? 'chat' : 'history'))}
             style={{ ...iconBtnStyle, ...(view === 'history' ? { borderColor: 'rgba(162,255,1,0.45)', color: ACCENT_INK } : {}) }}
@@ -293,7 +295,7 @@ export default function AssistantPanel() {
           <button
             type="button"
             className="gv-iconbtn"
-            aria-label="Close agent chat"
+            aria-label={t('Close agent chat')}
             onClick={() => toggle(false)}
             style={iconBtnStyle}
           >
@@ -330,8 +332,8 @@ export default function AssistantPanel() {
                 <button
                   type="button"
                   className="gv-iconbtn"
-                  aria-label="Delete chat"
-                  title="Delete chat"
+                  aria-label={t('Delete chat')}
+                  title={t('Delete chat')}
                   onClick={(e) => { e.stopPropagation(); deleteChatById(c.id); }}
                   style={{ ...iconBtnStyle, width: 26, height: 26, flexShrink: 0 }}
                 >
@@ -346,7 +348,7 @@ export default function AssistantPanel() {
             {messages.length === 0 && (
               <div>
                 <div style={{ fontSize: 12.5, color: 'var(--gv-dim)', lineHeight: 1.6 }}>
-                  Ask me anything about your blog — traffic, the plan, setup — or tell me to write something.
+                  {t('Ask me anything about your blog — traffic, the plan, setup — or tell me to write something.')}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 14 }}>
                   {SUGGESTIONS.map((s) => (
@@ -389,14 +391,14 @@ export default function AssistantPanel() {
                     style={{ display: 'flex', alignItems: 'center', gap: 8, textAlign: 'left', marginTop: 10, fontSize: 12, color: 'var(--gv-ink)', background: 'rgba(162,255,1,0.08)', border: '1px solid rgba(162,255,1,0.35)', borderRadius: 10, padding: '9px 12px', cursor: sending ? 'default' : 'pointer', fontFamily: 'inherit', opacity: sending ? 0.55 : 1 }}
                   >
                     <span style={{ color: ACCENT_INK, display: 'flex', flexShrink: 0 }}><Icon name="sparkle" size={13} /></span>
-                    <span><b style={{ color: ACCENT_INK }}>Do it:</b> {m.proposal}</span>
+                    <span><b style={{ color: ACCENT_INK }}>{t('Do it:')}</b> {m.proposal}</span>
                   </button>
                 )}
 
                 {m.changes && (
                   <div style={{ marginTop: 12, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 10 }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
-                      <div style={{ fontSize: 11.5, fontWeight: 700 }}>Changes</div>
+                      <div style={{ fontSize: 11.5, fontWeight: 700 }}>{t('Changes')}</div>
                       {m.undo && (
                         <button
                           type="button"
@@ -466,7 +468,7 @@ export default function AssistantPanel() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && slashMatches.length === 0) { e.preventDefault(); send(); } }}
-                placeholder={messages.length ? 'Add follow up…' : 'Ask, or type / for commands…'}
+                placeholder={messages.length ? t('Add follow up…') : t('Ask, or type / for commands…')}
                 disabled={sending}
                 style={{ flex: 1, minWidth: 0, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 11, padding: '10px 13px', fontSize: 12.5, color: 'var(--gv-ink)', fontFamily: 'inherit', outline: 'none' }}
               />
@@ -474,7 +476,7 @@ export default function AssistantPanel() {
                 type="button"
                 onClick={() => send()}
                 disabled={sending || !input.trim()}
-                aria-label="Send"
+                aria-label={t('Send')}
                 className="gv-btn"
                 style={{ border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', width: 38, borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: sending ? 'default' : 'pointer', opacity: sending || !input.trim() ? 0.55 : 1 }}
               >

@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Icon from '../gv-icons';
 import { captureClient } from '@/lib/analytics/capture-client';
+import { useT } from '../i18n';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
@@ -26,6 +27,7 @@ const CLAMP_AT = 260;
 /** One message. Long replies clamp to a few lines so a verbose plan revision
  *  can't push the input field off the screen. */
 function Bubble({ msg }: { msg: Msg }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const long = msg.content.length > CLAMP_AT;
   const mine = msg.role === 'user';
@@ -49,7 +51,7 @@ function Bubble({ msg }: { msg: Msg }) {
             onClick={() => setOpen((v) => !v)}
             style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 10.5, color: 'var(--gv-faint)' }}
           >
-            {open ? 'Show less' : 'Show more'}
+            {open ? t('Show less') : t('Show more')}
           </button>
         )}
       </div>
@@ -61,6 +63,7 @@ function Bubble({ msg }: { msg: Msg }) {
  *  inside another card — on the strategy page it lives at the foot of the
  *  monthly-brief hero, which already provides the surface. */
 export default function PlanChat({ domainId, bare = false }: { domainId: string; bare?: boolean }) {
+  const t = useT();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [budget, setBudget] = useState<Budget | null>(null);
   const [input, setInput] = useState('');
@@ -117,7 +120,7 @@ export default function PlanChat({ domainId, bare = false }: { domainId: string;
       if (d.budget) setBudget(d.budget);
       if (d.revised) router.refresh();   // plan changed — re-render the whole page from the new row
     } catch {
-      setMessages((m) => [...m, { role: 'agent', content: 'Something went wrong — the plan is unchanged. Try again in a moment.' }]);
+      setMessages((m) => [...m, { role: 'agent', content: t('Something went wrong — the plan is unchanged. Try again in a moment.') }]);
     } finally {
       setSending(false);
     }
@@ -146,13 +149,13 @@ export default function PlanChat({ domainId, bare = false }: { domainId: string;
           <Icon name="arrow" size={14} />
         </span>
         <span style={{ minWidth: 0 }}>
-          <span style={{ display: 'block', fontSize: 15, fontWeight: 700 }}>Talk to your strategist</span>
+          <span style={{ display: 'block', fontSize: 15, fontWeight: 700 }}>{t('Talk to your strategist')}</span>
           <span style={{ display: 'block', fontSize: 12.5, color: 'var(--gv-faint)', marginTop: 3 }}>
             {open
-              ? 'Ask why the plan looks this way, or tell it what to change.'
+              ? t('Ask why the plan looks this way, or tell it what to change.')
               : messages.length > 0
                 ? `${messages.length} message${messages.length === 1 ? '' : 's'} in this month’s thread`
-                : 'Ask why the plan looks this way, or tell it what to change.'}
+                : t('Ask why the plan looks this way, or tell it what to change.')}
           </span>
         </span>
         {budget && (
@@ -177,7 +180,7 @@ export default function PlanChat({ domainId, bare = false }: { domainId: string;
               <span style={{ display: 'flex', transform: showHistory ? 'rotate(-90deg)' : 'rotate(90deg)' }}>
                 <Icon name="arrow" size={12} />
               </span>
-              {showHistory ? 'Hide earlier messages' : `${earlier.length} earlier message${earlier.length === 1 ? '' : 's'}`}
+              {showHistory ? t('Hide earlier messages') : `${earlier.length} earlier message${earlier.length === 1 ? '' : 's'}`}
               {revisionCount > 0 && !showHistory && (
                 <span style={{ marginLeft: 'auto', color: ACCENT_INK }}>
                   {revisionCount} plan change{revisionCount === 1 ? '' : 's'} made
@@ -206,7 +209,7 @@ export default function PlanChat({ domainId, bare = false }: { domainId: string;
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
-          placeholder="Ask about the plan, or tell me what to change…"
+          placeholder={t('Ask about the plan, or tell me what to change…')}
           disabled={sending}
           style={{
             flex: 1, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)',
@@ -223,7 +226,7 @@ export default function PlanChat({ domainId, bare = false }: { domainId: string;
             opacity: sending || !input.trim() ? 0.55 : 1,
           }}
         >
-          Send
+          {t('Send')}
         </button>
       </div>
     </div>

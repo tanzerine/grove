@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import type { BillingInterval, Plan, PlanId } from '@/lib/plans';
 import { ANNUAL_DISCOUNT, formatUsd, monthlyPriceUsd, yearlyPriceUsd } from '@/lib/plans';
 import { captureClient } from '@/lib/analytics/capture-client';
+import { useT } from '../i18n';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
@@ -24,6 +25,7 @@ export default function BillingClient({
   hasCustomer: boolean;
   currentPeriodEnd: string | null;
 }) {
+  const t = useT();
   const sp = useSearchParams();
   const flash = sp.get('status'); // success | cancel
   const [busy, setBusy] = useState<string | null>(null);
@@ -39,7 +41,7 @@ export default function BillingClient({
     });
     const j = await res.json().catch(() => ({}));
     if (!res.ok) {
-      setErr(j.error ?? 'Something went wrong.');
+      setErr(j.error ?? t('Something went wrong.'));
       return null;
     }
     return j.url ?? null;
@@ -72,19 +74,19 @@ export default function BillingClient({
   return (
     <div style={{ maxWidth: 1040, margin: '0 auto' }}>
       {flash === 'success' && (
-        <Banner tone="ok">Payment received — your plan is being activated. It updates here within a few seconds.</Banner>
+        <Banner tone="ok">{t('Payment received — your plan is being activated. It updates here within a few seconds.')}</Banner>
       )}
       {flash === 'cancel' && (
-        <Banner tone="muted">Checkout canceled — no charge was made.</Banner>
+        <Banner tone="muted">{t('Checkout canceled — no charge was made.')}</Banner>
       )}
       {err && <Banner tone="err">{err}</Banner>}
 
       {/* current status */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', margin: '6px 0 26px' }}>
         <div>
-          <div style={{ fontSize: 13, color: 'var(--gv-dim)' }}>Current plan</div>
+          <div style={{ fontSize: 13, color: 'var(--gv-dim)' }}>{t('Current plan')}</div>
           <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--gv-ink)', letterSpacing: '-0.01em' }}>
-            {currentPlan ? plans.find((p) => p.id === currentPlan)?.name : 'No active plan'}
+            {currentPlan ? plans.find((p) => p.id === currentPlan)?.name : t('No active plan')}
             {status && currentPlan && (
               <span style={{ fontSize: 11, fontWeight: 600, marginLeft: 10, padding: '3px 9px', borderRadius: 999, background: 'rgba(162,255,1,0.14)', color: ACCENT_INK, verticalAlign: 'middle' }}>
                 {status}
@@ -98,7 +100,7 @@ export default function BillingClient({
         {hasCustomer && (
           <button onClick={manage} disabled={busy !== null} className="gv-ghost"
             style={{ marginLeft: 'auto', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.02)', color: 'var(--gv-soft)', borderRadius: 10, padding: '10px 16px', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-            {busy === 'manage' ? 'Opening…' : 'Manage billing'}
+            {busy === 'manage' ? t('Opening…') : t('Manage billing')}
           </button>
         )}
       </div>
@@ -112,7 +114,7 @@ export default function BillingClient({
               <button key={iv} onClick={() => setInterval(iv)}
                 style={{ border: 'none', cursor: 'pointer', padding: '8px 18px', borderRadius: 999, fontSize: 13.5, fontWeight: 600, fontFamily: 'inherit',
                   background: on ? 'var(--gv-ink)' : 'transparent', color: on ? 'var(--gv-card)' : 'var(--gv-dim)' }}>
-                {iv === 'month' ? 'Monthly' : 'Annual'}
+                {iv === 'month' ? t('Monthly') : t('Annual')}
                 {iv === 'year' && (
                   <span style={{ fontSize: 11, marginLeft: 6, color: on ? 'var(--gv-card)' : ACCENT_INK, opacity: on ? 0.75 : 1 }}>
                     −{Math.round(ANNUAL_DISCOUNT * 100)}%
@@ -135,7 +137,7 @@ export default function BillingClient({
               <div>
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: 17, fontWeight: 700, color: 'var(--gv-ink)' }}>{p.name}</span>
-                  {isCurrent && <span style={{ fontSize: 10.5, fontWeight: 700, color: ACCENT_INK }}>CURRENT</span>}
+                  {isCurrent && <span style={{ fontSize: 10.5, fontWeight: 700, color: ACCENT_INK }}>{t('CURRENT')}</span>}
                 </div>
                 <div style={{ marginTop: 8 }}>
                   <span style={{ fontSize: 30, fontWeight: 700, color: 'var(--gv-ink)' }}>${monthlyPriceUsd(p.id, interval)}</span>
@@ -156,7 +158,7 @@ export default function BillingClient({
               <button onClick={() => choose(p.id)} disabled={busy !== null || isCurrent}
                 style={{ marginTop: 'auto', borderRadius: 10, padding: '11px 16px', fontSize: 14, fontWeight: 600, cursor: isCurrent ? 'default' : 'pointer', fontFamily: 'inherit', border: 'none',
                   background: isCurrent ? 'rgba(255,255,255,0.05)' : ACCENT, color: isCurrent ? 'var(--gv-faint)' : 'var(--gv-on-accent)', opacity: busy && busy !== p.id ? 0.6 : 1 }}>
-                {isCurrent ? 'Current plan' : busy === p.id ? 'Redirecting…' : currentPlan ? 'Switch to this' : 'Choose plan'}
+                {isCurrent ? t('Current plan') : busy === p.id ? t('Redirecting…') : currentPlan ? t('Switch to this') : t('Choose plan')}
               </button>
             </div>
           );
@@ -164,7 +166,7 @@ export default function BillingClient({
       </div>
 
       <p style={{ fontSize: 12.5, color: 'var(--gv-faint)', marginTop: 22, lineHeight: 1.6 }}>
-        Secure checkout by Stripe. Cancel anytime from <strong style={{ color: 'var(--gv-dim)' }}>Manage billing</strong>.
+        Secure checkout by Stripe. Cancel anytime from <strong style={{ color: 'var(--gv-dim)' }}>{t('Manage billing')}</strong>.
         Full refunds available on request —{' '}
         <Link href="/dashboard/billing/cancel" style={{ color: 'var(--gv-dim)', textDecoration: 'underline' }}>
           cancel &amp; request a refund

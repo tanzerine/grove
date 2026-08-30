@@ -7,6 +7,7 @@ import RepoDocsToggle from './RepoDocsToggle';
 import LanguagePicker from './LanguagePicker';
 import { DashHeader } from '../gv-chrome';
 import Icon from '../gv-icons';
+import { getT } from '@/lib/i18n/server';
 
 function Chip({ children }: { children: React.ReactNode }) {
   return (
@@ -15,6 +16,7 @@ function Chip({ children }: { children: React.ReactNode }) {
 }
 
 export default async function Page() {
+  const t = await getT();
   const sb = await supabaseServer();
   const domain = await getActiveDomain(sb);
   const profile = (domain?.site_profile ?? {}) as any;
@@ -29,20 +31,20 @@ export default async function Page() {
 
   return (
     <>
-      <DashHeader title="Brand voice" subtitle="the context grove writes from" />
+      <DashHeader title={t('Brand voice')} subtitle={t('the context grove writes from')} />
       <div className="gv-body">
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 22 }}>
           <p style={{ fontSize: 14, color: 'var(--gv-dim)', lineHeight: 1.6, margin: 0, maxWidth: 640 }}>
-            Context grove uses for every article. The more accurate, the more on-brand the writing.
+            {t('Context grove uses for every article. The more accurate, the more on-brand the writing.')}
           </p>
           {domain?.id && <CrawlButton domainId={domain.id} hostname={domain.hostname} />}
         </div>
 
         {!hasProfile && (
           <div style={{ background: 'var(--gv-card)', border: '1px dashed rgba(255,255,255,0.14)', borderRadius: 14, padding: '32px 26px', textAlign: 'center' }}>
-            <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>No profile yet.</h3>
+            <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{t('No profile yet.')}</h3>
             <p style={{ color: 'var(--gv-dim)', marginTop: 8, fontSize: 13.5, maxWidth: 480, marginLeft: 'auto', marginRight: 'auto' }}>
-              Click <b style={{ color: 'var(--gv-soft)' }}>Crawl my site</b> above. It hits your homepage, /about, /pricing, /products, /services,
+              Click <b style={{ color: 'var(--gv-soft)' }}>{t('Crawl my site')}</b> above. It hits your homepage, /about, /pricing, /products, /services,
               and /contact, then extracts what you do, who you sell to, and your brand voice.
             </p>
           </div>
@@ -60,7 +62,7 @@ export default async function Page() {
                 <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '22px 24px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
                     <span style={{ width: 34, height: 34, borderRadius: 9, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gv-dim)', flexShrink: 0 }}><Icon name="globe" size={17} /></span>
-                    <div style={{ fontSize: 15, fontWeight: 700 }}>Writing language</div>
+                    <div style={{ fontSize: 15, fontWeight: 700 }}>{t('Writing language')}</div>
                   </div>
                   <LanguagePicker domainId={domain.id} initial={(domain as any).language ?? null} />
                 </div>
@@ -73,7 +75,7 @@ export default async function Page() {
                       <span style={{ width: 34, height: 34, borderRadius: 9, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gv-dim)', flexShrink: 0 }}><Icon name="building" size={17} /></span>
                       <div style={{ lineHeight: 1.25 }}>
                         <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.01em' }}>{b.name}</div>
-                        <div style={{ fontSize: 12, color: 'var(--gv-faint)' }}>{[b.industry, b.geography].filter(Boolean).join(' · ') || 'Business profile'}</div>
+                        <div style={{ fontSize: 12, color: 'var(--gv-faint)' }}>{[b.industry, b.geography].filter(Boolean).join(' · ') || t('Business profile')}</div>
                       </div>
                     </div>
 
@@ -81,13 +83,13 @@ export default async function Page() {
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginBottom: 18 }}>
                       <div>
-                        <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 9 }}>Products &amp; services</div>
+                        <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 9 }}>{t('Products & services')}</div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                           {(b.products_services ?? []).length ? (b.products_services as string[]).map((p) => <Chip key={p}>{p}</Chip>) : <span style={{ fontSize: 12, color: 'var(--gv-faint)' }}>—</span>}
                         </div>
                       </div>
                       <div>
-                        <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 9 }}>Target audience</div>
+                        <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 9 }}>{t('Target audience')}</div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                           {b.target_audience ? <Chip>{b.target_audience}</Chip> : <span style={{ fontSize: 12, color: 'var(--gv-faint)' }}>—</span>}
                         </div>
@@ -96,7 +98,7 @@ export default async function Page() {
 
                     {(b.value_props ?? []).length > 0 && (
                       <div>
-                        <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 9 }}>Value props</div>
+                        <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 9 }}>{t('Value props')}</div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px' }}>
                           {(b.value_props as string[]).map((vp) => (
                             <div key={vp} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12.5, color: 'var(--gv-soft)', lineHeight: 1.4 }}>
@@ -112,7 +114,7 @@ export default async function Page() {
                   <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '22px 24px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
                       <span style={{ width: 34, height: 34, borderRadius: 9, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gv-dim)', flexShrink: 0 }}><Icon name="voice" size={17} /></span>
-                      <div style={{ fontSize: 15, fontWeight: 700 }}>Brand voice</div>
+                      <div style={{ fontSize: 15, fontWeight: 700 }}>{t('Brand voice')}</div>
                     </div>
 
                     {v.persona && (
@@ -124,7 +126,7 @@ export default async function Page() {
 
                     {v.tone && (
                       <div style={{ marginBottom: 16 }}>
-                        <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 9 }}>Tone</div>
+                        <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 9 }}>{t('Tone')}</div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                           {String(v.tone).split(/,\s*/).filter(Boolean).map((t: string) => (
                             <span key={t} style={{ fontSize: 11.5, fontWeight: 600, color: '#d9ff8f', background: 'rgba(162,255,1,0.1)', border: '1px solid rgba(162,255,1,0.28)', borderRadius: 999, padding: '5px 11px' }}>{t}</span>
@@ -141,7 +143,7 @@ export default async function Page() {
 
                     {(v.vocabulary ?? []).length > 0 && (
                       <div>
-                        <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 9 }}>Vocabulary</div>
+                        <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 9 }}>{t('Vocabulary')}</div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                           {(v.vocabulary as string[]).map((word) => (
                             <span key={word} className="gv-chip" style={{ fontSize: 11.5, color: 'var(--gv-dim)', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 999, padding: '5px 11px', fontFamily: "'SF Mono', ui-monospace, monospace" }}>{word}</span>
@@ -157,8 +159,8 @@ export default async function Page() {
             {/* RIGHT COLUMN: SOURCES */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
               <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '20px 22px' }}>
-                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 3 }}>Sources</div>
-                <div style={{ fontSize: 12, color: 'var(--gv-faint)', marginBottom: 18 }}>What grove reads before writing</div>
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 3 }}>{t('Sources')}</div>
+                <div style={{ fontSize: 12, color: 'var(--gv-faint)', marginBottom: 18 }}>{t('What grove reads before writing')}</div>
 
                 {/* site crawl */}
                 {hasProfile && (
@@ -171,7 +173,7 @@ export default async function Page() {
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                       {pagesCrawled.length ? pagesCrawled.map((p) => (
                         <span key={p} style={{ fontSize: 11, color: 'var(--gv-dim)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 6, padding: '4px 8px', fontFamily: "'SF Mono', ui-monospace, monospace" }}>{p}</span>
-                      )) : <span style={{ fontSize: 12, color: 'var(--gv-faint)' }}>No pages recorded</span>}
+                      )) : <span style={{ fontSize: 12, color: 'var(--gv-faint)' }}>{t('No pages recorded')}</span>}
                     </div>
                   </div>
                 )}
@@ -181,10 +183,10 @@ export default async function Page() {
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 4 }}>
                       <span style={{ display: 'flex', color: 'var(--gv-dim)' }}><Icon name="github" size={15} /></span>
-                      <span style={{ fontSize: 13, fontWeight: 600, fontFamily: "'SF Mono', ui-monospace, monospace", flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{repo ?? 'Not connected'}</span>
+                      <span style={{ fontSize: 13, fontWeight: 600, fontFamily: "'SF Mono', ui-monospace, monospace", flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{repo ?? t('Not connected')}</span>
                       {repoKb && (
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10.5, fontWeight: 600, color: '#d9ff8f' }}>
-                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--gv-accent)' }} />Synced
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--gv-accent)' }} />{t('Synced')}
                         </span>
                       )}
                     </div>
@@ -208,7 +210,7 @@ export default async function Page() {
                         ))}
                         {(repoKb.concepts ?? []).length > 0 && (
                           <div>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--gv-soft)' }}>Vocabulary</div>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--gv-soft)' }}>{t('Vocabulary')}</div>
                             <div style={{ fontSize: 11.5, color: 'var(--gv-faint)', lineHeight: 1.45, marginTop: 2 }}>{(repoKb.concepts as string[]).join(', ')}</div>
                           </div>
                         )}

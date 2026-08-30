@@ -2,6 +2,8 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Icon from './gv-icons';
+import { useT } from './i18n';
+import type { T } from '@/lib/i18n';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
@@ -9,36 +11,46 @@ const ACCENT_INK = 'var(--gv-accent-ink)';
 type Item = { href: string; label: string; icon: string; badgeKey?: string; match: (p: string) => boolean };
 type Section = { head: string; items: Item[] };
 
-const SECTIONS: Section[] = [
-  { head: 'Create', items: [
-    { href: '/dashboard', label: 'Home', icon: 'home', match: (p) => p === '/dashboard' },
-    { href: '/dashboard/strategy', label: 'Strategy', icon: 'strategy', match: (p) => p.startsWith('/dashboard/strategy') },
-    { href: '/dashboard/write', label: 'Write', icon: 'write', match: (p) => p.startsWith('/dashboard/write') },
-    { href: '/dashboard/pipeline', label: 'Pipeline', icon: 'pipeline', badgeKey: 'pipeline', match: (p) => p.startsWith('/dashboard/pipeline') || p.startsWith('/dashboard/posts') },
+/** Built per render rather than at module load: the labels are translated,
+ *  and a module-level constant would freeze them at whatever locale happened
+ *  to load the module first. Only the labels vary — hrefs, icons and match
+ *  predicates are the same in every language. */
+function sections(t: T): Section[] {
+  return [
+  { head: t('Create'), items: [
+    { href: '/dashboard', label: t('Home'), icon: 'home', match: (p) => p === '/dashboard' },
+    { href: '/dashboard/strategy', label: t('Strategy'), icon: 'strategy', match: (p) => p.startsWith('/dashboard/strategy') },
+    { href: '/dashboard/write', label: t('Write'), icon: 'write', match: (p) => p.startsWith('/dashboard/write') },
+    { href: '/dashboard/pipeline', label: t('Pipeline'), icon: 'pipeline', badgeKey: 'pipeline', match: (p) => p.startsWith('/dashboard/pipeline') || p.startsWith('/dashboard/posts') },
   ]},
-  { head: 'Publish', items: [
-    { href: '/dashboard/calendar', label: 'Calendar', icon: 'calendar', match: (p) => p.startsWith('/dashboard/calendar') },
-    { href: '/dashboard/analytics', label: 'Analytics', icon: 'analytics', match: (p) => p.startsWith('/dashboard/analytics') },
+  { head: t('Publish'), items: [
+    { href: '/dashboard/calendar', label: t('Calendar'), icon: 'calendar', match: (p) => p.startsWith('/dashboard/calendar') },
+    { href: '/dashboard/analytics', label: t('Analytics'), icon: 'analytics', match: (p) => p.startsWith('/dashboard/analytics') },
   ]},
-  { head: 'Brand', items: [
-    { href: '/dashboard/voice', label: 'Brand voice', icon: 'voice', match: (p) => p.startsWith('/dashboard/voice') },
-    { href: '/dashboard/connections', label: 'Social', icon: 'social', match: (p) => p.startsWith('/dashboard/connections') },
-    { href: '/dashboard/embed', label: 'Embed', icon: 'embed', match: (p) => p.startsWith('/dashboard/embed') },
+  { head: t('Brand'), items: [
+    { href: '/dashboard/voice', label: t('Brand voice'), icon: 'voice', match: (p) => p.startsWith('/dashboard/voice') },
+    { href: '/dashboard/connections', label: t('Social'), icon: 'social', match: (p) => p.startsWith('/dashboard/connections') },
+    { href: '/dashboard/embed', label: t('Embed'), icon: 'embed', match: (p) => p.startsWith('/dashboard/embed') },
     // Sits beside Embed because it answers the same question — how do grove's
     // articles reach the customer's site — for the customer who already has a
     // content layer and doesn't want a script tag.
-    { href: '/dashboard/mcp', label: 'Content API', icon: 'bolt', match: (p) => p.startsWith('/dashboard/mcp') },
+    { href: '/dashboard/mcp', label: t('Content API'), icon: 'bolt', match: (p) => p.startsWith('/dashboard/mcp') },
   ]},
-  { head: 'Account', items: [
-    { href: '/dashboard/billing', label: 'Billing', icon: 'billing', match: (p) => p.startsWith('/dashboard/billing') },
-    { href: '/dashboard/feedback', label: 'Feedback', icon: 'voice', match: (p) => p.startsWith('/dashboard/feedback') },
+  { head: t('Account'), items: [
+    { href: '/dashboard/billing', label: t('Billing'), icon: 'billing', match: (p) => p.startsWith('/dashboard/billing') },
+    { href: '/dashboard/feedback', label: t('Feedback'), icon: 'voice', match: (p) => p.startsWith('/dashboard/feedback') },
   ]},
-];
+  ];
+}
 
 export default function SideNav({ badges = {}, isAdmin = false }: { badges?: Record<string, number>; isAdmin?: boolean }) {
   const pathname = usePathname() ?? '';
-  const sections = isAdmin
-    ? [...SECTIONS, { head: 'Admin', items: [
+  const t = useT();
+  const base = sections(t);
+  // Admin is the operator's own area — deliberately left in English, since the
+  // only person who sees it reads the code too.
+  const nav = isAdmin
+    ? [...base, { head: 'Admin', items: [
         { href: '/dashboard/admin', label: 'Overview', icon: 'analytics', match: (p: string) => p === '/dashboard/admin' },
         { href: '/dashboard/admin/users', label: 'Users', icon: 'eye', match: (p: string) => p.startsWith('/dashboard/admin/users') },
         { href: '/dashboard/admin/refunds', label: 'Refunds', icon: 'billing', match: (p: string) => p.startsWith('/dashboard/admin/refunds') },
@@ -46,10 +58,10 @@ export default function SideNav({ badges = {}, isAdmin = false }: { badges?: Rec
         { href: '/dashboard/admin/beta', label: 'Beta codes', icon: 'strategy', match: (p: string) => p.startsWith('/dashboard/admin/beta') },
         { href: '/dashboard/admin/outreach', label: 'Outreach', icon: 'target', match: (p: string) => p.startsWith('/dashboard/admin/outreach') },
       ] }]
-    : SECTIONS;
+    : base;
   return (
     <nav style={{ padding: '8px 18px', display: 'flex', flexDirection: 'column', gap: 22, flex: 1 }}>
-      {sections.map((sec) => (
+      {nav.map((sec) => (
         <div key={sec.head} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           <div style={{ fontSize: 10, letterSpacing: '0.13em', textTransform: 'uppercase', color: 'var(--gv-fainter)', padding: '4px 12px 6px' }}>{sec.head}</div>
           {sec.items.map((it) => {

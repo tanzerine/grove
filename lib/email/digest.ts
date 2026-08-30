@@ -11,6 +11,7 @@
  * single CTA to the dashboard — swapped to the reviews queue when drafts wait.
  */
 import { composeBrief, nextAction, type BriefStats } from '../agent-brief';
+import { createT, intlLocale, type T, type UiLocale } from '../i18n';
 
 export type DigestEmail = { subject: string; html: string; text: string };
 
@@ -30,20 +31,23 @@ export function readsDelta(s: BriefStats): { pct: number; dir: 'up' | 'down' | '
 type Chip = { label: string; value: string; sub?: string };
 
 /** The stat chips, in display order. Reused by both html and text renders. */
-export function digestChips(s: BriefStats): Chip[] {
+export function digestChips(s: BriefStats, t: T = createT('en')): Chip[] {
   const d = readsDelta(s);
   const readsSub = d
     ? d.dir === 'flat'
-      ? 'steady vs last week'
-      : `${d.dir === 'up' ? '▲' : '▼'} ${d.pct}% vs last week`
+      ? t('steady vs last week')
+      : d.dir === 'up'
+        ? t('▲ {pct}% vs last week', { pct: d.pct })
+        : t('▼ {pct}% vs last week', { pct: d.pct })
     : s.readsThisWeek > 0
-      ? 'your first readers'
+      ? t('your first readers')
       : undefined;
 
+  const n = (v: number) => v.toLocaleString(intlLocale(t.locale));
   return [
-    { label: 'Reads this week', value: s.readsThisWeek.toLocaleString(), sub: readsSub },
-    { label: 'Clicks to your site', value: s.conversionsThisWeek.toLocaleString() },
-    { label: 'Published this week', value: s.publishedThisWeek.toLocaleString() },
+    { label: t('Reads this week'), value: n(s.readsThisWeek), sub: readsSub },
+    { label: t('Clicks to your site'), value: n(s.conversionsThisWeek) },
+    { label: t('Published this week'), value: n(s.publishedThisWeek) },
   ];
 }
 
@@ -59,39 +63,46 @@ function joinUrl(base: string, path: string): string {
   return base.replace(/\/$/, '') + path;
 }
 
-export function composeDigestEmail(s: BriefStats, baseUrl: string): DigestEmail {
-  const sentences = composeBrief(s);
-  const chips = digestChips(s);
-  const action = nextAction(s); // { label, href } | null — reviews queue when drafts wait
+export function composeDigestEmail(s: BriefStats, baseUrl: string, locale: UiLocale = 'en'): DigestEmail {
+  // The owner's UI language, not the blog's publication language: this is grove
+  // talking to the person, the same voice as the dashboard they'll click into.
+  const t = createT(locale);
+  const sentences = composeBrief(s, t);
+  const chips = digestChips(s, t);
+  const action = nextAction(s, t); // { label, href } | null — reviews queue when drafts wait
 
   const dashUrl = joinUrl(baseUrl, '/dashboard');
   const ctaHref = action ? joinUrl(baseUrl, action.href) : dashUrl;
-  const ctaLabel = action ? 'Review waiting drafts' : 'Open your dashboard';
+  const ctaLabel = action ? t('Review waiting drafts') : t('Open your dashboard');
 
   // ── subject ────────────────────────────────────────────────
   const d = readsDelta(s);
   let subject: string;
   if (s.totalPublished === 0) {
-    subject = `Your Grove agent is getting started on ${s.hostname}`;
+    subject = t('Your Grove agent is getting started on {host}', { host: s.hostname });
   } else if (s.inReview > 0) {
-    subject = `${s.inReview} draft${s.inReview === 1 ? '' : 's'} waiting + your weekly Grove report`;
+    subject = s.inReview === 1
+      ? t('1 draft waiting + your weekly Grove report')
+      : t('{n} drafts waiting + your weekly Grove report', { n: s.inReview });
   } else if (s.readsThisWeek > 0 && d && d.dir !== 'flat') {
-    subject = `${s.hostname}: reads ${d.dir} ${d.pct}% this week`;
+    subject = d.dir === 'up'
+      ? t('{host}: reads up {pct}% this week', { host: s.hostname, pct: d.pct })
+      : t('{host}: reads down {pct}% this week', { host: s.hostname, pct: d.pct });
   } else {
-    subject = `Your weekly Grove report for ${s.hostname}`;
+    subject = t('Your weekly Grove report for {host}', { host: s.hostname });
   }
 
   // ── text ───────────────────────────────────────────────────
   const textLines: string[] = [
-    `Your weekly Grove report — ${s.hostname}`,
+    t('Your weekly Grove report — {host}', { host: s.hostname }),
     '',
     ...sentences.map((l) => `• ${l}`),
     '',
     ...chips.map((c) => `${c.label}: ${c.value}${c.sub ? ` (${c.sub})` : ''}`),
   ];
-  if (s.topPost) textLines.push('', `Top post: “${s.topPost.title}” — ${s.topPost.views} reads`);
+  if (s.topPost) textLines.push('', t('Top post: “{title}” — {n} reads', { title: s.topPost.title, n: s.topPost.views }));
   textLines.push('', `${ctaLabel}: ${ctaHref}`);
-  textLines.push('', `Don't want these? Turn off the weekly digest in your dashboard settings.`);
+  textLines.push('', t("Don't want these? Turn off the weekly digest in your dashboard settings."));
   const text = textLines.join('\n');
 
   // ── html ───────────────────────────────────────────────────
@@ -114,8 +125,8 @@ export function composeDigestEmail(s: BriefStats, baseUrl: string): DigestEmail 
 
   const topPostHtml = s.topPost
     ? `<div style="margin:20px 0 0;padding:14px 16px;background:#fbfaf6;border-left:3px solid ${MOSS};border-radius:6px;">
-         <div style="font-size:12px;color:${MUTE};text-transform:uppercase;letter-spacing:0.04em;">Top post this week</div>
-         <div style="font-size:15px;color:${INK};margin-top:4px;">“${esc(s.topPost.title)}” — ${s.topPost.views} reads</div>
+         <div style="font-size:12px;color:${MUTE};text-transform:uppercase;letter-spacing:0.04em;">${esc(t('Top post this week'))}</div>
+         <div style="font-size:15px;color:${INK};margin-top:4px;">${esc(t('“{title}” — {n} reads', { title: s.topPost.title, n: s.topPost.views }))}</div>
        </div>`
     : '';
 
@@ -126,7 +137,7 @@ export function composeDigestEmail(s: BriefStats, baseUrl: string): DigestEmail 
       <tr><td align="center">
         <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e2e9e3;">
           <tr><td style="padding:24px 28px 8px;">
-            <div style="font-family:Georgia,serif;font-size:13px;color:${MOSS};letter-spacing:0.06em;text-transform:uppercase;">Grove · weekly report</div>
+            <div style="font-family:Georgia,serif;font-size:13px;color:${MOSS};letter-spacing:0.06em;text-transform:uppercase;">${esc(t('Grove · weekly report'))}</div>
             <h1 style="margin:6px 0 0;font-size:22px;color:${INK};font-family:Georgia,serif;">${esc(s.hostname)}</h1>
           </td></tr>
           <tr><td style="padding:16px 28px 4px;">${sentencesHtml}</td></tr>

@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { captureClient } from '@/lib/analytics/capture-client';
+import { useT } from '../i18n';
 
 /**
  * Sets domains.custom_blog_hostname and then WATCHES the setup complete:
@@ -25,6 +26,7 @@ const MAX_POLLS = 24; // ~2 minutes, then fall back to the manual re-check butto
 export default function CustomHostnameForm({
   domainId, initial, hostname,
 }: { domainId: string; initial: string | null; hostname: string }) {
+  const t = useT();
   const [value, setValue] = useState(initial ?? '');
   const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [error, setError] = useState('');
@@ -146,7 +148,7 @@ export default function CustomHostnameForm({
           type="button"
           onClick={save}
           disabled={saveDisabled}
-          title={cannotSubmit ? 'Enter a hostname first' : undefined}
+          title={cannotSubmit ? t('Enter a hostname first') : undefined}
           style={{
             padding: '9px 16px', borderRadius: 10,
             border: `1px solid ${isClear ? 'rgba(255,255,255,0.14)' : 'var(--gv-accent)'}`,
@@ -182,7 +184,7 @@ export default function CustomHostnameForm({
               padding: '5px 11px', borderRadius: 8, cursor: 'pointer',
             }}
           >
-            Use <span className="mono">blog.{apex}</span>
+            {t('Use')} <span className="mono">blog.{apex}</span>
           </button>
           <span>or type another subdomain — you&rsquo;ll add one DNS record either way.</span>
         </p>
@@ -207,7 +209,7 @@ export default function CustomHostnameForm({
 
           {status!.allOk ? (
             <p style={{ margin: '10px 0 0', fontSize: 12.5, lineHeight: 1.55, color: 'var(--gv-ink)' }}>
-              Your blog is live at <a className="mono" style={{ color: 'var(--gv-accent-ink)' }} href={`https://${status!.hostname}`} target="_blank" rel="noopener noreferrer">https://{status!.hostname}</a>.
+              {t('Your blog is live at')} <a className="mono" style={{ color: 'var(--gv-accent-ink)' }} href={`https://${status!.hostname}`} target="_blank" rel="noopener noreferrer">https://{status!.hostname}</a>.
               Canonical URLs, sitemap, RSS, robots.txt, and JSON-LD all point here — search credit lands on your domain.
             </p>
           ) : (
@@ -223,7 +225,7 @@ export default function CustomHostnameForm({
                   onClick={copyRecord}
                   style={{ padding: '4px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.14)', background: 'transparent', fontSize: 12, cursor: 'pointer', color: 'var(--gv-ink)' }}
                 >
-                  {copied ? 'Copied ✓' : 'Copy value'}
+                  {copied ? 'Copied ✓' : t('Copy value')}
                 </button>
               </div>
               <p style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--gv-dim)', lineHeight: 1.5 }}>
@@ -239,7 +241,7 @@ export default function CustomHostnameForm({
                     onClick={startPolling}
                     style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.14)', background: 'transparent', fontSize: 12.5, cursor: 'pointer', color: 'var(--gv-ink)' }}
                   >
-                    Check again
+                    {t('Check again')}
                   </button>
                 )}
               </div>
