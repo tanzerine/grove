@@ -11,6 +11,7 @@
 import { useState } from 'react';
 import CopySnippet from './CopySnippet';
 import { rewriteSnippets, PROXIED_FILES, type RewriteTarget } from '@/lib/rewrite-snippets';
+import { useT } from '../i18n';
 
 export default function RewriteSnippets({
   groveBase,
@@ -23,6 +24,7 @@ export default function RewriteSnippets({
   hostname: string;
   path?: string;
 }) {
+  const t = useT();
   const targets: RewriteTarget[] = rewriteSnippets({ groveBase, blogSlug, hostname, path });
   const [key, setKey] = useState(targets[0].key);
   const active = targets.find((t) => t.key === key) ?? targets[0];
@@ -30,21 +32,22 @@ export default function RewriteSnippets({
   return (
     <div style={{ marginTop: 18, paddingTop: 18, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
       <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 5 }}>
-        Don&rsquo;t render articles yourself? Proxy ours instead
+        {t('Don’t render articles yourself? Proxy ours instead')}
       </div>
       <p style={{ fontSize: 12.5, color: 'var(--gv-dim)', lineHeight: 1.55, margin: '0 0 14px' }}>
-        One config block in your host and <span className="mono">{hostname}{path}/&lt;slug&gt;</span> serves grove&rsquo;s
-        pages from your own origin — same domain, so the SEO compounds into your apex instead of a subdomain.
-        Set the canonical base above to <span className="mono">https://{hostname}{path}</span> so the URLs grove emits match.
+        {t('One config block in your host and {url} serves grove’s pages from your own origin — same domain, so the SEO compounds into your apex instead of a subdomain. Set the canonical base above to {canonical} so the URLs grove emits match.', {
+          url: `${hostname}${path}/<slug>`,
+          canonical: `https://${hostname}${path}`,
+        })}
       </p>
 
       <div style={{ display: 'flex', gap: 4, marginBottom: 10, flexWrap: 'wrap' }}>
-        {targets.map((t) => {
-          const on = t.key === key;
+        {targets.map((target) => {
+          const on = target.key === key;
           return (
-            <button key={t.key} onClick={() => setKey(t.key)}
+            <button key={target.key} onClick={() => setKey(target.key)}
               style={{ border: `1px solid ${on ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.1)'}`, background: on ? 'rgba(255,255,255,0.07)' : 'transparent', color: on ? 'var(--gv-ink)' : 'var(--gv-dim)', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, padding: '6px 12px', borderRadius: 7, cursor: 'pointer', transition: '.2s' }}>
-              {t.label}
+              {target.label}
             </button>
           );
         })}

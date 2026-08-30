@@ -789,4 +789,7 @@ export const KO: Record<string, string> = {
   /* ── misc ────────────────────────────────────────────────────────────── */
   'Add a domain first to start writing.': '글을 쓰려면 먼저 도메인을 추가해 주세요.',
   'cross-post every article to your channels': '모든 글을 내 채널에 함께 게시합니다',
+  'Don’t render articles yourself? Proxy ours instead': '직접 렌더링하지 않으신다면, 저희 페이지를 프록시하세요',
+  'One config block in your host and {url} serves grove’s pages from your own origin — same domain, so the SEO compounds into your apex instead of a subdomain. Set the canonical base above to {canonical} so the URLs grove emits match.':
+    '호스팅 설정에 블록 하나만 추가하면 {url}이 내 도메인에서 grove 페이지를 서빙합니다. 같은 도메인이므로 SEO가 서브도메인이 아니라 대표 도메인에 쌓입니다. grove가 내보내는 URL이 일치하도록 위의 canonical 주소를 {canonical}로 설정하세요.',
 };
