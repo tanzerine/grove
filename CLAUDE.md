@@ -186,6 +186,40 @@ and `ko` have been exercised end to end**; `es`/`zh` are wired but unproven.
   correct Korean article. `pickTitle` drops the brief's title when it isn't
   native and takes the model's own.
 
+**UI language** (`lib/i18n/`) — the language the OWNER controls grove in, kept
+deliberately separate from `domains.language` (what a blog PUBLISHES in). They
+disagree constantly: a Korean founder selling to Americans runs an English blog
+from a Korean dashboard. Stored in `auth.users.user_metadata.ui_language` (no
+table needed — the layout already loads the user) plus a `gv_lang` cookie so a
+switch takes effect with no DB round trip; resolution order is
+cookie → metadata → `Accept-Language` → `en` (`lib/i18n/server.ts getUiLocale`,
+wrapped in React `cache()`). The switcher lives in the account menu.
+- **English source strings ARE the keys** — `t('Waiting on you')`. No `en`
+  catalogue to drift, conversion is a mechanical wrap, and a missing entry
+  renders English instead of `dashboard.pipeline.title`. That's what makes
+  shipping `es`/`zh` as scaffolds safe; `coverage()` tells the switcher how far
+  along each is so nobody picks one expecting a finished translation.
+- `t('Publishing|status')` disambiguates one English string that needs two
+  translations; the `|context` half never reaches a reader.
+- **RSC uses `await getT()`, client components `useT()`** (which reads the
+  locale off the existing Chrome context — no second provider, no flash).
+  `DashShell` must use `createT(chrome.locale)` because it RENDERS the provider
+  and so sits outside its own context.
+- **Module-level tables cannot call `t`** — they're evaluated once per process
+  and would freeze whichever locale loaded the module first. They hold English
+  and the render site translates; `msg('…')` marks those strings so the
+  extractor still sees them.
+- **`tests/i18n-coverage.test.ts` is the guard**: it greps every `t(…)`/`msg(…)`
+  in `app/`, `lib/` and `components/` and fails if Korean lacks an entry, if a
+  translation invents a `{placeholder}`, or if a catalogue holds a key nothing
+  uses. Adding an untranslated label to the dashboard breaks the build's tests,
+  which is the only reason this stays finished.
+- The agent's own replies follow the UI language too (`answerAssistant`,
+  `composeBrief`) — and the language command goes FIRST IN THE USER PROMPT, for
+  exactly the reason recorded under Publication language.
+- Deliberately NOT translated: `/dashboard/admin/*` (only the operator sees it)
+  and the marketing landing page (a voice decision, not an engineering one).
+
 Other key surfaces:
 - `lib/agent-brief.ts` — plain-English weekly brief on the dashboard home.
 - `lib/seo.ts` — **single source for every public blog URL** (`blogHomeUrl`,
