@@ -24,7 +24,7 @@ export default async function CancelPage() {
 
   return (
     <>
-      <DashHeader title={t('Cancel & request a refund')} subtitle="We're sorry to see you go" />
+      <DashHeader title={t('Cancel & request a refund')} subtitle={t("We're sorry to see you go")} />
       <div className="gv-body">
         <CancelFunnel reasons={REFUND_REASONS} plan={plan} />
       </div>

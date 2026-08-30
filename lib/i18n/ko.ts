@@ -873,4 +873,18 @@ export const KO: Record<string, string> = {
   'when each post goes live, and where it is now': '각 글이 언제 나가고 지금 어디까지 왔는지',
   'where the month\'s writing is aimed': '이번 달 글이 겨냥하는 방향',
   'won’t publish until approved': '승인 전에는 발행되지 않습니다',
+
+  /* ── attribute strings that contained an apostrophe, which the first
+        version of the unwrapped-string checker silently skipped ─────────── */
+  "Add a topic… e.g. 'reduce churn with onboarding nudges'": '주제를 입력하세요… 예: \'온보딩 넛지로 이탈 줄이기\'',
+  "Seed term — e.g. 'cold brew'": '시드 키워드 — 예: \'콜드브루\'',
+  "No quality score — the manager's evaluation didn't run for this draft. It's held for your review by default.":
+    '품질 점수가 없습니다. 이 초안은 관리자 평가가 실행되지 않아 기본적으로 검토 대기 상태입니다.',
+  "The quality check hit an error (often a temporary provider outage) and didn't finish. Your draft is safe — use “Re-run check” to grade it.":
+    '품질 검사가 오류로 끝나지 않았습니다 (대개 일시적인 제공자 장애입니다). 초안은 안전하게 보관되어 있으니 “검사 다시 실행”으로 채점하세요.',
+  "The one thing that would've made Grove worth keeping…": 'grove를 계속 쓸 만하게 만들었을 단 한 가지…',
+  "We're sorry to see you go": '떠나신다니 아쉽습니다',
+  "What should the picture show? (blank = illustrate the section you're in)":
+    '어떤 그림이 필요하신가요? (비워두면 지금 보고 있는 섹션을 그립니다)',
+  "grove's articles, inside the blog you already run": '이미 운영 중인 블로그 안에 grove의 글을',
 };

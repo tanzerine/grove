@@ -171,7 +171,7 @@ export default function ImageStudio({
           value={hint}
           onChange={(e) => setHint(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); generate(); } }}
-          placeholder="What should the picture show? (blank = illustrate the section you're in)"
+          placeholder={t("What should the picture show? (blank = illustrate the section you're in)")}
           className="gv-prompt"
           style={{ flex: 1, minWidth: 0, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '9px 12px', color: 'var(--gv-ink)', fontFamily: 'inherit', fontSize: 12.5, outline: 'none' }}
         />

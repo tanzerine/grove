@@ -65,7 +65,7 @@ export default function PipelineActions({ domainId }: { domainId?: string }) {
           value={topic}
           onChange={(e) => setTopic(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && enqueue()}
-          placeholder="Add a topic… e.g. 'reduce churn with onboarding nudges'"
+          placeholder={t("Add a topic… e.g. 'reduce churn with onboarding nudges'")}
           style={{ flex: '1 1 220px', minWidth: 0, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 10, padding: '11px 14px', color: 'var(--gv-ink)', fontSize: 13.5, fontFamily: 'inherit', outline: 'none' }}
         />
         <button onClick={suggest} disabled={suggesting || !domainId} className="gv-ghost" style={ghost}>
