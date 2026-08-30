@@ -4,6 +4,7 @@ import { betaStateFrom } from '@/lib/beta';
 import { isFeedbackKind, kindLabel, statusLabel, type FeedbackKind } from '@/lib/feedback';
 import FeedbackForm from './FeedbackForm';
 import { DashHeader } from '../gv-chrome';
+import { getT } from '@/lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +22,7 @@ export default async function FeedbackPage({
 }: {
   searchParams: Promise<{ kind?: string }>;
 }) {
+  const t = await getT();
   const sb = await supabaseServer();
   const { data: { user } } = await sb.auth.getUser();
   if (!user) redirect('/login');
@@ -56,8 +58,8 @@ export default async function FeedbackPage({
   return (
     <>
       <DashHeader
-        title="Tell us the truth"
-        subtitle="Praise, shortcomings, or a complaint — it all reaches the owner"
+        title={t('Tell us the truth')}
+        subtitle={t('Praise, shortcomings, or a complaint — it all reaches the owner')}
       />
       <div className="gv-body">
         <FeedbackForm initialKind={initialKind} defaultName={defaultName} isBeta={beta.active} />
@@ -79,7 +81,7 @@ export default async function FeedbackPage({
                       rest — is for the owner's inbox, not for the person who
                       took the trouble to write in. */}
                   <span style={{ fontSize: 11.5, fontWeight: 600, color: m.responded_at ? 'var(--gv-accent-ink)' : 'var(--gv-faint)' }}>
-                    {m.responded_at ? 'Seen by the owner' : statusLabel('new')}
+                    {m.responded_at ? t('Seen by the owner') : statusLabel('new')}
                   </span>
                 </div>
               ))}
