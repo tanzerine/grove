@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useT } from '../i18n';
 
 type Post = {
   id: string;
@@ -64,6 +65,7 @@ export default function CalendarClient({
   unscheduledReview: Post[];
   plannedSlots?: PlannedSlot[];
 }) {
+  const t = useT();
   const r = useRouter();
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
@@ -138,7 +140,7 @@ export default function CalendarClient({
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22, gap: 12, flexWrap: 'wrap' }}>
-        <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.025em', margin: 0 }}>Calendar</h1>
+        <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.025em', margin: 0 }}>{t('Calendar')}</h1>
         <Link href="/dashboard" className="gv-back" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: 'var(--gv-dim)', textDecoration: 'none' }}>← Pipeline</Link>
       </div>
 
@@ -246,7 +248,7 @@ export default function CalendarClient({
                       </div>
                       {canReschedule && !editing && (
                         <button onClick={() => setEdit({ postId: p.id, datetime: toLocalInput(new Date(p.scheduled_at ?? new Date(year, month, selectedDay, 9, 0))) })}
-                          style={linkBtn}>Reschedule</button>
+                          style={linkBtn}>{t('Reschedule')}</button>
                       )}
                       {canReschedule && editing && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
@@ -254,8 +256,8 @@ export default function CalendarClient({
                             onChange={e => setEdit({ postId: p.id, datetime: e.target.value })}
                             style={inputStyle} />
                           <div style={{ display: 'flex', gap: 6 }}>
-                            <button onClick={saveSchedule} disabled={busy} className="btn btn-primary btn-sm">{busy ? 'Saving…' : 'Save'}</button>
-                            <button onClick={() => setEdit(null)} style={linkBtn}>Cancel</button>
+                            <button onClick={saveSchedule} disabled={busy} className="btn btn-primary btn-sm">{busy ? t('Saving…') : t('Save')}</button>
+                            <button onClick={() => setEdit(null)} style={linkBtn}>{t('Cancel')}</button>
                           </div>
                         </div>
                       )}
@@ -271,14 +273,14 @@ export default function CalendarClient({
                 ))}
 
                 {!hasDayContent && unscheduledReview.length === 0 && (
-                  <p style={{ fontSize: 12, color: 'var(--gv-faint)', padding: '10px 2px' }}>Nothing scheduled this day.</p>
+                  <p style={{ fontSize: 12, color: 'var(--gv-faint)', padding: '10px 2px' }}>{t('Nothing scheduled this day.')}</p>
                 )}
               </div>
 
               {/* schedule an unscheduled review post onto this day */}
               {unscheduledReview.length > 0 && (
                 <div style={{ marginTop: hasDayContent ? 16 : 0, paddingTop: hasDayContent ? 14 : 0, borderTop: hasDayContent ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
-                  <p style={{ fontSize: 12, color: 'var(--gv-faint)', marginBottom: 8 }}>Schedule a draft here:</p>
+                  <p style={{ fontSize: 12, color: 'var(--gv-faint)', marginBottom: 8 }}>{t('Schedule a draft here:')}</p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {unscheduledReview.map(p => {
                       const editing = edit?.postId === p.id;
@@ -301,7 +303,7 @@ export default function CalendarClient({
                                 onChange={e => setEdit({ postId: p.id, datetime: e.target.value })}
                                 style={inputStyle} />
                               <button onClick={saveSchedule} disabled={busy} className="btn btn-primary btn-sm">
-                                {busy ? 'Scheduling…' : 'Schedule'}
+                                {busy ? t('Scheduling…') : t('Schedule')}
                               </button>
                             </div>
                           )}
@@ -330,7 +332,7 @@ export default function CalendarClient({
                 }}>{p.title ?? p.topic ?? '(draft)'}</Link>
               ))}
             </div>
-            <p style={{ fontSize: 11, color: 'var(--gv-faint)', marginTop: 10 }}>Pick a day above, then choose a time to schedule.</p>
+            <p style={{ fontSize: 11, color: 'var(--gv-faint)', marginTop: 10 }}>{t('Pick a day above, then choose a time to schedule.')}</p>
           </div>
         )}
       </div>

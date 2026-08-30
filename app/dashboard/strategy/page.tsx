@@ -13,6 +13,8 @@ import PlanChat from './PlanChat';
 import BuildPlanNow from './BuildPlanNow';
 import PlanningCadence, { type CadenceItem, type CadenceView } from './PlanningCadence';
 import PillarsAndCalendar, { type PillarCard, type CalRow, type Week } from './PillarsAndCalendar';
+import { getT } from '@/lib/i18n/server';
+import type { T } from '@/lib/i18n';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,19 +36,20 @@ const TOOL_ICON: Record<KPI['metric'], string> = {
 type SlotStatus = { status: string; slug: string | null; scheduled_at?: string | null };
 
 export default async function StrategyPage() {
+  const t = await getT();
   const sb = await supabaseServer();
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return null;
 
   const domain = await getActiveDomain(sb);
-  if (!domain) return <Empty />;
+  if (!domain) return <Empty t={t} />;
 
   const { data: strategy } = await sb
     .from('strategies').select('*')
     .eq('domain_id', domain.id).eq('active', true)
     .order('month', { ascending: false }).limit(1).maybeSingle();
   if (!strategy) return (
-    <NoStrategy
+    <NoStrategy t={t}
       hasInterview={!!domain.interview}
       verified={!!domain.verified_at}
       domainId={domain.id}
@@ -234,7 +237,7 @@ export default async function StrategyPage() {
         label: `Publish "${it.title}"`, meta: it.status,
         state: it.status === 'Live' ? 'done' : it.status === 'Planned' || it.status === 'Scheduled' ? 'queued' : 'progress',
       }))
-    : [{ label: 'Nothing new ships this week — existing posts keep earning.', meta: '', state: 'queued' }];
+    : [{ label: t('Nothing new ships this week — existing posts keep earning.'), meta: '', state: 'queued' }];
   const cadenceViews: CadenceView[] = [
     {
       key: 'monthly', label: 'Monthly',
@@ -264,9 +267,9 @@ export default async function StrategyPage() {
   // ---------- hero: north star + plan chips + agent loop ----------
   const northStar = goals[0] ?? null;
   const planChips = [
-    { value: String(plan.length), unit: 'posts', label: 'Planned this month' },
-    { value: String(pillars.length), unit: '', label: 'Content pillars' },
-    { value: fmtNumber(plan.length * 1900), unit: 'words (est.)', label: 'Estimated output' },
+    { value: String(plan.length), unit: 'posts', label: t('Planned this month') },
+    { value: String(pillars.length), unit: '', label: t('Content pillars') },
+    { value: fmtNumber(plan.length * 1900), unit: 'words (est.)', label: t('Estimated output') },
     ...(northStar ? [{ value: northStar.target, unit: '', label: 'Target · ' + northStar.label }] : []),
     { value: String(domain.posts_per_week ?? '—'), unit: '/ wk', label: 'Cadence' },
   ];
@@ -274,10 +277,10 @@ export default async function StrategyPage() {
   const totalPosts = (posts ?? []).length;
   const pastManagerCount = (posts ?? []).filter((p) => ['review', 'scheduled', 'published', 'failed'].includes(p.status)).length;
   const toolchain = [
-    { name: 'Live SERP research', icon: 'search2', runs: `${totalPosts} run${totalPosts === 1 ? '' : 's'}`, desc: 'Crawls search results & competitor posts to find the ranking gaps worth taking.' },
-    { name: 'Writer', icon: 'pen', runs: `${totalPosts} draft${totalPosts === 1 ? '' : 's'}`, desc: 'Drafts every post in your brand voice, structured for the target keyword.' },
-    { name: 'Manager', icon: 'manager', runs: `${pastManagerCount} review${pastManagerCount === 1 ? '' : 's'}`, desc: 'Scores each draft 0–100 on strategy fit & craft, and gates publish.' },
-    { name: 'Analytics', icon: 'analytics', runs: 'continuous', desc: 'Reads first-party events to grade the plan and tune next month.' },
+    { name: t('Live SERP research'), icon: 'search2', runs: `${totalPosts} run${totalPosts === 1 ? '' : 's'}`, desc: t('Crawls search results & competitor posts to find the ranking gaps worth taking.') },
+    { name: t('Writer'), icon: 'pen', runs: `${totalPosts} draft${totalPosts === 1 ? '' : 's'}`, desc: t('Drafts every post in your brand voice, structured for the target keyword.') },
+    { name: t('Manager'), icon: 'manager', runs: `${pastManagerCount} review${pastManagerCount === 1 ? '' : 's'}`, desc: t('Scores each draft 0–100 on strategy fit & craft, and gates publish.') },
+    { name: t('Analytics'), icon: 'analytics', runs: 'continuous', desc: t('Reads first-party events to grade the plan and tune next month.') },
   ];
 
   // The hero states the *play* this month is running — deliberately not the
@@ -287,13 +290,13 @@ export default async function StrategyPage() {
 
   return (
     <>
-      <DashHeader title="Strategy" subtitle={`${domain.hostname} · the agent's plan for ${planMonth}`} />
+      <DashHeader title={t('Strategy')} subtitle={`${domain.hostname} · the agent's plan for ${planMonth}`} />
 
       <div className="gv-body">
         {stalePlan && (
           <section style={{ background: 'var(--gv-card)', border: '1px solid rgba(224,200,120,0.34)', borderRadius: 14, padding: '18px 20px', marginBottom: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 10.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--gv-amber)' }}>
-              <Icon name="clock" size={13} /> Plan out of date
+              <Icon name="clock" size={13} /> {t('Plan out of date')}
             </div>
             <h3 style={{ fontSize: 17, fontWeight: 600, color: 'var(--gv-ink)', margin: '10px 0 0' }}>
               You’re looking at your {planMonth} plan. {currentMonthLabel} hasn’t been built yet.
@@ -308,7 +311,7 @@ export default async function StrategyPage() {
               ? <BuildPlanNow domainId={domain.id} label={`Build ${currentMonthLabel}’s plan →`} />
               : (
                 <p style={{ fontSize: 12.5, color: 'var(--gv-dim)', margin: '12px 0 0' }}>
-                  Verify this domain and the strategist can draft it.
+                  {t('Verify this domain and the strategist can draft it.')}
                 </p>
               )}
           </section>
@@ -331,7 +334,7 @@ export default async function StrategyPage() {
               {northStar && (
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, marginTop: 16, padding: '10px 14px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 12 }}>
                   <span style={{ display: 'flex', color: 'var(--gv-soft)' }}><Icon name="target" size={16} /></span>
-                  <span style={{ fontSize: 12.5, color: 'var(--gv-dim)' }}>North star</span>
+                  <span style={{ fontSize: 12.5, color: 'var(--gv-dim)' }}>{t('North star')}</span>
                   <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--gv-ink)' }}>{northStar.target}</span>
                   <span style={{ fontSize: 12.5, color: 'var(--gv-faint)' }}>{northStar.label}</span>
                 </div>
@@ -339,10 +342,10 @@ export default async function StrategyPage() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'flex-end' }}>
               <Link href="/dashboard/pipeline" className="gv-btn" style={{ display: 'flex', alignItems: 'center', gap: 9, border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 700, padding: '12px 20px', borderRadius: 10, cursor: 'pointer', whiteSpace: 'nowrap', textDecoration: 'none' }}>
-                <Icon name="strategy" size={15} /> Open the pipeline
+                <Icon name="strategy" size={15} /> {t('Open the pipeline')}
               </Link>
               <Link href="/onboarding/intent" style={{ fontSize: 12.5, color: 'var(--gv-dim)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
-                Edit goals <Icon name="arrow" size={14} />
+                {t('Edit goals')} <Icon name="arrow" size={14} />
               </Link>
             </div>
           </div>
@@ -402,8 +405,8 @@ export default async function StrategyPage() {
 
           {/* TOOLCHAIN */}
           <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '22px 24px' }}>
-            <div style={{ fontSize: 15, fontWeight: 700 }}>How grove will execute</div>
-            <div style={{ fontSize: 12, color: 'var(--gv-faint)', margin: '3px 0 18px' }}>The tools the agent runs to ship this plan</div>
+            <div style={{ fontSize: 15, fontWeight: 700 }}>{t('How grove will execute')}</div>
+            <div style={{ fontSize: 12, color: 'var(--gv-faint)', margin: '3px 0 18px' }}>{t('The tools the agent runs to ship this plan')}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {toolchain.map((t, i) => (
                 <div key={i} style={{ display: 'flex', gap: 13, paddingBottom: 16, paddingTop: 4 }}>
@@ -466,11 +469,11 @@ function fmtNumber(n: number): string {
   return String(Math.round(n));
 }
 
-function Empty() {
+function Empty({ t }: { t: T }) {
   return (
     <>
-      <DashHeader title="Strategy" />
-      <div className="gv-body" style={{ textAlign: 'center', color: 'var(--gv-dim)', marginTop: 40 }}><p>Connect a domain first.</p></div>
+      <DashHeader title={t('Strategy')} />
+      <div className="gv-body" style={{ textAlign: 'center', color: 'var(--gv-dim)', marginTop: 40 }}><p>{t('Connect a domain first.')}</p></div>
     </>
   );
 }
@@ -479,29 +482,30 @@ function NoStrategy({
   hasInterview,
   verified,
   domainId,
-}: { hasInterview: boolean; verified: boolean; domainId: string }) {
+  t,
+}: { hasInterview: boolean; verified: boolean; domainId: string; t: T }) {
   // The strategist only plans for a domain whose ownership has been proven, so
   // an unverified site would otherwise sit here with a CTA that can't work.
   // Point at the thing that actually unblocks it instead.
   const cta = verified
-    ? { href: '/onboarding/intent', label: hasInterview ? 'Edit intent' : 'Answer 5 questions →' }
-    : { href: `/onboarding/verify?domain=${domainId}`, label: 'Verify domain →' };
+    ? { href: '/onboarding/intent', label: hasInterview ? t('Edit intent') : t('Answer 5 questions →') }
+    : { href: `/onboarding/verify?domain=${domainId}`, label: t('Verify domain →') };
   // Answers on file and nothing to show means the build that runs with the
   // interview didn't land (failed crawl, LLM blip). That's a retry, not a
   // month-long wait — which is what this page used to tell people.
   const canBuildNow = verified && hasInterview;
   return (
     <>
-      <DashHeader title="Strategy" subtitle="the monthly plan your agent works from" />
+      <DashHeader title={t('Strategy')} subtitle={t('the monthly plan your agent works from')} />
       <div className="gv-body">
         <div style={{ background: 'var(--gv-card)', border: '1px dashed rgba(255,255,255,0.12)', borderRadius: 14, padding: '40px 30px', textAlign: 'center' }}>
-          <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>No strategy yet.</h3>
+          <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>{t('No strategy yet.')}</h3>
           <p style={{ color: 'var(--gv-dim)', marginTop: 8 }}>
             {!verified
-              ? 'Verify that you own this domain and the strategist will draft this month’s plan.'
+              ? t('Verify that you own this domain and the strategist will draft this month’s plan.')
               : hasInterview
-                ? 'Your answers are saved — the strategist just hasn’t drafted the plan yet. Build it now, it takes about a minute.'
-                : 'Answer a few questions and the strategist will draft this month’s plan.'}
+                ? t('Your answers are saved — the strategist just hasn’t drafted the plan yet. Build it now, it takes about a minute.')
+                : t('Answer a few questions and the strategist will draft this month’s plan.')}
           </p>
           {canBuildNow ? (
             <>

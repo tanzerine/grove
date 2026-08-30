@@ -6,10 +6,14 @@ import { WORKING, type Run } from './use-pipeline-runs';
 import Icon from '../gv-icons';
 import { useUpsell } from '../Upsell';
 import { captureClient } from '@/lib/analytics/capture-client';
+import { useT } from '../i18n';
+import type { T } from '@/lib/i18n';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
 
+// English source strings; translated where they're rendered. Module-level, so
+// `t` is not in scope here (and would freeze one locale for the process).
 const PROMPTS = [
   'A problem customers keep hitting',
   'A question I get asked a lot',
@@ -47,6 +51,7 @@ type Props = {
  * A blank page is the editor to the left — these are the two assisted ways in.
  */
 export default function StartDraft({ domainId, hostname, runs, onQueued, onDismissRun, onOpenDraft, activeDraftId, openingId, openError, onBlankPage }: Props) {
+  const t = useT();
   const r = useRouter();
   const { gate } = useUpsell();
   const [tab, setTab] = useState<Tab>('idea');
@@ -124,7 +129,7 @@ export default function StartDraft({ domainId, hostname, runs, onQueued, onDismi
       if (!res.ok || !j.id) {
         // 402 (no subscription / quota spent) and 429 both send a sentence
         // worth reading — show it rather than a generic failure.
-        setErr(j.message ?? j.error ?? 'Could not start that draft. Try again.');
+        setErr(j.message ?? j.error ?? t('Could not start that draft. Try again.'));
         return;
       }
       captureClient('ai_draft_queued', { topic, domain_id: domainId });
@@ -175,10 +180,10 @@ export default function StartDraft({ domainId, hostname, runs, onQueued, onDismi
     <div style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '16px 16px 17px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 13 }}>
         <span style={iconBadge}><Icon name="write" size={15} /></span>
-        <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--gv-ink)' }}>Start a draft</span>
+        <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--gv-ink)' }}>{t('Start a draft')}</span>
         {onBlankPage ? (
           <button onClick={onBlankPage} className="gv-ghost" style={{ marginLeft: 'auto', border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 11, fontWeight: 600, padding: '4px 9px', borderRadius: 8, cursor: 'pointer' }}>
-            Blank page
+            {t('Blank page')}
           </button>
         ) : (
           <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--gv-faint)' }}>assisted</span>
@@ -188,7 +193,7 @@ export default function StartDraft({ domainId, hostname, runs, onQueued, onDismi
       {runs.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
           {runs.map((run) => (
-            <RunCard key={run.id} run={run}
+            <RunCard t={t} key={run.id} run={run}
               active={run.id === activeDraftId}
               opening={run.id === openingId}
               // A finished draft opens in the editor already on screen; one still
@@ -209,7 +214,7 @@ export default function StartDraft({ domainId, hostname, runs, onQueued, onDismi
       )}
 
       <div style={tabRow}>
-        {([['idea', 'Idea studio'], ['seo', 'SEO set']] as const).map(([k, label]) => {
+        {([['idea', t('Idea studio')], ['seo', t('SEO set')]] as const).map(([k, label]) => {
           const on = tab === k;
           return (
             <button key={k} onClick={() => setTab(k)} className="gv-tool"
@@ -225,13 +230,13 @@ export default function StartDraft({ domainId, hostname, runs, onQueued, onDismi
           <div style={desc}>Give grove a nudge and it&apos;ll suggest angles for <b style={{ color: 'var(--gv-soft)' }}>{hostname}</b>.</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 11 }}>
             {PROMPTS.map((p) => (
-              <button key={p} onClick={() => setFocus(p)} className="gv-chip" style={chip}>{p}</button>
+              <button key={p} onClick={() => setFocus(t(p))} className="gv-chip" style={chip}>{t(p)}</button>
             ))}
           </div>
           <input value={focus} onChange={(e) => setFocus(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && generate()}
-            placeholder="What's on your mind? (optional)" className="gv-prompt" style={field} />
+            placeholder={t("What's on your mind? (optional)")} className="gv-prompt" style={field} />
           <button onClick={generate} disabled={thinking} className="gv-btn" style={primaryBtn}>
-            <span style={{ display: 'flex' }}><Icon name="sparkle" size={13} /></span>{thinking ? 'Thinking…' : ideas.length ? 'More ideas' : 'Generate ideas'}
+            <span style={{ display: 'flex' }}><Icon name="sparkle" size={13} /></span>{thinking ? t('Thinking…') : ideas.length ? t('More ideas') : t('Generate ideas')}
           </button>
           {err && <p style={errText}>{err}</p>}
           {ideas.length > 0 && (
@@ -261,11 +266,11 @@ export default function StartDraft({ domainId, hostname, runs, onQueued, onDismi
 
       {tab === 'seo' && (
         <div>
-          <div style={desc}>Give a seed term — grove drafts one focused page per real search, into your pipeline.</div>
+          <div style={desc}>{t('Give a seed term — grove drafts one focused page per real search, into your pipeline.')}</div>
           <input value={seed} onChange={(e) => setSeed(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && seed.trim().length >= 2 && previewSet()}
             placeholder="Seed term — e.g. 'cold brew'" className="gv-prompt" style={field} />
           <div style={{ display: 'flex', gap: 8 }}>
-            <select value={count} onChange={(e) => setCount(Number(e.target.value))} aria-label="Number of pages"
+            <select value={count} onChange={(e) => setCount(Number(e.target.value))} aria-label={t('Number of pages')}
               style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '9px 10px', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 12, cursor: 'pointer' }}>
               {[4, 6, 8, 10, 12].map((n) => <option key={n} value={n} style={{ background: 'var(--gv-card)' }}>{n} pages</option>)}
             </select>
@@ -306,15 +311,16 @@ export default function StartDraft({ domainId, hostname, runs, onQueued, onDismi
  * named, its stage is live, and the finished article lands in the editor right
  * next to it — nothing silently drops into the pipeline.
  */
-function RunCard({ run, active, opening, onOpen, onFullPage, onDismiss }: {
+function RunCard({ run, active, opening, onOpen, onFullPage, onDismiss, t }: {
   run: Run; active: boolean; opening: boolean;
   onOpen: () => void; onFullPage: () => void; onDismiss: () => void;
+  t: T;
 }) {
   const working = WORKING.includes(run.phase);
   const failed = run.phase === 'failed';
   const name = run.title || run.topic;
   const tone = failed ? 'var(--gv-red)' : working ? 'var(--gv-amber)' : ACCENT_INK;
-  const badge = failed ? 'Failed' : working ? 'In the pipeline' : active ? 'On the page' : 'Draft ready';
+  const badge = failed ? t('Failed') : working ? t('In the pipeline') : active ? t('On the page') : t('Draft ready');
   const action = failed ? 'See what happened →'
     : working ? 'Watch it write →'
     : opening ? 'Opening…'
@@ -334,7 +340,7 @@ function RunCard({ run, active, opening, onOpen, onFullPage, onDismiss }: {
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
         <span className={working ? 'grove-live-dot' : undefined} style={{ color: tone, fontSize: 9, lineHeight: 1 }}>●</span>
         <span style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700, color: tone }}>{badge}</span>
-        <button onClick={onDismiss} aria-label="Dismiss" title="Hide this — the draft stays in your pipeline"
+        <button onClick={onDismiss} aria-label={t('Dismiss')} title={t('Hide this — the draft stays in your pipeline')}
           style={{ marginLeft: 'auto', border: 'none', background: 'none', color: 'var(--gv-faint)', fontFamily: 'inherit', fontSize: 13, lineHeight: 1, cursor: 'pointer', padding: 2 }}>×</button>
       </div>
       <div style={{ fontSize: 12.5, lineHeight: 1.4, color: 'var(--gv-ink)', fontWeight: 600 }}>{name}</div>
