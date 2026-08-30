@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { deriveBrandColors, blogThemeVars, accentForText, type PageColors } from '@/lib/blog-theme';
+import { useT } from '../i18n';
 
 /**
  * Manual brand-color override. The homepage crawl guesses a palette, but it can
@@ -23,6 +24,7 @@ export default function ThemeColorsForm({
    *  is what the banner is actually built from once a capture exists. */
   pageColors: PageColors;
 }) {
+  const t = useT();
   const [primary, setPrimary] = useState(initialPrimary);
   const [secondary, setSecondary] = useState(initialSecondary);
   const [override, setOverride] = useState(hasOverride);
@@ -88,15 +90,15 @@ export default function ThemeColorsForm({
             blog renders — see the note on `banner` above. */}
         <div style={{ flex: '1 1 260px', minWidth: 240 }}>
           <div className="mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-dim)', marginBottom: 8 }}>
-            Preview
+            {t('Preview')}
           </div>
           <div style={{ borderRadius: 12, padding: '20px 18px', textAlign: 'center', background: banner.bg, color: banner.text }}>
             <div className="mono" style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: banner.muted }}>
-              Powered by your brand
+              {t('Powered by your brand')}
             </div>
-            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 17, margin: '5px 0 10px' }}>Try your product</div>
+            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 17, margin: '5px 0 10px' }}>{t('Try your product')}</div>
             <span style={{ display: 'inline-block', background: banner.btn, color: banner.btnText, padding: '7px 16px', borderRadius: 999, fontSize: 12, fontWeight: 600 }}>
-              Visit →
+              {t('Visit →')}
             </span>
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 8 }}>
@@ -111,18 +113,18 @@ export default function ThemeColorsForm({
           type="button" onClick={save} disabled={state === 'saving'}
           style={{ padding: '9px 16px', borderRadius: 10, border: 'none', background: 'var(--gv-accent)', color: 'var(--gv-on-accent)', fontSize: 13, cursor: 'pointer', opacity: state === 'saving' ? 0.6 : 1 }}
         >
-          {state === 'saving' ? 'Saving…' : state === 'saved' ? 'Saved ✓' : 'Save colors'}
+          {state === 'saving' ? 'Saving…' : state === 'saved' ? 'Saved ✓' : t('Save colors')}
         </button>
         {override && (
           <button
             type="button" onClick={reset} disabled={state === 'saving'}
             style={{ padding: '9px 16px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'transparent', color: 'var(--gv-ink)', fontSize: 13, cursor: 'pointer' }}
           >
-            Reset to crawled colors
+            {t('Reset to crawled colors')}
           </button>
         )}
         <span className="mono" style={{ fontSize: 12, color: 'var(--gv-dim)' }}>
-          {override ? 'Using your custom colors' : 'Using colors from your site'}
+          {override ? t('Using your custom colors') : t('Using colors from your site')}
         </span>
       </div>
       {state === 'error' && <p style={{ color: 'var(--gv-red)', fontSize: 12.5, margin: '8px 0 0' }}>{error}</p>}

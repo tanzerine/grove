@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Icon from '../../gv-icons';
+import { useT } from '../../i18n';
 
 const ACCENT = 'var(--gv-accent)';
 
@@ -9,6 +10,7 @@ const ACCENT = 'var(--gv-accent)';
  *  to live on the standalone Reviews page. Closed by default; the toggle
  *  surfaces a dot when something in here needs a look. */
 export default function ProcessDrawer({ unusual, children }: { unusual?: boolean; children: React.ReactNode }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -57,12 +59,12 @@ export default function ProcessDrawer({ unusual, children }: { unusual?: boolean
       >
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--gv-ink)' }}>How this was made</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--gv-ink)' }}>{t('How this was made')}</div>
             <div style={{ fontSize: 12, color: 'var(--gv-faint)', marginTop: 3 }}>Manager score, readiness &amp; the pipeline log</div>
           </div>
           <button
             onClick={() => setOpen(false)}
-            aria-label="Close"
+            aria-label={t('Close')}
             style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', color: 'var(--gv-dim)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
           >
             <Icon name="x" size={14} />

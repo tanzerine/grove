@@ -1,17 +1,20 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useT } from '../../i18n';
+import { msg } from '@/lib/i18n';
 
 type LogEntry = { ts: number; step: string; event: 'start' | 'done' | 'fail'; message?: string };
 
+/** English source strings; translated where they're rendered (see lib/i18n). */
 const STEP_LABELS: Record<string, string> = {
-  queued: 'Queued',
-  site_profile: 'Crawl site',
-  research: 'Web search',
-  topic_refiner: 'Pick angle',
-  writer: 'Write article',
-  persist: 'Save draft',
-  cover_image: 'Cover image',
+  queued: msg('Queued'),
+  site_profile: msg('Crawl site'),
+  research: msg('Web search'),
+  topic_refiner: msg('Pick angle'),
+  writer: msg('Write article'),
+  persist: msg('Save draft'),
+  cover_image: msg('Cover image'),
 };
 
 const IN_FLIGHT = new Set(['queued', 'researching', 'writing']);
@@ -26,6 +29,7 @@ function eventDot(event: string) {
 
 
 export default function PipelineTimeline({ log, status }: { log: LogEntry[]; status: string }) {
+  const t = useT();
   const router = useRouter();
   const interval = useRef<NodeJS.Timeout | null>(null);
   const isLive = IN_FLIGHT.has(status);
@@ -69,7 +73,7 @@ export default function PipelineTimeline({ log, status }: { log: LogEntry[]; sta
             )}
           </span>
           <span className="mono" style={{ fontSize: 11, color: 'var(--gv-dim)', marginRight: 6 }}>
-            {collapsed ? 'Show' : 'Hide'}
+            {collapsed ? t('Show') : t('Hide')}
           </span>
           <span className={`grove-toggle-arrow ${collapsed ? '' : 'open'}`}>▶</span>
         </button>
@@ -85,7 +89,7 @@ export default function PipelineTimeline({ log, status }: { log: LogEntry[]; sta
                   {items.map((e, i) => {
                     const { color, icon } = eventDot(e.event);
                     const elapsed = e.ts - first;
-                    const label = STEP_LABELS[e.step] ?? e.step;
+                    const label = STEP_LABELS[e.step] ? t(STEP_LABELS[e.step]) : e.step;
                     const isActive = isLive && i === items.length - 1 && e.event === 'start';
                     return (
                       <li key={i} style={{ display: 'flex', gap: 12, padding: '6px 0', alignItems: 'flex-start' }}>
@@ -123,7 +127,7 @@ export default function PipelineTimeline({ log, status }: { log: LogEntry[]; sta
 
               {/* Empty + not live */}
               {items.length === 0 && !isLive && (
-                <p style={{ color: 'var(--gv-dim)', fontSize: 14, fontStyle: 'italic', margin: 0 }}>Waiting to start…</p>
+                <p style={{ color: 'var(--gv-dim)', fontSize: 14, fontStyle: 'italic', margin: 0 }}>{t('Waiting to start…')}</p>
               )}
 
               {/* Thinking indicator — shown whenever in-flight */}

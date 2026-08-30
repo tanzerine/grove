@@ -731,4 +731,62 @@ export const KO: Record<string, string> = {
     '이번 달에 더 다뤄야 할 내용을 알려주면 전략가가 계획을 다시 짭니다.',
   'The month at a glance': '이번 달 한눈에 보기',
   'Research': '조사',
+
+  /* ── scheduling + timeline ───────────────────────────────────────────── */
+  'Publish this post': '이 글 발행하기',
+  'Or pick a date and time': '또는 날짜와 시간을 고르세요',
+  'Unschedule': '예약 해제',
+  'Could not schedule this post.': '이 글을 예약하지 못했습니다.',
+  'Could not clear the schedule.': '예약을 해제하지 못했습니다.',
+  'How this was made': '어떻게 만들어졌나',
+  'Waiting to start…': '시작을 기다리는 중…',
+  'Crawl site': '사이트 분석',
+  'Web search': '웹 검색',
+  'Pick angle': '관점 선정',
+  'Write article': '글 작성',
+  'Cover image': '커버 이미지',
+  'Show': '펼치기',
+  'Planning cadence': '계획 주기',
+  'Nothing scheduled in this window.': '이 기간에 예정된 글이 없습니다.',
+  'Click to open the article →': '클릭하면 글이 열립니다 →',
+
+  /* ── plan chat ───────────────────────────────────────────────────────── */
+  'Talk to your strategist': '전략가와 대화하기',
+  'Ask about the plan, or tell me what to change…': '계획에 대해 묻거나 바꾸고 싶은 점을 말씀해 주세요…',
+  'Ask why the plan looks this way, or tell it what to change.': '왜 이런 계획인지 묻거나, 무엇을 바꿀지 알려주세요.',
+  'Something went wrong — the plan is unchanged. Try again in a moment.':
+    '문제가 발생했습니다. 계획은 그대로입니다. 잠시 후 다시 시도해 주세요.',
+  'Hide earlier messages': '이전 메시지 숨기기',
+  'Show less': '접기',
+  'Show more': '더 보기',
+
+  /* ── beta ────────────────────────────────────────────────────────────── */
+  'Beta': '베타',
+  'Tell us why': '이유를 알려주세요',
+  'Have a beta code?': '베타 코드가 있으신가요?',
+  'Redeem it →': '코드 등록하기 →',
+  'Redeem a beta code': '베타 코드 등록',
+  'Redeem': '등록',
+  'Checking…': '확인하는 중…',
+  'Beta codes give you a free run of Grove — no card, nothing to cancel.':
+    '베타 코드로 grove를 무료로 사용해 보세요. 카드도, 해지할 것도 없습니다.',
+  'That code could not be redeemed.': '이 코드는 등록할 수 없습니다.',
+
+  /* ── embed forms ─────────────────────────────────────────────────────── */
+  'Use': '사용',
+  'Your blog is live at': '블로그 주소',
+  'Check again': '다시 확인',
+  'Enter a hostname first': '먼저 호스트명을 입력해 주세요',
+  'Copy value': '값 복사',
+  'Powered by your brand': '내 브랜드로 제공',
+  'Try your product': '제품 사용해 보기',
+  'Visit →': '바로가기 →',
+  'Reset to crawled colors': '분석된 색상으로 되돌리기',
+  'Save colors': '색상 저장',
+  'Using your custom colors': '직접 지정한 색상을 사용 중',
+  'Using colors from your site': '사이트에서 가져온 색상을 사용 중',
+
+  /* ── misc ────────────────────────────────────────────────────────────── */
+  'Add a domain first to start writing.': '글을 쓰려면 먼저 도메인을 추가해 주세요.',
+  'cross-post every article to your channels': '모든 글을 내 채널에 함께 게시합니다',
 };

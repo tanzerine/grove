@@ -3,6 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { formatCode, betaWindowLabel, type BetaState } from '@/lib/beta';
+import { useT } from '../i18n';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
@@ -25,6 +26,7 @@ export default function BetaPanel({
   beta: BetaState;
   hasPaidPlan: boolean;
 }) {
+  const t = useT();
   if (beta.present) return <BetaStatus beta={beta} />;
   // Someone already paying doesn't need a redeem box; Stripe promotion codes at
   // checkout are the discount path for them, and offering both invites the
@@ -36,6 +38,7 @@ export default function BetaPanel({
 /* ─────────────────────────── live / expired grant ───────────────────────── */
 
 function BetaStatus({ beta }: { beta: BetaState }) {
+  const t = useT();
   const live = beta.active;
   const ends = beta.expiresAt
     ? new Date(beta.expiresAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
@@ -60,7 +63,7 @@ function BetaStatus({ beta }: { beta: BetaState }) {
             color: live ? 'var(--gv-on-accent)' : 'var(--gv-faint)',
           }}
         >
-          Beta
+          {t('Beta')}
         </span>
         <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--gv-ink)' }}>
           {betaWindowLabel(beta)}
@@ -94,7 +97,7 @@ function BetaStatus({ beta }: { beta: BetaState }) {
           <p style={{ fontSize: 13.5, color: 'var(--gv-dim)', lineHeight: 1.6, margin: '10px 0 0' }}>
             Not continuing?{' '}
             <Link href="/dashboard/feedback" style={{ color: ACCENT_INK, fontWeight: 600 }}>
-              Tell us why
+              {t('Tell us why')}
             </Link>{' '}
             — that&apos;s the most useful thing you can leave us.
           </p>
@@ -107,6 +110,7 @@ function BetaStatus({ beta }: { beta: BetaState }) {
 /* ────────────────────────────── redeem a code ───────────────────────────── */
 
 function RedeemBox() {
+  const t = useT();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [code, setCode] = useState('');
@@ -128,7 +132,7 @@ function RedeemBox() {
     if (!res.ok) {
       // The server decides the wording (lib/beta COUPON_PROBLEM_MESSAGE) so the
       // customer reads the same sentence the server reasoned about.
-      return setErr(j.message ?? 'That code could not be redeemed.');
+      return setErr(j.message ?? t('That code could not be redeemed.'));
     }
     // Server-rendered page: refresh rather than patching state, so the quota
     // meter, the entitlement banner and the nav all pick the grant up at once.
@@ -146,7 +150,7 @@ function RedeemBox() {
             fontFamily: 'inherit', fontSize: 13.5, color: 'var(--gv-dim)',
           }}
         >
-          Have a beta code? <span style={{ color: ACCENT_INK, fontWeight: 600 }}>Redeem it →</span>
+          {t('Have a beta code?')} <span style={{ color: ACCENT_INK, fontWeight: 600 }}>{t('Redeem it →')}</span>
         </button>
       </div>
     );
@@ -161,7 +165,7 @@ function RedeemBox() {
       }}
     >
       <label htmlFor="beta-code" style={{ display: 'block', fontSize: 13.5, fontWeight: 600, color: 'var(--gv-ink)', marginBottom: 8 }}>
-        Redeem a beta code
+        {t('Redeem a beta code')}
       </label>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <input
@@ -189,12 +193,12 @@ function RedeemBox() {
             color: busy || !code.trim() ? 'var(--gv-faint)' : 'var(--gv-on-accent)',
           }}
         >
-          {busy ? 'Checking…' : 'Redeem'}
+          {busy ? t('Checking…') : t('Redeem')}
         </button>
       </div>
       {err && <p style={{ fontSize: 13, color: 'var(--gv-red-text)', margin: '10px 0 0', lineHeight: 1.55 }}>{err}</p>}
       <p style={{ fontSize: 12.5, color: 'var(--gv-faint)', margin: '10px 0 0', lineHeight: 1.55 }}>
-        Beta codes give you a free run of Grove — no card, nothing to cancel.
+        {t('Beta codes give you a free run of Grove — no card, nothing to cancel.')}
       </p>
     </form>
   );

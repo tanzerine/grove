@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useState } from 'react';
+import { useT } from './i18n';
 
 export type CalEvent = {
   id: string;
@@ -29,6 +30,7 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
  * cell's `overflow: hidden`), and an accent stroke on the hovered chip.
  */
 export default function OverviewCalendar({ days }: { days: CalDay[] }) {
+  const t = useT();
   // Hovered chip + the screen rect it occupies. `position: fixed` puts the
   // hover card above the cell's overflow clip.
   const [hover, setHover] = useState<{ ev: CalEvent; x: number; y: number } | null>(null);
@@ -83,7 +85,7 @@ export default function OverviewCalendar({ days }: { days: CalDay[] }) {
           </div>
           {/* The whole point of the hover card: the untruncated title. */}
           <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--gv-ink)', lineHeight: 1.4 }}>{hover.ev.label}</div>
-          <div style={{ fontSize: 10.5, color: 'var(--gv-fainter)', marginTop: 6 }}>Click to open the article →</div>
+          <div style={{ fontSize: 10.5, color: 'var(--gv-fainter)', marginTop: 6 }}>{t('Click to open the article →')}</div>
         </div>
       )}
     </>
