@@ -22,6 +22,8 @@
 import { llmCall, extractJson } from '../llm';
 import { relevantKnowledge } from './knowledge';
 import type { AssistantIntent } from './triage';
+import { language } from '../language';
+import type { UiLocale } from '../i18n';
 
 export type AssistantTurn = { role: 'user' | 'agent'; content: string };
 
@@ -112,6 +114,11 @@ export function normalizeAnswer(raw: string): AssistantAnswer {
 }
 
 export function buildAnswerPrompt(opts: {
+  /** UI language of the owner. The agent answers in the language they are
+   *  reading the dashboard in — a Korean owner asking a Korean question does
+   *  not want an English paragraph back. Separate from the blog's publication
+   *  language: this is the conversation, not the article. */
+  locale?: UiLocale;
   hostname: string;
   intent: AssistantIntent;
   message: string;
@@ -164,7 +171,13 @@ OUTPUT: ONE raw JSON object, no markdown fences:
     .join('\n');
 
   // The data lives in the USER prompt on purpose — see the header comment.
-  const user = `LIVE DATA for ${opts.hostname} (authoritative — queried just now)
+  // The language command goes FIRST in the user prompt, not the system prompt:
+  // see lib/language.ts — this model demonstrably ignores a directive at the
+  // tail of a long English system prompt.
+  const answerLang = language(opts.locale ?? 'en');
+  const langLine = answerLang.code === 'en' ? '' :
+    `!! ANSWER IN ${answerLang.englishName.toUpperCase()} (${answerLang.nativeName}) !!\nThe owner reads the dashboard in ${answerLang.nativeName}. Write your reply, and the "thought" line, in ${answerLang.nativeName} — natural, not translated. Numbers, metric names, URLs and article titles stay as they are.\n\n`;
+  const user = `${langLine}LIVE DATA for ${opts.hostname} (authoritative — queried just now)
 ${opts.signalsMd || '(no articles or reader events recorded yet — a brand-new blog)'}
 ${opts.planMd ? `\nCURRENT PLAN MEMO\n${opts.planMd}` : ''}
 ${guides ? `\nGUIDES\n${guides}` : ''}
@@ -172,7 +185,7 @@ ${transcript ? `\nRECENT CONVERSATION (may predate the data above — the LIVE D
 OWNER: ${opts.message}
 
 Answer the owner's last message from the LIVE DATA above. It is real and
-current — never claim you lack access to it. Reply with the JSON object.`;
+current — never claim you lack access to it. Reply with the JSON object.${answerLang.code === 'en' ? '' : `\n\n${langLine.trim()}`}`;
 
   return { system, user };
 }
@@ -184,6 +197,7 @@ export async function answerAssistant(opts: {
   signalsMd: string;
   planMd: string;
   history: AssistantTurn[];
+  locale?: UiLocale;
 }): Promise<AssistantAnswer> {
   const { system, user } = buildAnswerPrompt(opts);
   const { text } = await llmCall({ system, user, maxTokens: 900 });

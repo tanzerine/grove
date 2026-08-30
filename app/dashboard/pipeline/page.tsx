@@ -12,11 +12,14 @@ import { canGenerateForUser } from '@/lib/billing';
 import { maxPostsPerWeekForQuota } from '@/lib/plans';
 import { WORKING, isStuck } from '@/lib/pipeline/counts';
 import { blogHomeUrl, canonicalBaseFor } from '@/lib/seo';
+import { getT } from '@/lib/i18n/server';
+import type { T } from '@/lib/i18n';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
 
 export default async function Page() {
+  const t = await getT();
   const sb = await supabaseServer();
   // The site the switcher is pointing at — NOT "whichever domain row comes back
   // first", which is what this used to do: an account with two sites saw the
@@ -70,11 +73,11 @@ export default async function Page() {
   // from lib/pipeline/counts so this page and the nav badge can't drift apart
   // — they used to, and disagreed by an order of magnitude.
   const groupsDef = [
-    { key: 'flight', label: 'In flight', color: ACCENT_INK, test: (p: any) => WORKING.includes(p.status) && !isStuck(p) },
-    { key: 'review', label: 'Needs your review', color: 'var(--gv-amber)', test: (p: any) => p.status === 'review' },
-    { key: 'scheduled', label: 'Scheduled', color: 'var(--gv-dim)', test: (p: any) => p.status === 'scheduled' },
+    { key: 'flight', label: t('In flight'), color: ACCENT_INK, test: (p: any) => WORKING.includes(p.status) && !isStuck(p) },
+    { key: 'review', label: t('Needs your review'), color: 'var(--gv-amber)', test: (p: any) => p.status === 'review' },
+    { key: 'scheduled', label: t('Scheduled'), color: 'var(--gv-dim)', test: (p: any) => p.status === 'scheduled' },
     { key: 'live', label: 'Published', color: ACCENT_INK, test: (p: any) => p.status === 'published' },
-    { key: 'failed', label: 'Needs attention', color: 'var(--gv-red)', test: (p: any) => p.status === 'failed' || isStuck(p) },
+    { key: 'failed', label: t('Needs attention'), color: 'var(--gv-red)', test: (p: any) => p.status === 'failed' || isStuck(p) },
   ];
   const groups = groupsDef.map((g) => ({ ...g, items: (posts ?? []).filter(g.test) })).filter((g) => g.items.length);
 
@@ -87,16 +90,16 @@ export default async function Page() {
     countdown = mins >= 60 ? `${Math.floor(mins / 60)}h ${String(mins % 60).padStart(2, '0')}m` : `${mins}m`;
   }
 
-  const action = brief ? nextAction(brief) : null;
+  const action = brief ? nextAction(brief, t) : null;
   const delta = brief && brief.readsLastWeek > 0 ? Math.round(((brief.readsThisWeek - brief.readsLastWeek) / brief.readsLastWeek) * 100) : null;
 
   const chips: { value: string; sub?: string; label: string }[] = brief ? [
     { value: String(brief.readsThisWeek), sub: delta !== null && Math.abs(delta) >= 5 ? `${delta > 0 ? '+' : ''}${delta}%` : undefined, label: 'Reads' },
-    { value: String(brief.conversionsThisWeek), label: 'Site clicks' },
+    { value: String(brief.conversionsThisWeek), label: t('Site clicks') },
     { value: `${brief.publishedThisWeek} / ${brief.totalPublished}`, label: 'Published' },
-    ...(brief.organicShare >= 0.05 ? [{ value: `${Math.round(brief.organicShare * 100)}%`, label: 'From search' }] : []),
-    ...(aeoTotal >= 2 ? [{ value: `${aeoReadyCount} / ${aeoTotal}`, label: 'AI-search ready' }] : []),
-    ...(brief.inReview > 0 ? [{ value: String(brief.inReview), label: 'Awaiting review' }] : []),
+    ...(brief.organicShare >= 0.05 ? [{ value: `${Math.round(brief.organicShare * 100)}%`, label: t('From search') }] : []),
+    ...(aeoTotal >= 2 ? [{ value: `${aeoReadyCount} / ${aeoTotal}`, label: t('AI-search ready') }] : []),
+    ...(brief.inReview > 0 ? [{ value: String(brief.inReview), label: t('Awaiting review') }] : []),
   ] : [];
 
   const inFlightCount = groups.find((g) => g.key === 'flight')?.items.length ?? 0;
@@ -111,7 +114,7 @@ export default async function Page() {
 
   return (
     <>
-      <DashHeader title="Content pipeline" subtitle={subtitle} />
+      <DashHeader title={t('Content pipeline')} subtitle={subtitle} />
 
       {/* The comp runs one 1180px column, centred — every band (brief, queue,
           pipeline rows, stats) shares it, so nothing steps out of line. */}
@@ -119,14 +122,14 @@ export default async function Page() {
         {/* live status — relocated out of the nav bar */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 14, marginBottom: 16, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.2 }}>
-            <span style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>Next publish</span>
+            <span style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>{t('Next publish')}</span>
             <span style={{ fontSize: 13, fontWeight: 700, color: ACCENT_INK }}>{countdown}</span>
           </div>
         </div>
         {domain && !domain.verified_at && (
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.24)', borderRadius: 12, padding: '12px 16px', marginBottom: 16, fontSize: 13.5, color: '#d8d2bf' }}>
             <span><b style={{ color: 'var(--gv-ink)' }}>{domain.hostname}</b> isn’t verified yet — autopilot is paused, but you can queue topics and review every draft.</span>
-            <Link href={`/onboarding/verify?domain=${domain.id}`} className="gv-btn" style={{ whiteSpace: 'nowrap', border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontWeight: 700, fontSize: 13, padding: '9px 15px', borderRadius: 10 }}>Verify domain →</Link>
+            <Link href={`/onboarding/verify?domain=${domain.id}`} className="gv-btn" style={{ whiteSpace: 'nowrap', border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontWeight: 700, fontSize: 13, padding: '9px 15px', borderRadius: 10 }}>{t('Verify domain →')}</Link>
           </div>
         )}
 
@@ -136,9 +139,9 @@ export default async function Page() {
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
               <div style={{ flex: 1, minWidth: 280 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 10.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: ACCENT_INK }}>
-                  <span style={{ display: 'flex' }}><Icon name="leaf" size={13} /></span> Your marketing agent · last 7 days
+                  <span style={{ display: 'flex' }}><Icon name="leaf" size={13} /></span> {t('Your marketing agent · last 7 days')}
                 </div>
-                <p style={{ fontSize: 15.5, lineHeight: 1.62, color: 'var(--gv-soft)', margin: '12px 0 0', maxWidth: 660 }}>{composeBrief(brief).join(' ')}</p>
+                <p style={{ fontSize: 15.5, lineHeight: 1.62, color: 'var(--gv-soft)', margin: '12px 0 0', maxWidth: 660 }}>{composeBrief(brief, t).join(' ')}</p>
               </div>
               {action && (
                 <Link href={action.href} className="gv-btn" style={{ border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '11px 18px', borderRadius: 10, whiteSpace: 'nowrap', flexShrink: 0 }}>{action.label}</Link>
@@ -172,7 +175,7 @@ export default async function Page() {
                 <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gv-fainter)', fontVariantNumeric: 'tabular-nums' }}>{g.items.length}</span>
                 <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
               </div>
-              {g.key === 'review' && <ReviewWhy autoPublish={domain?.auto_publish ?? false} />}
+              {g.key === 'review' && <ReviewWhy t={t} autoPublish={domain?.auto_publish ?? false} />}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                 {g.items.map((p) => <PostRow key={p.id} p={p} score={scoreByPost.get(p.id) ?? null} blogBase={blogBase} />)}
               </div>
@@ -180,7 +183,7 @@ export default async function Page() {
           ))}
 
           {groups.length === 0 && (
-            <p style={{ color: 'var(--gv-dim)', marginTop: 24, fontSize: 14 }}>No posts yet. Queue a topic above — the pipeline runs immediately.</p>
+            <p style={{ color: 'var(--gv-dim)', marginTop: 24, fontSize: 14 }}>{t('No posts yet. Queue a topic above — the pipeline runs immediately.')}</p>
           )}
         </div>
 
@@ -195,17 +198,17 @@ export default async function Page() {
  * holding these, and the copy adapts to whether Autopilot is on. Native
  * <details> so it works in a server component with no client JS.
  */
-function ReviewWhy({ autoPublish }: { autoPublish: boolean }) {
+function ReviewWhy({ autoPublish, t }: { autoPublish: boolean; t: T }) {
   const li: React.CSSProperties = { fontSize: 12, color: 'var(--gv-faint)', lineHeight: 1.55, margin: '0 0 6px' };
   const strong: React.CSSProperties = { color: 'var(--gv-soft)', fontWeight: 600 };
   return (
     <details style={{ margin: '-2px 2px 12px' }}>
       <summary style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 11.5, color: 'var(--gv-dim)', listStyle: 'none', userSelect: 'none', width: 'fit-content' }}>
-        <Icon name="q" size={13} /> Why is this waiting for you?
+        <Icon name="q" size={13} /> {t('Why is this waiting for you?')}
       </summary>
       <div style={{ marginTop: 9, padding: '13px 15px', background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, maxWidth: 560 }}>
         <div style={{ fontSize: 11.5, color: 'var(--gv-soft)', fontWeight: 600, marginBottom: 8 }}>
-          A draft publishes on its own only when both gates pass:
+          {t('A draft publishes on its own only when both gates pass:')}
         </div>
         {autoPublish ? (
           <>
@@ -236,7 +239,7 @@ function ReviewWhy({ autoPublish }: { autoPublish: boolean }) {
           An <span style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>ungraded</span> or{' '}
           <span style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>grading&nbsp;failed</span> tag means the
           quality check didn&apos;t finish for that draft — the draft is kept and held for you. Use{' '}
-          <span style={strong}>Re-run check</span> to grade it (it re-scores the same draft, no rewrite).
+          <span style={strong}>{t('Re-run check')}</span> to grade it (it re-scores the same draft, no rewrite).
         </p>
       </div>
     </details>

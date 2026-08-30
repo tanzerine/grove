@@ -17,6 +17,9 @@ import DashSearch from './DashSearch';
 import type { SearchablePost } from '@/lib/post-search';
 import { getEntitlement } from '@/lib/billing';
 import { shareOutcome, latestChannelErrors, type ShareRecord } from '@/lib/social/health';
+import { useT } from './i18n';
+import { getT } from '@/lib/i18n/server';
+import { intlLocale, type T } from '@/lib/i18n';
 
 // ACCENT is the lime fill/border; ACCENT_INK is the olive to use whenever the
 // accent has to read as text (lime is ~1.1:1 on the white canvas).
@@ -29,6 +32,9 @@ const SAGE_DOT = '#93998f';
 // Grayscale calendar: scheduled/review/draft share the muted grey tier, so
 // border-style (solid/dashed/dotted/double — the original design comp's own
 // scheme) plus chip darkness carries the distinction instead of hue.
+// `name` holds the English SOURCE string; the render site puts it through `t`.
+// A module-level constant is evaluated once per process, so translating here
+// would serve whichever locale happened to load the module first to everyone.
 const ES: Record<string, { color: string; chipBg: string; name: string; line: React.CSSProperties['borderStyle'] }> = {
   published: { color: SAGE, chipBg: 'rgba(255,255,255,0.05)', name: 'Published', line: 'solid' },
   scheduled: { color: 'var(--gv-blue)', chipBg: 'rgba(255,255,255,0.09)', name: 'Scheduled', line: 'dashed' },
@@ -52,38 +58,39 @@ function fmtNum(n: number): string {
   return String(Math.round(n));
 }
 
-function greeting(): string {
+function greeting(t: T): string {
   const h = new Date().getHours();
-  if (h < 12) return 'Good morning';
-  if (h < 18) return 'Good afternoon';
-  return 'Good evening';
+  if (h < 12) return t('Good morning');
+  if (h < 18) return t('Good afternoon');
+  return t('Good evening');
 }
 
-function relTime(iso: string): string {
+function relTime(iso: string, t: T): string {
   const ms = Date.now() - new Date(iso).getTime();
   const m = ms / 60000;
-  if (m < 1) return 'just now';
-  if (m < 60) return `${Math.round(m)} min ago`;
+  if (m < 1) return t('just now');
+  if (m < 60) return t('{n} min ago', { n: Math.round(m) });
   const h = m / 60;
-  if (h < 24) return `${Math.round(h)} hour${Math.round(h) === 1 ? '' : 's'} ago`;
+  if (h < 24) return Math.round(h) === 1 ? t('1 hour ago') : t('{n} hours ago', { n: Math.round(h) });
   const d = h / 24;
-  if (d < 2) return 'Yesterday';
-  if (d < 7) return `${Math.round(d)}d ago`;
-  return new Date(iso).toLocaleDateString('en-US');
+  if (d < 2) return t('Yesterday');
+  if (d < 7) return t('{n}d ago', { n: Math.round(d) });
+  return new Date(iso).toLocaleDateString(intlLocale(t.locale));
 }
 
-function schedLabel(p: any): string {
-  if (p.status === 'published' && p.published_at) return relTime(p.published_at);
+function schedLabel(p: any, t: T): string {
+  if (p.status === 'published' && p.published_at) return relTime(p.published_at, t);
   if (p.status === 'scheduled' && p.scheduled_at) {
     const ms = new Date(p.scheduled_at).getTime() - Date.now();
-    if (ms > 0 && ms < 86400000) return `in ${Math.max(1, Math.round(ms / 3600000))}h`;
-    return new Date(p.scheduled_at).toLocaleDateString(undefined, { weekday: 'short' });
+    if (ms > 0 && ms < 86400000) return t('in {n}h', { n: Math.max(1, Math.round(ms / 3600000)) });
+    return new Date(p.scheduled_at).toLocaleDateString(intlLocale(t.locale), { weekday: 'short' });
   }
-  if (p.status === 'review') return 'Hold';
+  if (p.status === 'review') return t('Hold');
   return '—';
 }
 
 export default async function OverviewPage() {
+  const t = await getT();
   const sb = await supabaseServer();
   const domain = await getActiveDomain(sb);
   // Entitlement drives the tease: Free / lapsed accounts see a locked preview
@@ -145,23 +152,23 @@ export default async function OverviewPage() {
   const publishedCount = brief?.totalPublished ?? published.length;
   const stats = [
     {
-      icon: 'rankings', label: gscVis ? 'Search clicks' : 'Total reads', value: fmtNum(organicClicks),
+      icon: 'rankings', label: gscVis ? t('Search clicks') : t('Total reads'), value: fmtNum(organicClicks),
       delta: readsDelta !== null && Math.abs(readsDelta) >= 1 ? `${readsDelta >= 0 ? '▲' : '▼'} ${Math.abs(readsDelta)}%` : '',
       deltaColor: (readsDelta ?? 0) >= 0 ? ACCENT_INK : 'var(--gv-red-text)',
       sub: brief && brief.readsThisWeek ? `${brief.readsThisWeek} read${brief.readsThisWeek === 1 ? '' : 's'} this week` : organicClicks ? 'all time' : 'no reads yet',
     },
     {
-      icon: 'published', label: 'Posts published', value: String(publishedCount),
+      icon: 'published', label: t('Posts published'), value: String(publishedCount),
       delta: brief?.publishedThisWeek ? `+${brief.publishedThisWeek}` : '', deltaColor: ACCENT_INK,
       sub: domain ? `${domain.posts_per_week ?? 4} / week on autopilot` : '—',
     },
     {
-      icon: 'pipeline', label: 'In pipeline', value: String(inPipeline.length),
+      icon: 'pipeline', label: t('In pipeline'), value: String(inPipeline.length),
       delta: inPipeline.length ? 'live' : '', deltaColor: 'var(--gv-dim)',
       sub: inReview.length ? `${inReview.length} awaiting review` : inPipeline.length ? 'running on schedule' : 'queue a topic to begin',
     },
     {
-      icon: 'clock', label: 'Awaiting review', value: String(inReview.length),
+      icon: 'clock', label: t('Awaiting review'), value: String(inReview.length),
       delta: inReview.length ? 'action' : 'clear', deltaColor: inReview.length ? 'var(--gv-amber)' : 'var(--gv-dim)',
       sub: inReview.length ? 'approve to publish' : 'nothing waiting on you',
     },
@@ -171,7 +178,7 @@ export default async function OverviewPage() {
   const now = new Date();
   const calYear = now.getFullYear(), calMonthIdx = now.getMonth(), todayNum = now.getDate();
   const calMonth = now.toLocaleString(undefined, { month: 'long', year: 'numeric' });
-  const calLegend = (['published', 'scheduled', 'review', 'draft', 'planned'] as const).map((k) => ({ label: ES[k].name, color: ES[k].color, line: ES[k].line }));
+  const calLegend = (['published', 'scheduled', 'review', 'draft', 'planned'] as const).map((k) => ({ label: t(ES[k].name), color: ES[k].color, line: ES[k].line }));
 
   const eventsByDay: Record<number, { id: string; s: keyof typeof ES; label: string }[]> = {};
   for (const p of datedPosts ?? []) {
@@ -194,7 +201,7 @@ export default async function OverviewPage() {
     const d = new Date(slot.publish_date!);
     if (d.getFullYear() !== calYear || d.getMonth() !== calMonthIdx) continue;
     (eventsByDay[d.getDate()] ??= []).push({
-      id: `slot-${slot.id}`, s: 'planned', label: slot.topic ?? 'Planned post',
+      id: `slot-${slot.id}`, s: 'planned', label: slot.topic ?? t('Planned post'),
     });
   }
 
@@ -208,7 +215,7 @@ export default async function OverviewPage() {
   const calDays: CalDay[] = cells.map((c) => {
     const isToday = !c.out && c.num === todayNum;
     const when = c.out ? '' : new Date(calYear, calMonthIdx, c.num).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    const evs = (!c.out && eventsByDay[c.num]) ? eventsByDay[c.num].map((e) => ({ id: e.id, label: e.label, status: ES[e.s].name, when, color: ES[e.s].color, chipBg: ES[e.s].chipBg, line: ES[e.s].line })) : [];
+    const evs = (!c.out && eventsByDay[c.num]) ? eventsByDay[c.num].map((e) => ({ id: e.id, label: e.label, status: t(ES[e.s].name), when, color: ES[e.s].color, chipBg: ES[e.s].chipBg, line: ES[e.s].line })) : [];
     return {
       num: c.num,
       // Today is marked by the lime tint + an olive outline; the numeral itself
@@ -222,10 +229,10 @@ export default async function OverviewPage() {
   });
 
   // ---- agent panel ----
-  const agentSummary = brief ? composeBrief(brief).slice(0, 2).join(' ')
+  const agentSummary = brief ? composeBrief(brief, t).slice(0, 2).join(' ')
     : all.length
-    ? 'I’m working through your plan — researching, drafting, and holding finished drafts for your sign-off.'
-    : 'Ready to go. Queue your first topic (or flip on autopilot) and I’ll start researching and drafting right away.';
+    ? t('I’m working through your plan — researching, drafting, and holding finished drafts for your sign-off.')
+    : t('Ready to go. Queue your first topic (or flip on autopilot) and I’ll start researching and drafting right away.');
   // Real insight from the data we have (top performer / review backlog) — or null.
   // Each variant carries the action it promises: the cluster line is only shown
   // when we can actually build one (seed + domain), so the CTA is never a claim
@@ -247,25 +254,25 @@ export default async function OverviewPage() {
     : undefined;
   const flight = inPipeline.filter((p) => ['queued', 'researching', 'writing'].includes(p.status));
   const agentItems: { icon: string; title: string; detail: string; attn: boolean; action?: { label: string; href: string } }[] = [];
-  if (inReview.length) agentItems.push({ icon: 'eye', title: `${inReview.length} draft${inReview.length === 1 ? '' : 's'} need review`, detail: 'Approve to let autopilot publish them', attn: true, action: { label: 'Review', href: '/dashboard/pipeline' } });
+  if (inReview.length) agentItems.push({ icon: 'eye', title: `${inReview.length} draft${inReview.length === 1 ? '' : 's'} need review`, detail: t('Approve to let autopilot publish them'), attn: true, action: { label: t('Review'), href: '/dashboard/pipeline' } });
   // A cross-post channel that has stopped working is invisible everywhere else:
   // the connection still reads "Connected", and nothing would give the owner a
   // reason to open Social settings and look. `all` is newest-first, so a later
   // success clears the warning on its own once the channel is fixed.
   const brokenChannels = Object.keys(latestChannelErrors(published as any[]));
   if (brokenChannels.length) {
-    const names = brokenChannels.map((c) => (c === 'x' ? 'X' : c === 'linkedin' ? 'LinkedIn' : c)).join(' and ');
+    const names = brokenChannels.map((c) => (c === 'x' ? 'X' : c === 'linkedin' ? t('LinkedIn') : c)).join(' and ');
     agentItems.push({
       icon: 'alert',
       title: `${names} cross-posting stopped`,
-      detail: 'The last share failed — check the connection',
+      detail: t('The last share failed — check the connection'),
       attn: true,
-      action: { label: 'Fix', href: '/dashboard/connections' },
+      action: { label: t('Fix'), href: '/dashboard/connections' },
     });
   }
-  if (flight[0]) agentItems.push({ icon: 'search2', title: flight[0].status === 'writing' ? 'Drafting in your voice' : 'Researching live SERP', detail: `“${flight[0].title ?? flight[0].topic}”`, attn: false });
-  if (flight[1]) agentItems.push({ icon: 'check', title: 'Next in the queue', detail: `“${flight[1].title ?? flight[1].topic}”`, attn: false });
-  while (agentItems.length < 1) agentItems.push({ icon: 'check', title: 'All caught up', detail: 'No drafts in flight right now', attn: false });
+  if (flight[0]) agentItems.push({ icon: 'search2', title: flight[0].status === 'writing' ? t('Drafting in your voice') : t('Researching live SERP'), detail: `“${flight[0].title ?? flight[0].topic}”`, attn: false });
+  if (flight[1]) agentItems.push({ icon: 'check', title: t('Next in the queue'), detail: `“${flight[1].title ?? flight[1].topic}”`, attn: false });
+  while (agentItems.length < 1) agentItems.push({ icon: 'check', title: t('All caught up'), detail: t('No drafts in flight right now'), attn: false });
 
   // ---- content pipeline table groups ----
   const toRow = (p: any): OvRow => {
@@ -281,7 +288,7 @@ export default async function OverviewPage() {
     return {
       id: p.id, icon, accentIcon, title: p.title ?? p.topic ?? '(untitled)', meta,
       keyword: p.topic ?? '—', words: p.validation?.stats?.word_count ? Number(p.validation.stats.word_count).toLocaleString() : '—',
-      s, schedule: schedLabel(p),
+      s, schedule: schedLabel(p, t),
     };
   };
   // Recent = the 5 newest posts in any state (drafting, review, scheduled,
@@ -304,18 +311,18 @@ export default async function OverviewPage() {
   const chState = (key: string) => {
     switch (shareOutcome(pubSocial[key])) {
       case 'posted': return { state: 'Posted', color: ACCENT_INK, dot: ACCENT_INK };
-      case 'dry_run': return { state: 'Dry run', color: 'var(--gv-dim)', dot: SAGE_DOT };
-      case 'failed': return { state: 'Failed', color: 'var(--gv-red-text)', dot: 'var(--gv-red)' };
+      case 'dry_run': return { state: t('Dry run'), color: 'var(--gv-dim)', dot: SAGE_DOT };
+      case 'failed': return { state: t('Failed'), color: 'var(--gv-red-text)', dot: 'var(--gv-red)' };
       default: return domain?.auto_social
-        ? { state: 'Queued', color: 'var(--gv-dim)', dot: SAGE_DOT }
-        : { state: 'Off', color: 'var(--gv-faint)', dot: 'var(--gv-fainter)' };
+        ? { state: t('Queued'), color: 'var(--gv-dim)', dot: SAGE_DOT }
+        : { state: t('Off'), color: 'var(--gv-faint)', dot: 'var(--gv-fainter)' };
     }
   };
   const channels = latestPub
     ? [
-        { name: 'Blog post', dot: ACCENT_INK, color: ACCENT_INK, state: 'Published' },
-        { name: 'X thread', ...chState('x') },
-        { name: 'LinkedIn', ...chState('linkedin') },
+        { name: t('Blog post'), dot: ACCENT_INK, color: ACCENT_INK, state: t('Published') },
+        { name: t('X thread'), ...chState('x') },
+        { name: t('LinkedIn'), ...chState('linkedin') },
       ]
     : [];
 
@@ -328,23 +335,23 @@ export default async function OverviewPage() {
   const activityRows: { text: string; time: string; dot: string; ring: string }[] = [];
   for (const p of all.slice(0, 8)) {
     if (p.status === 'published' && p.published_at) {
-      activityRows.push({ text: `Published “${(p.title ?? p.topic ?? '').slice(0, 38)}…”`, time: relTime(p.published_at), dot: ACCENT_INK, ring: 'rgba(75,92,20,0.28)' });
+      activityRows.push({ text: `Published “${(p.title ?? p.topic ?? '').slice(0, 38)}…”`, time: relTime(p.published_at, t), dot: ACCENT_INK, ring: 'rgba(75,92,20,0.28)' });
     } else if (p.status === 'review') {
-      activityRows.push({ text: `Draft ready for review · “${(p.title ?? p.topic ?? '').slice(0, 30)}”`, time: relTime(p.created_at), dot: 'var(--gv-amber)', ring: 'rgba(255,255,255,0.3)' });
+      activityRows.push({ text: `Draft ready for review · “${(p.title ?? p.topic ?? '').slice(0, 30)}”`, time: relTime(p.created_at, t), dot: 'var(--gv-amber)', ring: 'rgba(255,255,255,0.3)' });
     } else if (['writing', 'researching', 'queued'].includes(p.status)) {
-      activityRows.push({ text: `Started “${(p.title ?? p.topic ?? '').slice(0, 34)}”`, time: relTime(p.created_at), dot: 'var(--gv-sky)', ring: 'rgba(255,255,255,0.3)' });
+      activityRows.push({ text: `Started “${(p.title ?? p.topic ?? '').slice(0, 34)}”`, time: relTime(p.created_at, t), dot: 'var(--gv-sky)', ring: 'rgba(255,255,255,0.3)' });
     }
     if (activityRows.length >= 5) break;
   }
   if (activityRows.length === 0) {
-    activityRows.push({ text: 'Your agent is ready — queue a topic to begin', time: 'now', dot: SAGE_DOT, ring: 'rgba(124,136,128,0.3)' });
+    activityRows.push({ text: t('Your agent is ready — queue a topic to begin'), time: t('now'), dot: SAGE_DOT, ring: 'rgba(124,136,128,0.3)' });
   }
 
   const shippedRecently = brief?.publishedThisWeek ?? published.length;
 
   return (
     <>
-      <DashHeader title="Overview" subtitle={`${domain?.hostname ?? 'grove.ai'} · ${domain?.auto_publish ? 'autopilot active' : 'manual mode'}`} />
+      <DashHeader title={t('Overview')} subtitle={`${domain?.hostname ?? 'grove.ai'} · ${domain?.auto_publish ? 'autopilot active' : 'manual mode'}`} />
 
       <div className="gv-body" style={{ maxWidth: 1680 }}>
         {/* search — relocated out of the nav bar. The recent posts this page
@@ -359,16 +366,16 @@ export default async function OverviewPage() {
             {/* The one big title on the dashboard's home page — GT Walsheim,
                 matching every other page's single hero title. Weight 500,
                 not 700: Walsheim only ships that one weight. */}
-            <h1 style={{ fontSize: 26, fontWeight: 500, letterSpacing: '-0.025em', margin: 0, fontFamily: "'GT Walsheim', 'Inter', sans-serif" }}>{greeting()}</h1>
+            <h1 style={{ fontSize: 26, fontWeight: 500, letterSpacing: '-0.025em', margin: 0, fontFamily: "'GT Walsheim', 'Inter', sans-serif" }}>{greeting(t)}</h1>
             <p style={{ fontSize: 14, color: 'var(--gv-dim)', margin: '6px 0 0' }}>
               {shippedRecently > 0
                 ? <>grove shipped <span style={{ color: 'var(--gv-ink)', fontWeight: 600 }}>{shippedRecently} post{shippedRecently === 1 ? '' : 's'}</span> this week.{inReview.length ? <> {inReview.length} {inReview.length === 1 ? 'draft is' : 'drafts are'} waiting on you.</> : ' Everything is on schedule.'}</>
-                : <>Your agent is running. Queue a topic and the pipeline starts immediately.</>}
+                : <>{t('Your agent is running. Queue a topic and the pipeline starts immediately.')}</>}
             </p>
           </div>
           <div style={{ display: 'flex', gap: 9 }}>
             <Link href="/dashboard/pipeline" className="gv-ghost" style={{ border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.02)', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '10px 16px', borderRadius: 10, cursor: 'pointer', textDecoration: 'none' }}>Review queue ({inReview.length})</Link>
-            <Link href="/dashboard/write" className="gv-btn" style={{ border: 'none', background: 'var(--gv-ink)', color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '10px 18px', borderRadius: 10, cursor: 'pointer', textDecoration: 'none' }}>Write</Link>
+            <Link href="/dashboard/write" className="gv-btn" style={{ border: 'none', background: 'var(--gv-ink)', color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '10px 18px', borderRadius: 10, cursor: 'pointer', textDecoration: 'none' }}>{t('Write')}</Link>
           </div>
         </div>
 
@@ -398,10 +405,10 @@ export default async function OverviewPage() {
           <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 18, padding: '22px 24px' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
               <div>
-                <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em' }}>Publishing calendar</div>
-                <div style={{ fontSize: 12.5, color: 'var(--gv-faint)', marginTop: 3 }}>When each post goes live, and where it is now</div>
+                <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em' }}>{t('Publishing calendar')}</div>
+                <div style={{ fontSize: 12.5, color: 'var(--gv-faint)', marginTop: 3 }}>{t('When each post goes live, and where it is now')}</div>
               </div>
-              <Link href="/dashboard/calendar" style={{ fontSize: 12.5, color: 'var(--gv-dim)', textDecoration: 'none', fontWeight: 600 }}>Open calendar →</Link>
+              <Link href="/dashboard/calendar" style={{ fontSize: 12.5, color: 'var(--gv-dim)', textDecoration: 'none', fontWeight: 600 }}>{t('Open calendar →')}</Link>
             </div>
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, margin: '16px 0 14px' }}>
@@ -426,7 +433,7 @@ export default async function OverviewPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{ width: 30, height: 30, borderRadius: 9, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gv-ink)' }}><Icon name="leaf" /></span>
                   <div style={{ lineHeight: 1.2 }}>
-                    <div style={{ fontSize: 14, fontWeight: 700 }}>Your marketing agent</div>
+                    <div style={{ fontSize: 14, fontWeight: 700 }}>{t('Your marketing agent')}</div>
                     <div style={{ fontSize: 11, color: 'var(--gv-faint)' }}>autonomous · loop running</div>
                   </div>
                 </div>
@@ -437,7 +444,7 @@ export default async function OverviewPage() {
 
               <div style={{ fontSize: 13, color: 'var(--gv-soft)', lineHeight: 1.6, margin: '16px 0 16px' }}>{agentSummary}</div>
 
-              <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 9 }}>Working on now</div>
+              <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 9 }}>{t('Working on now')}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                 {agentItems.map((a, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 10, background: a.attn ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.025)', border: `1px solid ${a.attn ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.06)'}` }}>
@@ -474,12 +481,12 @@ export default async function OverviewPage() {
         <div className="gv-grid3" style={{ display: 'grid', gridTemplateColumns: '1fr 1.15fr 1fr', gap: 14 }}>
           {/* channels */}
           <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 18, padding: '20px 22px' }}>
-            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>Cross-post queue</div>
-            <div style={{ fontSize: 12, color: 'var(--gv-faint)', marginBottom: 18 }}>One brief, every channel</div>
+            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>{t('Cross-post queue')}</div>
+            <div style={{ fontSize: 12, color: 'var(--gv-faint)', marginBottom: 18 }}>{t('One brief, every channel')}</div>
             {channels.length === 0 ? (
               <div style={{ fontSize: 12.5, color: 'var(--gv-faint)', lineHeight: 1.6 }}>
                 Once your first post publishes, its X / LinkedIn variants show up here.{' '}
-                <Link href="/dashboard/connections" style={{ color: 'var(--gv-dim)', textDecoration: 'underline' }}>Connect channels →</Link>
+                <Link href="/dashboard/connections" style={{ color: 'var(--gv-dim)', textDecoration: 'underline' }}>{t('Connect channels →')}</Link>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
@@ -497,13 +504,13 @@ export default async function OverviewPage() {
           {/* top movers */}
           <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 18, padding: '20px 22px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <div style={{ fontSize: 14, fontWeight: 700 }}>Top queries</div>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>{t('Top queries')}</div>
               <span style={{ fontSize: 11.5, color: 'var(--gv-faint)' }}>position · clicks</span>
             </div>
             {topQueries.length === 0 ? (
               <div style={{ fontSize: 12.5, color: 'var(--gv-faint)', lineHeight: 1.6 }}>
                 The search queries you rank for appear here once Search Console is connected.{' '}
-                <Link href="/dashboard/analytics" style={{ color: 'var(--gv-dim)', textDecoration: 'underline' }}>Connect Search Console →</Link>
+                <Link href="/dashboard/analytics" style={{ color: 'var(--gv-dim)', textDecoration: 'underline' }}>{t('Connect Search Console →')}</Link>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -520,7 +527,7 @@ export default async function OverviewPage() {
 
           {/* activity */}
           <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 18, padding: '20px 22px' }}>
-            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 18 }}>Recent activity</div>
+            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 18 }}>{t('Recent activity')}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
               {activityRows.map((a, i) => (
                 <div key={i} style={{ display: 'flex', gap: 13, paddingBottom: 16 }}>
