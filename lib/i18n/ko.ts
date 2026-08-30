@@ -498,4 +498,28 @@ export const KO: Record<string, string> = {
   'Blog you like, want the posts inside it?': '마음에 드는 블로그가 있고, 그 안에 글을 넣고 싶다면?',
   'This page.': '이 페이지입니다.',
   'Nothing imported yet.': '아직 가져온 글이 없습니다.',
+
+  /* ── weekly digest email ─────────────────────────────────────────────── */
+  'Grove · weekly report': 'grove · 주간 리포트',
+  'Your weekly Grove report — {host}': '{host} 주간 리포트',
+  'Your weekly Grove report for {host}': '{host} 주간 grove 리포트',
+  'Your Grove agent is getting started on {host}': '{host}에서 grove 에이전트가 일을 시작했습니다',
+  '1 draft waiting + your weekly Grove report': '검토 대기 초안 1편 + 주간 grove 리포트',
+  '{n} drafts waiting + your weekly Grove report': '검토 대기 초안 {n}편 + 주간 grove 리포트',
+  '{host}: reads up {pct}% this week': '{host}: 이번 주 조회가 {pct}% 늘었습니다',
+  '{host}: reads down {pct}% this week': '{host}: 이번 주 조회가 {pct}% 줄었습니다',
+  'Reads this week': '이번 주 조회',
+  'Clicks to your site': '사이트 클릭',
+  'Published this week': '이번 주 발행',
+  'steady vs last week': '지난주와 비슷',
+  '▲ {pct}% vs last week': '▲ 지난주 대비 {pct}%',
+  '▼ {pct}% vs last week': '▼ 지난주 대비 {pct}%',
+  'your first readers': '첫 독자',
+  'Review waiting drafts': '대기 중인 초안 검토하기',
+  'Open your dashboard': '대시보드 열기',
+  'Top post this week': '이번 주 최고 성과 글',
+  'Top post: “{title}” — {n} reads': '최고 성과 글: “{title}” — 조회 {n}회',
+  '“{title}” — {n} reads': '“{title}” — 조회 {n}회',
+  'Don\'t want these? Turn off the weekly digest in your dashboard settings.':
+    '받고 싶지 않으시면 대시보드 설정에서 주간 리포트를 꺼주세요.',
 };
