@@ -16,6 +16,8 @@ import Icon from '../../gv-icons';
 import ImageStudio, { type ImageContext } from './ImageStudio';
 import { looksLikeImage, uploadImage } from './upload-image';
 import SchedulePicker from './SchedulePicker';
+import { useT } from '../../i18n';
+import { msg } from '@/lib/i18n';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
@@ -67,13 +69,14 @@ type AssistCard = {
   error?: string;
 };
 
-const CHIPS = ['Make it punchier', 'Add a supporting stat', 'Simplify', 'Match my voice', 'Tighten this'];
+const CHIPS = [msg('Make it punchier'), msg('Add a supporting stat'), msg('Simplify'), msg('Match my voice'), msg('Tighten this')];
 
 function getMd(editor: any): string {
   return editor?.storage?.markdown?.getMarkdown?.() ?? '';
 }
 
 export default function RichEditor({ postId, domainId, initialBody, initialTitle, initialMetaTitle, initialMetaDesc, canEdit, initialScheduledAt = null, initialWillPublish = true, schedulable = true, autoEdit, railExtra, belowCanvas, onDirtyChange }: Props) {
+  const t = useT();
   const r = useRouter();
   const [editing, setEditing] = useState(!!autoEdit);
   const [dirty, setDirty] = useState(false);
@@ -272,9 +275,9 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
   async function schedule(iso: string) {
     // A scheduled post publishes unattended, so it needs a real title — the
     // slug, canonical URL and every share link are derived from it.
-    if (!title.trim()) throw new Error('Give the draft a title before scheduling it.');
+    if (!title.trim()) throw new Error(t('Give the draft a title before scheduling it.'));
     const id = await persist({ scheduled_at: iso, status: 'scheduled' });
-    if (!id) throw new Error('Could not save the draft — try again.');
+    if (!id) throw new Error(t('Could not save the draft — try again.'));
     setScheduledAt(iso);
     // Now it IS a commitment — the write above put the post in the one status
     // the publisher cron reads.
@@ -284,7 +287,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
 
   async function unschedule() {
     const id = await persist({ scheduled_at: null, status: 'review' });
-    if (!id) throw new Error('Could not update the draft — try again.');
+    if (!id) throw new Error(t('Could not update the draft — try again.'));
     setScheduledAt(null);
     setWillPublish(false);
   }
@@ -296,7 +299,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
 
   function discard() {
     if (!editor) return;
-    if ((dirty || metaDirty) && !confirm('Discard your changes since the last save?')) return;
+    if ((dirty || metaDirty) && !confirm(t('Discard your changes since the last save?'))) return;
     editor.commands.setContent(baseline.current);   // baseline is the last-saved markdown
     setTitle(syncedMeta.current.title);
     setMetaTitle(syncedMeta.current.metaTitle);
@@ -330,17 +333,17 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
     if (!editor) return;
     const id = 'a' + (cid.current++);
     if (postId == null) {
-      pushCard({ id, label: instruction, status: 'error', error: 'Save this draft first — then grove assist can revise a selection.' });
+      pushCard({ id, label: instruction, status: 'error', error: t('Save this draft first — then grove assist can revise a selection.') });
       return;
     }
     const { from, to } = editor.state.selection;
     if (from === to) {
-      pushCard({ id, label: instruction, status: 'error', error: 'Select a passage in the draft, then ask grove to revise it.' });
+      pushCard({ id, label: instruction, status: 'error', error: t('Select a passage in the draft, then ask grove to revise it.') });
       return;
     }
     const text = editor.state.doc.textBetween(from, to, ' ');
     if (text.trim().length < 2) {
-      pushCard({ id, label: instruction, status: 'error', error: 'Select a longer passage to revise.' });
+      pushCard({ id, label: instruction, status: 'error', error: t('Select a longer passage to revise.') });
       return;
     }
     pushCard({ id, label: instruction, status: 'thinking', original: text, from, to });
@@ -416,7 +419,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
   async function uploadToCanvas(files: File[], at: number | null) {
     if (!editor) return;
     if (!domainId) {
-      setCanvasDrop({ busy: false, error: 'Add a domain first to upload images.' });
+      setCanvasDrop({ busy: false, error: t('Add a domain first to upload images.') });
       return;
     }
     setCanvasDrop({ busy: true, error: null });
@@ -428,7 +431,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
         await insertImage(image);
         anchor = editor.state.selection.to;
       } catch (e: any) {
-        setCanvasDrop({ busy: false, error: e?.message ?? 'Could not upload that image.' });
+        setCanvasDrop({ busy: false, error: e?.message ?? t('Could not upload that image.') });
         return;
       }
     }
@@ -456,7 +459,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
         )}
         {editing && (
           <>
-            <span style={{ fontSize: 12, color: ACCENT_INK, fontWeight: 600 }}>Editing</span>
+            <span style={{ fontSize: 12, color: ACCENT_INK, fontWeight: 600 }}>{t('Editing')}</span>
             {(dirty || metaDirty) && <span style={{ fontSize: 11, color: 'var(--gv-amber)' }}>● unsaved</span>}
             {saved && <span style={{ fontSize: 11, color: ACCENT_INK }}>✓ saved</span>}
           </>
@@ -464,7 +467,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
         <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--gv-faint)', fontVariantNumeric: 'tabular-nums' }}>{wordCount.toLocaleString()} words · {Math.max(1, Math.round(wordCount / 230))} min read</span>
         {canEdit && (
           <button onClick={() => setFocusMode((f) => !f)} className="gv-ghost" style={ghostBtn}>
-            {focusMode ? 'Exit focus' : 'Focus'}
+            {focusMode ? t('Exit focus') : t('Focus')}
           </button>
         )}
         {canEdit && schedulable && (
@@ -480,12 +483,12 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
           <>
             <button onClick={done} disabled={saving} className="gv-btn" style={primaryBtn}>
               <span style={{ display: 'flex' }}><Icon name="check" size={14} /></span>
-              {saving ? 'Saving…' : postId == null ? 'Save draft' : (dirty || metaDirty) ? 'Save & done' : 'Done'}
+              {saving ? t('Saving…') : postId == null ? t('Save draft') : (dirty || metaDirty) ? t('Save & done') : t('Done')}
             </button>
-            <button onClick={discard} disabled={saving} className="gv-ghost" style={ghostBtn}>Discard</button>
+            <button onClick={discard} disabled={saving} className="gv-ghost" style={ghostBtn}>{t('Discard')}</button>
           </>
         ) : canEdit ? (
-          <button onClick={enterEdit} className="gv-btn" style={primaryBtn}>Edit draft</button>
+          <button onClick={enterEdit} className="gv-btn" style={primaryBtn}>{t('Edit draft')}</button>
         ) : null}
       </div>
 
@@ -516,7 +519,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
             {/* persistent formatting toolbar */}
             {canEdit && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', padding: '8px 10px', marginBottom: 18, border: '1px solid var(--gv-line)', borderRadius: 12, background: 'rgba(255,255,255,0.015)', position: 'sticky', top: 64, zIndex: 10, backdropFilter: 'blur(10px)' }}>
-                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--gv-dim)', padding: '0 8px' }}>Paragraph</span>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--gv-dim)', padding: '0 8px' }}>{t('Paragraph')}</span>
                 <span style={tbDivider} />
                 <ToolBtn on={editor?.isActive('bold')} onClick={() => editor?.chain().focus().toggleBold().run()} serif>B</ToolBtn>
                 <ToolBtn on={editor?.isActive('italic')} onClick={() => editor?.chain().focus().toggleItalic().run()} serif italic>i</ToolBtn>
@@ -527,7 +530,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
                 <ToolBtn on={imageOpen} onClick={() => setImageOpen((o) => !o)}><Icon name="image" size={15} /></ToolBtn>
                 <span style={{ flex: 1 }} />
                 <button onClick={() => promptRef.current?.focus()} className="gv-btn" style={{ display: 'flex', alignItems: 'center', gap: 7, height: 30, padding: '0 13px', borderRadius: 8, border: 'none', background: 'rgba(162,255,1,0.14)', color: ACCENT_INK, fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>
-                  <Icon name="sparkle" size={13} /> Ask grove
+                  <Icon name="sparkle" size={13} /> {t('Ask grove')}
                 </button>
               </div>
             )}
@@ -538,10 +541,10 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', marginBottom: 14, borderRadius: 10, border: '1px solid var(--gv-line)', background: 'rgba(255,255,255,0.02)' }}>
                 {canvasDrop.busy && <span style={{ display: 'inline-flex', gap: 4 }}><span className="gv-tdot" /><span className="gv-tdot" style={{ animationDelay: '.18s' }} /><span className="gv-tdot" style={{ animationDelay: '.36s' }} /></span>}
                 <span style={{ fontSize: 12, color: canvasDrop.error ? 'var(--gv-red)' : 'var(--gv-dim)' }}>
-                  {canvasDrop.error ?? 'Uploading your image…'}
+                  {canvasDrop.error ?? t('Uploading your image…')}
                 </span>
                 {canvasDrop.error && (
-                  <button onClick={() => setCanvasDrop({ busy: false, error: null })} className="gv-ghost" aria-label="Dismiss"
+                  <button onClick={() => setCanvasDrop({ busy: false, error: null })} className="gv-ghost" aria-label={t('Dismiss')}
                     style={{ marginLeft: 'auto', display: 'flex', border: 'none', background: 'transparent', color: 'var(--gv-dim)', cursor: 'pointer', padding: 2 }}>
                     <Icon name="x" size={13} />
                   </button>
@@ -579,12 +582,12 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
                   onClick={(e) => e.stopPropagation()}
                   onChange={(e) => { setTitle(e.target.value); if (!editing) setEditing(true); }}
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterEdit(); editor?.commands.focus('start'); } }}
-                  placeholder="Untitled draft"
+                  placeholder={t('Untitled draft')}
                   spellCheck={false}
                   style={{ display: 'block', width: '100%', background: 'transparent', border: 'none', outline: 'none', resize: 'none', overflow: 'hidden', padding: 0 }}
                 />
               ) : (
-                <h1 className="gv-canvas-title">{title || 'Untitled draft'}</h1>
+                <h1 className="gv-canvas-title">{title || t('Untitled draft')}</h1>
               )}
               <EditorContent editor={editor} />
             </div>
@@ -603,12 +606,12 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
                 </button>
                 {seoOpen && (
                   <div style={{ border: '1px solid var(--gv-line)', borderTop: 'none', borderRadius: '0 0 12px 12px', background: '#0d100c', padding: 18, display: 'flex', flexDirection: 'column', gap: 14 }}>
-                    <label style={lbl}>Meta title <span style={{ color: metaTitle.length > 60 ? 'var(--gv-red)' : 'var(--gv-dim)' }}>({metaTitle.length}/60)</span></label>
+                    <label style={lbl}>{t('Meta title')} <span style={{ color: metaTitle.length > 60 ? 'var(--gv-red)' : 'var(--gv-dim)' }}>({metaTitle.length}/60)</span></label>
                     <input value={metaTitle} onChange={(e) => setMetaTitle(e.target.value)} maxLength={80} className="gv-prompt" style={inp} />
-                    <label style={lbl}>Meta description <span style={{ color: metaDesc.length > 155 ? 'var(--gv-red)' : 'var(--gv-dim)' }}>({metaDesc.length}/155)</span></label>
+                    <label style={lbl}>{t('Meta description')} <span style={{ color: metaDesc.length > 155 ? 'var(--gv-red)' : 'var(--gv-dim)' }}>({metaDesc.length}/155)</span></label>
                     <textarea value={metaDesc} onChange={(e) => setMetaDesc(e.target.value)} maxLength={160} rows={3} className="gv-prompt" style={inp} />
                     <button onClick={save} disabled={saving || !metaDirty} className="gv-btn" style={{ ...primaryBtn, alignSelf: 'flex-start' }}>
-                      {saving ? 'Saving…' : 'Save meta'}
+                      {saving ? t('Saving…') : t('Save meta')}
                     </button>
                   </div>
                 )}
@@ -636,7 +639,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitPrompt(); } }}
-                  placeholder="Select text, then ask grove to revise…"
+                  placeholder={t('Select text, then ask grove to revise…')}
                   style={{ flex: 1, background: 'transparent', border: 'none', color: 'var(--gv-ink)', fontFamily: 'inherit', fontSize: 13, minWidth: 0, outline: 'none' }}
                 />
                 <button onClick={submitPrompt} className="gv-btn" style={{ width: 32, height: 32, flexShrink: 0, border: 'none', borderRadius: 9, background: ACCENT, color: 'var(--gv-on-accent)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="send" size={16} /></button>
@@ -656,7 +659,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
                   return (
                     <div key={c.id} style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 14, padding: '14px 15px', opacity: resolved ? 0.6 : 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 9 }}>
-                        <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: ACCENT_INK, background: 'rgba(162,255,1,0.12)', borderRadius: 5, padding: '3px 7px' }}>Ask grove</span>
+                        <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: ACCENT_INK, background: 'rgba(162,255,1,0.12)', borderRadius: 5, padding: '3px 7px' }}>{t('Ask grove')}</span>
                         <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--gv-soft)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.label}</span>
                       </div>
 
@@ -678,8 +681,8 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
                           )}
                           <div style={{ fontFamily: "'Newsreader', Georgia, serif", fontSize: 14.5, lineHeight: 1.55, color: '#d4dacd' }}>{c.suggested}</div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 12 }}>
-                            <button onClick={() => applyCard(c)} className="gv-btn" style={{ display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: '7px 13px', borderRadius: 8, cursor: 'pointer' }}><Icon name="check" size={13} /> Apply</button>
-                            <button onClick={() => dismissCard(c.id)} className="gv-ghost" style={{ border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: 'var(--gv-dim)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '7px 13px', borderRadius: 8, cursor: 'pointer' }}>Dismiss</button>
+                            <button onClick={() => applyCard(c)} className="gv-btn" style={{ display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: '7px 13px', borderRadius: 8, cursor: 'pointer' }}><Icon name="check" size={13} /> {t('Apply')}</button>
+                            <button onClick={() => dismissCard(c.id)} className="gv-ghost" style={{ border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: 'var(--gv-dim)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '7px 13px', borderRadius: 8, cursor: 'pointer' }}>{t('Dismiss')}</button>
                           </div>
                         </div>
                       )}
@@ -687,7 +690,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
                       {resolved && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: c.status === 'applied' ? ACCENT_INK : 'var(--gv-faint)' }}>
                           <span style={{ display: 'flex' }}><Icon name={c.status === 'applied' ? 'check' : 'x'} size={13} /></span>
-                          {c.status === 'applied' ? 'Applied to draft' : 'Dismissed'}
+                          {c.status === 'applied' ? t('Applied to draft') : t('Dismissed')}
                         </div>
                       )}
                     </div>

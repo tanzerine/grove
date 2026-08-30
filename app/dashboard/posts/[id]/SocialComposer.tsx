@@ -10,6 +10,8 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { firstTweet, xLen, X_MAX, X_URL_WEIGHT } from '@/lib/social/compose';
 import Icon from '../../gv-icons';
+import { useT } from '../../i18n';
+import { msg } from '@/lib/i18n';
 
 type ChannelKey = 'x' | 'linkedin';
 type PublishRecord = { id?: string; at?: string; status?: number; error?: string; dry_run?: boolean };
@@ -17,9 +19,10 @@ type PublishRecord = { id?: string; at?: string; status?: number; error?: string
 export type ComposerPlatform = { id: ChannelKey; handle: string | null; connected: boolean };
 
 const LABEL: Record<ChannelKey, string> = { x: 'X', linkedin: 'LinkedIn' };
+/** English source strings; translated at the render site (see lib/i18n). */
 const HINT: Record<ChannelKey, string> = {
-  x: 'First line becomes the tweet; the link (23 chars on X) is appended. Over 280 is trimmed at a word break.',
-  linkedin: 'Posted as-is with the article attached as a link card.',
+  x: msg('First line becomes the tweet; the link (23 chars on X) is appended. Over 280 is trimmed at a word break.'),
+  linkedin: msg('Posted as-is with the article attached as a link card.'),
 };
 
 export default function SocialComposer({
@@ -34,6 +37,7 @@ export default function SocialComposer({
   autoShare: boolean;
   hasWebhook: boolean;
 }) {
+  const t = useT();
   const r = useRouter();
   const [drafts, setDrafts] = useState<Record<ChannelKey, string>>({
     x: social.x ?? '', linkedin: social.linkedin ?? '',
@@ -58,7 +62,7 @@ export default function SocialComposer({
   );
 
   async function generate() {
-    if (hasCopy && dirty && !confirm('Regenerating replaces your edits. Continue?')) return;
+    if (hasCopy && dirty && !confirm(t('Regenerating replaces your edits. Continue?'))) return;
     setBusy('generate'); setNote(null);
     try {
       const res = await fetch(`/api/posts/${postId}/social`, { method: 'POST' });
@@ -119,12 +123,12 @@ export default function SocialComposer({
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ social: { ...drafts, disabled: [...off] } }),
       });
-      if (!res.ok) { setNote({ ok: false, text: 'Saving the copy failed — try again.' }); return false; }
-      setNote({ ok: true, text: 'Copy saved.' });
+      if (!res.ok) { setNote({ ok: false, text: t('Saving the copy failed — try again.') }); return false; }
+      setNote({ ok: true, text: t('Copy saved.') });
       r.refresh();
       return true;
     } catch {
-      setNote({ ok: false, text: 'Saving the copy failed — try again.' });
+      setNote({ ok: false, text: t('Saving the copy failed — try again.') });
       return false;
     } finally {
       setBusy(null);
@@ -154,7 +158,7 @@ export default function SocialComposer({
       }
       r.refresh();
     } catch {
-      setNote({ ok: false, text: 'Sharing failed: the request didn’t complete — try again.' });
+      setNote({ ok: false, text: t('Sharing failed: the request didn’t complete — try again.') });
     } finally {
       setBusy(null);
     }
@@ -177,14 +181,14 @@ export default function SocialComposer({
     <div style={{ marginTop: 34 }}>
       {/* header row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
-        <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--gv-ink)' }}>Social posts</span>
+        <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--gv-ink)' }}>{t('Social posts')}</span>
         <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, color: auto && outletCount > 0 ? 'var(--gv-dim)' : 'var(--gv-faint)' }}>
           <ToggleSwitch on={auto && outletCount > 0} disabled={outletCount === 0} onClick={toggleAutoShare} />
-          Auto-share on publish
+          {t('Auto-share on publish')}
         </label>
         <span style={{ fontSize: 11, color: 'var(--gv-fainter)' }}>
           {outletCount === 0
-            ? <><a href="/dashboard/connections" style={{ color: 'var(--gv-dim)', textDecoration: 'underline' }}>Connect an account</a> to enable.</>
+            ? <><a href="/dashboard/connections" style={{ color: 'var(--gv-dim)', textDecoration: 'underline' }}>{t('Connect an account')}</a> to enable.</>
             : auto
               ? published ? 'was applied at publish.' : 'each channel can opt out below.'
               : 'off — post each channel yourself.'}
@@ -193,11 +197,11 @@ export default function SocialComposer({
           {hasCopy && <span style={{ fontSize: 12, color: 'var(--gv-faint)' }}>{draftedCount} drafted post{draftedCount === 1 ? '' : 's'}</span>}
           {hasCopy && dirty && (
             <button className="gv-btn" style={primary} onClick={save} disabled={!!busy}>
-              {busy === 'save' ? 'Saving…' : 'Save copy'}
+              {busy === 'save' ? t('Saving…') : t('Save copy')}
             </button>
           )}
           <button className="gv-tool" style={{ ...ghost, display: 'inline-flex', alignItems: 'center', gap: 7 }} onClick={generate} disabled={!!busy}>
-            <Icon name="refresh" size={13} /> {busy === 'generate' ? 'Writing…' : hasCopy ? 'Regenerate all' : 'Write social posts'}
+            <Icon name="refresh" size={13} /> {busy === 'generate' ? t('Writing…') : hasCopy ? t('Regenerate all') : t('Write social posts')}
           </button>
         </div>
       </div>
@@ -312,12 +316,13 @@ function Channel({
   record?: PublishRecord; published: boolean; busy: string | null; onPost: () => void;
   autoShare: boolean; autoOn: boolean; onToggleAuto: () => void;
 }) {
+  const t = useT();
   const posted = !!record?.id;
   // The REAL weighted length X will see: first tweet + '\n\n' (2) + link (23).
   // Uncapped on purpose — over 280 must show red, that's the whole warning.
   const tweetLen = pf.id === 'x' ? xLen(firstTweet(value)) + 2 + X_URL_WEIGHT : null;
   const canPost = published && pf.connected && !posted;
-  const postHint = !pf.connected ? 'Not connected' : null;
+  const postHint = !pf.connected ? t('Not connected') : null;
 
   return (
     <div style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 14, padding: '18px 22px 16px', opacity: pf.connected && !autoOn && !published ? 0.75 : 1 }}>
@@ -331,7 +336,7 @@ function Channel({
         <StatusChip record={record} xId={pf.id === 'x' ? record?.id : undefined} />
         {pf.id === 'x' && tweetLen !== null && (
           <span
-            title={tweetLen > X_MAX ? 'Over X’s limit — the tweet will be trimmed at a word break. Shorten the first line to control the cut.' : undefined}
+            title={tweetLen > X_MAX ? t('Over X’s limit — the tweet will be trimmed at a word break. Shorten the first line to control the cut.') : undefined}
             style={{ marginLeft: 'auto', fontSize: 10.5, fontFamily: 'ui-monospace, monospace', color: tweetLen > X_MAX ? 'var(--gv-red-soft)' : 'var(--gv-fainter)' }}
           >
             first tweet {tweetLen}/{X_MAX}{tweetLen > X_MAX ? ' — will trim' : ''}
@@ -349,7 +354,7 @@ function Channel({
 
       {/* footer: hint + channel controls */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 9, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 11, color: 'var(--gv-fainter)', flex: 1, minWidth: 180 }}>{HINT[pf.id]}</span>
+        <span style={{ fontSize: 11, color: 'var(--gv-fainter)', flex: 1, minWidth: 180 }}>{t(HINT[pf.id])}</span>
         {/* Pre-publish, each connected channel opts in/out of the auto fan-out. */}
         {pf.connected && !published && !posted && (
           autoShare ? (
@@ -370,7 +375,7 @@ function Channel({
             disabled={!!busy}
             style={{ border: '1px solid rgba(162,255,1,0.3)', background: 'rgba(162,255,1,0.08)', color: 'var(--gv-accent-ink)', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, padding: '6px 12px', borderRadius: 8, cursor: 'pointer' }}
           >
-            {busy === pf.id ? 'Posting…' : record?.error ? 'Retry' : 'Post now'}
+            {busy === pf.id ? t('Posting…') : record?.error ? t('Retry') : t('Post now')}
           </button>
         )}
         {!canPost && !record?.error && postHint && (
@@ -382,10 +387,11 @@ function Channel({
 }
 
 function WebhookPanel({ record, published, busy, onSend }: { record?: PublishRecord; published: boolean; busy: string | null; onSend: () => void }) {
+  const t = useT();
   const delivered = !!record?.status && !record.error;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 14, padding: '18px 22px' }}>
-      <span style={{ fontSize: 12.5, color: 'var(--gv-dim)' }}>Sends URL, cover, and every channel’s copy to your endpoint.</span>
+      <span style={{ fontSize: 12.5, color: 'var(--gv-dim)' }}>{t('Sends URL, cover, and every channel’s copy to your endpoint.')}</span>
       <StatusChip record={record} />
       <div style={{ marginLeft: 'auto' }}>
         {published && !delivered ? (
@@ -395,10 +401,10 @@ function WebhookPanel({ record, published, busy, onSend }: { record?: PublishRec
             disabled={!!busy}
             style={{ border: '1px solid rgba(162,255,1,0.3)', background: 'rgba(162,255,1,0.08)', color: 'var(--gv-accent-ink)', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, padding: '6px 12px', borderRadius: 8, cursor: 'pointer' }}
           >
-            {busy === 'webhook' ? 'Sending…' : record?.error ? 'Retry' : 'Send'}
+            {busy === 'webhook' ? t('Sending…') : record?.error ? t('Retry') : t('Send')}
           </button>
         ) : (
-          <span style={{ fontSize: 10.5, color: 'var(--gv-fainter)' }}>{delivered ? 'delivered' : 'sends when the article publishes'}</span>
+          <span style={{ fontSize: 10.5, color: 'var(--gv-fainter)' }}>{delivered ? t('delivered') : t('sends when the article publishes')}</span>
         )}
       </div>
     </div>
