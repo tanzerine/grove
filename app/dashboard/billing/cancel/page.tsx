@@ -3,10 +3,12 @@ import { redirect } from 'next/navigation';
 import { REFUND_REASONS } from '@/lib/refunds';
 import CancelFunnel from './CancelFunnel';
 import { DashHeader } from '../../gv-chrome';
+import { getT } from '@/lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
 export default async function CancelPage() {
+  const t = await getT();
   const sb = await supabaseServer();
   const { data: { user } } = await sb.auth.getUser();
   if (!user) redirect('/login');
@@ -22,7 +24,7 @@ export default async function CancelPage() {
 
   return (
     <>
-      <DashHeader title="Cancel & request a refund" subtitle="We're sorry to see you go" />
+      <DashHeader title={t('Cancel & request a refund')} subtitle="We're sorry to see you go" />
       <div className="gv-body">
         <CancelFunnel reasons={REFUND_REASONS} plan={plan} />
       </div>

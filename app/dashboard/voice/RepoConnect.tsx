@@ -1,6 +1,7 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useT } from '../i18n';
 
 /**
  * GitHub repo connection for the Brand voice page. Reading the product's own
@@ -10,6 +11,7 @@ import { useState } from 'react';
 export default function RepoConnect({
   domainId, repo, syncedAt,
 }: { domainId: string; repo: string | null; syncedAt: string | null }) {
+  const t = useT();
   const r = useRouter();
   const [input, setInput] = useState(repo ?? '');
   const [token, setToken] = useState('');
@@ -110,7 +112,7 @@ export default function RepoConnect({
             onClick={() => setShowToken(true)}
             style={{ marginLeft: syncedAt || repo ? 'auto' : undefined, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 11, color: 'var(--gv-fainter)', textDecoration: 'underline' }}
           >
-            Add access token
+            {t('Add access token')}
           </button>
         )}
       </div>

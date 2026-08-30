@@ -150,7 +150,7 @@ export default function PostRow({ p, score, blogBase }: { p: any; score?: { over
         ) : managerFailed ? (
           <span title="The quality check hit an error (often a temporary provider outage) and didn't finish. Your draft is safe — use “Re-run check” to grade it." style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0, border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.08)', borderRadius: 8, padding: '4px 9px' }}>
             <span style={{ color: 'var(--gv-amber)', display: 'flex' }}><Icon name="alert" size={11} /></span>
-            <span style={{ fontSize: 9.5, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--gv-amber)' }}>grading failed</span>
+            <span style={{ fontSize: 9.5, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--gv-amber)' }}>{t('grading failed')}</span>
           </span>
         ) : ungraded ? (
           <span title="No quality score — the manager's evaluation didn't run for this draft. It's held for your review by default." style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0, border: '1px dashed rgba(255,255,255,0.16)', borderRadius: 8, padding: '4px 9px' }}>

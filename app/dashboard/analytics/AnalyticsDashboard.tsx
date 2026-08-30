@@ -622,7 +622,7 @@ export default function AnalyticsDashboard({
                   </div>
                 </div>
                 <div style={{ paddingTop: 18, fontSize: 11.5, color: 'var(--gv-faint)', lineHeight: 1.55, borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: 20 }}>
-                  <span style={{ color: ACCENT_INK, fontWeight: 600 }}>{t('Answer engines')}</span> {data.traffic ? <>drive {answerSharePct}% of clicks to your blog.</> : <>now drive 24% of all clicks — up from 4% a quarter ago.</>}
+                  <span style={{ color: ACCENT_INK, fontWeight: 600 }}>{t('Answer engines')}</span> {data.traffic ? <>drive {answerSharePct}% of clicks to your blog.</> : <>{t('now drive 24% of all clicks — up from 4% a quarter ago.')}</>}
                 </div>
               </>
             )}

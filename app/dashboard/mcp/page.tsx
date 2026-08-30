@@ -109,11 +109,11 @@ export default async function Page() {
             <details className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18 }}>
               <summary style={{ padding: '18px 22px', cursor: 'pointer', listStyle: 'none' }}>
                 <span style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>{t('Advanced · test it by hand')}</span>
-                <span style={{ display: 'block', fontSize: 16, fontWeight: 700, marginTop: 6 }}>It&rsquo;s a plain HTTP endpoint</span>
+                <span style={{ display: 'block', fontSize: 16, fontWeight: 700, marginTop: 6 }}>{t('It’s a plain HTTP endpoint')}</span>
               </summary>
               <div style={{ padding: '0 22px 22px' }}>
                 <p style={{ fontSize: 13, color: 'var(--gv-dim)', margin: '8px 0 12px', lineHeight: 1.55 }}>
-                  JSON-RPC over a single POST to <span className="mono">{endpoint}</span> — no SDK required if you&rsquo;d
+                  {t('JSON-RPC over a single POST to')} <span className="mono">{endpoint}</span> — no SDK required if you&rsquo;d
                   rather script the import yourself.
                 </p>
                 <pre style={{ margin: 0, padding: '14px 16px', fontSize: 11.5, lineHeight: 1.6, color: 'var(--gv-soft)', fontFamily: "'SF Mono', ui-monospace, monospace", whiteSpace: 'pre-wrap', wordBreak: 'break-all', background: '#0d0e0b', borderRadius: 10, border: '1px solid rgba(255,255,255,0.08)' }}>
@@ -131,7 +131,7 @@ export default async function Page() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0, position: 'sticky', top: 84 }}>
             <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '20px 22px' }}>
               <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 3 }}>{t('On your site')}</div>
-              <div style={{ fontSize: 12, color: 'var(--gv-faint)', marginBottom: 16 }}>what your layer has taken</div>
+              <div style={{ fontSize: 12, color: 'var(--gv-faint)', marginBottom: 16 }}>{t('what your layer has taken')}</div>
 
               {!stats.length ? (
                 <p style={{ fontSize: 13, color: 'var(--gv-faint)', margin: 0 }}>{t('Connect a domain first.')}</p>

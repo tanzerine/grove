@@ -125,7 +125,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
           )}
           {p.topic && (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--gv-dim)' }}>
-              <span style={{ display: 'flex', color: 'var(--gv-faint)' }}><Icon name="target" size={13} /></span> Target · <span style={{ color: 'var(--gv-soft)', fontWeight: 600 }}>{p.topic}</span>
+              <span style={{ display: 'flex', color: 'var(--gv-faint)' }}><Icon name="target" size={13} /></span> {t('Target ·')} <span style={{ color: 'var(--gv-soft)', fontWeight: 600 }}>{p.topic}</span>
             </span>
           )}
           <span style={{ fontSize: 11.5, color: 'var(--gv-fainter)' }}>
@@ -145,7 +145,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
                 <LocalTime iso={p.scheduled_at} />
               </span>
               {p.status !== 'scheduled' && p.status !== 'published' && (
-                <span style={{ fontSize: 10.5, color: 'var(--gv-fainter)' }}>won’t publish until approved</span>
+                <span style={{ fontSize: 10.5, color: 'var(--gv-fainter)' }}>{t('won’t publish until approved')}</span>
               )}
             </div>
           )}

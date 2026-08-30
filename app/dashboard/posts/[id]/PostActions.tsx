@@ -3,10 +3,12 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import Icon from '../../gv-icons';
 import { captureClient } from '@/lib/analytics/capture-client';
+import { useT } from '../../i18n';
 
 export default function PostActions({
   id, status, published, publicUrl, hasCover, hasInlineImages, children,
 }: { id: string; status: string; published: boolean; publicUrl: string | null; hasCover: boolean; hasInlineImages: boolean; children?: React.ReactNode }) {
+  const t = useT();
   const r = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -78,7 +80,7 @@ export default function PostActions({
       )}
       {published && publicUrl && (
         <a className="gv-tool" style={{ ...tool, textDecoration: 'none' }} href={publicUrl} target="_blank" rel="noreferrer">
-          <Icon name="view" size={14} /> View live
+          <Icon name="view" size={14} /> {t('View live')}
         </a>
       )}
       {(status === 'failed' || status === 'review' || status === 'scheduled' || status === 'published') && (

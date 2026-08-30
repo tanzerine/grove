@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useT } from '../i18n';
 
 /**
  * Sets domains.canonical_blog_base — the customer-hosted article base every
@@ -10,6 +11,7 @@ import { useState } from 'react';
 export default function CanonicalBaseForm({
   domainId, initial, hostname,
 }: { domainId: string; initial: string | null; hostname: string }) {
+  const t = useT();
   const [value, setValue] = useState(initial ?? '');
   const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [error, setError] = useState('');
@@ -63,7 +65,7 @@ export default function CanonicalBaseForm({
         <p style={{ color: 'var(--gv-red)', fontSize: 12.5, margin: '8px 0 0' }}>{error}</p>
       )}
       <p style={{ color: 'var(--gv-dim)', fontSize: 12.5, margin: '8px 0 0', lineHeight: 1.55 }}>
-        Leave empty to keep the grove-hosted URLs canonical. Clearing the field switches back instantly.
+        {t('Leave empty to keep the grove-hosted URLs canonical. Clearing the field switches back instantly.')}
       </p>
     </div>
   );

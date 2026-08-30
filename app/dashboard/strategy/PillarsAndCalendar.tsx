@@ -37,7 +37,7 @@ export default function PillarsAndCalendar({
       {/* ===== CONTENT PILLARS ===== */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 2px 12px' }}>
         <span style={{ fontSize: 15, fontWeight: 700 }}>{t('Content pillars')}</span>
-        <span style={{ fontSize: 12, color: 'var(--gv-faint)' }}>where the month&apos;s writing is aimed</span>
+        <span style={{ fontSize: 12, color: 'var(--gv-faint)' }}>{t('where the month\'s writing is aimed')}</span>
         {focus && (
           <button onClick={() => setFocus(null)} className="gv-ghost"
             style={{ marginLeft: 'auto', fontSize: 11.5, fontWeight: 600, color: 'var(--gv-dim)', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.02)', borderRadius: 999, padding: '5px 12px', cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -94,7 +94,7 @@ export default function PillarsAndCalendar({
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 18 }}>
           <span style={{ display: 'flex', color: 'var(--gv-soft)' }}><Icon name="calendar" size={16} /></span>
           <span style={{ fontSize: 15, fontWeight: 700 }}>{t('The month at a glance')}</span>
-          <span style={{ fontSize: 12, color: 'var(--gv-faint)' }}>each card shows the tools the agent runs to ship it</span>
+          <span style={{ fontSize: 12, color: 'var(--gv-faint)' }}>{t('each card shows the tools the agent runs to ship it')}</span>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
             {TRACK_STAGES.map((s) => (
               <span key={s.name} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--gv-dim)' }}>

@@ -3,8 +3,10 @@ import { getActiveDomain } from '@/lib/active-domain';
 import CalendarClient, { type PlannedSlot } from './CalendarClient';
 import type { PostSlot } from '@/lib/strategy/build';
 import { DashHeader } from '../gv-chrome';
+import { getT } from '@/lib/i18n/server';
 
 export default async function CalendarPage() {
+  const t = await getT();
   const sb = await supabaseServer();
   const domain = await getActiveDomain(sb);
 
@@ -46,7 +48,7 @@ export default async function CalendarPage() {
 
   return (
     <>
-      <DashHeader title="Calendar" subtitle="when each post goes live, and where it is now" />
+      <DashHeader title="Calendar" subtitle={t('when each post goes live, and where it is now')} />
       <div className="gv-body">
         <CalendarClient
           domainId={domain?.id}

@@ -226,7 +226,7 @@ export default function CalendarClient({
           <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em', marginBottom: 14 }}>{dayPanelLabel}</div>
 
           {!selectedDay ? (
-            <p style={{ fontSize: 12, color: 'var(--gv-faint)' }}>Pick a day on the calendar to see what&apos;s happening.</p>
+            <p style={{ fontSize: 12, color: 'var(--gv-faint)' }}>{t('Pick a day on the calendar to see what\'s happening.')}</p>
           ) : (
             <>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>

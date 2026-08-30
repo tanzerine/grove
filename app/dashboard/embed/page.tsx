@@ -127,7 +127,7 @@ export default async function Page() {
                   <span style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>{t('Advanced · serve articles yourself')}</span>
                   <span style={{ display: 'block', fontSize: 16, fontWeight: 700, marginTop: 6 }}>{t('I already render articles on my own site — make those pages canonical')}</span>
                   <span style={{ display: 'block', fontSize: 12.5, color: 'var(--gv-dim)', marginTop: 6, lineHeight: 1.5 }}>
-                    Only for sites with their own server-rendered <span className="mono">/blog/&lt;slug&gt;</span> route or reverse proxy. If that&rsquo;s not you, step 1 above does everything with zero code.
+                    {t('Only for sites with their own server-rendered')} <span className="mono">/blog/&lt;slug&gt;</span> {t('route or reverse proxy. If that’s not you, step 1 above does everything with zero code.')}
                   </span>
                 </summary>
                 <div style={{ padding: '0 22px 22px' }}>
@@ -141,7 +141,7 @@ export default async function Page() {
                   </p>
                   <CanonicalBaseForm domainId={domain.id} initial={domain.canonical_blog_base ?? null} hostname={domain.hostname} />
                   <p style={{ fontSize: 12.5, color: 'var(--gv-dim)', margin: '14px 0 0', lineHeight: 1.6 }}>
-                    Then add one line to <span className="mono">https://{apex}/robots.txt</span> so
+                    {t('Then add one line to')} <span className="mono">https://{apex}/robots.txt</span> so
                     Google accepts the cross-hosted sitemap for your URLs:{' '}
                     <span className="mono">Sitemap: {groveBase}/b/{domain.blog_slug}/sitemap.xml</span>
                   </p>
@@ -163,7 +163,7 @@ export default async function Page() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0, position: 'sticky', top: 84 }}>
             <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '20px 22px' }}>
               <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 3 }}>{t('Setup status')}</div>
-              <div style={{ fontSize: 12, color: 'var(--gv-faint)', marginBottom: 16 }}>what&rsquo;s live right now</div>
+              <div style={{ fontSize: 12, color: 'var(--gv-faint)', marginBottom: 16 }}>{t('what’s live right now')}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                 {/* The one row that says whether any of this earns traffic. */}
                 {seo && (
@@ -187,7 +187,7 @@ export default async function Page() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 9, background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.06)' }}>
                   <span style={{ display: 'flex', color: 'var(--gv-faint)' }}><Icon name="embed" size={15} /></span>
                   <span style={{ flex: 1, fontSize: 12.5, color: 'var(--gv-soft)' }}>{t('Full blog embed')}</span>
-                  <span style={{ fontSize: 11, color: 'var(--gv-fainter)' }}>on /blog</span>
+                  <span style={{ fontSize: 11, color: 'var(--gv-fainter)' }}>{t('on /blog')}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 9, background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.06)' }}>
                   <span style={{ display: 'flex', color: 'var(--gv-faint)' }}><Icon name="overview" size={15} /></span>
@@ -216,11 +216,11 @@ export default async function Page() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                     <div style={{ fontSize: 12, color: 'var(--gv-dim)', lineHeight: 1.5 }}>— <span className="mono">data-accent=&quot;#hex&quot;</span> — match links, chips and hover states to your brand.</div>
                     <div style={{ fontSize: 12, color: 'var(--gv-dim)', lineHeight: 1.5 }}>— <span className="mono">data-article-base=&quot;/blog&quot;</span> — override where cards link. Only needed if you render articles at a route grove doesn&rsquo;t know about.</div>
-                    <div style={{ fontSize: 12, color: 'var(--gv-dim)', lineHeight: 1.5 }}>— Cards inherit your page font automatically; override anything under <span className="mono">.gv</span> to restyle.</div>
+                    <div style={{ fontSize: 12, color: 'var(--gv-dim)', lineHeight: 1.5 }}>— Cards inherit your page font automatically; override anything under <span className="mono">.gv</span> {t('to restyle.')}</div>
                   </div>
                 </div>
                 <div style={{ paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.07)', fontSize: 11.5, color: 'var(--gv-fainter)', lineHeight: 1.5 }}>
-                  Already server-rendering /blog/&lt;slug&gt; yourself? Point data-article-base there instead — only needed if that&rsquo;s you.
+                  {t('Already server-rendering /blog/<slug> yourself? Point data-article-base there instead — only needed if that’s you.')}
                 </div>
               </div>
             </details>

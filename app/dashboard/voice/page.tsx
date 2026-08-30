@@ -137,7 +137,7 @@ export default async function Page() {
 
                     {v.register && (
                       <div style={{ marginBottom: 16, fontSize: 12.5, color: 'var(--gv-dim)', lineHeight: 1.5 }}>
-                        <span style={{ color: 'var(--gv-fainter)' }}>Register — </span>{v.register}
+                        <span style={{ color: 'var(--gv-fainter)' }}>{t('Register —')} </span>{v.register}
                       </div>
                     )}
 

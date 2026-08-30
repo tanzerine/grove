@@ -195,7 +195,7 @@ export default function ImageStudio({
       {busy && mode === 'generate' && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 11 }}>
           <span style={{ display: 'inline-flex', gap: 4 }}><span className="gv-tdot" /><span className="gv-tdot" style={{ animationDelay: '.18s' }} /><span className="gv-tdot" style={{ animationDelay: '.36s' }} /></span>
-          <span style={{ fontSize: 12, color: 'var(--gv-dim)' }}>grove is drawing — this takes a few seconds…</span>
+          <span style={{ fontSize: 12, color: 'var(--gv-dim)' }}>{t('grove is drawing — this takes a few seconds…')}</span>
         </div>
       )}
       {err && <p style={{ fontSize: 12, color: 'var(--gv-red)', margin: '10px 0 0' }}>{err}</p>}

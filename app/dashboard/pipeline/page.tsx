@@ -128,7 +128,7 @@ export default async function Page() {
         </div>
         {domain && !domain.verified_at && (
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.24)', borderRadius: 12, padding: '12px 16px', marginBottom: 16, fontSize: 13.5, color: '#d8d2bf' }}>
-            <span><b style={{ color: 'var(--gv-ink)' }}>{domain.hostname}</b> isn’t verified yet — autopilot is paused, but you can queue topics and review every draft.</span>
+            <span><b style={{ color: 'var(--gv-ink)' }}>{domain.hostname}</b> {t('isn’t verified yet — autopilot is paused, but you can queue topics and review every draft.')}</span>
             <Link href={`/onboarding/verify?domain=${domain.id}`} className="gv-btn" style={{ whiteSpace: 'nowrap', border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontWeight: 700, fontSize: 13, padding: '9px 15px', borderRadius: 10 }}>{t('Verify domain →')}</Link>
           </div>
         )}
@@ -237,9 +237,9 @@ function ReviewWhy({ autoPublish, t }: { autoPublish: boolean; t: T }) {
         )}
         <p style={{ ...li, margin: 0, color: 'var(--gv-fainter)' }}>
           An <span style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>ungraded</span> or{' '}
-          <span style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>grading&nbsp;failed</span> tag means the
+          <span style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t('grading failed')}</span> tag means the
           quality check didn&apos;t finish for that draft — the draft is kept and held for you. Use{' '}
-          <span style={strong}>{t('Re-run check')}</span> to grade it (it re-scores the same draft, no rewrite).
+          <span style={strong}>{t('Re-run check')}</span> {t('to grade it (it re-scores the same draft, no rewrite).')}
         </p>
       </div>
     </details>

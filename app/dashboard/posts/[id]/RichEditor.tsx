@@ -629,7 +629,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
             <div style={{ background: 'var(--gv-card-grad)', border: '1px solid rgba(162,255,1,0.2)', borderRadius: 18, padding: '18px 18px 16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 13 }}>
                 <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(162,255,1,0.14)', border: '1px solid rgba(162,255,1,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: ACCENT_INK }}><Icon name="sparkle" size={15} /></span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--gv-ink)' }}>grove assist</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--gv-ink)' }}>{t('grove assist')}</span>
                 <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--gv-dim)' }}>{pendingCount} suggestion{pendingCount === 1 ? '' : 's'}</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '8px 8px 8px 14px' }}>
@@ -666,7 +666,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
                       {c.status === 'thinking' && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0 2px' }}>
                           <span style={{ display: 'inline-flex', gap: 4 }}><span className="gv-tdot" /><span className="gv-tdot" style={{ animationDelay: '.18s' }} /><span className="gv-tdot" style={{ animationDelay: '.36s' }} /></span>
-                          <span style={{ fontSize: 12, color: 'var(--gv-dim)' }}>grove is writing…</span>
+                          <span style={{ fontSize: 12, color: 'var(--gv-dim)' }}>{t('grove is writing…')}</span>
                         </div>
                       )}
 

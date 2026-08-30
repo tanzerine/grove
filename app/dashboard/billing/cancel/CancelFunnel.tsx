@@ -69,7 +69,7 @@ export default function CancelFunnel({ reasons, plan }: { reasons: RefundReason[
 
       {step === 1 && (
         <>
-          <h2 style={Title}>Before you go — what&apos;s the main reason?</h2>
+          <h2 style={Title}>{t('Before you go — what\'s the main reason?')}</h2>
           <p style={Sub}>{plan ? `You're on the ${cap(plan)} plan. ` : ''}Your honest answer shapes what we build next.</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
             {reasons.map((r) => (
@@ -103,7 +103,7 @@ export default function CancelFunnel({ reasons, plan }: { reasons: RefundReason[
             {t('What would bring you back?')}
           </label>
           <textarea value={comeback} onChange={(e) => setComeback(e.target.value)} rows={3}
-            placeholder="A feature, a price, a result…" style={textArea} maxLength={2000} />
+            placeholder={t('A feature, a price, a result…')} style={textArea} maxLength={2000} />
           <Nav>
             <button onClick={() => setStep(1)} style={GhostBtn}>← Back</button>
             <button onClick={() => setStep(3)} style={primaryBtn(false)}>{t('Continue →')}</button>

@@ -209,7 +209,19 @@ wrapped in React `cache()`). The switcher lives in the account menu.
   and would freeze whichever locale loaded the module first. They hold English
   and the render site translates; `msg('…')` marks those strings so the
   extractor still sees them.
-- **`tests/i18n-coverage.test.ts` is the guard**: it greps every `t(…)`/`msg(…)`
+- **TWO guards, and the second is the one that matters.**
+  `tests/i18n-unwrapped.test.ts` fails on any user-facing literal in the
+  customer dashboard that never reaches `t` — the industry's
+  `eslint-plugin-i18next/no-literal-string`, rebuilt as a test because this repo
+  has no ESLint config and `npm test` is the gate. It exists because the
+  catalogue guard below cannot see a string that was never wrapped, and 68 of
+  them weren't: JSX writes `didn&apos;t`, so a scan for `didn't` misses it, and
+  a sentence split across a `<span>` is two fragments neither of which looks
+  like a sentence. Its `isProse` check must reject code (`=>`, `.length`) —
+  `>` also delimits JSX expressions, and an auto-fixer that mistakes
+  `{list.map((m) => m.role === 'user' ? (` for a sentence rewrites working code
+  into a string literal. That happened twice.
+- **`tests/i18n-coverage.test.ts` is the other guard**: it greps every `t(…)`/`msg(…)`
   in `app/`, `lib/` and `components/` and fails if Korean lacks an entry, if a
   translation invents a `{placeholder}`, or if a catalogue holds a key nothing
   uses. Adding an untranslated label to the dashboard breaks the build's tests,

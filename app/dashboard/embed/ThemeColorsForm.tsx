@@ -103,7 +103,7 @@ export default function ThemeColorsForm({
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 8 }}>
             <span style={{ width: 12, height: 12, borderRadius: 3, background: accent, display: 'inline-block' }} />
-            <span className="mono" style={{ fontSize: 11, color: 'var(--gv-dim)' }}>links, table of contents &amp; tags</span>
+            <span className="mono" style={{ fontSize: 11, color: 'var(--gv-dim)' }}>{t('links, table of contents & tags')}</span>
           </div>
         </div>
       </div>

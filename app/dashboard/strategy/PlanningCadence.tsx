@@ -44,7 +44,7 @@ export default function PlanningCadence({ views }: { views: CadenceView[] }) {
     <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '20px 24px 22px', marginBottom: 18 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', marginBottom: 16 }}>
         <span style={{ fontSize: 15, fontWeight: 700 }}>{t('Planning cadence')}</span>
-        <span style={{ fontSize: 12, color: 'var(--gv-faint)' }}>how the agent breaks the plan down</span>
+        <span style={{ fontSize: 12, color: 'var(--gv-faint)' }}>{t('how the agent breaks the plan down')}</span>
         <div style={{ marginLeft: 'auto', display: 'inline-flex', padding: 4, background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 999, gap: 3 }}>
           {views.map((v) => {
             const active = v.key === sel;

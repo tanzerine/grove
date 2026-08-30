@@ -177,7 +177,7 @@ export default function GoogleConnect({
               </>
             ) : setup.status === 'dns_not_found' ? (
               <>
-                <p style={{ margin: 0, fontSize: 12.5, color: 'var(--gv-amber)', lineHeight: 1.5 }}>We can&apos;t see the record yet — DNS changes can take up to an hour. Double-check the value, then verify again.</p>
+                <p style={{ margin: 0, fontSize: 12.5, color: 'var(--gv-amber)', lineHeight: 1.5 }}>{t('We can\'t see the record yet — DNS changes can take up to an hour. Double-check the value, then verify again.')}</p>
                 <button onClick={loadSetup} className="gv-ghost" style={{ marginTop: 10, border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: 'var(--gv-dim)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '6px 11px', borderRadius: 8, cursor: 'pointer' }}>{t('Show the record again')}</button>
               </>
             ) : (

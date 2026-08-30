@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useT } from '../i18n';
 
 /**
  * Sets domains.cta_url — where the "Try {business}" banner at the bottom of
@@ -10,6 +11,7 @@ import { useState } from 'react';
 export default function BannerLinkForm({
   domainId, initial, hostname,
 }: { domainId: string; initial: string | null; hostname: string }) {
+  const t = useT();
   const [value, setValue] = useState(initial ?? '');
   const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [error, setError] = useState('');
@@ -63,7 +65,7 @@ export default function BannerLinkForm({
         <p style={{ color: 'var(--gv-red)', fontSize: 12.5, margin: '8px 0 0' }}>{error}</p>
       )}
       <p style={{ color: 'var(--gv-dim)', fontSize: 12.5, margin: '8px 0 0', lineHeight: 1.55 }}>
-        Must be an https URL. Leave empty to send readers to your homepage.
+        {t('Must be an https URL. Leave empty to send readers to your homepage.')}
       </p>
     </div>
   );

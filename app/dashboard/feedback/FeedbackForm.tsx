@@ -250,7 +250,7 @@ export default function FeedbackForm({
                 <div>
                   <Label>{t('Title & company')} <Optional /></Label>
                   <input value={displayRole} onChange={(e) => setDisplayRole(e.target.value)}
-                    placeholder="Founder, Acme" maxLength={FEEDBACK_LIMITS.displayRole} style={inputStyle} />
+                    placeholder={t('Founder, Acme')} maxLength={FEEDBACK_LIMITS.displayRole} style={inputStyle} />
                 </div>
                 <div>
                   <Label>{t('Link to your site')} <Optional /></Label>
@@ -260,10 +260,10 @@ export default function FeedbackForm({
                 <div>
                   <Label>{t('A one-line version')} <Optional /></Label>
                   <input value={headline} onChange={(e) => setHeadline(e.target.value)}
-                    placeholder="Three posts a week without touching a draft."
+                    placeholder={t('Three posts a week without touching a draft.')}
                     maxLength={FEEDBACK_LIMITS.headline} style={inputStyle} />
                   <p style={{ fontSize: 11.5, color: 'var(--gv-fainter)', margin: '5px 0 0' }}>
-                    If you leave this blank we&apos;ll quote what you wrote above, unedited.
+                    {t('If you leave this blank we\'ll quote what you wrote above, unedited.')}
                   </p>
                 </div>
               </div>

@@ -792,4 +792,85 @@ export const KO: Record<string, string> = {
   'Don’t render articles yourself? Proxy ours instead': '직접 렌더링하지 않으신다면, 저희 페이지를 프록시하세요',
   'One config block in your host and {url} serves grove’s pages from your own origin — same domain, so the SEO compounds into your apex instead of a subdomain. Set the canonical base above to {canonical} so the URLs grove emits match.':
     '호스팅 설정에 블록 하나만 추가하면 {url}이 내 도메인에서 grove 페이지를 서빙합니다. 같은 도메인이므로 SEO가 서브도메인이 아니라 대표 도메인에 쌓입니다. grove가 내보내는 URL이 일치하도록 위의 canonical 주소를 {canonical}로 설정하세요.',
+
+  /* ── the leftovers: strings that had HTML entities in the source, or sat
+        in a sentence split across elements, so the first pass never saw them ─ */
+  'A feature, a price, a result…': '기능, 가격, 결과 무엇이든…',
+  'Add access token': '액세스 토큰 추가',
+  'Already server-rendering /blog/<slug> yourself? Point data-article-base there instead — only needed if that’s you.':
+    '이미 /blog/<slug>를 직접 서버 렌더링하고 계신가요? 그렇다면 data-article-base를 그쪽으로 지정하세요. 해당되는 경우에만 필요합니다.',
+  'Before you go — what\'s the main reason?': '떠나시기 전에 — 가장 큰 이유는 무엇인가요?',
+  'Cancel & request a refund': '해지 및 환불 요청',
+  'cancel & request a refund': '해지 및 환불 요청',
+  'Copy it now — this is the only time it’s shown': '지금 복사하세요. 이 값은 지금만 표시됩니다',
+  'Founder, Acme': '대표, Acme',
+  'Generation is paused until the quota resets — upgrade below for more.':
+    '할당량이 초기화될 때까지 생성이 중단됩니다. 더 필요하시면 아래에서 업그레이드하세요.',
+  'Give grove a nudge and it\'ll suggest angles for': 'grove에 힌트를 주면 이런 관점을 제안합니다:',
+  'How this month\'s plan is tracking against its targets': '이번 달 계획이 목표에 얼마나 다가갔는지',
+  'If you leave this blank we\'ll quote what you wrote above, unedited.':
+    '비워두시면 위에 적어주신 내용을 그대로 인용합니다.',
+  'It’s a plain HTTP endpoint': '평범한 HTTP 엔드포인트입니다',
+  'JSON-RPC over a single POST to': 'JSON-RPC를 다음 주소로 POST 한 번:',
+  'Leave empty to keep the grove-hosted URLs canonical. Clearing the field switches back instantly.':
+    '비워두면 grove가 호스팅하는 URL이 canonical로 유지됩니다. 지우면 곧바로 되돌아갑니다.',
+  'Manager score, readiness & the pipeline log': '관리자 점수, 준비도, 파이프라인 로그',
+  'Must be an https URL. Leave empty to send readers to your homepage.':
+    'https 주소여야 합니다. 비워두면 독자를 홈페이지로 보냅니다.',
+  'Only for sites with their own server-rendered': '다음을 직접 서버 렌더링하는 사이트에만 해당합니다:',
+  'Pick a day on the calendar to see what\'s happening.': '캘린더에서 날짜를 고르면 그날의 일정이 보입니다.',
+  'Register —': '어투 —',
+  'Secure checkout by Stripe. Cancel anytime from': 'Stripe 보안 결제. 언제든 해지할 수 있습니다:',
+  'Shown once, then stored only as a hash — grove can’t show it to you again. Revoke and make a new one if it goes missing.':
+    '한 번만 표시되고 이후에는 해시로만 저장됩니다. grove도 다시 보여줄 수 없어요. 잃어버리면 폐기하고 새로 만드세요.',
+  'Signing secret — verify the': '서명 시크릿 — 다음 값을 검증하세요:',
+  'Target ·': '타깃 ·',
+  'Tell us what worked and what didn\'t →': '좋았던 점과 아쉬웠던 점을 알려주세요 →',
+  'The strategist is reading your site and your answers — about a minute.':
+    '전략가가 사이트와 답변을 읽고 있습니다. 1분쯤 걸려요.',
+  'Then add one line to': '그다음 이 파일에 한 줄만 추가하세요:',
+  'Three posts a week without touching a draft.': '초안에 손대지 않고도 주 3편을 발행했습니다.',
+  'View live': '게시된 글 보기',
+  'We can\'t see the record yet — DNS changes can take up to an hour. Double-check the value, then verify again.':
+    '아직 레코드가 보이지 않습니다. DNS 반영에는 최대 한 시간이 걸려요. 값을 다시 확인한 뒤 재시도해 주세요.',
+  'What you\'ve sent': '보내신 내용',
+  'Your plan & payments': '플랜과 결제',
+  'a blank page — write it yourself, or start from Idea studio / SEO set on the right. Anything grove writes for you opens right here. Generate images from the toolbar, then pick when it publishes.':
+    '빈 페이지입니다. 직접 쓰셔도 되고, 오른쪽의 아이디어 스튜디오나 SEO 세트에서 시작해도 됩니다. grove가 쓴 글도 모두 여기에서 열립니다. 툴바에서 이미지를 만들고, 발행 시점을 고르세요.',
+  'autonomous · loop running': '자율 실행 · 루프 작동 중',
+  'checking every few seconds…': '몇 초마다 확인하는 중…',
+  'dry run': '테스트 실행',
+  'each card shows the tools the agent runs to ship it': '각 카드에는 그 글을 내보내기 위해 에이전트가 쓰는 도구가 표시됩니다',
+  'grading failed': '채점 실패',
+  'grove assist': 'grove 어시스트',
+  'grove is drawing — this takes a few seconds…': 'grove가 그리는 중입니다. 몇 초 걸려요…',
+  'grove is writing…': 'grove가 쓰는 중…',
+  'grove saves the draft and publishes it at that time, in your local timezone.':
+    'grove가 초안을 저장했다가 현지 시간 기준 그 시각에 발행합니다.',
+  'grove shipped': 'grove가 내보낸 글',
+  'how the agent breaks the plan down': '에이전트가 계획을 어떻게 나누는지',
+  'isn’t verified yet — autopilot is paused, but you can queue topics and review every draft.':
+    '아직 인증되지 않았습니다. 자동 발행은 멈춰 있지만 주제를 등록하고 초안을 검토할 수는 있어요.',
+  'links, table of contents & tags': '링크, 목차, 태그',
+  'min score': '최소 점수',
+  'not connected': '연결되지 않음',
+  'not set up': '설정되지 않음',
+  'now drive 24% of all clicks — up from 4% a quarter ago.': '지금은 전체 클릭의 24%를 차지합니다. 한 분기 전에는 4%였어요.',
+  'on /blog': '/blog 에서',
+  'or change your answers first': '또는 답변을 먼저 수정하세요',
+  'or type another subdomain — you’ll add one DNS record either way.':
+    '또는 다른 서브도메인을 입력하세요. 어느 쪽이든 DNS 레코드 하나만 추가하면 됩니다.',
+  'position · clicks': '순위 · 클릭',
+  'post manually after publishing': '발행 후 직접 게시',
+  'route or reverse proxy. If that’s not you, step 1 above does everything with zero code.':
+    '라우트나 리버스 프록시를 말합니다. 해당하지 않는다면 위의 1단계만으로 코드 없이 끝납니다.',
+  'this week': '이번 주',
+  'to enable.': '하면 켤 수 있습니다.',
+  'to grade it (it re-scores the same draft, no rewrite).': '를 누르면 채점합니다 (같은 초안을 다시 채점하며, 새로 쓰지 않습니다).',
+  'to restyle.': '를 수정하세요.',
+  'what your layer has taken': '내 콘텐츠 레이어가 가져간 글',
+  'what’s live right now': '지금 게시된 상태',
+  'when each post goes live, and where it is now': '각 글이 언제 나가고 지금 어디까지 왔는지',
+  'where the month\'s writing is aimed': '이번 달 글이 겨냥하는 방향',
+  'won’t publish until approved': '승인 전에는 발행되지 않습니다',
 };

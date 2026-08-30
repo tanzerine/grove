@@ -67,7 +67,7 @@ export default async function FeedbackPage({
         {mine.length > 0 && (
           <div style={{ maxWidth: 640, margin: '18px auto 0' }}>
             <div style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 9 }}>
-              What you&apos;ve sent
+              {t('What you\'ve sent')}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               {mine.map((m) => (

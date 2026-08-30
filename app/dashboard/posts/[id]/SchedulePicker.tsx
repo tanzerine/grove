@@ -161,7 +161,7 @@ export default function SchedulePicker({
           </div>
 
           <p style={{ fontSize: 11, color: 'var(--gv-faint)', lineHeight: 1.5, margin: '11px 0 0' }}>
-            grove saves the draft and publishes it at that time, in your local timezone.
+            {t('grove saves the draft and publishes it at that time, in your local timezone.')}
           </p>
         </div>
       )}

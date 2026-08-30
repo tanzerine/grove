@@ -6,9 +6,11 @@ import { betaStateFrom, hasLivePaidSubscription } from '@/lib/beta';
 import BillingClient from './BillingClient';
 import BetaPanel from './BetaPanel';
 import { DashHeader } from '../gv-chrome';
+import { getT } from '@/lib/i18n/server';
+import type { T } from '@/lib/i18n';
 
 /** This month's posts used vs included, so the ceiling is visible before it's hit. */
-function QuotaMeter({ used, limit, resetsAt }: { used: number; limit: number; resetsAt: string }) {
+function QuotaMeter({ used, limit, resetsAt, t }: { used: number; limit: number; resetsAt: string; t: T }) {
   const pct = Math.min(100, Math.round((used / Math.max(1, limit)) * 100));
   const fill = pct >= 100 ? 'var(--gv-red-text)' : pct >= 80 ? '#d9a441' : 'var(--gv-accent)';
   const resets = new Date(resetsAt).toLocaleDateString('en-US', {
@@ -27,7 +29,7 @@ function QuotaMeter({ used, limit, resetsAt }: { used: number; limit: number; re
       </div>
       {pct >= 100 && (
         <div style={{ marginTop: 9, fontSize: 12.5, color: 'var(--gv-dim)' }}>
-          Generation is paused until the quota resets — upgrade below for more.
+          {t('Generation is paused until the quota resets — upgrade below for more.')}
         </div>
       )}
     </div>
@@ -39,6 +41,7 @@ export const dynamic = 'force-dynamic';
 const ACTIVE_STATUSES = ['active', 'trialing', 'past_due'];
 
 export default async function BillingPage() {
+  const t = await getT();
   const sb = await supabaseServer();
   const { data: { user } } = await sb.auth.getUser();
   if (!user) redirect('/login');
@@ -95,10 +98,10 @@ export default async function BillingPage() {
 
   return (
     <>
-      <DashHeader title="Billing" subtitle="Your plan & payments" />
+      <DashHeader title="Billing" subtitle={t('Your plan & payments')} />
       <div className="gv-body">
         {showMeter && (
-          <QuotaMeter used={quota.used} limit={quota.limit!} resetsAt={quota.resetsAt} />
+          <QuotaMeter t={t} used={quota.used} limit={quota.limit!} resetsAt={quota.resetsAt} />
         )}
         <BetaPanel beta={beta} hasPaidPlan={hasLivePaidSubscription(sub)} />
         <BillingClient

@@ -112,7 +112,7 @@ export default function KeyManager({ initialKeys, sites, endpoint }: {
         <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 4 }}>{t('Step 1 · Create a key')}</div>
         <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.01em', marginBottom: 6 }}>{t('One key per agent')}</div>
         <p style={{ fontSize: 13, color: 'var(--gv-dim)', lineHeight: 1.55, margin: '0 0 16px', maxWidth: 620 }}>
-          Shown once, then stored only as a hash — grove can&rsquo;t show it to you again. Revoke and make a new one if it goes missing.
+          {t('Shown once, then stored only as a hash — grove can’t show it to you again. Revoke and make a new one if it goes missing.')}
         </p>
 
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -141,7 +141,7 @@ export default function KeyManager({ initialKeys, sites, endpoint }: {
         {secret && (
           <div style={{ marginTop: 16, padding: '14px 16px', borderRadius: 12, background: 'rgba(162,255,1,0.07)', border: '1px solid rgba(162,255,1,0.32)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: '#d9ff8f' }}>Copy it now — this is the only time it&rsquo;s shown</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#d9ff8f' }}>{t('Copy it now — this is the only time it’s shown')}</span>
               <CopySnippet snippet={secret} />
             </div>
             <code style={{ display: 'block', fontSize: 12, color: 'var(--gv-soft)', fontFamily: "'SF Mono', ui-monospace, monospace", wordBreak: 'break-all' }}>{secret}</code>

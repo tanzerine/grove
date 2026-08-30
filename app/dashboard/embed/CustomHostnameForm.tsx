@@ -186,7 +186,7 @@ export default function CustomHostnameForm({
           >
             {t('Use')} <span className="mono">blog.{apex}</span>
           </button>
-          <span>or type another subdomain — you&rsquo;ll add one DNS record either way.</span>
+          <span>{t('or type another subdomain — you’ll add one DNS record either way.')}</span>
         </p>
       )}
 
@@ -234,7 +234,7 @@ export default function CustomHostnameForm({
               </p>
               <div style={{ marginTop: 10 }}>
                 {polling ? (
-                  <span className="mono" style={{ fontSize: 12, color: 'var(--gv-dim)' }}>checking every few seconds…</span>
+                  <span className="mono" style={{ fontSize: 12, color: 'var(--gv-dim)' }}>{t('checking every few seconds…')}</span>
                 ) : (
                   <button
                     type="button"

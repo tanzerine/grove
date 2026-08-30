@@ -228,7 +228,7 @@ export default function StartDraft({ domainId, hostname, runs, onQueued, onDismi
 
       {tab === 'idea' && (
         <div>
-          <div style={desc}>Give grove a nudge and it&apos;ll suggest angles for <b style={{ color: 'var(--gv-soft)' }}>{hostname}</b>.</div>
+          <div style={desc}>{t('Give grove a nudge and it\'ll suggest angles for')} <b style={{ color: 'var(--gv-soft)' }}>{hostname}</b>.</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 11 }}>
             {PROMPTS.map((p) => (
               <button key={p} onClick={() => setFocus(t(p))} className="gv-chip" style={chip}>{t(p)}</button>

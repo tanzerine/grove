@@ -188,7 +188,7 @@ export default function SocialComposer({
         </label>
         <span style={{ fontSize: 11, color: 'var(--gv-fainter)' }}>
           {outletCount === 0
-            ? <><a href="/dashboard/connections" style={{ color: 'var(--gv-dim)', textDecoration: 'underline' }}>{t('Connect an account')}</a> to enable.</>
+            ? <><a href="/dashboard/connections" style={{ color: 'var(--gv-dim)', textDecoration: 'underline' }}>{t('Connect an account')}</a> {t('to enable.')}</>
             : auto
               ? published ? 'was applied at publish.' : 'each channel can opt out below.'
               : 'off — post each channel yourself.'}
@@ -293,11 +293,12 @@ function ToggleSwitch({ on, disabled, onClick }: { on: boolean; disabled?: boole
 }
 
 function StatusChip({ record, xId }: { record?: PublishRecord; xId?: string }) {
+  const t = useT();
   if (!record) return null;
   if (record.error) {
     return <span style={{ fontSize: 11, color: 'var(--gv-red-soft)' }} title={record.error}>failed — {record.error.slice(0, 80)}</span>;
   }
-  if (record.dry_run) return <span style={{ fontSize: 11, color: 'var(--gv-amber)' }}>dry run</span>;
+  if (record.dry_run) return <span style={{ fontSize: 11, color: 'var(--gv-amber)' }}>{t('dry run')}</span>;
   if (record.id || record.status) {
     return (
       <span style={{ fontSize: 11, color: 'var(--gv-accent-ink)' }}>
@@ -331,7 +332,7 @@ function Channel({
         <span>
           {pf.connected
             ? <>{pf.handle ? `as ${pf.handle}` : 'connected'} · {posted ? 'posted' : 'draft'}</>
-            : <a href="/dashboard/connections" style={{ color: 'var(--gv-fainter)', textDecoration: 'underline' }}>not connected</a>}
+            : <a href="/dashboard/connections" style={{ color: 'var(--gv-fainter)', textDecoration: 'underline' }}>{t('not connected')}</a>}
         </span>
         <StatusChip record={record} xId={pf.id === 'x' ? record?.id : undefined} />
         {pf.id === 'x' && tweetLen !== null && (
@@ -365,7 +366,7 @@ function Channel({
               </span>
             </span>
           ) : (
-            <span style={{ fontSize: 10.5, color: 'var(--gv-fainter)' }}>post manually after publishing</span>
+            <span style={{ fontSize: 10.5, color: 'var(--gv-fainter)' }}>{t('post manually after publishing')}</span>
           )
         )}
         {(canPost || (record?.error && published)) && (

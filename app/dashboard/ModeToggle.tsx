@@ -121,7 +121,7 @@ export default function ModeToggle({
           />
           <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 3, fontVariantNumeric: 'tabular-nums', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '3px 9px' }}>
             <span style={{ fontSize: 14, fontWeight: 700, color: ACCENT_INK }}>{floor}</span>
-            <span style={{ fontSize: 9, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>min score</span>
+            <span style={{ fontSize: 9, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>{t('min score')}</span>
           </span>
           <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--gv-faint)', textAlign: 'right', maxWidth: 300 }}>
             {floorHint(floor, t)}. {t('Fatal issues (bad facts, thin or broken content) always go to review.')}

@@ -84,7 +84,7 @@ function BetaStatus({ beta }: { beta: BetaState }) {
           <p style={{ fontSize: 13.5, color: 'var(--gv-dim)', lineHeight: 1.6, margin: '10px 0 0' }}>
             All we want in return is the truth about it.{' '}
             <Link href="/dashboard/feedback" style={{ color: ACCENT_INK, fontWeight: 600 }}>
-              Tell us what worked and what didn&apos;t →
+              {t('Tell us what worked and what didn\'t →')}
             </Link>
           </p>
         </>

@@ -166,10 +166,10 @@ export default function BillingClient({
       </div>
 
       <p style={{ fontSize: 12.5, color: 'var(--gv-faint)', marginTop: 22, lineHeight: 1.6 }}>
-        Secure checkout by Stripe. Cancel anytime from <strong style={{ color: 'var(--gv-dim)' }}>{t('Manage billing')}</strong>.
+        {t('Secure checkout by Stripe. Cancel anytime from')} <strong style={{ color: 'var(--gv-dim)' }}>{t('Manage billing')}</strong>.
         Full refunds available on request —{' '}
         <Link href="/dashboard/billing/cancel" style={{ color: 'var(--gv-dim)', textDecoration: 'underline' }}>
-          cancel &amp; request a refund
+          {t('cancel & request a refund')}
         </Link>.
       </p>
     </div>

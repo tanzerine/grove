@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useT } from '../i18n';
 
 const ACCENT = 'var(--gv-accent)';
 
@@ -13,6 +14,7 @@ const ACCENT = 'var(--gv-accent)';
  * that, and the strategist is a single call: let them ask for it.
  */
 export default function BuildPlanNow({ domainId, label = 'Build this month’s plan →' }: { domainId: string; label?: string }) {
+  const t = useT();
   const r = useRouter();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -45,7 +47,7 @@ export default function BuildPlanNow({ domainId, label = 'Build this month’s p
         {busy ? 'Planning your month…' : label}
       </button>
       <div style={{ fontSize: 11.5, color: busy ? 'var(--gv-dim)' : 'transparent', marginTop: 8 }}>
-        The strategist is reading your site and your answers — about a minute.
+        {t('The strategist is reading your site and your answers — about a minute.')}
       </div>
       {err && <p style={{ fontSize: 12.5, color: 'var(--gv-red)', margin: '4px 0 0' }}>{err}</p>}
     </div>

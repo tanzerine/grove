@@ -60,7 +60,7 @@ export default function ProcessDrawer({ unusual, children }: { unusual?: boolean
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
           <div>
             <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--gv-ink)' }}>{t('How this was made')}</div>
-            <div style={{ fontSize: 12, color: 'var(--gv-faint)', marginTop: 3 }}>Manager score, readiness &amp; the pipeline log</div>
+            <div style={{ fontSize: 12, color: 'var(--gv-faint)', marginTop: 3 }}>{t('Manager score, readiness & the pipeline log')}</div>
           </div>
           <button
             onClick={() => setOpen(false)}

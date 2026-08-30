@@ -56,7 +56,7 @@ function FullBlogPreview() {
           <div key={i}>
             <div style={{ height: 56, border: '1px dashed rgba(255,255,255,0.16)', borderRadius: 7, marginBottom: 6 }}><ImagePlaceholder size={16} /></div>
             <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--gv-soft)', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t('Another recent article')}</div>
-            <div style={{ fontSize: 10, color: 'var(--gv-fainter)', marginTop: 2 }}>this week</div>
+            <div style={{ fontSize: 10, color: 'var(--gv-fainter)', marginTop: 2 }}>{t('this week')}</div>
           </div>
         ))}
       </div>

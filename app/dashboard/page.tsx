@@ -370,7 +370,7 @@ export default async function OverviewPage() {
             <h1 style={{ fontSize: 26, fontWeight: 500, letterSpacing: '-0.025em', margin: 0, fontFamily: "'GT Walsheim', 'Inter', sans-serif" }}>{greeting(t)}</h1>
             <p style={{ fontSize: 14, color: 'var(--gv-dim)', margin: '6px 0 0' }}>
               {shippedRecently > 0
-                ? <>grove shipped <span style={{ color: 'var(--gv-ink)', fontWeight: 600 }}>{shippedRecently} post{shippedRecently === 1 ? '' : 's'}</span> this week.{inReview.length ? <> {inReview.length} {inReview.length === 1 ? 'draft is' : 'drafts are'} waiting on you.</> : ' Everything is on schedule.'}</>
+                ? <>{t('grove shipped')} <span style={{ color: 'var(--gv-ink)', fontWeight: 600 }}>{shippedRecently} post{shippedRecently === 1 ? '' : 's'}</span> this week.{inReview.length ? <> {inReview.length} {inReview.length === 1 ? 'draft is' : 'drafts are'} waiting on you.</> : ' Everything is on schedule.'}</>
                 : <>{t('Your agent is running. Queue a topic and the pipeline starts immediately.')}</>}
             </p>
           </div>
@@ -435,7 +435,7 @@ export default async function OverviewPage() {
                   <span style={{ width: 30, height: 30, borderRadius: 9, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gv-ink)' }}><Icon name="leaf" /></span>
                   <div style={{ lineHeight: 1.2 }}>
                     <div style={{ fontSize: 14, fontWeight: 700 }}>{t('Your marketing agent')}</div>
-                    <div style={{ fontSize: 11, color: 'var(--gv-faint)' }}>autonomous · loop running</div>
+                    <div style={{ fontSize: 11, color: 'var(--gv-faint)' }}>{t('autonomous · loop running')}</div>
                   </div>
                 </div>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: SAGE, fontWeight: 600 }}>
@@ -506,7 +506,7 @@ export default async function OverviewPage() {
           <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 18, padding: '20px 22px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <div style={{ fontSize: 14, fontWeight: 700 }}>{t('Top queries')}</div>
-              <span style={{ fontSize: 11.5, color: 'var(--gv-faint)' }}>position · clicks</span>
+              <span style={{ fontSize: 11.5, color: 'var(--gv-faint)' }}>{t('position · clicks')}</span>
             </div>
             {topQueries.length === 0 ? (
               <div style={{ fontSize: 12.5, color: 'var(--gv-faint)', lineHeight: 1.6 }}>

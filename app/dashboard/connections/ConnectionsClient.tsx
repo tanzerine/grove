@@ -236,7 +236,7 @@ export default function ConnectionsClient({
                 </div>
               </div>
               {!p.configured ? (
-                <span style={{ fontSize: 12, color: 'var(--clay)', fontFamily: 'DM Mono' }}>not set up</span>
+                <span style={{ fontSize: 12, color: 'var(--clay)', fontFamily: 'DM Mono' }}>{t('not set up')}</span>
               ) : p.connection ? (
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   {/* Reconnect runs the same OAuth popup as Connect — upsert on
@@ -308,7 +308,7 @@ export default function ConnectionsClient({
         {webhookActive && webhookSecret && (
           <div style={{ marginTop: 14, fontSize: 13 }}>
             <div style={{ color: 'var(--clay)', marginBottom: 4 }}>
-              Signing secret — verify the <code style={{ fontFamily: 'DM Mono' }}>x-grove-signature</code> header
+              {t('Signing secret — verify the')} <code style={{ fontFamily: 'DM Mono' }}>x-grove-signature</code> header
               (<code style={{ fontFamily: 'DM Mono' }}>sha256=HMAC(secret, body)</code>):
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
