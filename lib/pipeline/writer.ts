@@ -15,7 +15,10 @@ import type { SiteProfile } from './site-profile';
 import type { ResearchContext } from './research-context';
 import { flatSources } from './research-context';
 import type { RefinedBrief, MarketingIntent } from './topic-refiner';
-import { language, writerLanguageRules, type LangCode } from '../language';
+import {
+  language, writerLanguageRules, languageCommand, languageRetryCommand,
+  titleIsNative, type LangCode,
+} from '../language';
 
 /**
  * Per-intent marketing rules block. The funnel position decides whether
@@ -84,6 +87,12 @@ export async function runWriter(opts: {
   hostname?: string;
   /** Publication language of the domain (lib/language.ts). Default 'en'. */
   lang?: LangCode;
+  /**
+   * The previous draft came back in the wrong language. Adds the blunt retry
+   * command at the very top of both prompts. See generate.ts — this is the
+   * pipeline's answer to a model that ignored the polite instruction.
+   */
+  enforceLanguage?: boolean;
   managerNotes?: string;       // present on rewrite passes
   previousDraft?: string;       // present on rewrite passes
 }): Promise<WriterOutput> {
@@ -292,11 +301,17 @@ OUTPUT FORMAT — exact delimiters, nothing else:
     ? `\n\nMANAGER REWRITE — this is round 2. Apply the notes surgically; keep what works.\n${managerNotes}\n\nPREVIOUS DRAFT (edit this — don't restart from scratch):\n${previousDraft.slice(0, 9000)}\n`
     : '';
 
-  const user = `SOURCES (your only allowed citations — inline as [text](url) markdown links):
+  // The language command goes at the TOP OF THE USER PROMPT, not the tail of
+  // the system prompt. The first version of this feature put it in the system
+  // prompt and the model ignored it outright: the first Korean article grove
+  // generated came back entirely in English. Same lesson the social adapter
+  // already learned below — this model attends to the user turn.
+  const langCommand = opts.enforceLanguage ? languageRetryCommand(lg) : languageCommand(lg);
+  const user = `${langCommand ? `${langCommand}\n\n` : ''}SOURCES (your only allowed citations — inline as [text](url) markdown links):
 
 ${sourcesBlock}
 ${serpBlock}${rewriteBlock}
-Deliver the article now. Open with the hook line verbatim. Use the title as your H1.`;
+Deliver the article now. Open with the hook line verbatim${lg.code === 'en' ? '' : ` (translated into ${lg.nativeName} if the brief wrote it in English)`}. Use the title as your H1${lg.code === 'en' ? '' : `, in ${lg.nativeName}`}.${langCommand ? `\n\n${langCommand}` : ''}`;
 
   // ─── single LLM draft. No revision pass on the hot path. ─────────────
   // Why: two LLM calls back-to-back can push past Vercel's 300s ceiling and
@@ -312,7 +327,15 @@ Deliver the article now. Open with the hook line verbatim. Use the title as your
   // Canonical title is decided here (brief wins) so we can force it onto the H1.
   // The brief's full title, capped only at a word boundary — a hard .slice(80)
   // shipped mid-word titles ("…Designers Swi") to live blogs.
-  const title = capTitle(brief.title?.trim() || parsed.meta_title?.trim() || '');
+  //
+  // The brief loses exactly one argument: when its title is in the WRONG
+  // language for this blog. The refiner drifting back to English is common
+  // enough that forcing its title onto the H1 would put an English headline —
+  // and an English posts.title, slug, and social card — on a correct Korean
+  // article. The model's own title is then the canonical one.
+  const briefTitle = brief.title?.trim() ?? '';
+  const modelTitle = parsed.meta_title?.trim() ?? '';
+  const title = capTitle(pickTitle(briefTitle, modelTitle, body, lg.code));
   body = postProcess(body, sources);
   // force the H1 to the canonical title verbatim (prompt rule #1, now guaranteed)
   body = forceCanonicalH1(body, title);
@@ -367,6 +390,19 @@ function cleanSlugHint(raw: string | undefined): string | undefined {
     .slice(0, 80)
     .replace(/-+$/, '');
   return cleaned.length >= 3 ? cleaned : undefined;
+}
+
+/**
+ * The canonical title: the brief's, unless it is in the wrong language, in
+ * which case the model's own — and failing that the H1 it actually wrote.
+ * Falls back to the brief so a language we cannot judge behaves as before.
+ */
+export function pickTitle(briefTitle: string, modelTitle: string, body: string, lang: LangCode): string {
+  if (titleIsNative(briefTitle, lang)) return briefTitle || modelTitle;
+  if (titleIsNative(modelTitle, lang)) return modelTitle;
+  const h1 = body.split('\n').find((l) => /^#\s+\S/.test(l))?.replace(/^#\s+/, '').trim() ?? '';
+  if (titleIsNative(h1, lang)) return h1;
+  return briefTitle || modelTitle;
 }
 
 function parseSections(text: string) {

@@ -195,23 +195,29 @@ You provide the four axis scores; the SYSTEM computes the weighted overall — s
 just rate the axes accurately, don't compute an overall yourself.
 
 OUTPUT: ONE raw JSON object, no preamble, no markdown.
-${lg.code === 'en' ? '' : `
-LANGUAGE — this blog publishes in ${lg.englishName} (${lg.nativeName}), and the draft
-is correct to be written in it. Write your OWN output (issue notes, rewrite_brief,
-reject_reason) in English — it is read by the operator, not the reader. Judge the
-draft as a native ${lg.englishName} editor would:
-- Craft means natural ${lg.englishName} prose. Translationese, English sentence rhythm,
-  and over-formal register are craft FAILURES worth flagging.
-- The rubric's English-specific yardsticks (word counts per sentence, English
-  conjunction openers, banned English phrases) do not apply. Judge their intent.
-- The takeaways lead-in should read "${lg.labels.takeaways}" and the FAQ heading
-  "## ${lg.labels.faq}". An English heading in a ${lg.englishName} article is an issue.
-- Do NOT flag the article for not being in English.
-`}
+
 RUBRIC
 ${rubricPromptBlock()}`;
 
-  const user = `STRATEGY CONTEXT
+  // In the USER prompt, first, and not the system prompt: with it in the system
+  // prompt this model read a correct Korean CTA as a defect and ordered the
+  // article rewritten into English — which is how grove's first Korean article
+  // shipped in English with a passing score.
+  const user = `${lg.code === 'en' ? '' : `!! THIS BLOG PUBLISHES IN ${lg.englishName.toUpperCase()} (${lg.nativeName}) !!
+The draft below is CORRECT to be written in ${lg.nativeName}. Never flag it for
+not being in English; never ask for it to be translated. Judge it as a native
+${lg.englishName} editor would:
+- Craft means natural ${lg.nativeName} prose. Translationese, English sentence
+  rhythm and an over-formal register ARE craft failures worth flagging.
+- The rubric's English-specific yardsticks (words per sentence, English
+  conjunction openers, banned English phrases) do not apply. Judge their intent.
+- The takeaways lead-in should read "${lg.labels.takeaways}" and the FAQ heading
+  "## ${lg.labels.faq}". English chrome in a ${lg.englishName} article IS an issue,
+  and so is an English passage anywhere in the body.
+- Write your own output (issue notes, rewrite_brief, reject_reason) in English —
+  the operator reads it, not the reader.
+
+`}STRATEGY CONTEXT
 ${strategy ? JSON.stringify({
     goals: strategy.goals,
     pillars: strategy.pillars.map((p) => ({ id: p.id, title: p.title, audience: p.audience, promise: p.promise })),

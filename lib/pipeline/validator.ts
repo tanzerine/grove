@@ -3,7 +3,7 @@ import { extractFaq } from '../faq';
 import { extractTakeaways } from '../takeaways';
 import { coverageGap } from './serp';
 import { findUnsupportedClaims } from './claims';
-import { language, contentLength, splitSentences, type LangCode } from '../language';
+import { language, contentLength, splitSentences, languageVerdict, type LangCode } from '../language';
 
 export type Validation = { passed: boolean; issues: string[]; stats: Record<string, number> };
 
@@ -30,6 +30,11 @@ export const BLOCKING_RULES = [
   'RECYCLED_STAT',       // known-bogus stat the model loves to repeat
   'MISSING_H1',          // structurally broken draft
   'REFERRAL_AWAY',       // sends the reader to a competitor
+  // An article in the wrong language is not a quality note, it is the wrong
+  // article. grove published its first Korean-configured post in English with
+  // a passing manager score; nothing else in this list would have caught it,
+  // because by every other measure the draft was good.
+  'WRONG_LANGUAGE',
 ] as const;
 
 /** The subset of a validation's issues that must gate publication. */
@@ -121,6 +126,12 @@ export function validatePost(post: string, opts: ValidateOpts = {}): Validation 
   const wordCount = contentLength(post, lang);
   if (wordCount < wordFloor) issues.push(`THIN_CONTENT: ${wordCount} ${unit} (floor ${wordFloor}, target ${targetLo}–${targetHi})`);
   if (wordCount > wordCeiling) issues.push(`OVERLONG: ${wordCount} ${unit} (ceiling ${wordCeiling})`);
+
+  // ── language: is this even the article we asked for? ────────────────────
+  // Script-based and deliberately conservative (see languageVerdict): 'unsure'
+  // never flags. Blocking, so autopilot cannot ship it.
+  if (languageVerdict(post, lang) === 'wrong')
+    issues.push(`WRONG_LANGUAGE: this blog publishes in ${lang.englishName} (${lang.nativeName}) — the draft is not`);
 
   // ── FAQ section: powers FAQPage schema + AI-answer extraction (AEO/GEO) ──
   const faqs = extractFaq(post);

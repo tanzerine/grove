@@ -570,3 +570,116 @@ export function faqHeadingPattern(): RegExp {
   const alts = alternation((l) => l.detect.faq).replace(/q&a/g, 'q\\s*&\\s*a');
   return new RegExp(`(?:${alts})`, 'i');
 }
+
+/* ─────────────────── the mechanical language check ─────────────────────── */
+
+/**
+ * Did the model actually write in the language it was told to?
+ *
+ * This exists because the first Korean article grove ever generated came out
+ * in English. The domain was set to `ko`, the code was deployed, and every
+ * stage read the language correctly — the models simply ignored the directive,
+ * which was sitting at the tail of a long English system prompt. The manager
+ * then "fixed" the one Korean sentence in the draft (the appended CTA) by
+ * ordering it removed, and the pipeline shipped a confidently English article
+ * with a clean score.
+ *
+ * So this is the check that does not depend on a model reading anything. It is
+ * deliberately CONSERVATIVE: it answers 'wrong' only when it is sure, because
+ * a false 'wrong' costs a redraft, while returning 'unsure' merely leaves us
+ * where we already were.
+ *
+ *   - ko/zh — the body must be predominantly the right CJK script, and hangul
+ *     vs. han separates the two. Certain either way.
+ *   - en    — a CJK body on an English blog is certainly wrong. Anything in
+ *     Latin script passes; en/es is not this function's job to call from
+ *     script alone.
+ *   - es    — Latin script shared with English, so this leans on function-word
+ *     density, and only over a body long enough for that to mean something.
+ */
+export type LanguageVerdict = 'ok' | 'wrong' | 'unsure';
+
+const HANGUL = /[가-힯ᄀ-ᇿ㄰-㆏]/;
+const HAN = /[㐀-䶿一-鿿]/;
+
+/** Share of non-space characters in a script, over a sample of the body. */
+function scriptDensity(text: string, re: RegExp): number {
+  const sample = (text ?? '').replace(/\s+/g, '').slice(0, 4000);
+  if (!sample) return 0;
+  let n = 0;
+  for (const ch of sample) if (re.test(ch)) n++;
+  return n / sample.length;
+}
+
+/** Spanish function words that English does not share. */
+const ES_WORDS = /\b(?:de|la|el|los|las|que|para|con|una|un|por|como|más|pero|donde|cuando|sobre|desde|hasta|también|porque)\b/gi;
+
+export function languageVerdict(body: string, lang: LangCode | Language): LanguageVerdict {
+  const l = typeof lang === 'string' ? LANGUAGES[normalizeLang(lang)] : lang;
+  const text = (body ?? '').trim();
+  if (text.length < 200) return 'unsure';       // too short to judge
+
+  const hangul = scriptDensity(text, HANGUL);
+  const han = scriptDensity(text, HAN);
+
+  if (l.code === 'ko') return hangul > 0.15 ? 'ok' : 'wrong';
+  if (l.code === 'zh') return han > 0.15 && hangul < 0.05 ? 'ok' : 'wrong';
+  // A CJK body under a Latin-script setting is wrong whichever way round.
+  if (hangul + han > 0.15) return 'wrong';
+  if (l.code === 'en') return 'ok';
+
+  // es: Latin script, so count function words. Needs a real body to be fair.
+  const words = text.split(/\s+/).filter(Boolean).length;
+  if (words < 150) return 'unsure';
+  const hits = (text.match(ES_WORDS) ?? []).length;
+  return hits / words > 0.08 ? 'ok' : 'wrong';
+}
+
+/**
+ * Is a SHORT string (a title) in the blog's language? `languageVerdict` needs a
+ * body to be fair; a headline only affords a script check, so this answers for
+ * CJK and abstains (true) for Latin scripts, where an English and a Spanish
+ * headline are indistinguishable by character alone.
+ */
+export function titleIsNative(title: string, lang: LangCode | Language): boolean {
+  const l = typeof lang === 'string' ? LANGUAGES[normalizeLang(lang)] : lang;
+  const t = (title ?? '').trim();
+  if (!t) return false;
+  if (l.code === 'ko') return HANGUL.test(t);
+  if (l.code === 'zh') return HAN.test(t) && !HANGUL.test(t);
+  return true;
+}
+
+/** Convenience: a confident 'this is the wrong language'. */
+export function isWrongLanguage(body: string, lang: LangCode | Language): boolean {
+  return languageVerdict(body, lang) === 'wrong';
+}
+
+/**
+ * The directive that goes FIRST in the user prompt — not the tail of the
+ * system prompt, where the first version of this feature put it and where
+ * three separate models ignored it in a row.
+ */
+export function languageCommand(lang: LangCode | Language): string {
+  const l = typeof lang === 'string' ? LANGUAGES[normalizeLang(lang)] : lang;
+  if (l.code === 'en') return '';
+  return `!! WRITE IN ${l.englishName.toUpperCase()} (${l.nativeName}) !!
+This blog publishes in ${l.nativeName}. Everything you output that a reader will
+see must be in ${l.nativeName} — the title included, even when the brief, the
+topic, the sources and the examples in these instructions are in English. They
+are English because the SYSTEM is English, not because the article is. Do not
+translate afterwards; think and write in ${l.nativeName} from the first word.`;
+}
+
+/**
+ * Second-pass directive after a draft came back in the wrong language. Blunter
+ * on purpose — the polite version has already been ignored once.
+ */
+export function languageRetryCommand(lang: LangCode | Language): string {
+  const l = typeof lang === 'string' ? LANGUAGES[normalizeLang(lang)] : lang;
+  return `!! YOUR PREVIOUS DRAFT WAS REJECTED: IT WAS NOT IN ${l.englishName.toUpperCase()} !!
+Write this article in ${l.nativeName}. Every heading, every sentence, the title,
+the takeaways, the FAQ. An English draft will be discarded again. If the brief's
+title is in English, render its MEANING as a natural ${l.nativeName} headline —
+do not copy the English words.`;
+}

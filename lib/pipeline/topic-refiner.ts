@@ -29,7 +29,7 @@ import { llmCall, extractJson } from '../llm';
 import type { SiteProfile } from './site-profile';
 import type { ResearchContext } from './research-context';
 import type { RepoKnowledge } from './repo-knowledge';
-import { briefLanguageRule, type LangCode } from '../language';
+import { language, briefLanguageRule, languageCommand, type LangCode } from '../language';
 
 /**
  * Marketing funnel position for this article:
@@ -167,7 +167,18 @@ CRITICAL OUTPUT RULES
 - All string values single-line — no embedded newlines.
 ${briefLanguageRule(lang)}`;
 
-  const user = `BUSINESS
+  // Top of the USER prompt, not the tail of the system prompt — the whole
+  // reason the first Korean article came out in English. The title this returns
+  // is used VERBATIM as the article's H1, so a title that drifts back to
+  // English drags the article with it.
+  const langCommand = languageCommand(lang);
+  const user = `${langCommand ? `${langCommand}
+
+The example titles in the instructions are in English. They are there for their
+PATTERNS — the shape of a good headline — not their language. Write yours in
+${language(lang).nativeName}.
+
+` : ''}BUSINESS
 Name: ${profile.business.name}
 Industry: ${profile.business.industry}
 What they do: ${profile.business.description}
@@ -175,7 +186,7 @@ Products / services: ${profile.business.products_services.join(', ') || 'unknown
 Target audience: ${profile.business.target_audience}
 Value props: ${profile.business.value_props.join('; ') || 'unknown'}
 
-RAW TOPIC: "${rawTopic}"
+RAW TOPIC: "${rawTopic}"${langCommand ? ` (the topic is stored in English; the ARTICLE is not)` : ''}
 ${targetKeyword?.trim() ? `\nTARGET SEARCH KEYWORD: "${targetKeyword.trim()}" — real demand this article should rank for. Work it naturally into the title and ensure the angle satisfies that search intent. Do NOT keyword-stuff; one natural use in the title/lead is enough.\n` : ''}${hasRepoKb ? `
 PRODUCT KNOWLEDGE (verified — extracted from the team's own repository ${repoKb!.repo}):
 ${repoKb!.product_summary ? `What it is: ${repoKb!.product_summary}` : ''}

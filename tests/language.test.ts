@@ -4,12 +4,14 @@ import {
   contentLength, splitSentences, readMinutes, looksCjk,
   writerLanguageRules, briefLanguageRule,
   takeawaysLabelPattern, faqHeadingPattern,
+  languageVerdict, isWrongLanguage, titleIsNative, languageCommand, languageRetryCommand,
 } from '../lib/language';
 import { extractTakeaways } from '../lib/takeaways';
 import { extractFaq } from '../lib/faq';
-import { validatePost } from '../lib/pipeline/validator';
+import { validatePost, blockingIssues } from '../lib/pipeline/validator';
 import { ensureTakeaways, ensureFaqSection, ensureHomepageCta } from '../lib/pipeline/post-process';
 import { postSlug } from '../lib/slug';
+import { pickTitle } from '../lib/pipeline/writer';
 import { genreFor, authorFor, authorIsOrg, genreLabel } from '../lib/blog-genre';
 
 /** ~1,800 characters of Korean prose: a correctly-sized Korean article. */
@@ -365,5 +367,126 @@ describe('reader chrome', () => {
   it('keeps grove out of the reader-facing strings it has no business in', () => {
     expect(language('ko').ui.readTime(5)).toContain('5');
     expect(language('zh').ui.pageOf(2, 7)).toContain('7');
+  });
+});
+
+/* ─────────────────────────────────────────────────────────────────────────
+   The regression this file exists for: grove's first Korean-configured
+   article came back entirely in English. Every stage had read `ko` correctly
+   — the models simply ignored a directive sitting at the tail of a long
+   English system prompt, and the manager then flagged the one correct Korean
+   sentence in the draft (the appended CTA) as a defect and had it removed.
+   ───────────────────────────────────────────────────────────────────────── */
+
+const EN_ARTICLE = [
+  '# The 6-Second 3D Asset: How Product Teams Save Hours on Icon Design',
+  '',
+  'We tested this across four sprints. The results were not subtle.',
+  'Design teams spend more time exporting icons than designing them.',
+].join('\n').concat(' Every product team hits this wall eventually and nobody talks about it.'.repeat(12));
+
+describe('languageVerdict — the check that does not trust a prompt', () => {
+  it('catches the exact failure that shipped: a ko blog, an English draft', () => {
+    expect(languageVerdict(EN_ARTICLE, 'ko')).toBe('wrong');
+    expect(isWrongLanguage(EN_ARTICLE, 'ko')).toBe(true);
+  });
+
+  it('passes a genuinely Korean article', () => {
+    expect(languageVerdict(KO_BODY, 'ko')).toBe('ok');
+    expect(isWrongLanguage(KO_BODY, 'ko')).toBe(false);
+  });
+
+  it('separates Korean from Chinese', () => {
+    const zh = '如何保存咖啡豆。我们用三种方式做了两周的测试。结果很清楚。'.repeat(12);
+    expect(languageVerdict(zh, 'zh')).toBe('ok');
+    expect(languageVerdict(zh, 'ko')).toBe('wrong');
+    expect(languageVerdict(KO_BODY, 'zh')).toBe('wrong');
+  });
+
+  it('flags a CJK body on an English blog', () => {
+    expect(languageVerdict(KO_BODY, 'en')).toBe('wrong');
+    expect(languageVerdict(EN_ARTICLE, 'en')).toBe('ok');
+  });
+
+  it('judges Spanish on function-word density, not script', () => {
+    const es = 'Guardamos el café de la misma forma que lo hacen los tostadores, porque el aire es el problema. '.repeat(12);
+    expect(languageVerdict(es, 'es')).toBe('ok');
+    expect(languageVerdict(EN_ARTICLE, 'es')).toBe('wrong');
+  });
+
+  it('abstains rather than guessing on a short body', () => {
+    expect(languageVerdict('Too short to judge.', 'ko')).toBe('unsure');
+    expect(languageVerdict('', 'es')).toBe('unsure');
+    expect(isWrongLanguage('Too short to judge.', 'ko')).toBe(false);
+  });
+});
+
+describe('WRONG_LANGUAGE is blocking', () => {
+  it('flags an English draft on a Korean blog and gates publication', () => {
+    const v = validatePost(EN_ARTICLE, { lang: 'ko' });
+    expect(v.issues.join(' ')).toContain('WRONG_LANGUAGE');
+    // Blocking, so autopilot routes it to review instead of publishing it.
+    expect(blockingIssues(v).some((i) => i.startsWith('WRONG_LANGUAGE'))).toBe(true);
+  });
+
+  it('says nothing when the draft is in the right language', () => {
+    expect(validatePost(KO_BODY, { lang: 'ko' }).issues.join(' ')).not.toContain('WRONG_LANGUAGE');
+    expect(validatePost(EN_ARTICLE, { lang: 'en' }).issues.join(' ')).not.toContain('WRONG_LANGUAGE');
+  });
+});
+
+describe('the canonical title cannot be an English one on a Korean article', () => {
+  const KO_TITLE = '3D 아이콘 디자인, 매주 10시간을 아끼는 방법';
+  const EN_TITLE = 'The 6-Second 3D Asset: How Product Teams Save 10+ Hours a Week';
+  const KO_ARTICLE_MD = `# ${KO_TITLE}\n\n본문입니다.`;
+
+  it('prefers the brief title when it is already native', () => {
+    expect(pickTitle(KO_TITLE, 'ignored', KO_ARTICLE_MD, 'ko')).toBe(KO_TITLE);
+  });
+
+  it('drops an English brief title in favour of the model\'s Korean one', () => {
+    // This is the second half of the shipped bug: forceCanonicalH1 would have
+    // stamped the refiner's English headline onto a correct Korean article.
+    expect(pickTitle(EN_TITLE, KO_TITLE, KO_ARTICLE_MD, 'ko')).toBe(KO_TITLE);
+  });
+
+  it('falls back to the H1 the writer actually wrote', () => {
+    expect(pickTitle(EN_TITLE, 'Another English One', KO_ARTICLE_MD, 'ko')).toBe(KO_TITLE);
+  });
+
+  it('keeps the brief title when nothing native is available', () => {
+    expect(pickTitle(EN_TITLE, '', '# Also English', 'ko')).toBe(EN_TITLE);
+  });
+
+  it('English and Spanish are unaffected — the brief always wins', () => {
+    expect(pickTitle(EN_TITLE, 'model title', '# H1', 'en')).toBe(EN_TITLE);
+    expect(pickTitle('Cómo guardar el café', 'otro', '# H1', 'es')).toBe('Cómo guardar el café');
+  });
+});
+
+describe('titleIsNative', () => {
+  it('answers for CJK and abstains for latin scripts', () => {
+    expect(titleIsNative('원두 보관법', 'ko')).toBe(true);
+    expect(titleIsNative('How to store beans', 'ko')).toBe(false);
+    expect(titleIsNative('如何保存咖啡豆', 'zh')).toBe(true);
+    expect(titleIsNative('Cómo guardar el café', 'es')).toBe(true);   // can't tell, so yes
+    expect(titleIsNative('', 'ko')).toBe(false);
+  });
+});
+
+describe('the directive that goes first in the user prompt', () => {
+  it('is empty for English and emphatic otherwise', () => {
+    expect(languageCommand('en')).toBe('');
+    expect(languageCommand('ko')).toContain('한국어');
+    expect(languageCommand('ko')).toContain('KOREAN');
+  });
+
+  it('tells the model the English brief is not a licence to write English', () => {
+    expect(languageCommand('ko')).toMatch(/brief|topic|sources/i);
+  });
+
+  it('the retry command names the failure outright', () => {
+    expect(languageRetryCommand('ko')).toContain('NOT IN KOREAN');
+    expect(languageRetryCommand('ko')).toContain('한국어');
   });
 });

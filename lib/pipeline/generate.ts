@@ -14,7 +14,7 @@ import { runMetered, summarize, describeCost } from '../cost-meter';
 import { evaluateDraft, composeRewriteInstructions, holdForReview, resolvePublishFloor } from './manager';
 import { toManagerDraft } from './draft-adapter';
 import { postSlug } from '../slug';
-import { languageForDomain, contentLength } from '../language';
+import { languageForDomain, contentLength, isWrongLanguage } from '../language';
 import { captureServer } from '../analytics/capture-server';
 import { nextPublishSlot } from '../strategy/schedule';
 import type { Strategy, PostSlot } from '../strategy/build';
@@ -210,6 +210,10 @@ async function generatePostInner(postId: string, opts: GenerateOptions = {}) {
   // If a prior run already persisted research and/or a draft, resume from the
   // stage that actually failed instead of redoing expensive work.
   const { reuseResearch, reuseDraft } = resumeState(post as any, fresh);
+  /** Set once a draft has come back in the wrong language: every later writer
+   *  call in this run then carries the blunt directive too, so the manager's
+   *  rewrite pass can't quietly restore English. */
+  let enforceLanguage = false;
 
   /** In-flight progress status ('researching'/'writing'), skipped for a live
    *  rewrite so the article keeps serving while it's being rewritten. */
@@ -308,6 +312,36 @@ async function generatePostInner(postId: string, opts: GenerateOptions = {}) {
         () => runWriter({ brief, profile, context, kb, hostname: domain.hostname, lang: lang.code }), 'writer');
       await appendLog(postId, 'writer', 'done',
         `${contentLength(writer.blog_post, lang)} ${lang.length.unitLabel}`);
+
+      // ── the mechanical language gate ────────────────────────────────────
+      // Prompt instructions are unreliable; this is not one. grove's first
+      // Korean article came back entirely in English with every stage having
+      // read `ko` correctly — the models just ignored the directive. One
+      // redraft with the blunt version, then the validator's WRONG_LANGUAGE
+      // (blocking) makes sure a third failure lands in review rather than on
+      // the customer's blog.
+      if (isWrongLanguage(writer.blog_post, lang)) {
+        enforceLanguage = true;
+        await appendLog(postId, 'writer', 'start',
+          `draft came back in the wrong language — redrafting in ${lang.englishName}`);
+        try {
+          const retry = await runWriter({
+            brief, profile, context, kb, hostname: domain.hostname,
+            lang: lang.code, enforceLanguage: true,
+          });
+          if (!isWrongLanguage(retry.blog_post, lang)) {
+            writer = retry;
+            await appendLog(postId, 'writer', 'done',
+              `${contentLength(writer.blog_post, lang)} ${lang.length.unitLabel} (${lang.englishName} redraft)`);
+          } else {
+            await appendLog(postId, 'writer', 'fail',
+              `still not ${lang.englishName} after a redraft — routing to review`);
+          }
+        } catch (e) {
+          await appendLog(postId, 'writer', 'fail',
+            `${lang.englishName} redraft failed: ${String((e as any)?.message ?? e)}`);
+        }
+      }
     } catch (e) { await failAt(postId, 'writer', e, keepLive); return; }
 
     if (!writer.blog_post || writer.blog_post.length < 200) {
@@ -348,6 +382,7 @@ async function generatePostInner(postId: string, opts: GenerateOptions = {}) {
       await appendLog(postId, 'writer', 'start', `rewrite — applying manager notes`);
       writer = await runWriter({
         brief, profile, context, kb, hostname: domain.hostname, lang: lang.code,
+        enforceLanguage,
         managerNotes: composeRewriteInstructions(evaluation),
         previousDraft: writer.blog_post,
       });
