@@ -621,4 +621,114 @@ export const KO: Record<string, string> = {
   'Sending…': '보내는 중…',
   'delivered': '전송됨',
   'sends when the article publishes': '글이 발행될 때 전송됩니다',
+
+  /* ── feedback form ───────────────────────────────────────────────────── */
+  'Send something else': '다른 내용 보내기',
+  'How is Grove going overall?': 'grove는 전반적으로 어떠신가요?',
+  'Choose one…': '하나를 선택하세요…',
+  'How bad is it?': '얼마나 심각한가요?',
+  'What stood out most?': '가장 좋았던 점은 무엇인가요?',
+  'Which part of Grove?': 'grove의 어느 부분인가요?',
+  'In your own words': '자유롭게 적어주세요',
+  'Tell us what happened': '어떤 일이 있었는지 알려주세요',
+  'This goes straight to Grove’s owner.': '이 내용은 grove 운영자에게 바로 전달됩니다.',
+  'Credit it to': '이름 표기',
+  'Your name': '이름',
+  'Title & company': '직함과 회사',
+  'Link to your site': '사이트 링크',
+  'A one-line version': '한 줄 요약',
+  'Something went wrong. Please try again.': '문제가 발생했습니다. 다시 시도해 주세요.',
+
+  /* ── cancel / refund funnel ──────────────────────────────────────────── */
+  'Request received': '요청이 접수되었습니다',
+  'Never mind, keep my plan': '취소하지 않고 계속 사용하기',
+  'Continue →': '계속 →',
+  'What could we have done better?': '저희가 무엇을 더 잘할 수 있었을까요?',
+  'Optional, but the most useful thing you can leave us.': '선택 사항이지만, 가장 도움이 되는 이야기입니다.',
+  'What would bring you back?': '어떻게 하면 다시 사용하시겠어요?',
+  'Confirm your refund request': '환불 요청 확인',
+  'Request refund': '환불 요청',
+  'Submitting…': '제출하는 중…',
+
+  /* ── Google / Search Console ─────────────────────────────────────────── */
+  'Google connected': 'Google 연결됨',
+  'Connect Google': 'Google 연결',
+  'Finish Google setup': 'Google 설정 마치기',
+  'Checking your Search Console…': 'Search Console을 확인하는 중…',
+  'One step left': '한 단계 남았습니다',
+  'Add this': '아래 값을 추가하세요',
+  'TXT record': 'TXT 레코드',
+  'Value': '값',
+  'DNS can take up to an hour.': 'DNS 반영에는 최대 한 시간이 걸립니다.',
+  'Show the record again': '레코드 다시 보기',
+  'I’ve added it — verify': '추가했습니다 — 확인하기',
+  'Verifying…': '확인하는 중…',
+  'Syncing…': '동기화 중…',
+  'Refresh': '새로고침',
+  'Copy': '복사',
+  'Copied': '복사됨',
+  'Something went wrong reaching Search Console. Try disconnecting and connecting again.':
+    'Search Console에 연결하지 못했습니다. 연결을 해제한 뒤 다시 연결해 보세요.',
+  'Search Console isn’t set up on this Grove instance yet.': '이 grove 인스턴스에는 Search Console이 아직 설정되지 않았습니다.',
+  'DNS record not visible yet — it can take up to an hour. Try again shortly.':
+    'DNS 레코드가 아직 보이지 않습니다. 최대 한 시간이 걸릴 수 있어요. 잠시 후 다시 시도해 주세요.',
+
+  /* ── content API keys ────────────────────────────────────────────────── */
+  'Step 1 · Create a key': '1단계 · 키 만들기',
+  'Step 2 · Connect your agent': '2단계 · 에이전트 연결하기',
+  'One key per agent': '에이전트마다 키 하나',
+  'What is it for?': '어디에 쓰나요?',
+  'All my sites': '내 모든 사이트',
+  'Allow write-back': '쓰기 권한 허용',
+  'Point it at grove': 'grove를 가리키게 하기',
+  'Your keys': '내 키',
+  'No keys yet.': '아직 키가 없습니다.',
+  'Revoke': '폐기',
+  'Create key': '키 만들기',
+  'Creating…': '만드는 중…',
+  'Content layer': '콘텐츠 레이어',
+  'Could not create the key.': '키를 만들지 못했습니다.',
+  'Could not reach grove. Try again.': 'grove에 연결하지 못했습니다. 다시 시도해 주세요.',
+
+  /* ── embed tabs ──────────────────────────────────────────────────────── */
+  'Step 2 · Show posts in your site': '2단계 · 내 사이트에 글 노출하기',
+  'Copy-paste embeds': '복사해서 붙이는 임베드',
+  'Full blog': '블로그 전체',
+  'The whole blog, live inside /blog — search, filters, pagination, in-page reading. No code to maintain.':
+    '/blog 안에서 블로그 전체가 돌아갑니다. 검색, 필터, 페이지 넘김, 페이지 내 읽기까지. 유지할 코드가 없습니다.',
+  'A small teaser for your homepage: latest 3–4 posts and a "Read the blog →" link.':
+    '홈페이지용 작은 미리보기: 최근 글 3~4편과 "블로그 보기 →" 링크.',
+  'Visitors read in-page, so this alone won\'t get indexed — your subdomain from step 1 carries the SEO.':
+    '방문자는 페이지 안에서 읽기 때문에 이것만으로는 색인되지 않습니다. SEO는 1단계의 서브도메인이 담당합니다.',
+  'Set data-blog-url to wherever you mounted the full embed, or your subdomain from step 1.':
+    'data-blog-url을 전체 임베드를 넣은 주소나 1단계의 서브도메인으로 설정하세요.',
+  'Blog': '블로그',
+  'Read the blog →': '블로그 보기 →',
+  'Your latest post title lands here': '가장 최근 글 제목이 여기에 들어갑니다',
+  'Featured · just now': '추천 · 방금',
+  'Another recent article': '또 다른 최근 글',
+  'A recent post shows up here': '최근 글이 여기에 표시됩니다',
+
+  /* ── image studio ────────────────────────────────────────────────────── */
+  'Add an image': '이미지 추가',
+  'Close image tool': '이미지 도구 닫기',
+  'Image source': '이미지 소스',
+  'Upload': '업로드',
+  'Uploading…': '업로드 중…',
+  'Drop an image here, or click to choose one': '여기에 이미지를 놓거나 클릭해 선택하세요',
+  'You can also paste an image, or drag one straight onto the page.': '이미지를 붙여넣거나 페이지로 바로 끌어다 놓아도 됩니다.',
+  'Generate': '생성',
+  'Drawing…': '그리는 중…',
+  'Insert at cursor': '커서 위치에 삽입',
+  'Inserted into the draft.': '초안에 삽입했습니다.',
+  'Try another': '다른 이미지',
+  'Could not generate an image. Try again.': '이미지를 만들지 못했습니다. 다시 시도해 주세요.',
+
+  /* ── pillars + month calendar ────────────────────────────────────────── */
+  'Add a pillar': '축 추가하기',
+  'Clear focus ✕': '초점 해제 ✕',
+  'Tell the strategist what else this month should cover and it reworks the plan.':
+    '이번 달에 더 다뤄야 할 내용을 알려주면 전략가가 계획을 다시 짭니다.',
+  'The month at a glance': '이번 달 한눈에 보기',
+  'Research': '조사',
 };
