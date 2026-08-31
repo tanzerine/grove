@@ -54,15 +54,18 @@ export default async function Page() {
           <div style={{ display: 'grid', gridTemplateColumns: '1.7fr 1fr', gap: 16, alignItems: 'start' }}>
             {/* LEFT COLUMN */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
-              {/* LANGUAGE CARD — the one piece of writing context the crawler
-                  cannot infer, and the only one that changes every surface a
-                  reader sees. Shown before the crawl too: a new domain should
-                  be able to set it before the first article is written. */}
+              {/* LANGUAGE CARD — the site's one language control. It sets what
+                  this blog publishes in AND what grove speaks to its owner in
+                  (lib/i18n/server.ts resolves the UI locale from the ACTIVE
+                  site), so there is exactly one place to change it and no way
+                  for two controls to disagree. Shown before the crawl too: a
+                  new domain should be able to set it before the first article
+                  is written. */}
               {domain?.id && (
                 <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '22px 24px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
                     <span style={{ width: 34, height: 34, borderRadius: 9, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gv-dim)', flexShrink: 0 }}><Icon name="globe" size={17} /></span>
-                    <div style={{ fontSize: 15, fontWeight: 700 }}>{t('Writing language')}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700 }}>{t('Language')}</div>
                   </div>
                   <LanguagePicker domainId={domain.id} initial={(domain as any).language ?? null} />
                 </div>

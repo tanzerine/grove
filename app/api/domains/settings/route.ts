@@ -11,6 +11,7 @@ import { canGenerateForUser } from '@/lib/billing';
 import { maxPostsPerWeekForQuota } from '@/lib/plans';
 import { canEnableAutopilot, REVIEWABLE_STATUSES } from '@/lib/autopilot-gate';
 import { LANG_CODES } from '@/lib/language';
+import { UI_LANG_COOKIE } from '@/lib/i18n';
 
 // zod wants a non-empty tuple; LANG_CODES is the single source of the list.
 const LANG_CODES_TUPLE = LANG_CODES as unknown as [string, ...string[]];
@@ -22,8 +23,9 @@ const schema = z.object({
   auto_publish: z.boolean().optional(),
   auto_social: z.boolean().optional(),
   posts_per_week: z.number().min(1).max(14).optional(),
-  // Language every future article is written in (lib/language.ts). Existing
-  // posts are NOT translated — this steers what the pipeline writes next.
+  // The site's one language setting: what it publishes in AND what grove
+  // speaks to its owner in while they manage it (lib/i18n/server.ts resolves
+  // the UI locale from the ACTIVE site). Existing posts are never retranslated.
   language: z.enum(LANG_CODES_TUPLE).optional(),
   // autopilot quality bar: min manager score (0-100) to publish without a human.
   auto_publish_floor: z.number().int().min(0).max(100).optional(),
@@ -218,7 +220,7 @@ export async function PATCH(req: Request) {
     hostnameAttach = await attachProjectDomain(hostnameSync.attach);
   }
 
-  return NextResponse.json({
+  const res = NextResponse.json({
     ok: true,
     ...(hostnameAttach
       ? {
@@ -231,4 +233,17 @@ export async function PATCH(req: Request) {
         }
       : {}),
   });
+
+  // Mirror the site's language into the UI-locale cookie. The server resolves
+  // the locale from the ACTIVE site first, so this is only the fallback — but
+  // keeping it fresh means a page rendered before the domain read (or during
+  // onboarding, where no site exists yet) agrees with the choice just made.
+  if (updates.language) {
+    res.cookies.set(UI_LANG_COOKIE, String(updates.language), {
+      path: '/',
+      maxAge: 60 * 60 * 24 * 365,
+      sameSite: 'lax',
+    });
+  }
+  return res;
 }

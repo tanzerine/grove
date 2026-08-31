@@ -31,7 +31,7 @@ import { resolvePost, extractReschedule, type PostRef } from '@/lib/assistant/pi
 import { approveAndPublish } from '@/lib/pipeline/approve';
 import { gatherSignals, signalsBlock } from '@/lib/assistant/context';
 import { relevantKnowledge } from '@/lib/assistant/knowledge';
-import { getUiLocale } from '@/lib/i18n/server';
+import { localeForDomain } from '@/lib/i18n/server';
 import { languageForDomain } from '@/lib/language';
 
 export const runtime = 'nodejs';
@@ -116,7 +116,7 @@ export async function POST(req: Request) {
 
   // RLS scopes this select to the owner — a foreign domain_id reads as absent.
   const { data: domain } = await sb
-    .from('domains').select('id, hostname, posts_per_week')
+    .from('domains').select('id, hostname, posts_per_week, language')
     .eq('id', domain_id).eq('user_id', user.id).maybeSingle();
   if (!domain) return NextResponse.json({ error: 'not found' }, { status: 404 });
 
@@ -460,7 +460,9 @@ export async function POST(req: Request) {
       signalsMd: signalsBlock(signals),
       planMd: contextForPrompt(agentCtx.plan_md, agentCtx.progress_md, 3000),
       history,
-      locale: await getUiLocale(),
+      // This site's language, not the cookie's: the route is answering about
+      // THIS domain, and the two can only disagree if the cookie is stale.
+      locale: localeForDomain(domain as any),
     });
     // Only ship a proposal that would actually trigger an action — anything
     // that triages back to an answer intent would loop, so it's dropped.

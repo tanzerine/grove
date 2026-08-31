@@ -16,5 +16,4 @@ export const ZH: Record<string, string> = {
   'Content API': '内容 API',
   'Billing': '账单',
   'Feedback': '反馈',
-  'Language': '语言',
 };

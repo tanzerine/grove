@@ -1,23 +1,37 @@
 /**
  * Server-side locale resolution for RSC pages and route handlers.
  *
- * Order, most explicit first:
- *   1. the `gv_lang` cookie — what the switcher just wrote, so a change takes
- *      effect on the next render with no database round trip;
- *   2. the user's saved choice (auth metadata) — follows them to a new device,
- *      where there is no cookie yet;
- *   3. `Accept-Language` — a first-time Korean visitor should not have to find
- *      a menu to read the page they just landed on;
+ * ── One language per site, chosen on Brand voice ──────────────────────────
+ * The first version of this made UI language a property of the PERSON (an
+ * auth-metadata field plus a switcher in the account menu), separate from
+ * `domains.language`. That was wrong in practice: an owner who set one site to
+ * English, switched to another site, and found the dashboard still in Korean
+ * has two controls disagreeing with each other and no way to tell which one
+ * won. There is now one control — the picker on Brand voice — and it moves the
+ * whole product.
+ *
+ * So the order is:
+ *   1. the ACTIVE site's `language`. Switching sites switches the UI, because
+ *      the switcher already does a full reload and every server component
+ *      re-resolves this;
+ *   2. the `gv_lang` cookie — written whenever the site's language is saved,
+ *      and the only answer available before a site exists (onboarding);
+ *   3. `Accept-Language`, so a first-time Korean visitor isn't made to hunt
+ *      for a menu to read the page they just landed on;
  *   4. English.
  *
- * `cache()` makes the whole thing once per request, so a page that calls
- * `getT()` and a layout that resolves the same locale share one auth lookup.
+ * `cache()` makes the whole thing once per request, so the layout and every
+ * page it renders share a single lookup.
  */
 import { cookies, headers } from 'next/headers';
 import { cache } from 'react';
 import { supabaseServer } from '../supabase/server';
+import { getActiveDomainFields } from '../active-domain';
 import { normalizeLang, LANG_CODES } from '../language';
-import { createT, UI_LANG_COOKIE, UI_LANG_METADATA_KEY, type T, type UiLocale } from './index';
+import { createT, UI_LANG_COOKIE, type T, type UiLocale } from './index';
+
+const supported = (v: unknown): v is UiLocale =>
+  typeof v === 'string' && (LANG_CODES as readonly string[]).includes(v);
 
 /** First supported language in an Accept-Language header, or null. */
 export function localeFromAcceptLanguage(header: string | null): UiLocale | null {
@@ -32,29 +46,27 @@ export function localeFromAcceptLanguage(header: string | null): UiLocale | null
     .sort((a, b) => b.q - a.q);
   for (const { tag } of parts) {
     const base = tag.split('-')[0];
-    if ((LANG_CODES as readonly string[]).includes(base)) return base as UiLocale;
+    if (supported(base)) return base;
   }
   return null;
 }
 
 export const getUiLocale = cache(async (): Promise<UiLocale> => {
-  const jar = await cookies();
-  const cookieValue = jar.get(UI_LANG_COOKIE)?.value;
-  if (cookieValue && (LANG_CODES as readonly string[]).includes(cookieValue)) {
-    return cookieValue as UiLocale;
-  }
-
-  // Saved preference. Best-effort: an unauthenticated or failing lookup must
-  // never take a page down over a label.
+  // 1. The site the owner is looking at. Best-effort: an unauthenticated
+  //    request or a failing query must never take a page down over a label.
   try {
     const sb = await supabaseServer();
-    const { data: { user } } = await sb.auth.getUser();
-    const saved = (user?.user_metadata as Record<string, unknown> | undefined)?.[UI_LANG_METADATA_KEY];
-    if (typeof saved === 'string' && (LANG_CODES as readonly string[]).includes(saved)) {
-      return saved as UiLocale;
-    }
-  } catch { /* fall through to the header */ }
+    const domain = await getActiveDomainFields(sb, 'id, verified_at, language');
+    if (domain && supported(domain.language)) return domain.language;
+  } catch { /* fall through */ }
 
+  // 2. Last saved choice — also the only answer before any site exists.
+  try {
+    const cookieValue = (await cookies()).get(UI_LANG_COOKIE)?.value;
+    if (supported(cookieValue)) return cookieValue;
+  } catch { /* no cookie store in this context */ }
+
+  // 3. What the browser asked for.
   try {
     const fromHeader = localeFromAcceptLanguage((await headers()).get('accept-language'));
     if (fromHeader) return fromHeader;
@@ -68,9 +80,12 @@ export async function getT(): Promise<T> {
   return createT(await getUiLocale());
 }
 
-/** Resolve without the auth lookup — for contexts that already have the user. */
-export function localeFor(user: { user_metadata?: Record<string, unknown> } | null, cookieValue?: string | null): UiLocale {
-  if (cookieValue && (LANG_CODES as readonly string[]).includes(cookieValue)) return cookieValue as UiLocale;
-  const saved = user?.user_metadata?.[UI_LANG_METADATA_KEY];
-  return normalizeLang(typeof saved === 'string' ? saved : undefined);
+/**
+ * The locale for a request that already knows which site it is acting on —
+ * an API route with a `domain` row in hand. Preferred over `getUiLocale()`
+ * there: it needs no extra query and cannot disagree with the domain the
+ * route is actually writing to.
+ */
+export function localeForDomain(domain: { language?: string | null } | null | undefined): UiLocale {
+  return normalizeLang(domain?.language);
 }

@@ -186,14 +186,29 @@ and `ko` have been exercised end to end**; `es`/`zh` are wired but unproven.
   correct Korean article. `pickTitle` drops the brief's title when it isn't
   native and takes the model's own.
 
-**UI language** (`lib/i18n/`) — the language the OWNER controls grove in, kept
-deliberately separate from `domains.language` (what a blog PUBLISHES in). They
-disagree constantly: a Korean founder selling to Americans runs an English blog
-from a Korean dashboard. Stored in `auth.users.user_metadata.ui_language` (no
-table needed — the layout already loads the user) plus a `gv_lang` cookie so a
-switch takes effect with no DB round trip; resolution order is
-cookie → metadata → `Accept-Language` → `en` (`lib/i18n/server.ts getUiLocale`,
-wrapped in React `cache()`). The switcher lives in the account menu.
+**UI language** (`lib/i18n/`) — the language grove SPEAKS to the owner in.
+**It is not a separate setting: it is the ACTIVE SITE's `domains.language`.**
+One control, on `/dashboard/voice`, sets what a site publishes in and what the
+dashboard speaks while you manage that site; picking it reloads and everything
+changes at once, and switching sites switches the language with it.
+- The first version made this a per-USER preference (auth metadata + a switcher
+  in the account menu) on the theory that a Korean founder might run an English
+  blog from a Korean dashboard. In practice it produced two controls that could
+  disagree with no way to tell which had won: set one site to English, switch to
+  it, and the dashboard stayed Korean. **If that split is ever wanted back, it
+  belongs behind one explicit "dashboard language" override, not a second
+  equal control.**
+- `getUiLocale()` (`lib/i18n/server.ts`, wrapped in React `cache()`) resolves
+  active site → `gv_lang` cookie → `Accept-Language` → `en`. The cookie is only
+  a fallback for surfaces with no site yet (onboarding); it is refreshed
+  whenever the language is saved so it can never contradict the site.
+- **A route that already knows its domain uses `localeForDomain(domain)`**, not
+  `getUiLocale()` — no extra query, and it cannot disagree with the row the
+  route is writing to.
+- `strategyLanguageRule(pub, ui)` still takes two languages and still has a
+  split-language branch. With one setting per site the two are always equal and
+  it collapses to a single instruction; the branch is kept because it is pure,
+  tested, and what a future "dashboard language" override would need.
 - **English source strings ARE the keys** — `t('Waiting on you')`. No `en`
   catalogue to drift, conversion is a mechanical wrap, and a missing entry
   renders English instead of `dashboard.pipeline.title`. That's what makes

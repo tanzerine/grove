@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { useChrome } from './chrome-context';
 import { useT } from './i18n';
-import { UI_LOCALES, localeName, coverage, type UiLocale } from '@/lib/i18n';
 
 const ACCENT = 'var(--gv-accent)';
 const ACCENT_INK = 'var(--gv-accent-ink)';
@@ -15,11 +14,10 @@ const ACCENT_INK = 'var(--gv-accent-ink)';
  * Reads account context (email, admin, active hostname) from ChromeProvider.
  */
 export default function AccountAvatarMenu() {
-  const { email, isAdmin, activeHostname, locale } = useChrome();
+  const { email, isAdmin, activeHostname } = useChrome();
   const t = useT();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [saving, setSaving] = useState<UiLocale | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -30,24 +28,6 @@ export default function AccountAvatarMenu() {
     document.addEventListener('keydown', onKey);
     return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
   }, [open]);
-
-  /**
-   * Switch the language grove speaks to this person. A full reload rather than
-   * router.refresh(): the locale is resolved on the SERVER and rides the
-   * Chrome context, so every RSC in the tree has to re-render against the new
-   * cookie — a client-side refresh would leave server-rendered labels stale.
-   */
-  async function pickLocale(next: UiLocale) {
-    if (next === locale) { setOpen(false); return; }
-    setSaving(next);
-    const res = await fetch('/api/account/language', {
-      method: 'PATCH',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ locale: next }),
-    }).catch(() => null);
-    if (res?.ok) window.location.reload();
-    else setSaving(null);
-  }
 
   async function logout() {
     setBusy(true);
@@ -83,39 +63,6 @@ export default function AccountAvatarMenu() {
           {site && <Item href={site} external>{t('Visit your site ↗')}</Item>}
           <Item href="/" external>{t('Grove home page ↗')}</Item>
           <Divider />
-          <div style={{ padding: '8px 10px 4px' }}>
-            <div style={{ fontSize: 11, color: 'var(--gv-fainter)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{t('Language')}</div>
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '0 8px 8px' }}>
-            {UI_LOCALES.map((code) => {
-              const on = code === locale;
-              // Spanish and Chinese are scaffolds: most of the dashboard still
-              // renders English under them. Saying so on the button is kinder
-              // than letting someone discover it one screen at a time.
-              const partial = !on && coverage(code) < 0.6;
-              return (
-                <button
-                  key={code}
-                  type="button"
-                  role="menuitemradio"
-                  aria-checked={on}
-                  disabled={saving !== null}
-                  onClick={() => pickLocale(code)}
-                  title={partial ? t('Partly translated — the rest stays in English') : undefined}
-                  style={{
-                    padding: '5px 9px', borderRadius: 8, fontSize: 12, cursor: on ? 'default' : 'pointer',
-                    border: `1px solid ${on ? ACCENT : 'rgba(255,255,255,0.1)'}`,
-                    background: on ? 'rgba(162,255,1,0.14)' : 'transparent',
-                    color: on ? ACCENT_INK : 'var(--gv-soft)',
-                    opacity: saving && saving !== code ? 0.5 : 1,
-                    fontFamily: 'inherit',
-                  }}
-                >
-                  {localeName(code)}{partial ? ' ·' : ''}
-                </button>
-              );
-            })}
-          </div>
           <Divider />
           <button role="menuitem" onClick={logout} disabled={busy}
             style={{ ...itemStyle, color: 'var(--gv-red-text)', width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
