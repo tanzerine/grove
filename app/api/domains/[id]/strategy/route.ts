@@ -14,7 +14,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { ensureMonthlyStrategy } from '@/lib/strategy/ensure';
 import { profileSite, type SiteProfile } from '@/lib/pipeline/site-profile';
 import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
-import { getUiLocale } from '@/lib/i18n/server';
+import { localeForDomain } from '@/lib/i18n/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -75,7 +75,7 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
         profileFallback: true, budgetMs: maxDuration * 1000,
         // A request has a signed-in owner, so the plan's commentary can be
         // written in the language they read grove in.
-        uiLocale: await getUiLocale(),
+        uiLocale: localeForDomain(domain as any),
       },
     );
     return NextResponse.json({ ok: true, result, built: result === 'created' || result === 'exists' });

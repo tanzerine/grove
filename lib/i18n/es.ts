@@ -21,5 +21,4 @@ export const ES: Record<string, string> = {
   'Content API': 'API de contenido',
   'Billing': 'Facturación',
   'Feedback': 'Comentarios',
-  'Language': 'Idioma',
 };

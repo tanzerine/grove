@@ -36,8 +36,6 @@ export const KO: Record<string, string> = {
   'Grove home page ↗': 'grove 홈 ↗',
   'Log out': '로그아웃',
   'Logging out…': '로그아웃 중…',
-  'Language': '언어',
-  'Partly translated — the rest stays in English': '일부만 번역되어 있습니다. 나머지는 영어로 표시돼요.',
 
   /* ── site switcher ───────────────────────────────────────────────────── */
   'Your sites': '내 사이트',
@@ -406,7 +404,7 @@ export const KO: Record<string, string> = {
     'grove가 모든 글에서 참고하는 정보입니다. 정확할수록 브랜드에 맞는 글이 나옵니다.',
   'No profile yet.': '아직 프로필이 없습니다.',
   'Crawl my site': '내 사이트 분석하기',
-  'Writing language': '집필 언어',
+  'Language': '언어',
   'Products & services': '제품 및 서비스',
   'Target audience': '타깃 독자',
   'Value props': '핵심 가치',
@@ -893,4 +891,10 @@ export const KO: Record<string, string> = {
     '처리 중 문제가 생겼습니다. 계획은 그대로예요. 잠시 후 다시 시도해 주세요.',
   "This month's plan-revision budget is used up ({n} revisions). I can still answer questions about the plan, and the monthly re-plan on the 1st takes your notes into account.":
     '이번 달 계획 수정 횟수({n}회)를 모두 사용했습니다. 계획에 대한 질문에는 계속 답할 수 있고, 매월 1일 재수립 때 남기신 내용이 반영됩니다.',
+
+  /* ── the site's language control (Brand voice) ───────────────────────── */
+  'Switching…': '전환하는 중…',
+  'Could not change the language — try again.': '언어를 변경하지 못했습니다. 다시 시도해 주세요.',
+  'One setting for this site: what grove writes in — articles, FAQs, social posts, the plan — and what grove speaks to you in while you manage it. Applies the moment you pick. Research runs in this language too, so the sources cited are ones your readers can open. Already published articles stay as they are.':
+    '이 사이트의 언어 설정 하나로 모두 정해집니다. grove가 쓰는 글, FAQ, 소셜 게시물, 계획은 물론 관리 화면에서 grove가 쓰는 언어까지 바뀝니다. 선택하는 즉시 적용돼요. 조사도 이 언어로 진행하므로 인용하는 자료는 독자가 열어볼 수 있는 것들입니다. 이미 발행한 글은 그대로 유지됩니다.',
 };

@@ -22,7 +22,7 @@ import {
 } from '@/lib/strategy/plan-chat';
 import { planChatBudget, applyPlanRevision } from '@/lib/strategy/apply-revision';
 import { enforceEntitlement } from '@/lib/billing';
-import { getUiLocale } from '@/lib/i18n/server';
+import { localeForDomain } from '@/lib/i18n/server';
 import { createT } from '@/lib/i18n';
 
 export const runtime = 'nodejs';
@@ -40,7 +40,7 @@ async function ownedDomain(domainId: string) {
   if (!user) return { user: null, domain: null };
   const { data: domain } = await sb
     .from('domains')
-    .select('id, hostname, posts_per_week')
+    .select('id, hostname, posts_per_week, language')
     .eq('id', domainId)
     .eq('user_id', user.id)
     .maybeSingle();
@@ -109,7 +109,7 @@ export async function POST(req: Request) {
   let reply: string;
   let revised = false;
   // The owner's UI language: this whole surface is grove talking to them.
-  const locale = await getUiLocale();
+  const locale = localeForDomain(domain as any);
   const t = createT(locale);
 
   try {
