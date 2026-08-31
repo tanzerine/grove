@@ -887,4 +887,10 @@ export const KO: Record<string, string> = {
   "What should the picture show? (blank = illustrate the section you're in)":
     '어떤 그림이 필요하신가요? (비워두면 지금 보고 있는 섹션을 그립니다)',
   "grove's articles, inside the blog you already run": '이미 운영 중인 블로그 안에 grove의 글을',
+
+  /* ── plan chat (server-side replies) ─────────────────────────────────── */
+  'I hit a snag processing that — the plan is unchanged. Try again in a moment.':
+    '처리 중 문제가 생겼습니다. 계획은 그대로예요. 잠시 후 다시 시도해 주세요.',
+  "This month's plan-revision budget is used up ({n} revisions). I can still answer questions about the plan, and the monthly re-plan on the 1st takes your notes into account.":
+    '이번 달 계획 수정 횟수({n}회)를 모두 사용했습니다. 계획에 대한 질문에는 계속 답할 수 있고, 매월 1일 재수립 때 남기신 내용이 반영됩니다.',
 };

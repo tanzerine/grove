@@ -24,6 +24,8 @@ import { getAgentContext, savePlanContext } from './context-store';
 import { getQuota } from '../quota';
 import { blankProfile, type SiteProfile } from '../pipeline/site-profile';
 import { captureServer } from '../analytics/capture-server';
+import { languageForDomain } from '../language';
+import type { UiLocale } from '../i18n';
 
 export type EnsureResult = 'created' | 'exists' | 'no_profile';
 
@@ -38,6 +40,9 @@ export type EnsureOptions = {
    * function ceiling — see splitStrategyBudget.
    */
   budgetMs?: number;
+  /** The owner's UI language, when a request context can supply it. The cron
+   *  cannot, and then the plan is written entirely in the blog's language. */
+  uiLocale?: UiLocale;
   /**
    * Plan even with no usable site profile, from a hostname-only one.
    *
@@ -94,6 +99,10 @@ export type EnsureDomain = {
   posts_per_week: number | null;
   site_profile: SiteProfile | null;
   interview: unknown;
+  /** Publication language (domains.language). Absent on a row selected before
+   *  migration 0037 or by a narrow select — languageForDomain reads that as
+   *  English, which is the pre-existing behaviour. */
+  language?: string | null;
   /** Owner — used to look up the plan allowance the calendar is capped to. */
   user_id?: string | null;
 };
@@ -165,6 +174,12 @@ export async function ensureMonthlyStrategy(
     prevReport: report,
     progressMd: ctx.progress_md,
     alreadyCovered,
+    // Publication language for the parts that become articles. The owner's UI
+    // language is resolved by the CALLER where a request context exists; the
+    // cron has none, so a plan built there falls back to the publication
+    // language for both — which is right for the common single-language case.
+    lang: languageForDomain(domain).code,
+    uiLocale: opts.uiLocale,
     // What's actually LEFT, not what we started with. Everything above this
     // line is round trips against Postgres.
     budgetMs: opts.budgetMs == null ? undefined : opts.budgetMs - (Date.now() - startedAt),

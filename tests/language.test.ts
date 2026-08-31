@@ -5,7 +5,10 @@ import {
   writerLanguageRules, briefLanguageRule,
   takeawaysLabelPattern, faqHeadingPattern,
   languageVerdict, isWrongLanguage, titleIsNative, languageCommand, languageRetryCommand,
+  strategyLanguageRule, autocompleteLocale, keywordVariants,
+  questionVariants, questionWordPattern,
 } from '../lib/language';
+import { classifyIntent } from '../lib/strategy/keywords';
 import { extractTakeaways } from '../lib/takeaways';
 import { extractFaq } from '../lib/faq';
 import { validatePost, blockingIssues } from '../lib/pipeline/validator';
@@ -488,5 +491,96 @@ describe('the directive that goes first in the user prompt', () => {
   it('the retry command names the failure outright', () => {
     expect(languageRetryCommand('ko')).toContain('NOT IN KOREAN');
     expect(languageRetryCommand('ko')).toContain('한국어');
+  });
+});
+
+/* ─────────────────────────────────────────────────────────────────────────
+   The strategy layer: one artifact, two languages, plus the keyword research
+   that was silently English no matter what the blog published in.
+   ───────────────────────────────────────────────────────────────────────── */
+
+describe('strategyLanguageRule', () => {
+  it('says nothing when everything is English', () => {
+    expect(strategyLanguageRule('en', 'en')).toBe('');
+  });
+
+  it('collapses to one instruction when both languages agree', () => {
+    const rule = strategyLanguageRule('ko', 'ko');
+    expect(rule).toContain('한국어');
+    expect(rule).toContain('WHOLE PLAN');
+    expect(rule).not.toContain('TWO LANGUAGES');
+  });
+
+  it('splits the plan when the blog and the owner differ', () => {
+    // A Korean founder selling to Americans: English titles, Korean reasoning.
+    const rule = strategyLanguageRule('en', 'ko');
+    expect(rule).toContain('TWO LANGUAGES');
+    expect(rule).toMatch(/pillar titles, slot titles, target keywords/);
+    expect(rule).toMatch(/goals[\s\S]*한국어|한국어[\s\S]*goals/);
+  });
+
+  it('keeps enum fields out of it in every form', () => {
+    for (const [pub, ui] of [['ko', 'ko'], ['en', 'ko'], ['ko', 'en']] as const) {
+      expect(strategyLanguageRule(pub, ui)).toContain('Enum-valued fields');
+    }
+  });
+});
+
+describe('keyword research follows the blog, not the machine', () => {
+  it('asks Google for suggestions in the blog language', () => {
+    // hl was hardcoded to 'en', so a Korean blog's plan chased English demand.
+    expect(autocompleteLocale('ko')).toBe('ko');
+    expect(autocompleteLocale('zh')).toBe('zh');   // zh-Hans → zh
+    expect(autocompleteLocale('en')).toBe('en');
+  });
+
+  it('expands a seed with the language\'s own modifiers', () => {
+    const ko = keywordVariants('원두', 'ko');
+    expect(ko).toContain('원두 방법');
+    expect(ko.join(' ')).not.toContain('how to');
+    expect(keywordVariants('beans', 'en')).toContain('how to beans');
+    expect(keywordVariants('café', 'es')).toContain('cómo café');
+  });
+
+  it('mines questions with the interrogative where the language puts it', () => {
+    expect(questionVariants('원두', 'ko')).toContain('원두 방법');
+    expect(questionVariants('beans', 'en')).toContain('what is beans');
+    // Korean and Chinese put it at the end, so the matcher can't anchor at ^.
+    expect(questionWordPattern('ko').test('원두 보관 방법')).toBe(true);
+    expect(questionWordPattern('en').test('원두 보관 방법')).toBe(false);
+    expect(questionWordPattern('en').test('how to store beans')).toBe(true);
+  });
+});
+
+describe('classifyIntent across languages', () => {
+  it('reads Korean commercial and transactional vocabulary', () => {
+    expect(classifyIntent('원두 가격', 'ko')).toBe('transactional');
+    expect(classifyIntent('원두 추천', 'ko')).toBe('commercial');
+    expect(classifyIntent('로그인', 'ko')).toBe('navigational');
+    expect(classifyIntent('원두 보관 방법', 'ko')).toBe('informational');
+  });
+
+  it('still reads English words inside a Korean query', () => {
+    // Product names and "best"/"vs" turn up in Korean queries constantly, so
+    // English is a second pass rather than being replaced.
+    expect(classifyIntent('best 커피 그라인더', 'ko')).toBe('commercial');
+  });
+
+  it('is unchanged for English', () => {
+    expect(classifyIntent('buy coffee beans')).toBe('transactional');
+    expect(classifyIntent('best coffee grinder')).toBe('commercial');
+    expect(classifyIntent('how to store beans')).toBe('informational');
+  });
+
+  it('classified every Korean keyword as informational before this', () => {
+    // The regression in one line: the English patterns match nothing in Korean,
+    // so the plan lost its commercial/transactional balance entirely.
+    const koCommercial = ['원두 추천', '그라인더 비교', '캡슐 후기'];
+    expect(koCommercial.map((k) => classifyIntent(k, 'en'))).toEqual(
+      ['informational', 'informational', 'informational'],
+    );
+    expect(koCommercial.map((k) => classifyIntent(k, 'ko'))).toEqual(
+      ['commercial', 'commercial', 'commercial'],
+    );
   });
 });

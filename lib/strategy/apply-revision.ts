@@ -10,6 +10,8 @@ import { PLAN_CHAT_LIMITS, reviseStrategy } from './plan-chat';
 import { savePlanContext } from './context-store';
 import { getQuota } from '../quota';
 import type { Strategy } from './build';
+import { languageForDomain } from '../language';
+import type { UiLocale } from '../i18n';
 
 export type PlanChatBudget = { messagesLeft: number; revisionsLeft: number };
 
@@ -59,6 +61,8 @@ export async function applyPlanRevision(opts: {
   postsPerWeek: number;
   strategyRow: any;          // the active strategies row (full select)
   instruction: string;
+  /** The owner's UI language — the reply and the plan's commentary. */
+  locale?: UiLocale;
 }): Promise<{ reply: string }> {
   const admin = supabaseAdmin();
   const { domainId, strategyRow } = opts;
@@ -75,7 +79,7 @@ export async function applyPlanRevision(opts: {
   // revised plan is capped at the allowance like every other plan. Resolved
   // here so both chat surfaces get it without threading it through each call.
   const { data: ownerRow } = await admin
-    .from('domains').select('user_id').eq('id', domainId).maybeSingle();
+    .from('domains').select('user_id, language').eq('id', domainId).maybeSingle();
   const ownerId = (ownerRow as { user_id?: string } | null)?.user_id;
   const monthlyQuota = ownerId ? (await getQuota(ownerId)).limit : null;
 
@@ -86,6 +90,8 @@ export async function applyPlanRevision(opts: {
     postsPerWeek: opts.postsPerWeek,
     lockedSlotIds,
     monthlyQuota,
+    lang: languageForDomain(ownerRow as any).code,
+    locale: opts.locale,
   });
 
   // Swap the active strategy row: deactivate old, insert revised.

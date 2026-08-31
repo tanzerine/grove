@@ -12,26 +12,41 @@
  * proceeds on the profile alone — exactly how it behaved before.
  */
 
+import {
+  keywordVariants, autocompleteLocale, INTENT_PATTERNS, normalizeLang,
+  questionVariants, questionWordPattern, type LangCode,
+} from '../language';
+
 export type SearchIntent = 'informational' | 'commercial' | 'transactional' | 'navigational';
 export type KeywordIdea = { keyword: string; intent: SearchIntent; score: number };
 
 // Each seed fans out into a few variants so we capture different intents, not
 // just the head term. Kept small on purpose — this runs inside a cron tick.
-function variantsFor(seed: string): string[] {
-  const s = seed.toLowerCase().trim();
-  return [s, `how to ${s}`, `best ${s}`, `${s} vs`, `${s} for`, `${s} examples`];
+/** Modifier phrases, per language — see lib/language.ts keywordVariants.
+ *  "how to X" harvests nothing for a Korean seed; "X 방법" does. */
+function variantsFor(seed: string, lang: LangCode): string[] {
+  return keywordVariants(seed, lang);
 }
 
 /** Classify a query's search intent from its wording. Order matters: the most
  *  commercial signal wins. */
-export function classifyIntent(kw: string): SearchIntent {
+export function classifyIntent(kw: string, lang: LangCode = 'en'): SearchIntent {
   const k = ` ${kw.toLowerCase()} `;
-  if (/\b(buy|price|pricing|cost|cheap|deal|discount|coupon|order|trial|subscribe|quote)\b/.test(k))
-    return 'transactional';
-  if (/\b(best|top|vs|versus|alternative|alternatives|review|reviews|compare|comparison|cheapest|software|tool|tools|services?|companies|vendors?)\b/.test(k))
-    return 'commercial';
-  if (/\b(login|log in|sign in|sign up|download|app|dashboard)\b/.test(k) || /\.[a-z]{2,}\b/.test(k))
-    return 'navigational';
+  const p = INTENT_PATTERNS[normalizeLang(lang)];
+  if (p.transactional.test(k)) return 'transactional';
+  if (p.commercial.test(k)) return 'commercial';
+  if (p.navigational.test(k)) return 'navigational';
+  // English commercial vocabulary turns up inside non-English queries too
+  // ("best", "vs", product names), so English stays a SECOND pass rather than
+  // a replacement. Without it every Korean keyword scored informational and
+  // the plan lost its commercial/transactional balance entirely.
+  if (normalizeLang(lang) !== 'en') {
+    const en = INTENT_PATTERNS.en;
+    if (en.transactional.test(k)) return 'transactional';
+    if (en.commercial.test(k)) return 'commercial';
+    if (en.navigational.test(k)) return 'navigational';
+  }
+  if (/\.[a-z]{2,}\b/.test(k)) return 'navigational';
   return 'informational';
 }
 
@@ -51,7 +66,7 @@ function usable(kw: string): boolean {
  * (earlier = more popular). Appearing under multiple variants accumulates,
  * which surfaces the phrases with the broadest demand.
  */
-export function rankSuggestions(lists: string[][], limit = 36): KeywordIdea[] {
+export function rankSuggestions(lists: string[][], limit = 36, lang: LangCode = 'en'): KeywordIdea[] {
   const scores = new Map<string, { score: number; display: string }>();
   for (const list of lists) {
     const n = list.length;
@@ -68,14 +83,17 @@ export function rankSuggestions(lists: string[][], limit = 36): KeywordIdea[] {
   return [...scores.values()]
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
-    .map(({ display, score }) => ({ keyword: display, intent: classifyIntent(display), score }));
+    .map(({ display, score }) => ({ keyword: display, intent: classifyIntent(display, lang), score }));
 }
 
-async function fetchAutocomplete(query: string, timeoutMs: number): Promise<string[]> {
+async function fetchAutocomplete(query: string, timeoutMs: number, hl: string): Promise<string[]> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const url = `https://suggestqueries.google.com/complete/search?client=firefox&hl=en&q=${encodeURIComponent(query)}`;
+    // `hl` was hardcoded to 'en', so a Korean blog's whole strategy was built
+    // from English search demand — keywords its readers never type. A display
+    // bug on the surface, a planning bug underneath.
+    const url = `https://suggestqueries.google.com/complete/search?client=firefox&hl=${encodeURIComponent(hl)}&q=${encodeURIComponent(query)}`;
     const res = await fetch(url, { signal: ctrl.signal });
     if (!res.ok) return [];
     // client=firefox returns ["query", ["suggestion 1", "suggestion 2", ...]]
@@ -94,17 +112,18 @@ async function fetchAutocomplete(query: string, timeoutMs: number): Promise<stri
  */
 export async function gatherKeywordDemand(
   seeds: string[],
-  opts: { maxSeeds?: number; limit?: number; timeoutMs?: number } = {},
+  opts: { maxSeeds?: number; limit?: number; timeoutMs?: number; lang?: LangCode } = {},
 ): Promise<KeywordIdea[]> {
-  const { maxSeeds = 4, limit = 36, timeoutMs = 4000 } = opts;
+  const { maxSeeds = 4, limit = 36, timeoutMs = 4000, lang = 'en' } = opts;
 
   // dedupe + cap seeds so the request fan-out stays bounded and polite
   const cleanSeeds = [...new Set(seeds.map((s) => s.toLowerCase().trim()).filter(Boolean))].slice(0, maxSeeds);
   if (!cleanSeeds.length) return [];
 
-  const queries = cleanSeeds.flatMap(variantsFor);
-  const lists = await Promise.all(queries.map((q) => fetchAutocomplete(q, timeoutMs)));
-  return rankSuggestions(lists, limit);
+  const queries = cleanSeeds.flatMap((seed) => variantsFor(seed, lang));
+  const hl = autocompleteLocale(lang);
+  const lists = await Promise.all(queries.map((q) => fetchAutocomplete(q, timeoutMs, hl)));
+  return rankSuggestions(lists, limit, lang);
 }
 
 /**
@@ -118,23 +137,21 @@ export async function gatherKeywordDemand(
  */
 export async function gatherQuestions(
   seed: string,
-  opts: { limit?: number; timeoutMs?: number } = {},
+  opts: { limit?: number; timeoutMs?: number; lang?: LangCode } = {},
 ): Promise<string[]> {
-  const { limit = 8, timeoutMs = 4000 } = opts;
+  const { limit = 8, timeoutMs = 4000, lang = 'en' } = opts;
   const s = seed.toLowerCase().trim();
   if (!s) return [];
 
-  const queries = [
-    `how to ${s}`, `what is ${s}`, `why ${s}`,
-    `${s} vs`, `is ${s}`, `can you ${s}`, `${s} for`,
-  ];
-  const lists = await Promise.all(queries.map((q) => fetchAutocomplete(q, timeoutMs)));
+  const queries = questionVariants(s, lang);
+  const lists = await Promise.all(queries.map((q) => fetchAutocomplete(q, timeoutMs, autocompleteLocale(lang))));
 
   // Rank by demand, then keep the genuinely question/subtopic-shaped phrases:
-  // either they open with an interrogative or they meaningfully extend the seed
-  // (i.e. add detail beyond the bare term).
-  const QUESTION_WORD = /^(how|what|why|when|where|which|who|can|do|does|is|are|should)\b/i;
-  return rankSuggestions(lists, limit * 3)
+  // either they carry an interrogative or they meaningfully extend the seed
+  // (i.e. add detail beyond the bare term). Korean and Chinese put the
+  // interrogative at the end of the phrase, so the pattern is per-language.
+  const QUESTION_WORD = questionWordPattern(lang);
+  return rankSuggestions(lists, limit * 3, lang)
     .map((idea) => idea.keyword)
     .filter((kw) => QUESTION_WORD.test(kw) || kw.length > s.length + 3)
     .slice(0, limit);

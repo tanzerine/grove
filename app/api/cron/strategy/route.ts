@@ -78,7 +78,7 @@ export async function GET(req: Request) {
   // Verified only: an unverified domain can't publish, so planning for it just
   // spends the budget. `created_at` remains the tiebreak, so the order is still
   // deterministic once every domain has been attempted the same number of times.
-  const base = 'id,hostname,posts_per_week,site_profile,interview,user_id';
+  const base = 'id,hostname,posts_per_week,site_profile,interview,user_id,language';
   const withAttempts = await sb
     .from('domains')
     .select(`${base},${ATTEMPT_COLUMNS}`)

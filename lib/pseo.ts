@@ -44,7 +44,7 @@ export async function planProgrammaticSet(
 
   const demand = await gatherKeywordDemand(
     [clean, ...(profile.business.products_services ?? [])],
-    { maxSeeds: 3, limit: 40 },
+    { maxSeeds: 3, limit: 40, lang },
   );
 
   // Prefer phrases that actually contain the seed so the set stays coherent.

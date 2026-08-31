@@ -21,6 +21,8 @@
 import { strategyLlmCall, fastLlmCall, llmCall, extractJson } from '../llm';
 import { normalizeStrategy, type Strategy } from './build';
 import { monthlySlots } from '../plans';
+import { language, strategyLanguageRule, type LangCode } from '../language';
+import type { UiLocale } from '../i18n';
 
 export const PLAN_CHAT_LIMITS = {
   messagesPerMonth: 40,    // total owner messages (questions are near-free, this stops abuse)
@@ -62,7 +64,14 @@ export async function answerPlanQuestion(opts: {
   message: string;
   contextMd: string;           // plan memo + progress log, already token-capped
   hostname: string;
+  /** The owner's UI language. This is a conversation with them, not content —
+   *  it follows what they read grove in, not what the blog publishes in. */
+  locale?: UiLocale;
 }): Promise<string> {
+  const chatLang = language(opts.locale ?? 'en');
+  // First line of the USER turn, not the system prompt: see lib/language.ts.
+  const langCommand = chatLang.code === 'en' ? '' :
+    `!! REPLY IN ${chatLang.englishName.toUpperCase()} (${chatLang.nativeName}) !!\nThe plan memo below is in whatever language it was written in; your ANSWER is for the owner and must be ${chatLang.nativeName}. Numbers, metric names and article titles stay as they are.\n\n`;
   const system = `You are Grove, the marketing agent running the blog for ${opts.hostname}.
 The owner is asking about the current plan. Answer from the plan memo and
 progress log below — concretely, in 1-4 short sentences, plain language, no
@@ -74,11 +83,11 @@ PLAN MEMO + PROGRESS LOG
 ${opts.contextMd}`;
 
   try {
-    const { text } = await fastLlmCall({ system, user: opts.message, maxTokens: 400 });
+    const { text } = await fastLlmCall({ system, user: `${langCommand}${opts.message}`, maxTokens: 400 });
     return text.trim();
   } catch {
     // Fast model down → workhorse model, still never the strategist tier.
-    const { text } = await llmCall({ system, user: opts.message, maxTokens: 400 });
+    const { text } = await llmCall({ system, user: `${langCommand}${opts.message}`, maxTokens: 400 });
     return text.trim();
   }
 }
@@ -115,8 +124,14 @@ export async function reviseStrategy(opts: {
   postsPerWeek: number;
   lockedSlotIds?: string[];    // slots with a post already drafted/published
   monthlyQuota?: number | null; // plan allowance; the revision can't exceed it
+  /** Blog's publication language — anything edited here that becomes an
+   *  article (slot topics, pillar titles, keywords) must stay in it. */
+  lang?: LangCode;
+  /** Owner's UI language — the reply and the plan's commentary. */
+  locale?: UiLocale;
 }): Promise<RevisionOutcome> {
   const { current, instruction, hostname, postsPerWeek, lockedSlotIds = [], monthlyQuota = null } = opts;
+  const langRule = strategyLanguageRule(opts.lang ?? 'en', opts.locale ?? opts.lang ?? 'en');
 
   const system = `You are the strategist agent for the ${hostname} blog. The owner
 wants to change the ACTIVE monthly plan. Apply their instruction as a surgical
@@ -139,7 +154,8 @@ OUTPUT: ONE raw JSON object, no markdown:
 { "reply": "1-3 plain sentences confirming exactly what changed",
   "strategy": { month, goals, kpis, pillars, publishing_plan, direction, notes } }`;
 
-  const user = `CURRENT PLAN:\n${planForPrompt(current)}\n\nOWNER'S CHANGE REQUEST:\n${instruction}`;
+  // Language first in the user turn, as everywhere else in this codebase.
+  const user = `${langRule ? `${langRule}\n\n` : ''}CURRENT PLAN:\n${planForPrompt(current)}\n\nOWNER'S CHANGE REQUEST:\n${instruction}${langRule ? `\n\nWrite "reply" in the language the owner reads grove in.` : ''}`;
 
   const { text } = await strategyLlmCall({ system, user, maxTokens: 4500 });
   const parsed = extractJson<{ reply?: string; strategy?: Strategy }>(text);

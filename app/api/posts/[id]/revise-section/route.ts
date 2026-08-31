@@ -5,6 +5,7 @@ import { reviseSection } from '@/lib/pipeline/revise';
 import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
 import { enforceEntitlement } from '@/lib/billing';
 import { captureServer } from '@/lib/analytics/capture-server';
+import { languageForDomain } from '@/lib/language';
 
 export const maxDuration = 60;
 
@@ -31,12 +32,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   const { id } = await ctx.params;
   // RLS scopes this to the owner's post.
-  const { data: post } = await sb.from('posts').select('id, domains(site_profile)').eq('id', id).single();
+  const { data: post } = await sb.from('posts').select('id, domains(site_profile, language)').eq('id', id).single();
   if (!post) return NextResponse.json({ error: 'not found' }, { status: 404 });
 
   const profile = (post as any).domains?.site_profile ?? null;
   try {
-    const revised = await reviseSection({ ...parsed.data, profile });
+    const revised = await reviseSection({
+      ...parsed.data, profile, lang: languageForDomain((post as any).domains).code,
+    });
     if (!revised) return NextResponse.json({ ok: false, error: 'empty result' }, { status: 502 });
     await captureServer(user.id, 'post_section_revised', { post_id: id });
     return NextResponse.json({ ok: true, revised });
