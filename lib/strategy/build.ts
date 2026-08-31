@@ -20,6 +20,8 @@ import { titleTokens } from '../related-posts';
 import { gatherKeywordDemand, formatDemandForPrompt } from './keywords';
 import { monthlySlots } from '../plans';
 import type { MonthlyReport } from './review';
+import { language, strategyLanguageRule, type LangCode } from '../language';
+import type { UiLocale } from '../i18n';
 
 export { assignPublishDates };   // re-exported for back-compat
 
@@ -136,6 +138,13 @@ export type BuildStrategyInput = {
   // this caps how much of it we actually plan — slots past the allowance would
   // only be deferred as over-quota. Omit (or null) to plan on cadence alone.
   monthlyQuota?: number | null;
+  /** What the blog PUBLISHES in — pillar titles, slot titles and target
+   *  keywords are handed to the writer verbatim, so they must be in it. */
+  lang?: LangCode;
+  /** What the OWNER reads grove in — goals, promises and notes are addressed
+   *  to them and never published. Defaults to `lang` when omitted, which is
+   *  the common case (a Korean blog run from a Korean dashboard). */
+  uiLocale?: UiLocale;
 };
 
 /**
@@ -216,6 +225,8 @@ export async function buildStrategy(input: BuildStrategyInput): Promise<Strategy
     slotsForRemainder(postsPerWeek, month),
   );
   const isFirstMonth = !prevStrategy && !prevReport?.totals?.views;
+  const pubLang = language(input.lang);
+  const ownerLocale = input.uiLocale ?? pubLang.code;
 
   // VALIDATED DEMAND — pull real search phrases (free, via Google Autocomplete)
   // for the business's own products/industry/value props. This grounds the
@@ -228,7 +239,8 @@ export async function buildStrategy(input: BuildStrategyInput): Promise<Strategy
   ].map((s) => (s ?? '').trim()).filter(Boolean);
   let demandBlock = '(none captured — plan from the business profile)';
   try {
-    const demand = await gatherKeywordDemand(seeds, { maxSeeds: 4, limit: 36 });
+    // In the publication language: this is the demand the articles will chase.
+    const demand = await gatherKeywordDemand(seeds, { maxSeeds: 4, limit: 36, lang: pubLang.code });
     demandBlock = formatDemandForPrompt(demand);
   } catch { /* demand is best-effort signal */ }
 
@@ -299,7 +311,11 @@ DON'T
 
 OUTPUT: ONE raw JSON object. No markdown. No prose. No code fences.`;
 
-  const user = `MONTH: ${month}
+  // The language command goes FIRST in the user prompt — the lesson from the
+  // article pipeline, where the same instruction at the tail of a system prompt
+  // was ignored by all three models.
+  const langRule = strategyLanguageRule(pubLang.code, ownerLocale);
+  const user = `${langRule ? `${langRule}\n\n` : ''}MONTH: ${month}
 POSTS THIS MONTH (target): ${monthlyPostCount}
 
 BUSINESS
@@ -366,7 +382,14 @@ Produce the new strategy as JSON:
   "notes": "1-2 sentences on what this month does differently than last (or 'first month' if none)."
 }
 
-publishing_plan should contain exactly ${monthlyPostCount} slots, distributed across pillars in proportion to each pillar's importance.`;
+publishing_plan should contain exactly ${monthlyPostCount} slots, distributed across pillars in proportion to each pillar's importance.${langRule ? `
+
+WHICH LANGUAGE EACH FIELD TAKES
+- ${pubLang.nativeName} (it becomes an article): pillars[].title, publishing_plan[].topic, publishing_plan[].target_keyword
+- ${language(ownerLocale).nativeName} (the owner reads it): goals[].title, goals[].why, kpis[].note, pillars[].audience, pillars[].promise, publishing_plan[].notes, direction.month, direction.weeks[], notes
+- unchanged: every id, every date, source, metric, intent, intent_mix
+
+${langRule}` : ''}`;
 
   const { text, model } = await strategyLlmCall({ system, user, maxTokens: PLAN_MAX_TOKENS, budgetMs: input.budgetMs });
   const parsed = extractJson<Strategy>(text);

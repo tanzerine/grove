@@ -20,6 +20,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import { ensureMonthlyStrategy } from '@/lib/strategy/ensure';
 import { profileSite, type SiteProfile } from '@/lib/pipeline/site-profile';
 import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
+import { getUiLocale } from '@/lib/i18n/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -48,7 +49,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   // ownership check + load profile in one shot
   const { data: domain } = await sb
     .from('domains')
-    .select('id, hostname, posts_per_week, site_profile, verified_at')
+    .select('id, hostname, posts_per_week, site_profile, verified_at, language')
     .eq('id', id)
     .eq('user_id', user.id)
     .maybeSingle();
@@ -120,8 +121,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         site_profile: profile,
         interview: answers,
         user_id: user.id,
+        language: (domain as any).language,
       },
-      { replaceActive: true, profileFallback: true, budgetMs: maxDuration * 1000 },
+      {
+        replaceActive: true, profileFallback: true, budgetMs: maxDuration * 1000,
+        // A request has a signed-in owner, so the plan's commentary can be
+        // written in the language they read grove in.
+        uiLocale: await getUiLocale(),
+      },
     );
     strategyBuilt = result === 'created';
     if (!strategyBuilt) reason = result;

@@ -50,7 +50,7 @@ export async function gatherContext(
     webSearch(lg.queries.competitor(topic), 3),
     webSearch(lg.queries.pain(topic, audience), 3),
     // Free PAA proxy — what people actually ask about this exact query.
-    gatherQuestions(kw || topic, { limit: 8 }).catch(() => [] as string[]),
+    gatherQuestions(kw || topic, { limit: 8, lang }).catch(() => [] as string[]),
     // Real SERP analysis — what the live top-ranking pages cover (one advanced
     // Tavily call; fail-soft + env-gated inside analyzeSerp).
     analyzeSerp(kw || topic).catch(() => ({ subtopics: [], headings: [] } as SerpCoverage)),

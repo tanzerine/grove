@@ -229,6 +229,24 @@ wrapped in React `cache()`). The switcher lives in the account menu.
 - The agent's own replies follow the UI language too (`answerAssistant`,
   `composeBrief`) — and the language command goes FIRST IN THE USER PROMPT, for
   exactly the reason recorded under Publication language.
+- **The strategy is the one artifact with TWO languages.** Pillar titles, slot
+  topics and target keywords become articles, so they follow
+  `domains.language`; goals, promises, notes and the strategist's replies are
+  addressed to the owner, so they follow the UI language.
+  `strategyLanguageRule(pub, ui)` writes the field-by-field instruction and
+  collapses to one language when the two agree (the common case).
+- **Keyword research was English no matter what the blog published in** — a
+  planning bug, not a display one. `gatherKeywordDemand` pinned Google
+  Autocomplete to `hl=en`, `variantsFor` appended "how to"/"best", and
+  `classifyIntent`'s English regexes matched nothing in Korean, so every
+  Korean keyword scored `informational` and the plan lost its
+  commercial/transactional balance. All three are per-language now
+  (`autocompleteLocale`, `keywordVariants`, `INTENT_PATTERNS`), and English
+  stays a SECOND pass for intent because "best"/"vs"/product names appear
+  inside non-English queries constantly.
+- Topic suggestions (`/api/topics/suggest`) follow the PUBLICATION language,
+  LLM path and offline templates alike: a suggestion the owner queues becomes
+  an article title verbatim.
 - Deliberately NOT translated: `/dashboard/admin/*` (only the operator sees it)
   and the marketing landing page (a voice decision, not an engineering one).
 

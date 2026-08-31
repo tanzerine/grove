@@ -385,12 +385,17 @@ describe('list_sites', () => {
 });
 
 describe('post_analytics', () => {
+  // post_analytics windows on the last N days (default 30), so fixtures dated
+  // by hand expire: these were '2026-08-01' and started failing on 2026-08-31,
+  // a month after they were written, for no reason connected to the code.
+  const recently = new Date(Date.now() - 2 * 86400_000).toISOString();
+
   it('counts readers by session, not by raw beacon', async () => {
     events = [
-      { type: 'view', session_id: 's1', referrer_host: 'google.com', utm_source: null, scroll_depth: null, dwell_ms: null, domain_id: 'd1', post_id: 'p1', created_at: '2026-08-01' },
-      { type: 'dwell', session_id: 's1', referrer_host: 'google.com', utm_source: null, scroll_depth: null, dwell_ms: 30000, domain_id: 'd1', post_id: 'p1', created_at: '2026-08-01' },
-      { type: 'scroll', session_id: 's1', referrer_host: 'google.com', utm_source: null, scroll_depth: 75, dwell_ms: null, domain_id: 'd1', post_id: 'p1', created_at: '2026-08-01' },
-      { type: 'view', session_id: 's2', referrer_host: 'chatgpt.com', utm_source: null, scroll_depth: null, dwell_ms: null, domain_id: 'd1', post_id: 'p1', created_at: '2026-08-01' },
+      { type: 'view', session_id: 's1', referrer_host: 'google.com', utm_source: null, scroll_depth: null, dwell_ms: null, domain_id: 'd1', post_id: 'p1', created_at: recently },
+      { type: 'dwell', session_id: 's1', referrer_host: 'google.com', utm_source: null, scroll_depth: null, dwell_ms: 30000, domain_id: 'd1', post_id: 'p1', created_at: recently },
+      { type: 'scroll', session_id: 's1', referrer_host: 'google.com', utm_source: null, scroll_depth: 75, dwell_ms: null, domain_id: 'd1', post_id: 'p1', created_at: recently },
+      { type: 'view', session_id: 's2', referrer_host: 'chatgpt.com', utm_source: null, scroll_depth: null, dwell_ms: null, domain_id: 'd1', post_id: 'p1', created_at: recently },
     ];
     const r = json(await call('post_analytics', { site: 'acme.com' }));
     // One engaged reader firing three beacons is one reader.

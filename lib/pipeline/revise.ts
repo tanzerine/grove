@@ -5,14 +5,19 @@
  */
 import { llmCall } from '../llm';
 import type { SiteProfile } from './site-profile';
+import { language, type LangCode } from '../language';
 
 export async function reviseSection(opts: {
   selected: string;
   instruction: string;
   context?: string;
   profile?: SiteProfile | null;
+  /** The blog's publication language. This rewrites prose that will be
+   *  published, so it follows the article, not the owner's dashboard. */
+  lang?: LangCode;
 }): Promise<string> {
   const { selected, instruction, context = '', profile } = opts;
+  const lg = language(opts.lang);
   const business = profile?.business;
   const voice = profile?.voice;
 
@@ -29,7 +34,9 @@ RULES
 - Match the surrounding prose style. Don't add headings or list syntax unless the original passage had them.
 - Don't invent statistics, quotes, or citations.`;
 
-  const user = `ARTICLE CONTEXT (for tone + consistency only — do NOT rewrite this):
+  const langCommand = lg.code === 'en' ? '' :
+    `!! THE ARTICLE IS IN ${lg.englishName.toUpperCase()} (${lg.nativeName}) — RETURN ${lg.nativeName} !!\nThe instruction may be written in another language; the REWRITTEN PASSAGE must stay in ${lg.nativeName}.\n\n`;
+  const user = `${langCommand}ARTICLE CONTEXT (for tone + consistency only — do NOT rewrite this):
 ${context.slice(0, 6000)}
 
 PASSAGE TO REVISE:

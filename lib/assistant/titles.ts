@@ -13,6 +13,7 @@
  */
 import { llmCall, extractJson } from '../llm';
 import type { ContentRow } from '../search-console/insights';
+import { language, type LangCode } from '../language';
 
 export const TITLE_LIMITS = {
   minImpressions: 50,   // below this a low CTR is noise, not signal
@@ -71,7 +72,10 @@ export function sanitizeRewrites(
 export async function rewriteTitles(opts: {
   hostname: string;
   candidates: TitleCandidate[];
+  /** The blog's publication language — these titles are already live on it. */
+  lang?: LangCode;
 }): Promise<TitleRewrite[]> {
+  const lg = language(opts.lang);
   const system = `You are the SEO editor for the ${opts.hostname} blog. Each article below
 already ranks — Google shows it, but searchers don't click. Rewrite each
 title so a searcher picks it, without breaking what already ranks:
@@ -79,13 +83,15 @@ title so a searcher picks it, without breaking what already ranks:
 - Keep the article's topic and primary keyword intact and near the front.
 - Make the value concrete (outcome, number, freshness) — compelling, never
   clickbait, no ALL CAPS, no emoji.
-- 45-65 characters. Keep the original language (Korean stays Korean).
+- 45-65 characters. Write in ${lg.nativeName} — the language the blog publishes in.
 - If a title is genuinely fine, return it unchanged and it will be skipped.
 
 OUTPUT: ONE raw JSON object, no markdown:
 {"titles":[{"post_id":"...","title":"the rewritten title"}]}`;
 
-  const user = opts.candidates.map((c) =>
+  const langCommand = lg.code === 'en' ? '' :
+    `!! REWRITE THE TITLES IN ${lg.englishName.toUpperCase()} (${lg.nativeName}) !!\nThese are live article titles on a ${lg.nativeName} blog. A rewritten title in any other language changes the article's language mid-flight.\n\n`;
+  const user = langCommand + opts.candidates.map((c) =>
     `post_id: ${c.postId}\ncurrent title: ${c.title}\nimpressions: ${c.impressions}, clicks: ${c.clicks} (CTR ${(c.ctr * 100).toFixed(1)}%), avg position ${c.position.toFixed(1)}`,
   ).join('\n\n');
 

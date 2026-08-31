@@ -683,3 +683,129 @@ the takeaways, the FAQ. An English draft will be discarded again. If the brief's
 title is in English, render its MEANING as a natural ${l.nativeName} headline —
 do not copy the English words.`;
 }
+
+/* ────────────────── strategy: two languages at once ─────────────────────── */
+
+/**
+ * The strategy is the one artifact that legitimately needs BOTH languages.
+ *
+ * Its pillar titles, slot titles and target keywords become articles — they
+ * have to be in the language the blog publishes in, or the writer starts from
+ * an English headline and drifts. Its goals and notes are commentary the owner
+ * reads and nobody publishes — those belong in the language they run grove in.
+ * A Korean founder with an English blog should get English titles under Korean
+ * reasoning, and today gets English for both.
+ *
+ * When the two languages agree (the common case) this collapses to a single
+ * instruction, and for an all-English account it returns '' like every other
+ * language fragment here.
+ */
+export function strategyLanguageRule(
+  publication: LangCode | Language,
+  ui: LangCode | Language,
+): string {
+  const pub = typeof publication === 'string' ? LANGUAGES[normalizeLang(publication)] : publication;
+  const owner = typeof ui === 'string' ? LANGUAGES[normalizeLang(ui)] : ui;
+  if (pub.code === 'en' && owner.code === 'en') return '';
+
+  if (pub.code === owner.code) {
+    return `!! WRITE THE WHOLE PLAN IN ${pub.englishName.toUpperCase()} (${pub.nativeName}) !!
+Every string a person will read — goals, pillar titles, promises, slot titles,
+target keywords, notes — in ${pub.nativeName}. The business profile and this
+instruction are in English because the SYSTEM is English, not the plan.
+Enum-valued fields (format, marketing_intent, dates, ids) keep their given values.`;
+  }
+
+  return `!! THIS PLAN IS WRITTEN IN TWO LANGUAGES — READ CAREFULLY !!
+- The blog PUBLISHES in ${pub.englishName} (${pub.nativeName}). Anything that becomes an
+  article must be in ${pub.nativeName}: pillar titles, slot titles, target keywords.
+  These are handed to the writer verbatim.
+- The owner READS grove in ${owner.englishName} (${owner.nativeName}). Anything addressed to
+  them must be in ${owner.nativeName}: goals, pillar promises and audiences, notes,
+  and any reasoning you give.
+- Enum-valued fields (format, marketing_intent, dates, ids) keep their given values.`;
+}
+
+/**
+ * Google Autocomplete's `hl` parameter. Keyword demand was fetched with a
+ * hardcoded `hl=en`, so a Korean blog's whole strategy was planned against
+ * English search demand — a data bug wearing a translation bug's clothes.
+ */
+export function autocompleteLocale(lang: LangCode | Language): string {
+  const l = typeof lang === 'string' ? LANGUAGES[normalizeLang(lang)] : lang;
+  return l.tag.split('-')[0];
+}
+
+/**
+ * The modifier phrases appended to a seed when harvesting autocomplete.
+ * "how to X" returns nothing useful for a Korean seed; "X 방법" does.
+ */
+export function keywordVariants(seed: string, lang: LangCode | Language): string[] {
+  const l = typeof lang === 'string' ? LANGUAGES[normalizeLang(lang)] : lang;
+  const s = seed.toLowerCase().trim();
+  switch (l.code) {
+    case 'ko': return [s, `${s} 방법`, `${s} 추천`, `${s} 비교`, `${s} 후기`, `${s} 가격`];
+    case 'zh': return [s, `${s} 怎么做`, `${s} 推荐`, `${s} 对比`, `${s} 教程`, `${s} 价格`];
+    case 'es': return [s, `cómo ${s}`, `mejor ${s}`, `${s} vs`, `${s} para`, `${s} ejemplos`];
+    default:   return [s, `how to ${s}`, `best ${s}`, `${s} vs`, `${s} for`, `${s} examples`];
+  }
+}
+
+/**
+ * Search-intent vocabulary per language. The English patterns match nothing in
+ * a Korean query, so every Korean keyword classified as `informational` and
+ * the plan lost its commercial/transactional balance entirely.
+ */
+export const INTENT_PATTERNS: Record<LangCode, {
+  transactional: RegExp; commercial: RegExp; navigational: RegExp;
+}> = {
+  en: {
+    transactional: /\b(buy|price|pricing|cost|cheap|deal|discount|coupon|order|trial|subscribe|quote)\b/,
+    commercial: /\b(best|top|vs|versus|alternative|alternatives|review|reviews|compare|comparison|cheapest|software|tool|tools|services?|companies|vendors?)\b/,
+    navigational: /\b(login|log in|sign in|sign up|download|app|dashboard)\b/,
+  },
+  ko: {
+    transactional: /(가격|요금|비용|할인|쿠폰|구매|주문|결제|무료체험|견적)/,
+    commercial: /(추천|비교|후기|리뷰|순위|best|대안|업체|솔루션|툴|도구|서비스)/,
+    navigational: /(로그인|가입|다운로드|앱|대시보드)/,
+  },
+  es: {
+    transactional: /\b(comprar|precio|precios|coste|costo|barato|oferta|descuento|cupón|pedido|prueba|presupuesto)\b/,
+    commercial: /\b(mejor|mejores|top|vs|versus|alternativa|alternativas|reseña|reseñas|comparar|comparativa|software|herramienta|herramientas|servicios?|empresas|proveedores?)\b/,
+    navigational: /\b(iniciar sesión|acceder|registrarse|descargar|aplicación|panel)\b/,
+  },
+  zh: {
+    transactional: /(价格|费用|多少钱|便宜|优惠|折扣|购买|下单|试用|报价)/,
+    commercial: /(最好|最佳|推荐|对比|比较|评测|测评|排行|替代|软件|工具|服务|厂商)/,
+    navigational: /(登录|注册|下载|应用|后台|控制台)/,
+  },
+};
+
+/**
+ * Interrogative prefixes for mining "people also ask"-style long tails, and
+ * the pattern that recognises a question in the results. Both were English
+ * only, so a Korean article's FAQ was seeded from English questions and then
+ * filtered by an English question-word list that matched none of them.
+ */
+export function questionVariants(seed: string, lang: LangCode | Language): string[] {
+  const l = typeof lang === 'string' ? LANGUAGES[normalizeLang(lang)] : lang;
+  const s = seed.toLowerCase().trim();
+  switch (l.code) {
+    case 'ko': return [`${s} 방법`, `${s} 란`, `${s} 왜`, `${s} 비교`, `${s} 언제`, `${s} 차이`, `${s} 어떻게`];
+    case 'zh': return [`${s} 怎么`, `${s} 是什么`, `${s} 为什么`, `${s} 对比`, `${s} 什么时候`, `${s} 区别`, `${s} 如何`];
+    case 'es': return [`cómo ${s}`, `qué es ${s}`, `por qué ${s}`, `${s} vs`, `cuándo ${s}`, `${s} para`, `se puede ${s}`];
+    default:   return [`how to ${s}`, `what is ${s}`, `why ${s}`, `${s} vs`, `is ${s}`, `can you ${s}`, `${s} for`];
+  }
+}
+
+export function questionWordPattern(lang: LangCode | Language): RegExp {
+  const l = typeof lang === 'string' ? LANGUAGES[normalizeLang(lang)] : lang;
+  switch (l.code) {
+    // Korean and Chinese put the interrogative at the END, so this is a
+    // "contains", not a "starts with" — the English pattern anchored at ^.
+    case 'ko': return /(방법|왜|어떻게|무엇|뭐|언제|어디|차이|비교|인가요|나요|까요)/;
+    case 'zh': return /(怎么|如何|什么|为什么|哪个|哪些|何时|区别|对比|吗)/;
+    case 'es': return /^(cómo|qué|por qué|cuándo|dónde|cuál|quién|puede|se puede|es|son)\b/i;
+    default:   return /^(how|what|why|when|where|which|who|can|do|does|is|are|should)\b/i;
+  }
+}

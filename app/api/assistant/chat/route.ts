@@ -32,6 +32,7 @@ import { approveAndPublish } from '@/lib/pipeline/approve';
 import { gatherSignals, signalsBlock } from '@/lib/assistant/context';
 import { relevantKnowledge } from '@/lib/assistant/knowledge';
 import { getUiLocale } from '@/lib/i18n/server';
+import { languageForDomain } from '@/lib/language';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -225,7 +226,9 @@ export async function POST(req: Request) {
         });
       }
 
-      const rewrites = await rewriteTitles({ hostname: domain.hostname, candidates });
+      const rewrites = await rewriteTitles({
+        hostname: domain.hostname, candidates, lang: languageForDomain(domain as any).code,
+      });
       if (!rewrites.length) {
         return ok({
           intent, thought: 'The rewrites did not beat the originals.',

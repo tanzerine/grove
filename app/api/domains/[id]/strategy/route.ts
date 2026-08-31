@@ -14,6 +14,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { ensureMonthlyStrategy } from '@/lib/strategy/ensure';
 import { profileSite, type SiteProfile } from '@/lib/pipeline/site-profile';
 import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
+import { getUiLocale } from '@/lib/i18n/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -31,7 +32,7 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
 
   const { data: domain } = await sb
     .from('domains')
-    .select('id, hostname, posts_per_week, site_profile, interview, verified_at')
+    .select('id, hostname, posts_per_week, site_profile, interview, verified_at, language')
     .eq('id', id)
     .eq('user_id', user.id)
     .maybeSingle();
@@ -66,10 +67,16 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
         site_profile: profile,
         interview: (domain as any).interview,
         user_id: user.id,
+        language: (domain as any).language,
       },
       // A plan the owner is waiting on is worth building from their answers
       // alone; 'exists' is a fine answer, so nothing is replaced here.
-      { profileFallback: true, budgetMs: maxDuration * 1000 },
+      {
+        profileFallback: true, budgetMs: maxDuration * 1000,
+        // A request has a signed-in owner, so the plan's commentary can be
+        // written in the language they read grove in.
+        uiLocale: await getUiLocale(),
+      },
     );
     return NextResponse.json({ ok: true, result, built: result === 'created' || result === 'exists' });
   } catch (err: any) {

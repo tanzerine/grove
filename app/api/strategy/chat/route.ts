@@ -22,6 +22,8 @@ import {
 } from '@/lib/strategy/plan-chat';
 import { planChatBudget, applyPlanRevision } from '@/lib/strategy/apply-revision';
 import { enforceEntitlement } from '@/lib/billing';
+import { getUiLocale } from '@/lib/i18n/server';
+import { createT } from '@/lib/i18n';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -106,10 +108,13 @@ export async function POST(req: Request) {
   const kind = classifyPlanMessage(message);
   let reply: string;
   let revised = false;
+  // The owner's UI language: this whole surface is grove talking to them.
+  const locale = await getUiLocale();
+  const t = createT(locale);
 
   try {
     if (kind === 'revision' && budget.revisionsLeft <= 0) {
-      reply = `This month's plan-revision budget is used up (${PLAN_CHAT_LIMITS.revisionsPerMonth} revisions). I can still answer questions about the plan, and the monthly re-plan on the 1st takes your notes into account.`;
+      reply = t("This month's plan-revision budget is used up ({n} revisions). I can still answer questions about the plan, and the monthly re-plan on the 1st takes your notes into account.", { n: PLAN_CHAT_LIMITS.revisionsPerMonth });
     } else if (kind === 'revision') {
       const outcome = await applyPlanRevision({
         domainId: domain_id,
@@ -117,6 +122,7 @@ export async function POST(req: Request) {
         postsPerWeek: (domain as any).posts_per_week ?? 4,
         strategyRow,
         instruction: message,
+        locale,
       });
       reply = outcome.reply;
       revised = true;
@@ -127,11 +133,12 @@ export async function POST(req: Request) {
         message,
         contextMd: contextForPrompt(ctx.plan_md, ctx.progress_md),
         hostname: domain.hostname,
+        locale,
       });
     }
   } catch (err: any) {
     console.error('[plan-chat]', err);
-    reply = 'I hit a snag processing that — the plan is unchanged. Try again in a moment.';
+    reply = t('I hit a snag processing that — the plan is unchanged. Try again in a moment.');
   }
 
   await admin.from('plan_chat_messages').insert({
