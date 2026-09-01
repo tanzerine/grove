@@ -29,6 +29,15 @@ export type Format = (typeof FORMATS)[number];
 export const FRONTMATTER_STYLES = ['yaml', 'none'] as const;
 export type FrontmatterStyle = (typeof FRONTMATTER_STYLES)[number];
 
+/** What `posts.cover_image_credit` holds. Every field optional: it has had two
+ *  shapes over the product's life and both are still in the table. */
+export type CoverCredit = {
+  name?: string | null;
+  source?: string | null;
+  model?: string | null;
+  profile_url?: string | null;
+};
+
 /** The article as the formatters need it — a plain object, not a DB row. */
 export type ContentPost = {
   id: string;
@@ -40,7 +49,11 @@ export type ContentPost = {
   published_at?: string | null;
   updated_at?: string | null;
   cover_image_url?: string | null;
-  cover_image_credit?: string | null;
+  /** `posts.cover_image_credit` is a JSON object — `{name, source, model}` from
+   *  the image pipeline, `{name, profile_url}` on older stock covers. It was
+   *  typed `string` here, and the test fixture obeyed the type, so nothing ever
+   *  saw what production actually stores. */
+  cover_image_credit?: CoverCredit | string | null;
   author?: string | null;
   genre?: string | null;
   canonical_url?: string | null;
@@ -88,6 +101,11 @@ function yamlValue(v: unknown): string | null {
     const items = v.filter((x) => x !== null && x !== undefined && x !== '').map((x) => yamlString(String(x)));
     return items.length ? `[${items.join(', ')}]` : null;
   }
+  // An object here would serialise as the literal "[object Object]" — which is
+  // how `cover_credit: "[object Object]"` reached a real customer's frontmatter.
+  // Dropping the field is always better: a missing key is something a template
+  // can test for, a poisoned one renders as garbage on the page.
+  if (typeof v === 'object') return null;
   return yamlString(String(v));
 }
 
@@ -159,6 +177,27 @@ export function bodyFor(post: ContentPost): string {
  * the existing entry instead of creating a duplicate when the slug has been
  * edited on the customer's side.
  */
+/**
+ * The credit as one line of text, because frontmatter is a display field.
+ *
+ * The structured object is not lost — `pull_new` and `get_post` return
+ * `cover_image_credit` whole in the article envelope, so an agent that wants
+ * the model or the source still has it. What goes in the file is what a reader
+ * sees under the image, and that is a sentence.
+ *
+ * Attribution survives: a stock credit carrying `profile_url` keeps it, since
+ * dropping the link is exactly what the licence forbids.
+ */
+export function creditLine(credit: unknown): string | null {
+  if (typeof credit === 'string') return credit.trim() || null;
+  if (!credit || typeof credit !== 'object' || Array.isArray(credit)) return null;
+  const c = credit as CoverCredit;
+  const name = typeof c.name === 'string' ? c.name.trim() : '';
+  if (!name) return null;
+  const url = typeof c.profile_url === 'string' ? c.profile_url.trim() : '';
+  return url ? `${name} (${url})` : name;
+}
+
 export function frontmatterFields(post: ContentPost): Record<string, unknown> {
   return {
     title: post.meta_title || post.title,
@@ -169,7 +208,7 @@ export function frontmatterFields(post: ContentPost): Record<string, unknown> {
     author: post.author ?? null,
     genre: post.genre ?? null,
     cover: post.cover_image_url ?? null,
-    cover_credit: post.cover_image_credit ?? null,
+    cover_credit: creditLine(post.cover_image_credit),
     canonical: post.canonical_url ?? null,
     grove_id: post.id,
   };

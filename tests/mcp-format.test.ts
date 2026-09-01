@@ -10,7 +10,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  bodyFor, formatPost, frontmatterFields, mdxSafe, toFrontmatter, yamlString,
+  bodyFor, creditLine, formatPost, frontmatterFields, mdxSafe, toFrontmatter, yamlString,
 } from '@/lib/mcp/format';
 import type { ContentPost } from '@/lib/mcp/format';
 
@@ -201,5 +201,52 @@ describe('formatPost', () => {
   it('falls back to markdown for an unknown format instead of throwing', () => {
     const f = formatPost(post(), { format: 'yaml' as any });
     expect(f.format).toBe('md');
+  });
+});
+
+
+/**
+ * The cover credit is an OBJECT in the database and always has been
+ * (`{name, source, model}` from the image pipeline). This file's fixture used
+ * a string, matching a type that was wrong, so `String(credit)` went unnoticed
+ * until a live pull_new returned `cover_credit: "[object Object]"` — in the
+ * frontmatter of a file an agent was about to commit to a customer's repo.
+ */
+describe('creditLine', () => {
+  it('reads the object shape production actually stores', () => {
+    expect(creditLine({ name: 'AI-generated via gpt-image-2', source: 'gpt-image-2', model: 'openai/gpt-image-2' }))
+      .toBe('AI-generated via gpt-image-2');
+  });
+
+  it('keeps the link on a stock credit — dropping it breaks the licence', () => {
+    expect(creditLine({ name: 'Jane Doe', profile_url: 'https://unsplash.com/@jane' }))
+      .toBe('Jane Doe (https://unsplash.com/@jane)');
+  });
+
+  it('passes a plain string through, and has nothing to say about the rest', () => {
+    expect(creditLine('Photo: Someone')).toBe('Photo: Someone');
+    expect(creditLine(null)).toBeNull();
+    expect(creditLine({ source: 'gpt-image-2' })).toBeNull(); // no name = nothing to display
+    expect(creditLine('   ')).toBeNull();
+  });
+});
+
+describe('object-valued frontmatter', () => {
+  it('never emits [object Object] into a customer\'s file', () => {
+    const out = formatPost(post({
+      cover_image_credit: { name: 'AI-generated via gpt-image-2', model: 'openai/gpt-image-2' } as any,
+    }), { format: 'mdx' });
+    expect(out.content).not.toContain('[object Object]');
+    expect(out.content).toContain('cover_credit: "AI-generated via gpt-image-2"');
+  });
+
+  it('drops any other object field rather than poisoning the key', () => {
+    // A missing key is testable in a template; "[object Object]" renders.
+    expect(toFrontmatter({ title: 'Fine', weird: { a: 1 } })).toBe('---\ntitle: "Fine"\n---');
+  });
+
+  it('hands the json format the same string, so the field has one type', () => {
+    const out = formatPost(post({ cover_image_credit: { name: 'Jane Doe' } as any }), { format: 'json' });
+    expect(JSON.parse(out.content).cover_credit).toBe('Jane Doe');
   });
 });
