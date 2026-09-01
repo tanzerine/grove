@@ -12,6 +12,8 @@ import { useState } from 'react';
 import Icon from '../gv-icons';
 import CopySnippet from '../embed/CopySnippet';
 import { useT } from '../i18n';
+import { captureClient } from '@/lib/analytics/capture-client';
+import { KEY_PLACEHOLDER, installCommand, mcpJson } from '@/lib/mcp/install';
 
 export type KeyRow = {
   id: string;
@@ -29,8 +31,6 @@ export type KeyRow = {
 };
 
 type Site = { id: string; hostname: string };
-
-const PLACEHOLDER = 'gv_mcp_YOUR_KEY';
 
 function fieldStyle(): React.CSSProperties {
   return {
@@ -65,12 +65,11 @@ export default function KeyManager({ initialKeys, sites, endpoint }: {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const token = secret ?? PLACEHOLDER;
-  const cli = `claude mcp add --transport http grove ${endpoint} --header "Authorization: Bearer ${token}"`;
-  const json = JSON.stringify(
-    { mcpServers: { grove: { type: 'http', url: endpoint, headers: { Authorization: `Bearer ${token}` } } } },
-    null, 2,
-  );
+  // Both snippets come from lib/mcp/install so this page and the first-run
+  // offer at /onboarding/mcp can't hand out two different commands.
+  const token = secret ?? KEY_PLACEHOLDER;
+  const cli = installCommand(endpoint, token);
+  const json = mcpJson(endpoint, token);
 
   async function create() {
     setBusy(true); setError(null);
@@ -88,6 +87,7 @@ export default function KeyManager({ initialKeys, sites, endpoint }: {
       if (!res.ok) { setError(body?.error ?? t('Could not create the key.')); return; }
       setKeys((k) => [body.key, ...k]);
       setSecret(body.secret);
+      captureClient('mcp_key_created', { from: 'dashboard', write: writable });
     } catch {
       setError(t('Could not reach grove. Try again.'));
     } finally {

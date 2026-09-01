@@ -40,9 +40,15 @@ function VerifyInner() {
       // repeat visits to a page the user has already cleared.
       if (!j.already) {
         captureClient('domain_verified', { domain_id: id, via });
-        // Verification is the last required step — everything after it is the
-        // dashboard. This is the activation moment worth measuring signup against.
+        // Verification is the last REQUIRED step — everything after it is
+        // optional. This is the activation moment worth measuring signup
+        // against, so it fires here and not one screen later.
         captureClient('onboarding_completed', { domain_id: id });
+        // The one moment we know the customer has their repo open (see
+        // /onboarding/mcp). Only on a fresh verification: a returning user
+        // re-checking a domain they already cleared wants the dashboard.
+        router.replace(`/onboarding/mcp?domain=${id}`);
+        return;
       }
       router.replace('/dashboard');
     } else {

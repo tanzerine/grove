@@ -39,8 +39,15 @@ export type AuthMethod = 'google' | 'email';
 export type ManagerAction = 'approve' | 'rewrite' | 'reject';
 
 /** Ordered steps of first-run onboarding — index in this array IS the step
- *  number, so a funnel in PostHog can be built straight from it. */
-export const ONBOARDING_STEPS = ['domain', 'verify', 'about', 'intent'] as const;
+ *  number, so a funnel in PostHog can be built straight from it.
+ *
+ *  APPEND ONLY. Inserting a step in nav order would renumber the ones after it
+ *  and split every existing funnel in two at the deploy — the same step_number
+ *  would mean different things either side of it. 'mcp' is the optional
+ *  connect-your-agent offer shown straight after `verify`; it sits last here
+ *  and that is fine, because the number's job is to identify a step, not to
+ *  sort them. */
+export const ONBOARDING_STEPS = ['domain', 'verify', 'about', 'intent', 'mcp'] as const;
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
 
 /**
@@ -114,6 +121,11 @@ export type EventMap = {
    *  clearest upgrade-intent signal in the product. */
   domain_limit_hit: { upgrade_to: string };
   onboarding_completed: { domain_id: string };
+  /** A key was minted for a customer's coding agent. `from` separates the
+   *  first-run offer from the dashboard page, which is the only way to tell
+   *  whether the onboarding step converts anyone — the two surfaces mint the
+   *  same credential, so nothing else distinguishes them. */
+  mcp_key_created: { from: 'onboarding' | 'dashboard'; write: boolean };
 
   // ── content ─────────────────────────────────────────────────────────────
   post_generation_started: { post_id: string; domain_id: string; mode: GenerationMode };
@@ -234,6 +246,7 @@ const EVENT_NAME_SET = {
   domain_verified: true,
   domain_limit_hit: true,
   onboarding_completed: true,
+  mcp_key_created: true,
   post_generation_started: true,
   post_generation_succeeded: true,
   post_generation_failed: true,
