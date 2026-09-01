@@ -54,6 +54,10 @@ describe('onboardingStepNumber', () => {
     expect(onboardingStepNumber('verify')).toBe(2);
     expect(onboardingStepNumber('about')).toBe(3);
     expect(onboardingStepNumber('intent')).toBe(4);
+    // Appended after the four original steps rather than inserted after
+    // 'verify' where it appears in the flow — inserting would renumber
+    // 'about' and 'intent' and split every recorded funnel at the deploy.
+    expect(onboardingStepNumber('mcp')).toBe(5);
   });
 
   it('covers every step in ONBOARDING_STEPS', () => {
