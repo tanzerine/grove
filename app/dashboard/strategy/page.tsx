@@ -14,7 +14,7 @@ import BuildPlanNow from './BuildPlanNow';
 import PlanningCadence, { type CadenceItem, type CadenceView } from './PlanningCadence';
 import PillarsAndCalendar, { type PillarCard, type CalRow, type Week } from './PillarsAndCalendar';
 import { getT } from '@/lib/i18n/server';
-import type { T } from '@/lib/i18n';
+import { intlLocale, type T } from '@/lib/i18n';
 
 export const dynamic = 'force-dynamic';
 
@@ -109,7 +109,7 @@ export default async function StrategyPage() {
     return {
       label: g.title, current: fmtNumber(current), target: fmtTarget(kpi), pct,
       toolIcon: kpi ? TOOL_ICON[kpi.metric] : 'analytics',
-      note: 'first-party events',
+      note: t('first-party events'),
     };
   });
 
@@ -136,7 +136,7 @@ export default async function StrategyPage() {
     return {
       key: p.id, name: p.title, color: PILLAR_COLORS[i % PILLAR_COLORS.length], chipBorder: PILLAR_BORDERS[i % PILLAR_BORDERS.length],
       alloc: `${sharePct}%`, posts: slots.length,
-      note: published ? `${published} live` : slots.length ? 'queued' : 'no slots',
+      note: published ? t('{n} live', { n: published }) : slots.length ? t('queued') : t('no slots'),
       trend: perf?.views ? `${fmtNumber(perf.views)} views` : 'new',
       trendColor: perf && perf.views >= 1000 ? ACCENT : 'var(--gv-dim)',
       intent: INTENT_LABEL[topIntent] ?? 'MOFU', kws,
@@ -154,7 +154,7 @@ export default async function StrategyPage() {
   };
   const itemStatus = (st?: string): { label: string; color: string; now: boolean } => {
     if (st === 'published') return { label: 'Live', color: ACCENT_INK, now: false };
-    if (st === 'review') return { label: 'In review', color: 'var(--gv-amber)', now: false };
+    if (st === 'review') return { label: t('In review'), color: 'var(--gv-amber)', now: false };
     if (st && ['writing', 'researching', 'queued'].includes(st)) return { label: 'Drafting', color: ACCENT_INK, now: true };
     if (st === 'scheduled') return { label: 'Scheduled', color: 'var(--gv-dim)', now: false };
     return { label: 'Planned', color: 'var(--gv-faint)', now: false };
@@ -185,7 +185,7 @@ export default async function StrategyPage() {
     // "This week" is a temporal you-are-here marker (like the calendar's
     // today cell) — text, so ACCENT_INK, not the raw lime fill token.
     const labelColor = w === todayWeek ? ACCENT_INK : w < todayWeek ? 'var(--gv-dim)' : 'var(--gv-faint)';
-    return { label: `Week ${w}`, state, labelColor, items };
+    return { label: t('Week {n}', { n: w }), state, labelColor, items };
   });
 
   // ---------- month-at-a-glance swimlanes: pillar rows × week columns ----------
@@ -207,7 +207,7 @@ export default async function StrategyPage() {
   const weekHeaders: Week[] = [1, 2, 3, 4].map((w) => {
     const from = (w - 1) * 7 + 1;
     const to = w === 4 ? daysInMonth : w * 7;
-    return { label: `Week ${w}`, dates: `${monthShort} ${from}–${to}` };
+    return { label: t('Week {n}', { n: w }), dates: `${monthShort} ${from}–${to}` };
   });
   const calRows: CalRow[] = (s.pillars ?? []).map((p: Pillar, i: number) => {
     const slots = plan.filter((sl) => sl.pillar_id === p.id);
@@ -234,13 +234,13 @@ export default async function StrategyPage() {
   const curWeekItems = weeks.find((w) => w.state === 'this week')?.items ?? weeks[0]?.items ?? [];
   const weekBullets: CadenceItem[] = curWeekItems.length
     ? curWeekItems.map((it): CadenceItem => ({
-        label: `Publish "${it.title}"`, meta: it.status,
+        label: t('Publish “{title}”', { title: it.title }), meta: it.status,
         state: it.status === 'Live' ? 'done' : it.status === 'Planned' || it.status === 'Scheduled' ? 'queued' : 'progress',
       }))
     : [{ label: t('Nothing new ships this week — existing posts keep earning.'), meta: '', state: 'queued' }];
   const cadenceViews: CadenceView[] = [
     {
-      key: 'monthly', label: 'Monthly',
+      key: 'monthly', label: t('Monthly'),
       period: `${planMonth} — the full plan the agent commits to`,
       detail: hz.month.headline,
       items: goals.length
@@ -251,14 +251,14 @@ export default async function StrategyPage() {
         : [{ label: hz.month.detail, meta: '', state: 'queued' }],
     },
     {
-      key: 'weekly', label: 'Weekly',
-      period: `Week ${todayWeek} · ${planMonth}`,
+      key: 'weekly', label: t('Weekly'),
+      period: t('Week {n} · {month}', { n: todayWeek, month: planMonth }),
       detail: hz.week.headline,
       items: weekBullets,
     },
     {
-      key: 'daily', label: 'Daily',
-      period: `Today · ${now.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}`,
+      key: 'daily', label: t('Daily'),
+      period: t('Today · {date}', { date: now.toLocaleDateString(intlLocale(t.locale), { weekday: 'long', month: 'short', day: 'numeric' }) }),
       detail: hz.today.headline,
       items: [{ label: hz.today.detail, meta: '', state: 'progress' }],
     },
@@ -267,30 +267,30 @@ export default async function StrategyPage() {
   // ---------- hero: north star + plan chips + agent loop ----------
   const northStar = goals[0] ?? null;
   const planChips = [
-    { value: String(plan.length), unit: 'posts', label: t('Planned this month') },
+    { value: String(plan.length), unit: t('posts'), label: t('Planned this month') },
     { value: String(pillars.length), unit: '', label: t('Content pillars') },
-    { value: fmtNumber(plan.length * 1900), unit: 'words (est.)', label: t('Estimated output') },
-    ...(northStar ? [{ value: northStar.target, unit: '', label: 'Target · ' + northStar.label }] : []),
-    { value: String(domain.posts_per_week ?? '—'), unit: '/ wk', label: 'Cadence' },
+    { value: fmtNumber(plan.length * 1900), unit: t('words (est.)'), label: t('Estimated output') },
+    ...(northStar ? [{ value: northStar.target, unit: '', label: t('Target · {goal}', { goal: northStar.label }) }] : []),
+    { value: String(domain.posts_per_week ?? '—'), unit: t('/ wk'), label: t('Cadence') },
   ];
 
   const totalPosts = (posts ?? []).length;
   const pastManagerCount = (posts ?? []).filter((p) => ['review', 'scheduled', 'published', 'failed'].includes(p.status)).length;
   const toolchain = [
-    { name: t('Live SERP research'), icon: 'search2', runs: `${totalPosts} run${totalPosts === 1 ? '' : 's'}`, desc: t('Crawls search results & competitor posts to find the ranking gaps worth taking.') },
-    { name: t('Writer'), icon: 'pen', runs: `${totalPosts} draft${totalPosts === 1 ? '' : 's'}`, desc: t('Drafts every post in your brand voice, structured for the target keyword.') },
-    { name: t('Manager'), icon: 'manager', runs: `${pastManagerCount} review${pastManagerCount === 1 ? '' : 's'}`, desc: t('Scores each draft 0–100 on strategy fit & craft, and gates publish.') },
-    { name: t('Analytics'), icon: 'analytics', runs: 'continuous', desc: t('Reads first-party events to grade the plan and tune next month.') },
+    { name: t('Live SERP research'), icon: 'search2', runs: totalPosts === 1 ? t('1 run') : t('{n} runs', { n: totalPosts }), desc: t('Crawls search results & competitor posts to find the ranking gaps worth taking.') },
+    { name: t('Writer'), icon: 'pen', runs: totalPosts === 1 ? t('1 draft') : t('{n} drafts', { n: totalPosts }), desc: t('Drafts every post in your brand voice, structured for the target keyword.') },
+    { name: t('Manager'), icon: 'manager', runs: pastManagerCount === 1 ? t('1 review') : t('{n} reviews', { n: pastManagerCount }), desc: t('Scores each draft 0–100 on strategy fit & craft, and gates publish.') },
+    { name: t('Analytics'), icon: 'analytics', runs: t('continuous'), desc: t('Reads first-party events to grade the plan and tune next month.') },
   ];
 
   // The hero states the *play* this month is running — deliberately not the
   // strategist's `direction.month` narrative, which the Planning-cadence card
   // already prints under "Monthly". One sentence, one job each.
-  const brief = strategyBrief(s);
+  const brief = strategyBrief(s, t);
 
   return (
     <>
-      <DashHeader title={t('Strategy')} subtitle={`${domain.hostname} · the agent's plan for ${planMonth}`} />
+      <DashHeader title={t('Strategy')} subtitle={t("{host} · the agent's plan for {month}", { host: domain.hostname, month: planMonth })} />
 
       <div className="gv-body">
         {stalePlan && (
@@ -299,7 +299,7 @@ export default async function StrategyPage() {
               <Icon name="clock" size={13} /> {t('Plan out of date')}
             </div>
             <h3 style={{ fontSize: 17, fontWeight: 600, color: 'var(--gv-ink)', margin: '10px 0 0' }}>
-              You’re looking at your {planMonth} plan. {currentMonthLabel} hasn’t been built yet.
+              {t('You’re looking at your {month} plan. {current} hasn’t been built yet.', { month: planMonth, current: currentMonthLabel })}
             </h3>
             <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--gv-dim)', margin: '8px 0 0', maxWidth: 680 }}>
               The agent builds each month’s plan automatically and retries every hour, so this
@@ -308,7 +308,7 @@ export default async function StrategyPage() {
               not wait.
             </p>
             {domain.verified_at
-              ? <BuildPlanNow domainId={domain.id} label={`Build ${currentMonthLabel}’s plan →`} />
+              ? <BuildPlanNow domainId={domain.id} label={t('Build {month}’s plan →', { month: currentMonthLabel })} />
               : (
                 <p style={{ fontSize: 12.5, color: 'var(--gv-dim)', margin: '12px 0 0' }}>
                   {t('Verify this domain and the strategist can draft it.')}
@@ -322,7 +322,7 @@ export default async function StrategyPage() {
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 28, flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: 320 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 10.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--gv-dim)' }}>
-                <Icon name="leaf" size={13} /> Marketing agent · {planMonth} strategy
+                <Icon name="leaf" size={13} /> {t('Marketing agent')} · {planMonth} strategy
               </div>
               <h1 style={{ fontWeight: 500, fontSize: 27, lineHeight: 1.3, letterSpacing: '-0.02em', color: 'var(--gv-ink)', margin: '14px 0 0', maxWidth: 720 }}>
                 {brief.headline}
@@ -395,7 +395,7 @@ export default async function StrategyPage() {
                       <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: `${g.pct}%`, borderRadius: 99, background: ACCENT }} />
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 7, fontSize: 11, color: 'var(--gv-faint)' }}>
-                      <span style={{ display: 'flex', color: 'var(--gv-fainter)' }}><Icon name={g.toolIcon} size={12} /></span> Tracked by Analytics · {g.note}
+                      <span style={{ display: 'flex', color: 'var(--gv-fainter)' }}><Icon name={g.toolIcon} size={12} /></span> {t('Tracked by Analytics')} · {g.note}
                     </div>
                   </div>
                 ))}
@@ -433,7 +433,7 @@ export default async function StrategyPage() {
             pillars={pillars}
             rows={calRows}
             weeks={weekHeaders}
-            footNote={`${plan.length} posts mapped across ${pillars.length} pillars — approve changes any time in the chat below.`}
+            footNote={t('{posts} posts mapped across {pillars} pillars — approve changes any time in the chat below.', { posts: plan.length, pillars: pillars.length })}
           />
         )}
 

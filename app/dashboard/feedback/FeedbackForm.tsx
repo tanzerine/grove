@@ -159,7 +159,7 @@ export default function FeedbackForm({
             <div style={{ display: 'flex', gap: 6 }}>
               {[1, 2, 3, 4, 5].map((n) => (
                 <button key={n} type="button" onClick={() => setRating(rating === n ? null : n)}
-                  aria-label={`${n} out of 5`}
+                  aria-label={t('{n} out of 5', { n })}
                   style={{
                     width: 40, height: 36, borderRadius: 9, cursor: 'pointer', fontFamily: 'inherit',
                     fontSize: 14, fontWeight: 600,

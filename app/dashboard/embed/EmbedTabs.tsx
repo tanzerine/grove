@@ -130,7 +130,7 @@ export default function EmbedTabs({ blogSnippet, widgetSnippet, domainId, fullNo
       <p style={{ fontSize: 12, color: warn ? '#ffb054' : 'var(--gv-fainter)', lineHeight: 1.5, margin: '0 0 16px' }}>{note}</p>
 
       <div style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 16, background: '#111310', marginBottom: 16 }}>
-        <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 14 }}>Preview — {tab === 'full' ? '/blog page' : 'homepage teaser'}</div>
+        <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 14 }}>{t('Preview —')} {tab === 'full' ? '/blog page' : 'homepage teaser'}</div>
         {tab === 'full' ? <FullBlogPreview /> : <WidgetPreview />}
       </div>
 

@@ -194,7 +194,7 @@ export default async function Page() {
                       )}
                     </div>
                     {repoKb?.synced_at && (
-                      <div style={{ fontSize: 11, color: 'var(--gv-fainter)', marginBottom: 12 }}>last read {new Date(repoKb.synced_at).toLocaleString('en-US')}</div>
+                      <div style={{ fontSize: 11, color: 'var(--gv-fainter)', marginBottom: 12 }}>{t('last read')} {new Date(repoKb.synced_at).toLocaleString('en-US')}</div>
                     )}
                     {repoKb?.product_summary && (
                       <p style={{ fontSize: 12.5, color: 'var(--gv-dim)', lineHeight: 1.5, margin: '0 0 12px' }}>{repoKb.product_summary}</p>
@@ -218,7 +218,7 @@ export default async function Page() {
                           </div>
                         )}
                         {(repoKb.files_read ?? []).length > 0 && (
-                          <div style={{ fontSize: 11, color: 'var(--gv-fainter)', paddingTop: 2, borderTop: '1px solid rgba(255,255,255,0.06)' }}>Files read: {(repoKb.files_read as string[]).join(', ')}</div>
+                          <div style={{ fontSize: 11, color: 'var(--gv-fainter)', paddingTop: 2, borderTop: '1px solid rgba(255,255,255,0.06)' }}>{t('Files read:')} {(repoKb.files_read as string[]).join(', ')}</div>
                         )}
                       </RepoDocsToggle>
                     )}

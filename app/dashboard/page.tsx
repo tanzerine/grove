@@ -248,14 +248,21 @@ export default async function OverviewPage() {
   const agentInsight = brief?.topPost
     ? `“${brief.topPost.title}” is your top performer with ${brief.topPost.views} read${brief.topPost.views === 1 ? '' : 's'}${cluster ? ' — grove can build a content cluster around it.' : ' — worth doubling down on in this month’s plan.'}`
     : inReview.length
-    ? `${inReview.length} draft${inReview.length === 1 ? '' : 's'} ${inReview.length === 1 ? 'is' : 'are'} ready — approving keeps your publishing cadence on track.`
+    ? (inReview.length === 1
+      ? t('1 draft is ready — approving keeps your publishing cadence on track.')
+      : t('{n} drafts are ready — approving keeps your publishing cadence on track.', { n: inReview.length }))
     : null;
   const insightAction = !cluster && inReview.length
-    ? { label: `Review ${inReview.length} draft${inReview.length === 1 ? '' : 's'} →`, href: '/dashboard/pipeline' }
+    ? {
+        label: inReview.length === 1
+          ? t('Review 1 draft →')
+          : t('Review {n} drafts →', { n: inReview.length }),
+        href: '/dashboard/pipeline',
+      }
     : undefined;
   const flight = inPipeline.filter((p) => ['queued', 'researching', 'writing'].includes(p.status));
   const agentItems: { icon: string; title: string; detail: string; attn: boolean; action?: { label: string; href: string } }[] = [];
-  if (inReview.length) agentItems.push({ icon: 'eye', title: `${inReview.length} draft${inReview.length === 1 ? '' : 's'} need review`, detail: t('Approve to let autopilot publish them'), attn: true, action: { label: t('Review'), href: '/dashboard/pipeline' } });
+  if (inReview.length) agentItems.push({ icon: 'eye', title: inReview.length === 1 ? t('1 draft needs review') : t('{n} drafts need review', { n: inReview.length }), detail: t('Approve to let autopilot publish them'), attn: true, action: { label: t('Review'), href: '/dashboard/pipeline' } });
   // A cross-post channel that has stopped working is invisible everywhere else:
   // the connection still reads "Connected", and nothing would give the owner a
   // reason to open Social settings and look. `all` is newest-first, so a later
@@ -265,7 +272,7 @@ export default async function OverviewPage() {
     const names = brokenChannels.map((c) => (c === 'x' ? 'X' : c === 'linkedin' ? t('LinkedIn') : c)).join(' and ');
     agentItems.push({
       icon: 'alert',
-      title: `${names} cross-posting stopped`,
+      title: t('{channels} cross-posting stopped', { channels: names }),
       detail: t('The last share failed — check the connection'),
       attn: true,
       action: { label: t('Fix'), href: '/dashboard/connections' },
@@ -370,7 +377,7 @@ export default async function OverviewPage() {
             <h1 style={{ fontSize: 26, fontWeight: 500, letterSpacing: '-0.025em', margin: 0, fontFamily: "'GT Walsheim', 'Inter', sans-serif" }}>{greeting(t)}</h1>
             <p style={{ fontSize: 14, color: 'var(--gv-dim)', margin: '6px 0 0' }}>
               {shippedRecently > 0
-                ? <>{t('grove shipped')} <span style={{ color: 'var(--gv-ink)', fontWeight: 600 }}>{shippedRecently} post{shippedRecently === 1 ? '' : 's'}</span> this week.{inReview.length ? <> {inReview.length} {inReview.length === 1 ? 'draft is' : 'drafts are'} waiting on you.</> : ' Everything is on schedule.'}</>
+                ? <>{t('grove shipped')} <span style={{ color: 'var(--gv-ink)', fontWeight: 600 }}>{shippedRecently} post{shippedRecently === 1 ? '' : 's'}</span> {t('this week.')}{inReview.length ? <> {inReview.length} {inReview.length === 1 ? 'draft is' : 'drafts are'} waiting on you.</> : ' Everything is on schedule.'}</>
                 : <>{t('Your agent is running. Queue a topic and the pipeline starts immediately.')}</>}
             </p>
           </div>
@@ -486,7 +493,7 @@ export default async function OverviewPage() {
             <div style={{ fontSize: 12, color: 'var(--gv-faint)', marginBottom: 18 }}>{t('One brief, every channel')}</div>
             {channels.length === 0 ? (
               <div style={{ fontSize: 12.5, color: 'var(--gv-faint)', lineHeight: 1.6 }}>
-                Once your first post publishes, its X / LinkedIn variants show up here.{' '}
+                {t('Once your first post publishes, its X / LinkedIn variants show up here.')}{' '}
                 <Link href="/dashboard/connections" style={{ color: 'var(--gv-dim)', textDecoration: 'underline' }}>{t('Connect channels →')}</Link>
               </div>
             ) : (
@@ -510,7 +517,7 @@ export default async function OverviewPage() {
             </div>
             {topQueries.length === 0 ? (
               <div style={{ fontSize: 12.5, color: 'var(--gv-faint)', lineHeight: 1.6 }}>
-                The search queries you rank for appear here once Search Console is connected.{' '}
+                {t('The search queries you rank for appear here once Search Console is connected.')}{' '}
                 <Link href="/dashboard/analytics" style={{ color: 'var(--gv-dim)', textDecoration: 'underline' }}>{t('Connect Search Console →')}</Link>
               </div>
             ) : (

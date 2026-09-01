@@ -150,7 +150,7 @@ export default function ImageStudio({
               {busy ? t('Uploading…') : t('Drop an image here, or click to choose one')}
             </span>
             <span style={{ fontSize: 11, color: 'var(--gv-faint)' }}>
-              PNG, JPEG, WebP or GIF · up to {MAX_UPLOAD_MB} MB
+              {t('PNG, JPEG, WebP or GIF · up to')} {MAX_UPLOAD_MB} MB
             </span>
           </div>
           <input

@@ -268,7 +268,7 @@ export default function CalendarClient({
                 {selectedDayPlanned.map(s => (
                   <div key={s.slot_id} style={{ flex: '1 1 260px', minWidth: 220, border: '1px dashed rgba(255,255,255,0.18)', borderRadius: 12, padding: '12px 13px' }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--gv-soft)', lineHeight: 1.4, overflowWrap: 'anywhere' }}>{s.topic}</div>
-                    <div style={{ fontSize: 11, color: 'var(--gv-fainter)', marginTop: 8 }}>planned · {s.intent} · {fmtTime(s.publish_date)} — auto-drafts ~3 days ahead</div>
+                    <div style={{ fontSize: 11, color: 'var(--gv-fainter)', marginTop: 8 }}>{t('planned ·')} {s.intent} · {fmtTime(s.publish_date)} — auto-drafts ~3 days ahead</div>
                   </div>
                 ))}
 

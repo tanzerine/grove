@@ -302,9 +302,9 @@ function ManagerCard({ evals, t }: { evals: EvalRow[]; t: T }) {
   const issues = latest.issues ?? [];
   return (
     <div className="gv-card" style={card()}>
-      <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-faint)', marginBottom: 16 }}>Manager score · attempt {latest.attempt}/2</div>
+      <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-faint)', marginBottom: 16 }}>{t('Manager score · attempt')} {latest.attempt}/2</div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
-        <ScoreRing value={overall} />
+        <ScoreRing value={overall} ariaLabel={t('Overall score {v} of 100', { v: overall })} />
         <RubricBars scores={latest.scores} />
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: act.color, marginTop: 16, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 13 }}>

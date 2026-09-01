@@ -296,7 +296,7 @@ function StatusChip({ record, xId }: { record?: PublishRecord; xId?: string }) {
   const t = useT();
   if (!record) return null;
   if (record.error) {
-    return <span style={{ fontSize: 11, color: 'var(--gv-red-soft)' }} title={record.error}>failed — {record.error.slice(0, 80)}</span>;
+    return <span style={{ fontSize: 11, color: 'var(--gv-red-soft)' }} title={record.error}>{t('failed —')} {record.error.slice(0, 80)}</span>;
   }
   if (record.dry_run) return <span style={{ fontSize: 11, color: 'var(--gv-amber)' }}>{t('dry run')}</span>;
   if (record.id || record.status) {
@@ -340,7 +340,7 @@ function Channel({
             title={tweetLen > X_MAX ? t('Over X’s limit — the tweet will be trimmed at a word break. Shorten the first line to control the cut.') : undefined}
             style={{ marginLeft: 'auto', fontSize: 10.5, fontFamily: 'ui-monospace, monospace', color: tweetLen > X_MAX ? 'var(--gv-red-soft)' : 'var(--gv-fainter)' }}
           >
-            first tweet {tweetLen}/{X_MAX}{tweetLen > X_MAX ? ' — will trim' : ''}
+            {t('first tweet')} {tweetLen}/{X_MAX}{tweetLen > X_MAX ? ' — will trim' : ''}
           </span>
         )}
       </div>

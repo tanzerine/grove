@@ -24,7 +24,12 @@ export function bandColor(v: number | null | undefined): string {
 
 /* ─────────────────────────── donut ring ─────────────────────────── */
 
-export function ScoreRing({ value, size = 92, label = 'overall' }: { value: number; size?: number; label?: string }) {
+export function ScoreRing({ value, size = 92, label = 'overall', ariaLabel }: {
+  value: number; size?: number; label?: string;
+  /** Screen-reader text, already translated. This file deliberately has no
+   *  hooks (it renders on the server too), so it cannot call `t` itself. */
+  ariaLabel?: string;
+}) {
   const stroke = 8;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
@@ -32,7 +37,7 @@ export function ScoreRing({ value, size = 92, label = 'overall' }: { value: numb
   const color = bandColor(v);
   return (
     <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
-      <svg width={size} height={size} role="img" aria-label={`${label} score ${v} of 100`}>
+      <svg width={size} height={size} role="img" aria-label={ariaLabel ?? `${label} score ${v} of 100`}>
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--paper)" strokeWidth={stroke} />
         <circle
           cx={size / 2} cy={size / 2} r={r} fill="none"

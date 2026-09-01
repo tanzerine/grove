@@ -154,7 +154,7 @@ export default function KeyManager({ initialKeys, sites, endpoint }: {
         <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 4 }}>{t('Step 2 · Connect your agent')}</div>
         <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.01em', marginBottom: 6 }}>{t('Point it at grove')}</div>
         <p style={{ fontSize: 13, color: 'var(--gv-dim)', lineHeight: 1.55, margin: '0 0 16px', maxWidth: 620 }}>
-          Run this in the repository that holds your blog{secret ? '' : ' — the key below is a placeholder until you create one'}.
+          {t('Run this in the repository that holds your blog')}{secret ? '' : ' — the key below is a placeholder until you create one'}.
           Then ask it to <span style={{ color: 'var(--gv-soft)' }}>&ldquo;import the new grove articles&rdquo;</span>.
         </p>
 

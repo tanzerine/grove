@@ -160,7 +160,7 @@ export default function DashSearch({ seed }: { seed: SearchablePost[] }) {
             <div style={{ padding: '14px 12px', fontSize: 12.5, color: 'var(--gv-faint)' }}>
               {query.length < 2
                 ? t('Keep typing to search your articles…')
-                : loading ? 'Searching…' : <>No article matches “{query}”.</>}
+                : loading ? 'Searching…' : <>{t('No article matches “')}{query}”.</>}
             </div>
           )}
 

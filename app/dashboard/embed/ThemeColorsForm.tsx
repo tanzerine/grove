@@ -133,6 +133,7 @@ export default function ThemeColorsForm({
 }
 
 function Swatch({ label, hint, value, onChange }: { label: string; hint: string; value: string; onChange: (v: string) => void }) {
+  const t = useT();
   const valid = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value);
   return (
     <div>
@@ -144,7 +145,7 @@ function Swatch({ label, hint, value, onChange }: { label: string; hint: string;
           type="color"
           value={valid ? (value.length === 4 ? expand(value) : value) : '#000000'}
           onChange={(e) => onChange(e.target.value)}
-          aria-label={`${label} color`}
+          aria-label={t('{label} color', { label })}
           style={{ width: 42, height: 42, border: '1px solid rgba(255,255,255,0.14)', borderRadius: 10, background: 'transparent', padding: 2, cursor: 'pointer' }}
         />
         <input

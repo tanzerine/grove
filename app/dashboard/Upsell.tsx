@@ -142,7 +142,7 @@ export function UpsellProvider({ children }: { children: React.ReactNode }) {
               </button>
             </div>
             <div style={{ fontSize: 11.5, color: 'var(--gv-faint)', textAlign: 'center', marginTop: 14 }}>
-              Plans from ${' '}
+              {t('Plans from $')}{' '}
               <span style={{ color: 'var(--gv-soft)', fontWeight: 600 }}>29/mo</span> · cancel anytime
             </div>
           </div>

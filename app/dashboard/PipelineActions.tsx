@@ -98,7 +98,7 @@ export default function PipelineActions({ domainId }: { domainId?: string }) {
       )}
 
       <div style={{ fontSize: 12, color: 'var(--gv-faint)', marginTop: 12 }}>
-        Prefer to write it yourself?{' '}
+        {t('Prefer to write it yourself?')}{' '}
         <Link href="/dashboard/write" style={{ color: ACCENT_INK, fontWeight: 600 }}>{t(t('Open the writing desk →'))}</Link>
       </div>
     </div>

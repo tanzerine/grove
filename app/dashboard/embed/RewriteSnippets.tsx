@@ -62,7 +62,7 @@ export default function RewriteSnippets({
       </div>
 
       <p style={{ fontSize: 11.5, color: 'var(--gv-fainter)', lineHeight: 1.55, margin: '10px 0 0' }}>
-        The wildcard rule is what makes this work end to end — it carries{' '}
+        {t('The wildcard rule is what makes this work end to end — it carries')}{' '}
         {PROXIED_FILES.map((f) => <span key={f} className="mono">{path}/{f} </span>)}
         through as well, so search engines and answer engines can discover the blog, not just render it.
       </p>

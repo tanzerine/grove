@@ -154,13 +154,17 @@ export default function PlanChat({ domainId, bare = false }: { domainId: string;
             {open
               ? t('Ask why the plan looks this way, or tell it what to change.')
               : messages.length > 0
-                ? `${messages.length} message${messages.length === 1 ? '' : 's'} in this month’s thread`
+                ? (messages.length === 1
+                    ? t('1 message in this month’s thread')
+                    : t('{n} messages in this month’s thread', { n: messages.length }))
                 : t('Ask why the plan looks this way, or tell it what to change.')}
           </span>
         </span>
         {budget && (
           <span style={{ marginLeft: 'auto', fontSize: 11.5, color: budget.revisionsLeft > 0 ? 'var(--gv-dim)' : 'var(--gv-red)', whiteSpace: 'nowrap' }}>
-            {budget.revisionsLeft} plan change{budget.revisionsLeft === 1 ? '' : 's'} left
+            {budget.revisionsLeft === 1
+              ? t('1 plan change left')
+              : t('{n} plan changes left', { n: budget.revisionsLeft })}
           </span>
         )}
       </button>
@@ -180,10 +184,16 @@ export default function PlanChat({ domainId, bare = false }: { domainId: string;
               <span style={{ display: 'flex', transform: showHistory ? 'rotate(-90deg)' : 'rotate(90deg)' }}>
                 <Icon name="arrow" size={12} />
               </span>
-              {showHistory ? t('Hide earlier messages') : `${earlier.length} earlier message${earlier.length === 1 ? '' : 's'}`}
+              {showHistory
+                ? t('Hide earlier messages')
+                : earlier.length === 1
+                  ? t('1 earlier message')
+                  : t('{n} earlier messages', { n: earlier.length })}
               {revisionCount > 0 && !showHistory && (
                 <span style={{ marginLeft: 'auto', color: ACCENT_INK }}>
-                  {revisionCount} plan change{revisionCount === 1 ? '' : 's'} made
+                  {revisionCount === 1
+                    ? t('1 plan change made')
+                    : t('{n} plan changes made', { n: revisionCount })}
                 </span>
               )}
             </button>

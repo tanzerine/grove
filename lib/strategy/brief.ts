@@ -9,6 +9,7 @@
  * cadence card.
  */
 import type { Strategy, PostSlot, Pillar } from './build';
+import { createT, type T } from '../i18n';
 
 export type StrategyBrief = {
   /** One short line: the play this month is running. */
@@ -41,7 +42,7 @@ function leadPillar(pillars: Pillar[], plan: PostSlot[]): { title: string; posts
   return best;
 }
 
-export function strategyBrief(strategy: Strategy): StrategyBrief {
+export function strategyBrief(strategy: Strategy, t: T = createT('en')): StrategyBrief {
   const plan = strategy.publishing_plan ?? [];
   const pillars = strategy.pillars ?? [];
 
@@ -52,26 +53,32 @@ export function strategyBrief(strategy: Strategy): StrategyBrief {
   const lead = leadPillar(pillars, plan);
   let headline: string;
   if (!plan.length) {
-    headline = 'The plan for this month is still being drafted.';
+    headline = t('The plan for this month is still being drafted.');
   } else if (lead) {
+    // The pillar title inside is plan CONTENT (already in the blog's language);
+    // only the sentence around it is chrome, so only that goes through `t`.
     headline = conversion > 0
-      ? `Own ${clip(lead.title, 48)} — ${plan.length} posts, ${conversion} built to convert.`
-      : `Own ${clip(lead.title, 48)} — ${plan.length} posts building search authority.`;
+      ? t('Own {pillar} — {posts} posts, {conversion} built to convert.',
+          { pillar: clip(lead.title, 48), posts: plan.length, conversion })
+      : t('Own {pillar} — {posts} posts building search authority.',
+          { pillar: clip(lead.title, 48), posts: plan.length });
   } else {
-    headline = `Ship ${plan.length} post${plan.length === 1 ? '' : 's'} and prove the channel.`;
+    headline = plan.length === 1
+      ? t('Ship 1 post and prove the channel.')
+      : t('Ship {n} posts and prove the channel.', { n: plan.length });
   }
 
   const mix = [
-    editorial ? `${editorial} top-funnel` : '',
-    contextual ? `${contextual} mid-funnel` : '',
-    conversion ? `${conversion} conversion` : '',
+    editorial ? t('{n} top-funnel', { n: editorial }) : '',
+    contextual ? t('{n} mid-funnel', { n: contextual }) : '',
+    conversion ? t('{n} conversion', { n: conversion }) : '',
   ].filter(Boolean).join(' · ');
   const shape = [
-    pillars.length ? `${pillars.length} pillar${pillars.length === 1 ? '' : 's'}` : '',
+    pillars.length ? (pillars.length === 1 ? t('1 pillar') : t('{n} pillars', { n: pillars.length })) : '',
     mix,
   ].filter(Boolean).join(' · ');
 
-  const summary = shape || 'Pillars and slots land as soon as the strategist finishes planning.';
+  const summary = shape || t('Pillars and slots land as soon as the strategist finishes planning.');
   const note = strategy.notes ? firstSentence(strategy.notes) : undefined;
 
   return note ? { headline, summary, note } : { headline, summary };

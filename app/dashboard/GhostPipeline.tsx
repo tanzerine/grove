@@ -60,7 +60,7 @@ export default function GhostPipeline({ domainId, hostname }: { domainId?: strin
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 4 }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-            <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em' }}>Grove is ready to write for {hostname}</span>
+            <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em' }}>{t('Grove is ready to write for')} {hostname}</span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700, color: ACCENT_INK, background: 'rgba(162,255,1,0.14)', border: '1px solid rgba(162,255,1,0.35)', borderRadius: 6, padding: '3px 8px' }}>
               <Icon name="lock" size={11} />{t(t('Preview'))}
             </span>

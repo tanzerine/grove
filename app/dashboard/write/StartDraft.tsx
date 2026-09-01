@@ -289,7 +289,7 @@ export default function StartDraft({ domainId, hostname, runs, onQueued, onDismi
                     <span style={{ fontSize: 12.5, lineHeight: 1.4, color: 'var(--gv-ink)' }}>
                       <span style={{ width: 7, height: 7, borderRadius: '50%', display: 'inline-block', marginRight: 7, background: intentColor(p.intent), verticalAlign: 'middle' }} />
                       {p.title}
-                      <span style={{ display: 'block', fontSize: 11, color: 'var(--gv-dim)', marginTop: 2 }}>targets “{p.keyword}”</span>
+                      <span style={{ display: 'block', fontSize: 11, color: 'var(--gv-dim)', marginTop: 2 }}>{t('targets “')}{p.keyword}”</span>
                     </span>
                   </div>
                 ))}

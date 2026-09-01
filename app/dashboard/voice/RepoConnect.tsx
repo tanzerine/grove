@@ -100,7 +100,7 @@ export default function RepoConnect({
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
         {syncedAt && (
-          <span className="mono" style={{ fontSize: 11, color: 'var(--gv-faint)' }}>last read {new Date(syncedAt).toLocaleString('en-US')}</span>
+          <span className="mono" style={{ fontSize: 11, color: 'var(--gv-faint)' }}>{t('last read')} {new Date(syncedAt).toLocaleString('en-US')}</span>
         )}
         {repo && (
           <button onClick={disconnect} disabled={!!busy} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 11.5, color: 'var(--gv-faint)' }}>
