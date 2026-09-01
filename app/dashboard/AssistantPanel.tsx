@@ -308,7 +308,7 @@ export default function AssistantPanel() {
           <div className="gv-scroll" style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 7 }}>
             {chats.length === 0 && (
               <div style={{ fontSize: 12, color: 'var(--gv-faint)', padding: '8px 2px', lineHeight: 1.6 }}>
-                No past chats yet for {activeHostname}. Conversations are saved here automatically.
+                {t('No past chats yet for')} {activeHostname}. Conversations are saved here automatically.
               </div>
             )}
             {chats.map((c) => (
@@ -376,7 +376,7 @@ export default function AssistantPanel() {
               <div key={i}>
                 {m.thought && (
                   <div style={{ marginBottom: 8 }}>
-                    <div style={{ fontSize: 10.5, color: 'var(--gv-fainter)', letterSpacing: '0.02em' }}>Thought · {m.thoughtSec ?? 1}s</div>
+                    <div style={{ fontSize: 10.5, color: 'var(--gv-fainter)', letterSpacing: '0.02em' }}>{t('Thought ·')} {m.thoughtSec ?? 1}s</div>
                     <div style={{ fontSize: 12, color: 'var(--gv-faint)', lineHeight: 1.55, marginTop: 4 }}>{m.thought}</div>
                   </div>
                 )}

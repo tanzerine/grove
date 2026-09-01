@@ -67,7 +67,7 @@ export default function PipelineTimeline({ log, status }: { log: LogEntry[]; sta
           }}
         >
           <span className="mono" style={{ fontSize: 11, color: 'var(--gv-accent-ink)', letterSpacing: '0.08em', textTransform: 'uppercase', flex: 1 }}>
-            Pipeline timeline
+            {t('Pipeline timeline')}
             {isLive && (
               <span className="grove-live-dot" style={{ marginLeft: 8, color: 'var(--gv-soft)' }}>● live</span>
             )}

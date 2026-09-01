@@ -57,7 +57,9 @@ export default function PillarsAndCalendar({
               </div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, margin: '14px 0 2px' }}>
                 <span style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--gv-ink)' }}>{p.alloc}</span>
-                <span style={{ fontSize: 12, color: 'var(--gv-faint)' }}>of effort · {p.posts} post{p.posts === 1 ? '' : 's'}</span>
+                <span style={{ fontSize: 12, color: 'var(--gv-faint)' }}>
+                  {p.posts === 1 ? t('of effort · 1 post') : t('of effort · {n} posts', { n: p.posts })}
+                </span>
               </div>
               <div style={{ height: 6, borderRadius: 99, background: 'rgba(255,255,255,0.07)', overflow: 'hidden', margin: '10px 0 14px' }}>
                 <div style={{ height: '100%', width: p.alloc, borderRadius: 99, background: p.color }} />

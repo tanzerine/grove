@@ -34,7 +34,7 @@ export default function ProcessDrawer({ unusual, children }: { unusual?: boolean
         }}
       >
         <span style={{ display: 'flex', color: 'var(--gv-faint)' }}><Icon name="gauge" size={15} /></span>
-        How this was made
+        {t('How this was made')}
         {unusual && <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--gv-amber)', flexShrink: 0 }} />}
       </button>
 

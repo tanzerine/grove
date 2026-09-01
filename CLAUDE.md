@@ -229,13 +229,27 @@ changes at once, and switching sites switches the language with it.
   customer dashboard that never reaches `t` — the industry's
   `eslint-plugin-i18next/no-literal-string`, rebuilt as a test because this repo
   has no ESLint config and `npm test` is the gate. It exists because the
-  catalogue guard below cannot see a string that was never wrapped, and 68 of
-  them weren't: JSX writes `didn&apos;t`, so a scan for `didn't` misses it, and
-  a sentence split across a `<span>` is two fragments neither of which looks
-  like a sentence. Its `isProse` check must reject code (`=>`, `.length`) —
-  `>` also delimits JSX expressions, and an auto-fixer that mistakes
-  `{list.map((m) => m.role === 'user' ? (` for a sentence rewrites working code
-  into a string literal. That happened twice.
+  catalogue guard below cannot see a string that was never wrapped.
+  **It has been widened three times, each after a report of "still half
+  English", and each miss was a SHAPE it did not scan, never a missing
+  translation.** In order: JSX writes `didn&apos;t`, so a scan for `didn't`
+  found nothing (68 strings); an attribute pattern forbidding both quote styles
+  silently skipped every value containing an apostrophe (8); and requiring the
+  text node to end at `<` missed `>Tracked by Analytics · {g.note}`, every
+  `{\`… ${x} …\`}` template, and every `label:`/`unit:` in an object literal
+  (74). It now scans all four shapes. **When something is still English,
+  suspect the scanner's shape coverage first.** Its `isProse` check must reject
+  code (`=>`, `.length`) and CSS — `>` also delimits JSX expressions, and an
+  auto-fixer that mistakes `{list.map((m) => m.role === 'user' ? (` for a
+  sentence rewrites working code into a string literal. That happened twice.
+- **Translate whole sentences, never fragments.** `{t('Over the')} {range}, your
+  content earned…` type-checks, passes both guards, and produces broken Korean,
+  because the clause order differs. Fragments get rebuilt as one key with
+  `{placeholders}`; `lib/strategy/brief.ts` composes the strategy hero that way.
+- **A stored artifact is never retranslated.** A strategy row written before
+  the language work holds English goals and slot topics forever — the page is
+  translated, the CONTENT is whatever was generated. Rebuilding the plan is the
+  only fix, and "the strategy page is half English" usually means exactly this.
 - **`tests/i18n-coverage.test.ts` is the other guard**: it greps every `t(…)`/`msg(…)`
   in `app/`, `lib/` and `components/` and fails if Korean lacks an entry, if a
   translation invents a `{placeholder}`, or if a catalogue holds a key nothing

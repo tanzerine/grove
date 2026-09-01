@@ -601,7 +601,7 @@ export default function RichEditor({ postId, domainId, initialBody, initialTitle
                   style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', marginTop: 14, border: '1px solid var(--gv-line)', background: 'var(--gv-card)', color: 'var(--gv-soft)', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '13px 18px', borderRadius: seoOpen ? '12px 12px 0 0' : 12, cursor: 'pointer', textAlign: 'left' }}
                 >
                   <span style={{ display: 'flex', transform: seoOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform .2s' }}><Icon name="chevron" size={14} /></span>
-                  Title &amp; SEO
+                  {t('Title & SEO')}
                   {metaDirty && <span style={{ color: 'var(--gv-amber)', fontSize: 11, fontWeight: 500 }}>● unsaved</span>}
                 </button>
                 {seoOpen && (

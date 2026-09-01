@@ -78,8 +78,9 @@ function BetaStatus({ beta }: { beta: BetaState }) {
       {live ? (
         <>
           <p style={{ fontSize: 13.5, color: 'var(--gv-dim)', lineHeight: 1.6, margin: '10px 0 0' }}>
-            You have {beta.postsQuota} posts a month, free{ends ? `, through ${ends}` : ''}. No card, nothing
-            to cancel — when it ends, everything you&apos;ve published stays exactly where it is.
+            {ends
+              ? t('You have {n} posts a month, free, through {date}. No card, nothing to cancel — when it ends, everything you’ve published stays exactly where it is.', { n: beta.postsQuota, date: ends })
+              : t('You have {n} posts a month, free. No card, nothing to cancel — when it ends, everything you’ve published stays exactly where it is.', { n: beta.postsQuota })}
           </p>
           <p style={{ fontSize: 13.5, color: 'var(--gv-dim)', lineHeight: 1.6, margin: '10px 0 0' }}>
             All we want in return is the truth about it.{' '}
@@ -95,7 +96,7 @@ function BetaStatus({ beta }: { beta: BetaState }) {
             still live on your site and stays yours — pick a plan below to start the pipeline again.
           </p>
           <p style={{ fontSize: 13.5, color: 'var(--gv-dim)', lineHeight: 1.6, margin: '10px 0 0' }}>
-            Not continuing?{' '}
+            {t('Not continuing?')}{' '}
             <Link href="/dashboard/feedback" style={{ color: ACCENT_INK, fontWeight: 600 }}>
               {t('Tell us why')}
             </Link>{' '}

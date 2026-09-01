@@ -109,7 +109,7 @@ export default async function Page() {
 
                 <div>
                   <div style={{ fontSize: 11, color: 'var(--gv-faint)', marginBottom: 10 }}>
-                    Where the &ldquo;Try {(domain as any).site_profile?.business?.name || apex}&rdquo; banner sends readers
+                    {t('Where the “Try {business}” banner sends readers', { business: (domain as any).site_profile?.business?.name || apex })}
                   </div>
                   <BannerLinkForm domainId={domain.id} initial={(domain as any).cta_url ?? null} hostname={domain.hostname} />
                 </div>
@@ -152,7 +152,7 @@ export default async function Page() {
 
             {!onAppOrigin && (
               <p style={{ color: 'var(--gv-faint)', fontSize: 12.5, lineHeight: 1.55 }}>
-                Haven&rsquo;t set up step 1 yet? Grove hosts your blog at{' '}
+                {t('Haven’t set up step 1 yet? Grove hosts your blog at')}{' '}
                 <span className="mono">{groveBase}/b/{domain?.blog_slug}</span> (sitemap, RSS, JSON-LD) in the meantime —
                 but that credit goes to grove&rsquo;s domain, not yours. Setting your subdomain moves it to you.
               </p>

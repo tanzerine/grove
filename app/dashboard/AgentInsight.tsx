@@ -105,16 +105,16 @@ export default function AgentInsight({
       {pages && pages.length > 0 && (
         <div style={{ marginTop: 12, borderRadius: 10, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', padding: '11px 12px' }}>
           <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 8 }}>
-            Cluster around “{cluster?.seed}”
+            {t('Cluster around “')}{cluster?.seed}”
           </div>
           <div style={{ fontSize: 11.5, color: 'var(--gv-faint)', marginBottom: 9, lineHeight: 1.45 }}>
-            Hub: “{cluster?.hubTitle}” · {pages.length} new page{pages.length === 1 ? '' : 's'}, each targeting a real related search. They land in review, cross-linked to the hub.
+            {t('Hub: “')}{cluster?.hubTitle}” · {pages.length} new page{pages.length === 1 ? '' : 's'}, each targeting a real related search. They land in review, cross-linked to the hub.
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {pages.map((p, i) => (
               <div key={i} style={{ padding: '7px 9px', borderRadius: 8, background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.06)' }}>
                 <span style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--gv-ink)', lineHeight: 1.35 }}>{p.title}</span>
-                <span style={{ display: 'block', fontSize: 11, color: 'var(--gv-dim)', marginTop: 2 }}>targets “{p.keyword}”</span>
+                <span style={{ display: 'block', fontSize: 11, color: 'var(--gv-dim)', marginTop: 2 }}>{t('targets “')}{p.keyword}”</span>
               </div>
             ))}
           </div>

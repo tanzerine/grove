@@ -36,9 +36,10 @@ const HEALTH_STYLE: Record<Exclude<ConnectionHealthState, 'ok'>, { fg: string; b
   failing: { fg: 'var(--gv-red-text)', bg: 'rgba(201,127,127,0.14)' },
 };
 
+/** English source strings; translated at the render site (module-level table). */
 const META: Record<PlatformView['id'], { label: string; blurb: string; color: string }> = {
-  x:         { label: 'X',         blurb: 'Auto-posts a hook + link when an article publishes.', color: '#000000' },
-  linkedin:  { label: 'LinkedIn',  blurb: 'Shares the article as a LinkedIn post on your profile.', color: '#0A66C2' },
+  x:         { label: 'X',         blurb: msg('Auto-posts a hook + link when an article publishes.'), color: '#000000' },
+  linkedin:  { label: 'LinkedIn',  blurb: msg('Shares the article as a LinkedIn post on your profile.'), color: '#0A66C2' },
 };
 
 export default function ConnectionsClient({
@@ -231,8 +232,10 @@ export default function ConnectionsClient({
                 <div style={{ fontSize: 13, color: unhealthy ? 'var(--gv-red-soft)' : 'var(--clay)', marginTop: 2 }}>
                   {unhealthy?.detail
                     ?? (p.connection
-                      ? <>Connected{p.connection.account_handle ? ` as ${p.connection.account_handle}` : ''}.</>
-                      : m.blurb)}
+                      ? (p.connection.account_handle
+                          ? t('Connected as {handle}.', { handle: p.connection.account_handle })
+                          : t('Connected.'))
+                      : t(m.blurb))}
                 </div>
               </div>
               {!p.configured ? (

@@ -229,7 +229,7 @@ export default function CustomHostnameForm({
                 </button>
               </div>
               <p style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--gv-dim)', lineHeight: 1.5 }}>
-                If your registrar says the value must end with a dot, use{' '}
+                {t('If your registrar says the value must end with a dot, use')}{' '}
                 <span className="mono">cname.vercel-dns.com.</span> — same record.
               </p>
               <div style={{ marginTop: 10 }}>

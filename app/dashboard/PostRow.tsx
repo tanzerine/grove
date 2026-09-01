@@ -143,7 +143,7 @@ export default function PostRow({ p, score, blogBase }: { p: any; score?: { over
         </Link>
 
         {score ? (
-          <span title={`Manager quality score · last decision: ${score.action}`} style={{ display: 'inline-flex', alignItems: 'baseline', gap: 2, flexShrink: 0, fontVariantNumeric: 'tabular-nums', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '4px 9px' }}>
+          <span title={t('Manager quality score · last decision: {action}', { action: score.action })} style={{ display: 'inline-flex', alignItems: 'baseline', gap: 2, flexShrink: 0, fontVariantNumeric: 'tabular-nums', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '4px 9px' }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: scoreColor }}>{score.overall}</span>
             <span style={{ fontSize: 9, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>score</span>
           </span>
