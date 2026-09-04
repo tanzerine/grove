@@ -23,6 +23,7 @@ import { NextResponse } from 'next/server';
 import { authenticate, touchKey, type McpContext } from '@/lib/mcp/auth';
 import { callTool } from '@/lib/mcp/handlers';
 import { bearerToken } from '@/lib/mcp/keys';
+import { challengeHeader } from '@/lib/mcp/oauth-metadata';
 import {
   initializeResult, isNotification, LATEST_PROTOCOL, parseBody, RPC, rpcError, rpcResult,
   type RpcRequest, type RpcResponse,
@@ -44,7 +45,11 @@ const CORS = {
   // after initialize; omitting it here fails the browser preflight and the
   // connection dies before the first tool call.
   'access-control-allow-headers': 'authorization, content-type, mcp-protocol-version, mcp-session-id, x-api-key',
-  'access-control-expose-headers': 'mcp-protocol-version',
+  // www-authenticate carries the whole discovery pointer. A browser-based
+  // client cannot read a response header it was not explicitly given, so
+  // without this the 401 arrives with the challenge stripped and the client
+  // sees an unexplained failure instead of "here is where to authenticate".
+  'access-control-expose-headers': 'mcp-protocol-version, www-authenticate',
   'access-control-max-age': '86400',
 };
 
@@ -87,24 +92,28 @@ export async function POST(req: Request) {
 
   if (!auth.ok) {
     // WWW-Authenticate is what tells a spec-current client this is an auth
-    // problem it can prompt about, rather than a broken server.
+    // problem it can prompt about, rather than a broken server — and, now that
+    // it carries resource_metadata, where to go and solve it without a human
+    // pasting a key. See lib/mcp/oauth-metadata.ts.
+    const message =
+      auth.reason === 'missing'
+        ? 'Missing credentials. Send Authorization: Bearer <grove MCP key>.'
+        : auth.reason === 'malformed'
+          ? 'That does not look like a grove MCP key (they start with gv_mcp_).'
+          : 'This key is not valid. It may have been revoked, expired, or belong to another environment.';
+
     return NextResponse.json(
-      {
-        jsonrpc: '2.0',
-        id: null,
-        error: {
-          code: RPC.INVALID_REQUEST,
-          message:
-            auth.reason === 'missing'
-              ? 'Missing credentials. Send Authorization: Bearer <grove MCP key>.'
-              : auth.reason === 'malformed'
-                ? 'That does not look like a grove MCP key (they start with gv_mcp_).'
-                : 'This key is not valid. It may have been revoked, expired, or belong to another environment.',
-        },
-      },
+      { jsonrpc: '2.0', id: null, error: { code: RPC.INVALID_REQUEST, message } },
       {
         status: 401,
-        headers: { ...CORS, 'www-authenticate': `Bearer realm="grove", error="invalid_token"` },
+        headers: {
+          ...CORS,
+          'www-authenticate': challengeHeader(
+            appBase(),
+            auth.reason === 'missing' ? 'missing' : 'invalid',
+            message,
+          ),
+        },
       },
     );
   }
