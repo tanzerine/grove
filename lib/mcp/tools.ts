@@ -52,7 +52,7 @@ export const TOOLS: ToolDef[] = [
     name: 'list_sites',
     title: 'List sites',
     description:
-      'The domains this key can read, with how many articles are published, how many have already been delivered to your content layer, and where grove currently points its canonical URLs. Start here.',
+      'The domains this key can read, with how many articles are published, how many have already been delivered to your content layer, and where grove currently points its canonical URLs. Start here. Read `key_scope` before you conclude anything about how many sites the account has: a key pinned to one site returns one site.',
     scope: 'read',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     annotations: { readOnlyHint: true, openWorldHint: false },
