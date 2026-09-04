@@ -18,6 +18,21 @@ const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
   async rewrites() {
     return [
+      // OAuth discovery for the MCP endpoint (RFC 9728). Served from a normal
+      // route and rewritten onto the reserved .well-known namespace: a literal
+      // `app/.well-known/` directory is not a shape the App Router's file
+      // scanner is reliable about. Both forms are served — the RFC builds the
+      // URL by inserting the well-known segment before the resource's path
+      // (/api/mcp), and that is what the 401 challenge names, while several
+      // clients probe the bare path first.
+      {
+        source: '/.well-known/oauth-protected-resource',
+        destination: '/api/oauth/protected-resource',
+      },
+      {
+        source: '/.well-known/oauth-protected-resource/:path*',
+        destination: '/api/oauth/protected-resource',
+      },
       {
         source: '/ingest/static/:path*',
         destination: 'https://us-assets.i.posthog.com/static/:path*',
