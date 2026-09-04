@@ -53,6 +53,7 @@ export default function SideNav({ badges = {}, isAdmin = false }: { badges?: Rec
     ? [...base, { head: 'Admin', items: [
         { href: '/dashboard/admin', label: 'Overview', icon: 'analytics', match: (p: string) => p === '/dashboard/admin' },
         { href: '/dashboard/admin/plan', label: 'Planner', icon: 'calendar', match: (p: string) => p.startsWith('/dashboard/admin/plan') },
+        { href: '/dashboard/admin/journey', label: 'Journey', icon: 'clock', match: (p: string) => p.startsWith('/dashboard/admin/journey') },
         { href: '/dashboard/admin/users', label: 'Users', icon: 'eye', match: (p: string) => p.startsWith('/dashboard/admin/users') },
         { href: '/dashboard/admin/refunds', label: 'Refunds', icon: 'billing', match: (p: string) => p.startsWith('/dashboard/admin/refunds') },
         { href: '/dashboard/admin/feedback', label: 'Feedback', icon: 'voice', badgeKey: 'feedback', match: (p: string) => p.startsWith('/dashboard/admin/feedback') },
