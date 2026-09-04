@@ -1,44 +1,50 @@
 /**
- * The journey page's transcription guard.
+ * The journey page's transcription guards.
  *
- * lib/journey.ts is a hand-copied `git log` summary — the app cannot read the
- * repo at runtime, so nothing else can catch a typo in it. The two sum checks
- * below are the whole point of this file: if a week or a phase is mistyped,
- * the page silently reports a smaller project than the one that happened, and
- * a retrospective that undercounts is worse than no retrospective.
+ * Both journey libs are hand-copied `git log` summaries — the app cannot read
+ * the repo at runtime, so nothing else can catch a typo in them. The sum check
+ * below is the whole point: retyping one day's count fails until the declared
+ * total is updated on purpose. A retrospective that undercounts the work is
+ * worse than no retrospective.
  *
  * The rest covers the day arithmetic, because "day 56" is the claim the page
  * actually makes and an off-by-one there is invisible on the screen.
  */
 import { describe, it, expect } from 'vitest';
+import { BUILT, START, END, dayOf } from '../lib/journey';
 import {
-  WEEKS, PHASES, MILESTONES, TOTAL_COMMITS, START, END,
-  dayOf, dayLabel, barPct, milestonesInWeek, weekLabel,
-} from '../lib/journey';
+  RECORDED_COMMITS, TRANSCRIBED_TOTAL, FIRST_DAY, LAST_DAY,
+  allDays, dayNumber, isWeekend, longestSilence, monthLabel, weekdayOf,
+} from '../lib/journey-days';
 
-const EXPECTED_COMMITS = 397;
-
-describe('the transcription totals', () => {
-  it('weeks sum to the repo commit count', () => {
-    expect(TOTAL_COMMITS).toBe(EXPECTED_COMMITS);
+describe('the transcription', () => {
+  it('sums to the total it declares', () => {
+    expect(RECORDED_COMMITS).toBe(TRANSCRIBED_TOTAL);
   });
 
-  it('phases account for every commit the weeks do', () => {
-    const byPhase = PHASES.reduce((n, p) => n + p.commits, 0);
-    expect(byPhase).toBe(EXPECTED_COMMITS);
+  it('starts and ends where the build ledger says the project did', () => {
+    expect(FIRST_DAY).toBe(START);
+    expect(LAST_DAY).toBe(END);
   });
 
-  it('runs week by week without a gap', () => {
-    for (let i = 1; i < WEEKS.length; i++) {
-      expect(dayOf(WEEKS[i].start) - dayOf(WEEKS[i - 1].start)).toBe(7);
+  it('never records a day twice', () => {
+    const dates = allDays().map((d) => d.date);
+    expect(new Set(dates).size).toBe(dates.length);
+  });
+
+  it('gives every calendar day a column, quiet ones included', () => {
+    const days = allDays();
+    expect(days).toHaveLength(dayOf(END)); // 96
+    // Consecutive, no holes — a skipped date would silently shorten the gaps.
+    for (let i = 1; i < days.length; i++) {
+      expect(dayOf(days[i].date) - dayOf(days[i - 1].date)).toBe(1);
     }
   });
 
-  it('every phase ends after it starts, and they do not overlap', () => {
-    for (const p of PHASES) expect(dayOf(p.to)).toBeGreaterThan(dayOf(p.from));
-    for (let i = 1; i < PHASES.length; i++) {
-      expect(dayOf(PHASES[i].from)).toBeGreaterThan(dayOf(PHASES[i - 1].to));
-    }
+  it('keeps the quiet days actually quiet', () => {
+    const days = allDays();
+    const quiet = days.filter((d) => d.commits === 0 && d.did.length === 0 && !d.note);
+    expect(quiet.length).toBeGreaterThan(20);
   });
 });
 
@@ -47,7 +53,7 @@ describe('day arithmetic', () => {
     expect(dayOf(START)).toBe(1);
   });
 
-  it('gets the milestones the page names in prose', () => {
+  it('gets the intervals the page is built to show', () => {
     // These three, in this order, ARE the finding — billing before the meter,
     // the meter before the proof anyone could sign up.
     expect(dayOf('2026-06-28')).toBe(28); // Stripe live
@@ -60,51 +66,50 @@ describe('day arithmetic', () => {
     expect(dayOf('2026-07-01')).toBe(31); // June has 30
     expect(dayOf('2026-08-01')).toBe(62); // July has 31
   });
+});
 
-  it('labels a milestone that never happened as never, not day NaN', () => {
-    const never = MILESTONES.find((m) => m.date === null)!;
-    expect(never).toBeDefined();
-    expect(dayLabel(never)).toBe('never');
+describe('calendar labels', () => {
+  it('reads weekdays in UTC, not the runner’s zone', () => {
+    // 2026-06-01 is a Monday. A local-time parse in KST would still say Monday,
+    // but one in UTC-5 would say Sunday and shift the whole strip.
+    expect(weekdayOf('2026-06-01')).toBe('Mon');
+    expect(weekdayOf('2026-09-04')).toBe('Fri');
+  });
+
+  it('knows a weekend from a working day', () => {
+    expect(isWeekend('2026-06-06')).toBe(true);  // Saturday
+    expect(isWeekend('2026-06-07')).toBe(true);  // Sunday
+    expect(isWeekend('2026-06-08')).toBe(false); // Monday
+  });
+
+  it('labels months and day numbers off the string, not a Date', () => {
+    expect(monthLabel('2026-08-31')).toBe('Aug');
+    expect(dayNumber('2026-08-31')).toBe(31);
+    expect(dayNumber('2026-08-01')).toBe(1);
   });
 });
 
-describe('bars', () => {
-  it('gives the peak week the full height', () => {
-    expect(barPct(Math.max(...WEEKS.map((w) => w.commits)))).toBe(100);
+describe('the silences', () => {
+  it('finds the longest run of days with nothing at all', () => {
+    const s = longestSilence(allDays())!;
+    expect(s).not.toBeNull();
+    // Aug 16-25: the ten days between the last Reddit commit and the morning
+    // the 30 leads were researched. This is the loudest thing on the page.
+    expect(s.from).toBe('2026-08-16');
+    expect(s.to).toBe('2026-08-25');
+    expect(s.length).toBe(10);
   });
 
-  it('renders a silent week as nothing, not as a floor', () => {
-    // The 0-commit week is the loudest bar on the chart precisely because it
-    // is empty; a minimum height would hide it among the small weeks.
-    expect(barPct(0)).toBe(0);
-  });
-
-  it('keeps a one-commit week visible', () => {
-    expect(barPct(1)).toBeGreaterThanOrEqual(4);
-  });
-});
-
-describe('milestone pinning', () => {
-  it('puts a milestone under the week that contains it', () => {
-    const pins = milestonesInWeek('2026-07-20'); // Jul 20-26
-    expect(pins.map((p) => p.label)).toContain('First test that a new account can onboard at all');
-  });
-
-  it('does not pin it to the neighbouring week', () => {
-    expect(milestonesInWeek('2026-07-13').map((p) => p.label))
-      .not.toContain('First test that a new account can onboard at all');
-  });
-
-  it('pins every dated milestone to exactly one week', () => {
-    const dated = MILESTONES.filter((m) => m.date);
-    const pinned = WEEKS.flatMap((w) => milestonesInWeek(w.start));
-    expect(pinned).toHaveLength(dated.length);
+  it('does not count a day that carries only a note as silent', () => {
+    // Aug 9 has no commit but does have "LAUNCH52 created. Never redeemed."
+    const s = longestSilence(allDays().filter((d) => d.date >= '2026-08-06' && d.date <= '2026-08-10'))!;
+    expect(s.length).toBeLessThan(4);
   });
 });
 
-describe('labels', () => {
-  it('reads as a short calendar date', () => {
-    expect(weekLabel('2026-06-08')).toBe('Jun 8');
-    expect(weekLabel('2026-08-31')).toBe('Aug 31');
+describe('the build ledger', () => {
+  it('states a figure for every label', () => {
+    expect(BUILT.length).toBeGreaterThan(3);
+    for (const b of BUILT) expect(b.value).not.toBe('');
   });
 });
