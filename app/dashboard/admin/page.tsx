@@ -6,6 +6,7 @@ import { getAdminStats } from '@/lib/admin-stats';
 import { detectAnomalies } from '@/lib/anomaly';
 import { feedbackStats } from '@/lib/feedback-store';
 import { betaStats } from '@/lib/beta-store';
+import { planTodayCount } from '@/lib/operator-plan-store';
 import { DashHeader } from '../gv-chrome';
 
 export const dynamic = 'force-dynamic';
@@ -22,8 +23,8 @@ export default async function AdminOverviewPage() {
   if (!user) redirect('/login');
   if (!isAdminEmail(user.email)) redirect('/dashboard');
 
-  const [s, flags, fb, beta] = await Promise.all([
-    getAdminStats(), detectAnomalies(), feedbackStats(), betaStats(),
+  const [s, flags, fb, beta, plan] = await Promise.all([
+    getAdminStats(), detectAnomalies(), feedbackStats(), betaStats(), planTodayCount(),
   ]);
   const maxRef = Math.max(1, ...s.referrals.map((r) => r.count));
 
@@ -37,6 +38,9 @@ export default async function AdminOverviewPage() {
     // and is therefore either about to pay or about to leave.
     { label: 'Live betas', value: beta.active.toLocaleString(), sub: `${beta.expired} expired · ${beta.committedPostsPerMonth} free posts/mo`, href: '/dashboard/admin/beta' },
     { label: 'Open feedback', value: fb.open.toLocaleString(), sub: fb.blockers ? `${fb.blockers} BLOCKING` : `${fb.publishable} ready to publish`, href: '/dashboard/admin/feedback' },
+    // The operator's own work sits beside the product's numbers on purpose:
+    // a planner you have to remember to open is a planner you stop opening.
+    { label: 'My open tasks', value: plan.open.toLocaleString(), sub: plan.carried ? `${plan.carried} carried over` : 'nothing carried over', href: '/dashboard/admin/plan' },
   ];
 
   return (
