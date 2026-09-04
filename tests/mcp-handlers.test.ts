@@ -382,6 +382,40 @@ describe('list_sites', () => {
     expect(acme.delivered_to_your_layer).toBe(1);
     expect(acme.awaiting_delivery).toBe(2);
   });
+
+  // u1 owns acme.com AND other.com. A key pinned to d1 shows one row, which is
+  // byte-identical to what a single-site account gets — so without key_scope an
+  // agent tells the customer they have one site, and the missing one looks like
+  // a grove bug rather than the key doing exactly what it was made to do.
+  it('says out loud that a pinned key is not the whole account', async () => {
+    const r = json(await call('list_sites', {}, PINNED_D1));
+    expect(r.sites).toHaveLength(1);
+    expect(r.key_scope.covers).toBe('one site');
+    expect(r.key_scope.pinned_to).toBe('acme.com');
+    expect(r.key_scope.note).toContain('all-sites key');
+  });
+
+  it('claims nothing when the key really does see everything', async () => {
+    const r = json(await call('list_sites', {}));
+    expect(r.sites.length).toBeGreaterThan(1);
+    expect(r.key_scope).toEqual({
+      covers: 'every site on this account',
+      pinned_to: null,
+      note: null,
+    });
+  });
+});
+
+describe('keyScope', () => {
+  it('distinguishes an outlived key from an empty account', async () => {
+    const { keyScope } = await import('@/lib/mcp/handlers');
+    // The site the key was pinned to is gone: "connect a domain" would send the
+    // customer to fix something that is not broken.
+    expect(keyScope('d-deleted', null).note).toContain('no longer on this account');
+    expect(keyScope(null, null)).toEqual({
+      covers: 'every site on this account', pinned_to: null, note: null,
+    });
+  });
 });
 
 describe('post_analytics', () => {

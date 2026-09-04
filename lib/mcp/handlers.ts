@@ -219,9 +219,42 @@ export async function callTool(name: string, rawArgs: unknown, ctx: McpContext):
 
 // ── tools ──────────────────────────────────────────────────────────────────
 
+/**
+ * What this key can reach, said out loud.
+ *
+ * A key pinned to one site returns exactly one row from list_sites — which is
+ * indistinguishable from an account that simply owns one site. That ambiguity
+ * is expensive: an agent reports "you have one site" to someone who has three,
+ * and the only surface that tells the truth is resolveSite's error, which you
+ * have to trip on purpose to see. So the scope travels with the list.
+ */
+export type KeyScope = {
+  covers: 'one site' | 'every site on this account';
+  pinned_to: string | null;
+  note: string | null;
+};
+
+export function keyScope(pinnedDomainId: string | null, pinnedHostname: string | null): KeyScope {
+  if (!pinnedDomainId) return { covers: 'every site on this account', pinned_to: null, note: null };
+  return {
+    covers: 'one site',
+    pinned_to: pinnedHostname,
+    note: pinnedHostname
+      ? `This key is pinned to ${pinnedHostname}. Every other site on this account is invisible through it — make an all-sites key in the grove dashboard if the agent should see them.`
+      : 'This key is pinned to a site that is no longer on this account. Make a new key in the grove dashboard.',
+  };
+}
+
 async function listSites(sb: Sb, ctx: McpContext): Promise<ToolResult> {
   const sites = await sitesFor(sb, ctx);
-  if (!sites.length) return toolText('No sites on this key yet. Connect a domain in the grove dashboard first.');
+  // A pinned key with no rows is not an empty account — it is a key outliving
+  // the site it was made for, and "connect a domain" would send the customer
+  // to fix something that isn't broken.
+  if (!sites.length) {
+    return toolText(ctx.domainId
+      ? 'This key is pinned to a site that is no longer on this account. Make a new key in the grove dashboard.'
+      : 'No sites on this key yet. Connect a domain in the grove dashboard first.');
+  }
 
   const rows = await Promise.all(sites.map(async (d) => {
     const [{ count: published }, { count: delivered }] = await Promise.all([
@@ -243,7 +276,9 @@ async function listSites(sb: Sb, ctx: McpContext): Promise<ToolResult> {
     };
   }));
 
-  return toolJson({ sites: rows });
+  // key_scope first: the model reads the answer to "is this everything?" before
+  // it reads the list, not after.
+  return toolJson({ key_scope: keyScope(ctx.domainId, sites[0]?.hostname ?? null), sites: rows });
 }
 
 async function listPosts(sb: Sb, ctx: McpContext, args: Record<string, unknown>): Promise<ToolResult> {
