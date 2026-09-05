@@ -293,6 +293,37 @@ export function buildSitemapXml(opts: {
 }
 
 /**
+ * The Organization node, in ONE place.
+ *
+ * It used to be an inline object literal in three separate files (this builder,
+ * the blog home in app/b/[slug]/page.tsx, and grove's own marketing homepage in
+ * components/StructuredData.tsx). All three said `{ name, url }` and none said
+ * `sameAs`, so every customer's entity was unconnected to any profile they own
+ * — the one warn an AI-search readiness audit returned against both live blogs.
+ * Three copies is also why it stayed unfixed: there was no single place to fix.
+ *
+ * `sameAs` is omitted rather than emitted empty. An empty array is a claim that
+ * the entity has no other presence; absence is simply silence.
+ */
+export function organizationNode(opts: {
+  id: string;
+  name: string;
+  url: string;
+  sameAs?: string[];
+  description?: string;
+}): Record<string, unknown> {
+  const { id, name, url, sameAs, description } = opts;
+  return {
+    '@type': 'Organization',
+    '@id': id,
+    name,
+    url,
+    description: description || undefined,
+    sameAs: sameAs && sameAs.length ? sameAs : undefined,
+  };
+}
+
+/**
  * Build the linked structured-data @graph for one article. One graph with @id
  * cross-references (Organization → WebSite → WebPage → Article, plus Breadcrumb
  * and FAQ) beats a pile of disconnected scripts: search + answer engines read
@@ -312,6 +343,9 @@ export function buildArticleGraph(opts: {
   updatedAt?: string | null;
   businessName: string;
   homeUrl: string;            // the customer's own site (publisher/author url)
+  /** Profiles the customer owns, from lib/org-identity sameAsFor(site_profile).
+   *  Connects this Organization to a verifiable presence; omitted when empty. */
+  sameAs?: string[];
   authorName: string;
   authorIsOrg: boolean;
   genreLabel: string;
@@ -322,7 +356,7 @@ export function buildArticleGraph(opts: {
 }): { '@context': string; '@graph': unknown[] } {
   const {
     hostname, blogSlug, postSlug, title, description, image, publishedAt, updatedAt,
-    businessName, homeUrl, authorName, authorIsOrg, genreLabel, wordCount,
+    businessName, homeUrl, sameAs, authorName, authorIsOrg, genreLabel, wordCount,
     faqs = [], inLanguage = 'en', canonicalBase,
   } = opts;
 
@@ -337,12 +371,7 @@ export function buildArticleGraph(opts: {
   const undef = undefined;
 
   const graph: unknown[] = [
-    {
-      '@type': 'Organization',
-      '@id': orgId,
-      name: businessName,
-      url: homeUrl,
-    },
+    organizationNode({ id: orgId, name: businessName, url: homeUrl, sameAs }),
     {
       '@type': 'WebSite',
       '@id': siteId,

@@ -10,6 +10,7 @@
 import { z } from 'zod';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { appBase, blogHomeUrl, blogPostUrl, canonicalBaseFor, normalizeCanonicalBase, buildArticleGraph } from '@/lib/seo';
+import { sameAsFor } from '@/lib/org-identity';
 import { crawlableArticleUrl } from '@/lib/embed-seo';
 import { authorFor, genreFor, authorIsOrg } from '@/lib/blog-genre';
 import { extractFaq } from '@/lib/faq';
@@ -147,6 +148,7 @@ function jsonLdFor(post: any, domain: DomainRow) {
     updatedAt: post.updated_at,
     businessName: business?.name || hostname,
     homeUrl: `https://${hostname}`,
+    sameAs: sameAsFor(domain.site_profile),
     authorName: author,
     authorIsOrg: authorIsOrg(domain.site_profile),
     genreLabel: genreFor(post.format, post.title, lg.code).label,

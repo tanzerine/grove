@@ -3,6 +3,7 @@ import {
   escapeXml, isBot, jsonLdScript, appBase, normalizeCanonicalBase,
   blogHomeUrl, blogPostUrl, subdomainSlugFromHost, buildLlmsTxt, buildArticleGraph, buildSitemapXml, buildRssXml,
   sanitizeEmbedHost, normalizeBlogHostname, canonicalBaseFor, servedBlogBaseFor, isCustomBlogHost,
+  organizationNode,
 } from '../lib/seo';
 
 describe('escapeXml', () => {
@@ -252,6 +253,30 @@ describe('buildRssXml', () => {
   });
 });
 
+describe('organizationNode', () => {
+  it('omits sameAs entirely when there are no profiles', () => {
+    // Absence is silence; an empty array would assert the entity has no other
+    // presence. Every customer is in this state until they link a profile.
+    const n = organizationNode({ id: 'https://acme.com#org', name: 'Acme', url: 'https://acme.com' });
+    expect('sameAs' in n && n.sameAs !== undefined).toBe(false);
+    expect(JSON.stringify(n)).not.toContain('sameAs');
+    expect(n).toMatchObject({ '@type': 'Organization', name: 'Acme', url: 'https://acme.com' });
+  });
+
+  it('emits sameAs when profiles exist', () => {
+    const n = organizationNode({
+      id: 'https://acme.com#org', name: 'Acme', url: 'https://acme.com',
+      sameAs: ['https://linkedin.com/company/acme'],
+    });
+    expect(n.sameAs).toEqual(['https://linkedin.com/company/acme']);
+  });
+
+  it('drops an empty description rather than emitting a blank string', () => {
+    const n = organizationNode({ id: 'x', name: 'Acme', url: 'https://acme.com', description: '' });
+    expect(JSON.stringify(n)).not.toContain('description');
+  });
+});
+
 describe('buildArticleGraph', () => {
   const base = {
     hostname: 'acme.com', blogSlug: 'demo', postSlug: 'my-post',
@@ -260,6 +285,13 @@ describe('buildArticleGraph', () => {
     authorName: 'Acme Team', authorIsOrg: true, genreLabel: 'Guides', wordCount: 1200,
   };
   const find = (g: any, type: string) => g['@graph'].find((n: any) => n['@type'] === type);
+
+  it('carries sameAs onto the Organization node when the site profile has one', () => {
+    const g = buildArticleGraph({ ...base, sameAs: ['https://linkedin.com/company/acme'] });
+    expect(find(g, 'Organization').sameAs).toEqual(['https://linkedin.com/company/acme']);
+    // and stays absent on the default path
+    expect(find(buildArticleGraph(base), 'Organization').sameAs).toBeUndefined();
+  });
 
   it('builds a @graph with the core linked nodes', () => {
     const g = buildArticleGraph(base);

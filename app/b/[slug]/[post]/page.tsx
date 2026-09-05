@@ -8,6 +8,7 @@ import { jsonLdScript, blogHomeUrl, blogPostUrl, subdomainSlugFromHost, isCustom
 import { pickRelated } from '@/lib/related-posts';
 import { injectInternalLinks } from '@/lib/internal-links';
 import { genreFor, authorFor, authorIsOrg } from '@/lib/blog-genre';
+import { sameAsFor } from '@/lib/org-identity';
 import { languageForDomain, readMinutes, contentLength } from '@/lib/language';
 import { blogThemeVars, resolveBranding } from '@/lib/blog-theme';
 import { notFound } from 'next/navigation';
@@ -164,6 +165,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
     updatedAt: (p as any).updated_at,
     businessName,
     homeUrl,
+    sameAs: sameAsFor(profile),
     authorName: author,
     authorIsOrg: authorIsOrg(profile),
     genreLabel: genre.label,

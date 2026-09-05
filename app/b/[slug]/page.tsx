@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { jsonLdScript, blogHomeUrl, blogPostUrl, subdomainSlugFromHost, isCustomBlogHost, canonicalBaseFor, servedBlogBaseFor } from '@/lib/seo';
+import { jsonLdScript, blogHomeUrl, blogPostUrl, subdomainSlugFromHost, isCustomBlogHost, canonicalBaseFor, servedBlogBaseFor, organizationNode } from '@/lib/seo';
+import { sameAsFor } from '@/lib/org-identity';
 import { genreFor, authorFor, authorIsOrg, type Genre } from '@/lib/blog-genre';
 import { languageForDomain, type Language } from '@/lib/language';
 import { archiveEntries } from '@/lib/blog-archive';
@@ -151,7 +152,7 @@ export default async function BlogIndex({
   const blogLd = {
     '@context': 'https://schema.org',
     '@graph': [
-      { '@type': 'Organization', '@id': orgId, name: businessName, url: homeUrl },
+      organizationNode({ id: orgId, name: businessName, url: homeUrl, sameAs: sameAsFor((domain as any).site_profile) }),
       {
         '@type': 'WebSite',
         '@id': siteId,
