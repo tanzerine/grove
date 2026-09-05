@@ -16,6 +16,7 @@ import {
   keywordVariants, autocompleteLocale, INTENT_PATTERNS, normalizeLang,
   questionVariants, questionWordPattern, type LangCode,
 } from '../language';
+import { narrowSeed } from './seeds';
 
 export type SearchIntent = 'informational' | 'commercial' | 'transactional' | 'navigational';
 export type KeywordIdea = { keyword: string; intent: SearchIntent; score: number };
@@ -120,8 +121,36 @@ export async function gatherKeywordDemand(
   const cleanSeeds = [...new Set(seeds.map((s) => s.toLowerCase().trim()).filter(Boolean))].slice(0, maxSeeds);
   if (!cleanSeeds.length) return [];
 
-  const queries = cleanSeeds.flatMap((seed) => variantsFor(seed, lang));
   const hl = autocompleteLocale(lang);
+
+  // PHASE 1 — probe each bare seed and keep the ones that answer.
+  //
+  // This used to fan every seed straight out into six variants, which meant a
+  // seed with no demand burned six requests to return nothing six times. It
+  // also hid the failure: a profile whose every seed was dead produced an empty
+  // demand list that looked identical to a network problem. Probing the bare
+  // seed first costs one request and tells us which seeds are real.
+  const bare = await Promise.all(cleanSeeds.map((s) => fetchAutocomplete(s, timeoutMs, hl)));
+
+  const live: string[] = [];
+  const retry: string[] = [];
+  cleanSeeds.forEach((seed, i) => {
+    if (bare[i].length) { live.push(seed); return; }
+    // A dead seed is often a live one with a modifier bolted on the front.
+    const narrowed = narrowSeed(seed);
+    if (narrowed && !cleanSeeds.includes(narrowed)) retry.push(narrowed);
+  });
+
+  // PHASE 2 — second chance for the dead seeds, narrowed to their head noun.
+  if (retry.length) {
+    const rescued = await Promise.all(retry.map((s) => fetchAutocomplete(s, timeoutMs, hl)));
+    retry.forEach((seed, i) => { if (rescued[i].length) live.push(seed); });
+  }
+
+  if (!live.length) return [];
+
+  // PHASE 3 — only now fan the surviving seeds out into intent variants.
+  const queries = live.flatMap((seed) => variantsFor(seed, lang));
   const lists = await Promise.all(queries.map((q) => fetchAutocomplete(q, timeoutMs, hl)));
   return rankSuggestions(lists, limit, lang);
 }

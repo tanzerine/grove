@@ -18,6 +18,7 @@ import { interviewSummary, type InterviewAnswers } from './interview';
 import { assignPublishDates, slotsForRemainder } from './schedule';
 import { titleTokens } from '../related-posts';
 import { gatherKeywordDemand, formatDemandForPrompt } from './keywords';
+import { searchSeeds, isBrandTerm, localizeSeeds } from './seeds';
 import { monthlySlots } from '../plans';
 import type { MonthlyReport } from './review';
 import { language, strategyLanguageRule, type LangCode } from '../language';
@@ -232,16 +233,35 @@ export async function buildStrategy(input: BuildStrategyInput): Promise<Strategy
   // for the business's own products/industry/value props. This grounds the
   // plan in what people actually search, fixing the month-1 cold start where
   // the planner had only the profile to go on. Best-effort: [] on any failure.
-  const seeds = [
-    ...profile.business.products_services,
-    profile.business.industry,
-    ...profile.business.value_props,
-  ].map((s) => (s ?? '').trim()).filter(Boolean);
+  //
+  // The seeds come from `searchSeeds`, NOT from the profile fields directly.
+  // Those fields are marketing copy and autocomplete returns nothing for
+  // marketing copy: measured on production profiles, every one of grove's own
+  // seeds ("Autonomous AI blog writing", "Zero upkeep and no dashboards to
+  // babysit", "AI Marketing Software / B2B SaaS") returned zero suggestions,
+  // so this whole block silently produced "(none captured)" and the planner
+  // fell back to inventing topics from the company's description of itself.
+  // See lib/strategy/seeds.ts for the measurements.
+  // The profile is written in English whatever the blog publishes in, so for a
+  // non-English blog the seeds are localized first — otherwise the research is
+  // real but aimed at the wrong market. No-ops (and costs nothing) for English.
+  const seeds = await localizeSeeds(searchSeeds(profile, { limit: 8 }), pubLang.code);
   let demandBlock = '(none captured — plan from the business profile)';
   try {
     // In the publication language: this is the demand the articles will chase.
-    const demand = await gatherKeywordDemand(seeds, { maxSeeds: 4, limit: 36, lang: pubLang.code });
-    demandBlock = formatDemandForPrompt(demand);
+    const demand = await gatherKeywordDemand(seeds, { maxSeeds: 8, limit: 36, lang: pubLang.code });
+    // The brand's own name is not demand. It classifies as `informational`
+    // (no navigational pattern matches a bare product name), so without this
+    // it reaches the planner as a keyword to build pillars on — which is how a
+    // blog ends up writing "What Is <Product>?" for an audience that has never
+    // heard of it.
+    const offBrand = demand.filter((d) => !isBrandTerm(d.keyword, profile.business.name));
+    demandBlock = formatDemandForPrompt(offBrand);
+    if (!offBrand.length) {
+      // Loud: an empty demand list looked identical to a network failure for
+      // months, and it was neither — it was unusable seeds.
+      console.warn(`[buildStrategy] no search demand captured from seeds: ${seeds.join(', ') || '(none)'}`);
+    }
   } catch { /* demand is best-effort signal */ }
 
   const source: Strategy['source'] = interview
@@ -278,6 +298,20 @@ PRIORITIES (in order)
    slots to refreshing/expanding those exact topics with a sharper angle and
    set target_keyword to the query they already rank for. Moving an existing
    page from position 12 to 8 wins traffic faster than any brand-new post.
+
+WRITE FOR THE READER'S PROBLEM, NOT ABOUT THE PRODUCT
+The business name is not a keyword. Nobody searches for a product they have
+not heard of, so an article built around the brand can only ever be found by
+people who already know it — which is the audience the blog exists to grow,
+not the one it already has. At most ONE slot per month may be about the
+product itself (a launch, a genuine "how it works" piece). Every other slot
+must target a problem the audience already has words for, and its
+target_keyword must be a phrase a stranger would type. Specifically, do NOT
+plan slots of the shape "What is <product>", "Why we built <product>",
+"<product> vs <competitor>", "Inside <product>", "Your first week with
+<product>" unless that one slot is the exception. This is not a style
+preference: a blog that spent its first month on such titles recorded, over
+the following 90 days, zero non-brand search queries.
 
 TARGETS — REALISTIC BUT OPTIMISTIC
 ${isFirstMonth
@@ -340,6 +374,8 @@ ${progressMd?.trim() ? progressMd.trim().slice(-4000) : '(no weekly history yet)
 
 VALIDATED SEARCH DEMAND (real Google autocomplete phrases for this business — prioritize covering these and pull target_keyword from here):
 ${demandBlock}
+
+TOPIC RULE: at most ONE slot this month may be about ${profile.business.name} itself. Every other slot targets a problem the audience searches for, with a target_keyword a stranger would actually type. "${profile.business.name}" is not a keyword.
 
 ALREADY COVERED (don't repeat these topics/keywords):
 ${alreadyCovered?.length ? alreadyCovered.slice(0, 60).join(', ') : '(nothing on file)'}
