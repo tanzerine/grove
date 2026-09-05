@@ -11,6 +11,7 @@ import { genreFor, authorFor, authorIsOrg } from '@/lib/blog-genre';
 import { languageForDomain, contentLength, type Language } from '@/lib/language';
 import { pickRelated } from '@/lib/related-posts';
 import { sanitizeEmbedHost, buildArticleGraph, canonicalBaseFor } from '@/lib/seo';
+import { sameAsFor } from '@/lib/org-identity';
 import { crawlableArticleUrl } from '@/lib/embed-seo';
 import { extractFaq } from '@/lib/faq';
 import { embedTheme, brandingPayload, resolveBranding, type EmbedTheme } from '@/lib/blog-theme';
@@ -134,6 +135,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ hostname: stri
     updatedAt: (post as any).updated_at,
     businessName,
     homeUrl,
+    sameAs: sameAsFor((domain as any).site_profile),
     authorName: author,
     authorIsOrg: authorIsOrg((domain as any).site_profile),
     genreLabel: genre.label,

@@ -8,6 +8,7 @@
 import { llmCall, extractJson } from '../llm';
 import { safeFetch } from '../net/ssrf';
 import { extractSiteDesign, type SiteDesign } from '../site-design';
+import { extractSocialProfiles } from '../org-identity';
 import {
   type BrandColors,
   hexToHsl, darkenHex, deriveBrandColors,
@@ -24,6 +25,12 @@ export type SiteProfile = {
     target_audience: string;
     value_props: string[];
     geography: string;              // "global", "US/Canada", "Korea", etc.
+    /** Social profiles the business links from its OWN homepage, normalized by
+     *  lib/org-identity. Becomes `sameAs` on the Organization node in every
+     *  article and blog-home @graph. Extracted from markup, never from the LLM:
+     *  a model asked for a customer's social handles will invent plausible ones,
+     *  and an invented sameAs is a false identity claim about a real business. */
+    profiles?: string[];
   };
   voice: {
     persona: string;                // "engineer-to-engineer, blunt about trade-offs"
@@ -405,10 +412,13 @@ export async function profileSite(hostname: string): Promise<SiteProfile> {
   const externalCss = homepage ? await fetchExternalCss(homepage.html, homepage.base) : '';
   const branding = homepage ? extractBrandColors(homepage.html, externalCss) : null;
   const design = homepage ? extractSiteDesign(homepage.html, externalCss, homepage.base) : null;
+  // Identity, from the homepage's own markup. Homepage only, on purpose — see
+  // lib/org-identity: an article body links the profiles of everyone it cites.
+  const profiles = homepage ? extractSocialProfiles(homepage.html, homepage.base) : [];
 
   // Always include the homepage even if empty
   if (!pages.length) {
-    return blankProfile(hostname, [], false, false, branding, design);
+    return blankProfile(hostname, [], false, false, branding, design, profiles);
   }
 
   const crawledUrls = pages.map((p) => p.url);
@@ -493,6 +503,9 @@ ${corpus}`,
         target_audience: parsed.business?.target_audience ?? 'unknown',
         value_props: parsed.business?.value_props ?? [],
         geography: parsed.business?.geography ?? 'unknown',
+        // Never `parsed.business?.profiles` — the model is not asked for these
+        // and must not be able to supply them. Markup or nothing.
+        profiles,
       },
       voice: {
         persona: parsed.voice?.persona ?? `Owner of ${hostname}`,
@@ -510,7 +523,7 @@ ${corpus}`,
       meta: { has_blog: hasBlog, has_pricing: hasPricing, pages_crawled: crawledUrls },
     };
   } catch {
-    return blankProfile(hostname, crawledUrls, hasBlog, hasPricing, branding, design);
+    return blankProfile(hostname, crawledUrls, hasBlog, hasPricing, branding, design, profiles);
   }
 }
 
@@ -521,11 +534,12 @@ ${corpus}`,
  * still plan from the owner's own interview answers, and a plan built on their
  * stated intent beats making them wait a month for one.
  */
-export function blankProfile(hostname: string, crawled: string[] = [], hasBlog = false, hasPricing = false, branding: BrandColors | null = null, design: SiteDesign | null = null): SiteProfile {
+export function blankProfile(hostname: string, crawled: string[] = [], hasBlog = false, hasPricing = false, branding: BrandColors | null = null, design: SiteDesign | null = null, profiles: string[] = []): SiteProfile {
   return {
     business: {
       name: hostname, industry: 'unknown', description: '',
       products_services: [], target_audience: 'unknown', value_props: [], geography: 'unknown',
+      profiles,
     },
     voice: {
       persona: `Owner of ${hostname}`, tone: 'clear, practical, confident',

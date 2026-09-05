@@ -1,7 +1,7 @@
 import { SITE } from '@/lib/site';
 import { appBase } from '@/lib/seo';
 import { PLANS, PLAN_IDS } from '@/lib/plans';
-import { jsonLdScript } from '@/lib/seo';
+import { jsonLdScript, organizationNode } from '@/lib/seo';
 
 /**
  * Homepage JSON-LD: Organization + WebSite + SoftwareApplication. grove sells
@@ -14,13 +14,17 @@ export default function StructuredData() {
   const graph = {
     '@context': 'https://schema.org',
     '@graph': [
-      {
-        '@type': 'Organization',
-        '@id': `${base}/#organization`,
+      // Same builder the customer blogs use (lib/seo organizationNode) — grove
+      // is a customer of grove, and a second hand-written Organization literal
+      // here is exactly how the three copies drifted apart in the first place.
+      // No sameAs yet: grove's homepage links no profile of its own, and this
+      // field is never filled by hand with a URL nobody verified.
+      organizationNode({
+        id: `${base}/#organization`,
         name: SITE.name,
         url: base,
         description: SITE.description,
-      },
+      }),
       {
         '@type': 'WebSite',
         '@id': `${base}/#website`,
