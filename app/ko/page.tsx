@@ -13,6 +13,8 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import Landing from '@/components/Landing';
+import { groveBlogLinks } from '@/lib/grove-blog';
+import { groveEmbedHost } from '@/components/GroveEmbed';
 import StructuredData from '@/components/StructuredData';
 import { supabaseServer } from '@/lib/supabase/server';
 import { publishedTestimonials } from '@/lib/feedback-store';
@@ -61,10 +63,15 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
 
   const testimonials = await publishedTestimonials(6);
 
+  // Crawlable fallback for the blog widget. The homepage is the highest-
+  // authority page on the domain, and it shipped zero links to any article —
+  // see lib/grove-blog. Fail-safe like the reads above: empty on any failure.
+  const { base: blogBase, entries: blogLinks } = await groveBlogLinks(groveEmbedHost(), 3);
+
   return (
     <>
       <StructuredData />
-      <Landing loggedIn={loggedIn} testimonials={testimonials} locale="ko" />
+      <Landing loggedIn={loggedIn} testimonials={testimonials} locale="ko" blogLinks={blogLinks} blogBase={blogBase} />
     </>
   );
 }

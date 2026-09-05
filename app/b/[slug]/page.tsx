@@ -2,6 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import { jsonLdScript, blogHomeUrl, blogPostUrl, subdomainSlugFromHost, isCustomBlogHost, canonicalBaseFor, servedBlogBaseFor } from '@/lib/seo';
 import { genreFor, authorFor, authorIsOrg, type Genre } from '@/lib/blog-genre';
 import { languageForDomain, type Language } from '@/lib/language';
+import { archiveEntries } from '@/lib/blog-archive';
 import { blogThemeVars, fallbackPalette, resolveBranding } from '@/lib/blog-theme';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -90,6 +91,21 @@ export default async function BlogIndex({
   // <main>, so it has to agree with it — pass the same thing the layout does.
   const themeStyle = blogThemeVars(branding, (domain as any)?.site_profile?.design?.colors) as React.CSSProperties | undefined;
   const covers = fallbackPalette(branding);
+
+  // EVERY published article, as a real link, on every page of the index.
+  //
+  // The card grid paginates at 9, so before this the index exposed 10 anchors
+  // and left the rest behind a `?page=N` chain that only advertised the next
+  // page — while the JSON-LD below listed 20 URLs, which is metadata, not a
+  // link. Measured on grove's own blog: 9 of 24 sitemap URLs came back
+  // "Discovered – currently not indexed" from URL Inspection. Google had the
+  // URLs and would not spend crawl budget on pages nothing linked to.
+  // Unfiltered `all`, not `filtered`: a search or genre chip must not shrink
+  // the archive, or the links vanish exactly when a crawler follows a chip.
+  const archive = archiveEntries(all, {
+    blogSlug: slug,
+    canonicalBase: canonicalBaseFor(domain),
+  });
 
   // genres present across the whole catalog → filter chips
   const genreById = new Map<string, Genre>();
@@ -262,6 +278,43 @@ export default async function BlogIndex({
           {current < pages
             ? <Link href={mk({ page: current + 1 })} className="pagenav-link">{t.older}</Link>
             : <span className="pagenav-link off">{t.older}</span>}
+        </nav>
+      )}
+
+      {/* The crawlable index. Quiet by design — it is a utility list, not a
+          second feed — but it is server-rendered on every page, so each
+          article is one hop from the blog home for readers and crawlers
+          alike. */}
+      {archive.length > 1 && (
+        <nav
+          aria-label={t.articleIndex}
+          style={{ marginTop: 64, paddingTop: 28, borderTop: '1px solid var(--line)' }}
+        >
+          <h2
+            className="mono"
+            style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--clay)', margin: '0 0 16px' }}
+          >
+            {t.articleIndex}
+          </h2>
+          <ul
+            style={{
+              listStyle: 'none',
+              padding: 0,
+              margin: 0,
+              columns: '260px 3',
+              columnGap: 32,
+              fontSize: 13.5,
+              lineHeight: 1.7,
+            }}
+          >
+            {archive.map((a) => (
+              <li key={a.slug} style={{ breakInside: 'avoid', marginBottom: 4 }}>
+                <Link href={`${prefix}/${a.slug}`} className="archive-link">
+                  {a.title}
+                </Link>
+              </li>
+            ))}
+          </ul>
         </nav>
       )}
 

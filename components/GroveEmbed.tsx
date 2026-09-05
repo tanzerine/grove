@@ -13,6 +13,16 @@
  *   data-host          — pin the domain. Auto-detection would look up
  *                        `grove-<hash>.vercel.app` on preview deploys and
  *                        `localhost` in dev, neither of which owns a blog.
+ *
+ * `children` are the SERVER-RENDERED FALLBACK, and they are not a styling
+ * exception to the rule above. embed.js mounts by assigning `root.innerHTML`,
+ * so whatever the server put inside the container is replaced the instant the
+ * script runs — which makes the container the correct place for the crawlable
+ * copy of the list. Before this, `/blog` shipped an empty div: the page a
+ * crawler fetched contained zero links to any article, and the only route to
+ * grove's 23 posts was a sitemap. This is the same progressive-enhancement
+ * slot a customer can fill on their own page, and the snippet on the dashboard
+ * embed page now shows it.
  */
 import Script from 'next/script';
 
@@ -34,6 +44,7 @@ export default function GroveEmbed({
   count,
   blogUrl = '/blog',
   articleBase,
+  children,
 }: {
   /** 'blog' = the full blog front end; 'widget' = newest-N teaser. */
   mode: 'blog' | 'widget';
@@ -44,6 +55,9 @@ export default function GroveEmbed({
   /** blog only — link cards at server-rendered article pages instead of the
    *  in-page hash reader, so the articles stay crawlable. */
   articleBase?: string | null;
+  /** Server-rendered fallback, replaced by embed.js on mount. See the note
+   *  above: this is what a crawler (and a no-JS reader) actually gets. */
+  children?: React.ReactNode;
 }) {
   return (
     <>
@@ -55,13 +69,17 @@ export default function GroveEmbed({
         data-count={mode === 'widget' ? count : undefined}
         data-blog-url={mode === 'widget' ? blogUrl : undefined}
         data-article-base={mode === 'blog' ? articleBase ?? undefined : undefined}
-      />
+      >
+        {children}
+      </div>
       {/* A customer drops in a plain `<script async src=".../embed.js">`, which
           is right on a normal page. Here it is NOT: a bare async script can win
-          the race against hydration, and React then deletes the children it
-          finds in a div it rendered empty — the embed mounts and is wiped
+          the race against hydration, and React then reconciles the container
+          against its own idea of the children — the embed mounts and is wiped
           milliseconds later. `afterInteractive` runs it after hydration, and
-          next/script de-dupes by src, so a page with two mounts loads it once. */}
+          next/script de-dupes by src, so a page with two mounts loads it once.
+          That ordering is what makes the SSR fallback above safe: React
+          hydrates the server's links first, THEN embed.js replaces them. */}
       <Script src="/embed.js" strategy="afterInteractive" />
     </>
   );
