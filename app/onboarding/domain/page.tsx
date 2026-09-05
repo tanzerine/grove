@@ -5,9 +5,11 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import GroveMark from '@/components/GroveMark';
 import StepView from '../StepView';
 import { captureClient } from '@/lib/analytics/capture-client';
+import { useT } from '@/components/LocaleProvider';
 
 function OnboardInner() {
   const router = useRouter();
+  const t = useT();
   const sp = useSearchParams();
   const [host, setHost] = useState(sp.get('domain') ?? '');
   const [err, setErr] = useState<string | null>(null);
@@ -33,7 +35,7 @@ function OnboardInner() {
         setUpsell({ name: j.upgradeName });
         captureClient('domain_limit_hit', { upgrade_to: j.upgradeName });
       }
-      return setErr(j.error ?? 'Failed to create domain');
+      return setErr(j.error ?? t('Failed to create domain'));
     }
     const { id } = await res.json();
     captureClient('domain_submitted', { domain_id: id });
@@ -46,24 +48,24 @@ function OnboardInner() {
       <GroveMark />
       <div className="gv-auth-glow" aria-hidden><span className="b1" /><span className="b2" /></div>
       <div className="gv-onb-in" style={{ maxWidth: 520 }}>
-        <span className="gv-onb-eyebrow">Step 1 of 2</span>
-        <h1 className="gv-onb-title" style={{ fontSize: 'clamp(30px, 8vw, 44px)' }}>Enter your domain</h1>
-        <p className="gv-onb-lede">One field. We&apos;ll handle the rest. Use a domain you control &mdash; the next step verifies ownership via DNS or a meta tag.</p>
+        <span className="gv-onb-eyebrow">{t('Step 1 of 2')}</span>
+        <h1 className="gv-onb-title" style={{ fontSize: 'clamp(30px, 8vw, 44px)' }}>{t('Enter your domain')}</h1>
+        <p className="gv-onb-lede">{t('One field. We’ll handle the rest. Use a domain you control — the next step verifies ownership via DNS or a meta tag.')}</p>
         <form onSubmit={go} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 24, background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '6px 6px 6px 14px' }}>
           <span style={{ color: 'var(--gv-faint)', fontFamily: 'DM Mono, monospace', fontSize: 14 }}>https://</span>
           <input value={host} onChange={(e) => setHost(e.target.value)} placeholder="yourdomain.com"
             style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', color: 'var(--gv-ink)', fontSize: 16, padding: '10px 4px', fontFamily: 'inherit' }} />
-          <button className="gv-onb-btn" style={{ padding: '10px 16px', fontSize: 14, whiteSpace: 'nowrap' }} disabled={busy}>{busy ? '…' : 'Continue →'}</button>
+          <button className="gv-onb-btn" style={{ padding: '10px 16px', fontSize: 14, whiteSpace: 'nowrap' }} disabled={busy}>{busy ? '…' : t('Continue →')}</button>
         </form>
         {err && !upsell && <p style={{ color: 'var(--gv-red-text)', fontSize: 13, marginTop: 12 }}>{err}</p>}
         {upsell && (
           <div style={{ marginTop: 14, padding: '14px 16px', background: 'var(--gv-card)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12 }}>
             <p style={{ fontSize: 13.5, color: 'var(--gv-ink)', margin: 0, lineHeight: 1.6 }}>{err}</p>
             <p style={{ fontSize: 12.5, color: 'var(--gv-dim)', margin: '6px 0 0', lineHeight: 1.6 }}>
-              Your existing sites keep running. {upsell.name} adds room for this one.
+              {t('Your existing sites keep running. {plan} adds room for this one.', { plan: upsell.name })}
             </p>
             <a href="/dashboard/billing" style={{ display: 'inline-block', marginTop: 12, fontSize: 13, fontWeight: 600, color: 'var(--gv-accent-ink)', textDecoration: 'none' }}>
-              See {upsell.name} →
+              {t('See {plan} →', { plan: upsell.name })}
             </a>
           </div>
         )}

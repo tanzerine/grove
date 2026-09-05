@@ -6,39 +6,53 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import GroveMark from '@/components/GroveMark';
 import StepView from '../StepView';
+import { useT } from '@/components/LocaleProvider';
+import { msg } from '@/lib/i18n';
 
 const DIM = 'var(--gv-dim)';
 
+/**
+ * These three lists are ANSWERS, not labels: the chosen string is written to
+ * `user_metadata` verbatim and read back by the admin journey view and by the
+ * strategist. So the English stays the stored value and only the rendering is
+ * translated — `msg` marks them for the extractor, `t(o)` translates them at
+ * the point of display. Translating the value itself would split one cohort
+ * into two ("SaaS / Software" and "SaaS / 소프트웨어") the first time a Korean
+ * customer signed up.
+ */
 const REFERRAL_OPTIONS = [
-  'Google / search',
-  'X (Twitter)',
-  'LinkedIn',
-  'Reddit / community',
-  'Friend or colleague',
-  'Newsletter / blog',
-  'YouTube / podcast',
-  'Other',
+  msg('Google / search'),
+  msg('X (Twitter)'),
+  msg('LinkedIn'),
+  msg('Reddit / community'),
+  msg('Friend or colleague'),
+  msg('Newsletter / blog'),
+  msg('YouTube / podcast'),
+  msg('Other'),
 ];
 
 const SECTORS = [
-  'SaaS / Software',
-  'E-commerce / Retail',
-  'Agency / Marketing services',
-  'Media / Content / Creator',
-  'Finance / Fintech',
-  'Health / Wellness',
-  'Education',
-  'Real estate / Property',
-  'Travel / Hospitality',
-  'Professional services',
-  'Other',
+  msg('SaaS / Software'),
+  msg('E-commerce / Retail'),
+  msg('Agency / Marketing services'),
+  msg('Media / Content / Creator'),
+  msg('Finance / Fintech'),
+  msg('Health / Wellness'),
+  msg('Education'),
+  msg('Real estate / Property'),
+  msg('Travel / Hospitality'),
+  msg('Professional services'),
+  msg('Other'),
 ];
 
-const SIZES = ['Just me', '2–10', '11–50', '51–200', '200+'];
+// Numeric bands read the same in every language grove supports, so only the
+// first entry is a phrase.
+const SIZES = [msg('Just me'), '2–10', '11–50', '51–200', '200+'];
 
 function AboutInner() {
   const sb = supabaseBrowser();
   const router = useRouter();
+  const t = useT();
   const sp = useSearchParams();
 
   const domainParam = sp.get('domain') ?? '';
@@ -99,7 +113,7 @@ function AboutInner() {
       <main className="gv-onb">
         <GroveMark />
         <div className="gv-onb-in" style={{ maxWidth: 560 }}>
-          <p className="gv-onb-lede">Loading…</p>
+          <p className="gv-onb-lede">{t('Loading…')}</p>
         </div>
       </main>
     );
@@ -114,41 +128,41 @@ function AboutInner() {
         <span className="b2" />
       </div>
       <div className="gv-onb-in" style={{ maxWidth: 560 }}>
-        <span className="gv-onb-eyebrow">Welcome — a couple of quick things</span>
-        <h1 className="gv-onb-title" style={{ fontSize: 'clamp(28px, 7vw, 40px)' }}>Tell us about you</h1>
+        <span className="gv-onb-eyebrow">{t('Welcome — a couple of quick things')}</span>
+        <h1 className="gv-onb-title" style={{ fontSize: 'clamp(28px, 7vw, 40px)' }}>{t('Tell us about you')}</h1>
         <p className="gv-onb-lede">
-          This tailors your strategy and helps us understand who Grove is writing for. Takes ten seconds.
+          {t('This tailors your strategy and helps us understand who Grove is writing for. Takes ten seconds.')}
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18, marginTop: 26 }}>
-          <Field label="How did you find us?">
+          <Field label={t('How did you find us?')}>
             <select className="gv-onb-input" value={referral} onChange={(e) => setReferral(e.target.value)}>
-              <option value="">Select one…</option>
+              <option value="">{t('Select one…')}</option>
               {REFERRAL_OPTIONS.map((o) => (
-                <option key={o} value={o}>{o}</option>
+                <option key={o} value={o}>{t(o)}</option>
               ))}
             </select>
           </Field>
 
-          <Field label="Organization name">
+          <Field label={t('Organization name')}>
             <input
               className="gv-onb-input"
               value={orgName}
               onChange={(e) => setOrgName(e.target.value)}
-              placeholder="Acme Inc."
+              placeholder={t('Acme Inc.')}
             />
           </Field>
 
-          <Field label="What sector are you in?">
+          <Field label={t('What sector are you in?')}>
             <select className="gv-onb-input" value={sector} onChange={(e) => setSector(e.target.value)}>
-              <option value="">Select one…</option>
+              <option value="">{t('Select one…')}</option>
               {SECTORS.map((o) => (
-                <option key={o} value={o}>{o}</option>
+                <option key={o} value={o}>{t(o)}</option>
               ))}
             </select>
           </Field>
 
-          <Field label="How big is your team?">
+          <Field label={t('How big is your team?')}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {SIZES.map((o) => {
                 const selected = size === o;
@@ -168,7 +182,7 @@ function AboutInner() {
                       cursor: 'pointer',
                     }}
                   >
-                    {o}
+                    {t(o)}
                   </button>
                 );
               })}
@@ -180,7 +194,7 @@ function AboutInner() {
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 28 }}>
           <button onClick={submit} disabled={busy} className="gv-onb-btn">
-            {busy ? 'Saving…' : 'Continue →'}
+            {busy ? t('Saving…') : t('Continue →')}
           </button>
         </div>
       </div>

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import GroveMark from '@/components/GroveMark';
 import StepView from '../StepView';
 import { captureClient } from '@/lib/analytics/capture-client';
+import { useT, tNodes } from '@/components/LocaleProvider';
 
 type Domain ={ id: string; hostname: string; verify_token: string; verified_at: string | null };
 
@@ -13,6 +14,7 @@ const MONO = 'DM Mono, ui-monospace, monospace';
 
 function VerifyInner() {
   const router = useRouter();
+  const t = useT();
   const sp = useSearchParams();
   const id = sp.get('domain')!;
   const [d, setD] = useState<Domain | null>(null);
@@ -52,11 +54,11 @@ function VerifyInner() {
       }
       router.replace('/dashboard');
     } else {
-      setMsg(j.reason ?? 'Not verified yet — try again in a minute.');
+      setMsg(j.reason ?? t('Not verified yet — try again in a minute.'));
     }
   }
 
-  if (!d) return <main className="gv-onb"><div className="gv-onb-in" style={{ maxWidth: 780, color: DIM }}>Loading…</div></main>;
+  if (!d) return <main className="gv-onb"><div className="gv-onb-in" style={{ maxWidth: 780, color: DIM }}>{t('Loading…')}</div></main>;
 
   const token = d.verify_token;
   const fileUrl = `https://${d.hostname}/.well-known/grove-verify.txt`;
@@ -69,75 +71,94 @@ function VerifyInner() {
       <GroveMark />
       <div className="gv-auth-glow" aria-hidden><span className="b1" /><span className="b2" /></div>
       <div className="gv-onb-in" style={{ maxWidth: 780 }}>
-        <span className="gv-onb-eyebrow">Step 2 of 2</span>
+        <span className="gv-onb-eyebrow">{t('Step 2 of 2')}</span>
         <h1 className="gv-onb-title" style={{ fontSize: 'clamp(26px, 6.5vw, 36px)' }}>
-          Verify ownership of <span style={{ fontFamily: MONO, color: 'var(--gv-accent-ink)' }}>{d.hostname}</span>
+          {tNodes(t('Verify ownership of {host}'), {
+            host: <span style={{ fontFamily: MONO, color: 'var(--gv-accent-ink)' }}>{d.hostname}</span>,
+          })}
         </h1>
         <p className="gv-onb-lede">
-          Pick whichever method is easiest. You only need to do <b style={{ color: 'var(--gv-ink)' }}>one</b>.
-          We check all three automatically.
+          {tNodes(t('Pick whichever method is easiest. You only need to do {one}. We check all three automatically.'), {
+            // `|context` because a bare "one" is too generic a key to share
+            // across the product — here it means "only one of the three".
+            one: <b style={{ color: 'var(--gv-ink)' }}>{t('one|only one of the three methods')}</b>,
+          })}
         </p>
 
         <div style={{ display: 'flex', gap: 8, marginTop: 24, flexWrap: 'wrap' }}>
           <button className={`gv-onb-tab ${tab === 'dns' ? 'on' : ''}`} onClick={() => setTab('dns')}>
-            🛡️ DNS record <small style={{ color: 'var(--gv-accent-ink)' }}>recommended</small>
+            🛡️ {t('DNS record')} <small style={{ color: 'var(--gv-accent-ink)' }}>{t('recommended')}</small>
           </button>
-          <button className={`gv-onb-tab ${tab === 'meta' ? 'on' : ''}`} onClick={() => setTab('meta')}>🏷️ Meta tag</button>
-          <button className={`gv-onb-tab ${tab === 'file' ? 'on' : ''}`} onClick={() => setTab('file')}>📄 File upload</button>
+          <button className={`gv-onb-tab ${tab === 'meta' ? 'on' : ''}`} onClick={() => setTab('meta')}>🏷️ {t('Meta tag')}</button>
+          <button className={`gv-onb-tab ${tab === 'file' ? 'on' : ''}`} onClick={() => setTab('file')}>📄 {t('File upload')}</button>
         </div>
 
         {tab === 'dns' && (
           <div style={{ marginTop: 20, color: 'var(--gv-soft)', fontSize: 14.5, lineHeight: 1.6 }}>
-            <p><b style={{ color: 'var(--gv-ink)' }}>Where:</b> your DNS provider (Cloudflare, Namecheap, GoDaddy, Vercel domains).</p>
-            <p><b style={{ color: 'var(--gv-ink)' }}>Why recommended:</b> works with any website setup — even sites behind auth (Clerk, Auth0), Cloudflare Access, or proprietary CMS.</p>
+            <p><b style={{ color: 'var(--gv-ink)' }}>{t('Where:')}</b> {t('your DNS provider (Cloudflare, Namecheap, GoDaddy, Vercel domains).')}</p>
+            <p><b style={{ color: 'var(--gv-ink)' }}>{t('Why recommended:')}</b> {t('works with any website setup — even sites behind auth (Clerk, Auth0), Cloudflare Access, or proprietary CMS.')}</p>
             <div className="gv-onb-mini" style={{ marginTop: 12 }}>
               <table style={{ width: '100%', fontFamily: MONO, fontSize: 13 }}>
                 <tbody>
-                  <tr><td style={lbl}>Type</td><td>TXT</td></tr>
-                  <tr><td style={lbl}>Name / Host</td><td>@ &nbsp; <span style={{ color: DIM }}>(or your apex domain)</span></td></tr>
-                  <tr><td style={lbl}>Value</td><td>grove-verify={token}</td></tr>
-                  <tr><td style={lbl}>TTL</td><td>Auto / 3600</td></tr>
+                  <tr><td style={lbl}>{t('Type')}</td><td>TXT</td></tr>
+                  <tr><td style={lbl}>{t('Name / Host')}</td><td>@ &nbsp; <span style={{ color: DIM }}>{t('(or your apex domain)')}</span></td></tr>
+                  <tr><td style={lbl}>{t('Value')}</td><td>grove-verify={token}</td></tr>
+                  <tr><td style={lbl}>TTL</td><td>{t('Auto / 3600')}</td></tr>
                 </tbody>
               </table>
             </div>
-            <p style={{ fontSize: 13, marginTop: 12, color: DIM }}>Propagation is usually under a minute. Up to 24h in rare cases.</p>
+            <p style={{ fontSize: 13, marginTop: 12, color: DIM }}>{t('Propagation is usually under a minute. Up to 24h in rare cases.')}</p>
           </div>
         )}
 
         {tab === 'meta' && (
           <div style={{ marginTop: 20, color: 'var(--gv-soft)', fontSize: 14.5, lineHeight: 1.6 }}>
-            <p><b style={{ color: 'var(--gv-ink)' }}>Where:</b> the <code style={{ fontFamily: MONO }}>&lt;head&gt;</code> of your homepage HTML.</p>
-            <p><b style={{ color: 'var(--gv-ink)' }}>Why:</b> one line of code. Survives most auth setups because homepages are public.</p>
+            <p>
+              <b style={{ color: 'var(--gv-ink)' }}>{t('Where:')}</b>{' '}
+              {tNodes(t('the {head} of your homepage HTML.'), {
+                head: <code style={{ fontFamily: MONO }}>&lt;head&gt;</code>,
+              })}
+            </p>
+            <p><b style={{ color: 'var(--gv-ink)' }}>{t('Why:')}</b> {t('one line of code. Survives most auth setups because homepages are public.')}</p>
             <div className="gv-onb-mini" style={{ marginTop: 12 }}>
               <code style={{ fontFamily: MONO, fontSize: 13 }}>{metaTag}</code>
             </div>
             <p style={{ fontSize: 13, marginTop: 12, color: DIM }}>
-              Verify it lives at <span style={{ fontFamily: MONO }}>https://{d.hostname}/</span> in the page source (right click → View Page Source).
+              {tNodes(t('Verify it lives at {url} in the page source (right click → View Page Source).'), {
+                url: <span style={{ fontFamily: MONO }}>https://{d.hostname}/</span>,
+              })}
             </p>
           </div>
         )}
 
         {tab === 'file' && (
           <div style={{ marginTop: 20, color: 'var(--gv-soft)', fontSize: 14.5, lineHeight: 1.6 }}>
-            <p><b style={{ color: 'var(--gv-ink)' }}>Where:</b> upload a plain-text file to your site root.</p>
-            <p><b style={{ color: 'var(--gv-ink)' }}>Heads up:</b> some auth middleware (Clerk, NextAuth) protects this path by default. Use DNS or meta tag if you hit issues.</p>
+            <p><b style={{ color: 'var(--gv-ink)' }}>{t('Where:')}</b> {t('upload a plain-text file to your site root.')}</p>
+            <p><b style={{ color: 'var(--gv-ink)' }}>{t('Heads up:')}</b> {t('some auth middleware (Clerk, NextAuth) protects this path by default. Use DNS or meta tag if you hit issues.')}</p>
             <div className="gv-onb-mini" style={{ marginTop: 12 }}>
-              <div>Path: <span style={{ fontFamily: MONO }}>{fileUrl}</span></div>
-              <div style={{ marginTop: 6 }}>Contents (exactly):</div>
+              <div>{t('Path:')} <span style={{ fontFamily: MONO }}>{fileUrl}</span></div>
+              <div style={{ marginTop: 6 }}>{t('Contents (exactly):')}</div>
               <code style={{ fontFamily: MONO, fontSize: 13 }}>{token}</code>
             </div>
           </div>
         )}
 
         <button className="gv-onb-btn" onClick={check} disabled={polling} style={{ marginTop: 32 }}>
-          {polling ? 'Checking all methods…' : 'I added it — verify now'}
+          {polling ? t('Checking all methods…') : t('I added it — verify now')}
         </button>
         {msg && <p style={{ marginTop: 14, color: DIM, fontSize: 14 }}>{msg}</p>}
 
         <p style={{ marginTop: 26, fontSize: 14, color: DIM, lineHeight: 1.6 }}>
-          Don&apos;t have DNS access right now?{' '}
-          <a href="/dashboard" style={{ color: 'var(--gv-accent-ink)', textDecoration: 'underline' }}>Skip for now →</a>{' '}
-          You can already queue topics and watch Grove write — autopilot publishing stays paused until you verify.
+          {tNodes(
+            t('Don’t have DNS access right now? {skip} You can already queue topics and watch Grove write — autopilot publishing stays paused until you verify.'),
+            {
+              skip: (
+                <a href="/dashboard" style={{ color: 'var(--gv-accent-ink)', textDecoration: 'underline' }}>
+                  {t('Skip for now →')}
+                </a>
+              ),
+            },
+          )}
         </p>
       </div>
     </main>

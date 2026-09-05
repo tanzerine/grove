@@ -1036,4 +1036,450 @@ export const KO: Record<string, string> = {
   '{n} live': '{n}편 게시됨',
   'queued': '대기 중',
   'no slots': '슬롯 없음',
+
+  /* ── auth (components/AuthForm.tsx) ──────────────────────────────────────
+     One surface for sign-in and sign-up, so the copy never promises a
+     "create account" step that doesn't exist. */
+  'Sign in to Grove': 'Grove 로그인',
+  'Enter your email to continue. New here? We’ll create your account automatically.':
+    '이메일을 입력하면 바로 시작할 수 있어요. 처음이신가요? 계정은 자동으로 만들어 드립니다.',
+  'Continue with Google': 'Google로 계속하기',
+  'or': '또는',
+  'Email': '이메일',
+  'Password (8+ chars)': '비밀번호 (8자 이상)',
+  'One sign-in for everything. No account yet? Just continue — we’ll set it up.':
+    '로그인 하나로 모든 기능을 쓸 수 있어요. 계정이 없다면 그대로 진행하세요. 저희가 만들어 드립니다.',
+  'Account created — check {email} and click the link to finish. It signs you straight in.':
+    '계정을 만들었어요. {email}로 보낸 링크를 눌러 마무리해 주세요. 누르면 바로 로그인됩니다.',
+  'That email already has an account, but the password is wrong. Try again, or reset it.':
+    '이미 가입된 이메일인데 비밀번호가 맞지 않아요. 다시 입력하거나 비밀번호를 재설정해 주세요.',
+
+  /* ── onboarding · about you ──────────────────────────────────────────────
+     The option strings are stored ANSWERS (user_metadata), so the English is
+     the value and this is only how it is displayed — see the note in
+     app/onboarding/about/page.tsx. */
+  'Welcome — a couple of quick things': '환영합니다 — 몇 가지만 여쭤볼게요',
+  'Tell us about you': '어떤 분이신가요?',
+  'This tailors your strategy and helps us understand who Grove is writing for. Takes ten seconds.':
+    '전략을 맞춤화하고 Grove가 누구를 위해 글을 쓰는지 파악하는 데 쓰입니다. 10초면 끝나요.',
+  'How did you find us?': 'Grove를 어떻게 알게 되셨나요?',
+  'Select one…': '하나를 선택하세요…',
+  'Organization name': '회사·팀 이름',
+  'Acme Inc.': '아크미 주식회사',
+  'What sector are you in?': '어떤 분야에서 일하시나요?',
+  'How big is your team?': '팀 규모는 어떻게 되나요?',
+  'Loading…': '불러오는 중…',
+  'Google / search': 'Google / 검색',
+  'X (Twitter)': 'X (트위터)',
+  'Reddit / community': 'Reddit / 커뮤니티',
+  'Friend or colleague': '지인·동료 소개',
+  'Newsletter / blog': '뉴스레터 / 블로그',
+  'YouTube / podcast': '유튜브 / 팟캐스트',
+  'Other': '기타',
+  'SaaS / Software': 'SaaS / 소프트웨어',
+  'E-commerce / Retail': '이커머스 / 리테일',
+  'Agency / Marketing services': '에이전시 / 마케팅 서비스',
+  'Media / Content / Creator': '미디어 / 콘텐츠 / 크리에이터',
+  'Finance / Fintech': '금융 / 핀테크',
+  'Health / Wellness': '헬스케어 / 웰니스',
+  'Education': '교육',
+  'Real estate / Property': '부동산',
+  'Travel / Hospitality': '여행 / 숙박',
+  'Professional services': '전문 서비스',
+  'Just me': '저 혼자',
+
+  /* ── onboarding · domain ─────────────────────────────────────────────── */
+  'Step 1 of 2': '2단계 중 1단계',
+  'Enter your domain': '도메인을 입력하세요',
+  'One field. We’ll handle the rest. Use a domain you control — the next step verifies ownership via DNS or a meta tag.':
+    '한 칸만 채우면 나머지는 저희가 처리합니다. 직접 관리하는 도메인을 입력해 주세요. 다음 단계에서 DNS나 메타 태그로 소유권을 확인합니다.',
+  'Failed to create domain': '도메인을 등록하지 못했어요',
+  'Your existing sites keep running. {plan} adds room for this one.':
+    '기존 사이트는 그대로 운영됩니다. {plan} 플랜이면 이 사이트까지 추가할 수 있어요.',
+  'See {plan} →': '{plan} 살펴보기 →',
+
+  /* ── onboarding · verify ─────────────────────────────────────────────── */
+  'Step 2 of 2': '2단계 중 2단계',
+  'Verify ownership of {host}': '{host} 소유권 확인',
+  'Pick whichever method is easiest. You only need to do {one}. We check all three automatically.':
+    '편한 방법을 고르세요. {one} 가지만 하면 됩니다. 세 가지 모두 자동으로 확인해요.',
+  'one|only one of the three methods': '한',
+  'DNS record': 'DNS 레코드',
+  'recommended': '권장',
+  'Meta tag': '메타 태그',
+  'File upload': '파일 업로드',
+  'Where:': '위치:',
+  'Why:': '이유:',
+  'Why recommended:': '권장 이유:',
+  'Heads up:': '참고:',
+  'Path:': '경로:',
+  'Contents (exactly):': '파일 내용 (그대로):',
+  'your DNS provider (Cloudflare, Namecheap, GoDaddy, Vercel domains).':
+    'DNS 제공업체 (Cloudflare, Namecheap, GoDaddy, Vercel Domains).',
+  'works with any website setup — even sites behind auth (Clerk, Auth0), Cloudflare Access, or proprietary CMS.':
+    '어떤 사이트 구성에서도 동작합니다. 로그인 뒤에 있는 사이트(Clerk, Auth0)나 Cloudflare Access, 자체 CMS도 문제없어요.',
+  'Type': '유형',
+  'Name / Host': '이름 / 호스트',
+  // 'Value' is already in the DNS section of the dashboard's embed page.
+  '(or your apex domain)': '(또는 최상위 도메인)',
+  'Auto / 3600': '자동 / 3600',
+  'Propagation is usually under a minute. Up to 24h in rare cases.':
+    '보통 1분 안에 반영됩니다. 드물게 최대 24시간이 걸릴 수 있어요.',
+  'the {head} of your homepage HTML.': '홈페이지 HTML의 {head} 안.',
+  'one line of code. Survives most auth setups because homepages are public.':
+    '코드 한 줄이면 됩니다. 홈페이지는 공개돼 있으니 대부분의 로그인 설정에서도 동작해요.',
+  'Verify it lives at {url} in the page source (right click → View Page Source).':
+    '{url} 페이지 소스에서 확인해 보세요 (우클릭 → 페이지 소스 보기).',
+  'upload a plain-text file to your site root.': '사이트 루트에 텍스트 파일을 업로드하세요.',
+  'some auth middleware (Clerk, NextAuth) protects this path by default. Use DNS or meta tag if you hit issues.':
+    '일부 인증 미들웨어(Clerk, NextAuth)는 이 경로를 기본으로 막습니다. 문제가 생기면 DNS나 메타 태그를 사용하세요.',
+  'Checking all methods…': '모든 방법을 확인하는 중…',
+  'I added it — verify now': '추가했어요 — 지금 확인',
+  'Not verified yet — try again in a minute.': '아직 확인되지 않았어요. 잠시 후 다시 시도해 주세요.',
+  'Don’t have DNS access right now? {skip} You can already queue topics and watch Grove write — autopilot publishing stays paused until you verify.':
+    '지금 DNS에 접근할 수 없나요? {skip} 주제를 미리 등록해 두고 Grove가 글 쓰는 과정을 볼 수 있어요. 자동 발행은 확인이 끝날 때까지 멈춰 있습니다.',
+  'Skip for now →': '나중에 하기 →',
+
+  /* ── onboarding · MCP offer ──────────────────────────────────────────── */
+  'Optional — for developers': '선택 사항 — 개발자용',
+  'Verified. Now — is {host}’s blog in a repo?': '확인됐습니다. 혹시 {host}의 블로그가 저장소 안에 있나요?',
+  'Is your blog in a repo?': '블로그가 저장소 안에 있나요?',
+  'If you already have a content layer — MDX in a repo, a CMS, your own pipeline — grove can hand finished articles straight to your coding agent over MCP, into the blog you already run. No embed script, no second blog beside the first. It’s one command, and it’s easiest now, while that repo is open.':
+    '이미 콘텐츠 레이어가 있다면 — 저장소의 MDX, CMS, 직접 만든 파이프라인 — grove가 완성된 글을 MCP로 코딩 에이전트에 바로 넘겨 지금 운영 중인 블로그에 넣어 줍니다. 임베드 스크립트도, 그 옆에 생기는 두 번째 블로그도 없어요. 명령어 하나면 되고, 저장소를 열어 둔 지금이 가장 쉽습니다.',
+  '1 · Make a key': '1 · 키 만들기',
+  'Read + write, every site on your account. Shown once, then stored only as a hash — grove can’t show it to you again.':
+    '계정의 모든 사이트에 대한 읽기·쓰기 권한입니다. 한 번만 표시되고 이후에는 해시로만 저장되므로 grove도 다시 보여 줄 수 없어요.',
+  'Create my key': '키 만들기',
+  'Could not create the key — you can do this any time from Content API.':
+    '키를 만들지 못했어요. 콘텐츠 API에서 언제든 다시 시도할 수 있습니다.',
+  'Could not reach grove — you can do this any time from Content API.':
+    'grove에 연결하지 못했어요. 콘텐츠 API에서 언제든 다시 시도할 수 있습니다.',
+  '2 · Point your agent at grove': '2 · 에이전트를 grove에 연결하기',
+  'Run it in the repository that holds your blog. Then ask it to {ask}.':
+    '블로그가 있는 저장소에서 실행하세요. 그런 다음 {ask}라고 요청하면 됩니다.',
+  'Run it in the repository that holds your blog — the key below is a placeholder until you make one. Then ask it to {ask}.':
+    '블로그가 있는 저장소에서 실행하세요. 아래 키는 실제 키를 만들기 전까지는 예시입니다. 그런 다음 {ask}라고 요청하면 됩니다.',
+  'import the new grove articles': 'grove의 새 글을 가져와 줘',
+  'The agent gets the rest from grove itself — ask it for the {tool}, which covers the analytics beacon your pages need to keep and where grove should point its canonical URLs once yours are live.':
+    '나머지는 에이전트가 grove에서 직접 받아 갑니다. {tool}을 요청하면 페이지에 남겨 둬야 할 분석 비콘과, 직접 만든 URL이 살아난 뒤 grove가 canonical을 어디로 가리켜야 하는지까지 안내해요.',
+  'Done — open my dashboard →': '완료 — 대시보드 열기 →',
+  'No repo? That’s fine — {embed} is one snippet and needs no code.':
+    '저장소가 없어도 괜찮아요. {embed}는 스니펫 하나면 되고 코드가 필요 없습니다.',
+  'the embed': '임베드',
+  'Manage this key any time from {link} — revoke it, scope one to a single site, and see what your layer has actually taken.':
+    '이 키는 {link}에서 언제든 관리할 수 있어요. 폐기하거나, 사이트 하나로 범위를 좁히거나, 콘텐츠 레이어가 실제로 가져간 내역을 확인할 수 있습니다.',
+  'You can set this up any time from {link} — it’s the same key, plus per-site scoping and what your layer has actually taken.':
+    '{link}에서 언제든 설정할 수 있어요. 같은 키에 사이트별 범위 설정과 콘텐츠 레이어가 실제로 가져간 내역이 더해집니다.',
+
+  /* ── onboarding · intent (the strategist's interview) ────────────────────
+     The question text and the OPTIONS both live in lib/strategy/interview.ts.
+     The options are stored answers fed verbatim to the strategist, so — as in
+     "about you" — English is the value and this is only the display. */
+  'STEP 5 OF 6 — INTENT': '6단계 중 5단계 — 목표',
+  'A few questions for {host}.': '{host}에 대해 몇 가지 여쭤볼게요.',
+  'your blog': '블로그',
+  'The strategist agent uses these to plan each month. All optional — skip what’s not clear yet.':
+    '전략 에이전트가 매달 계획을 세울 때 참고합니다. 모두 선택 사항이니 아직 모호한 항목은 건너뛰셔도 돼요.',
+  'Pick up to 2.': '최대 2개까지 선택하세요.',
+  'Type a sentence or two…': '한두 문장으로 적어 주세요…',
+  'Skip for now': '나중에 하기',
+  'Save and continue →': '저장하고 계속 →',
+  'Failed to save': '저장하지 못했어요',
+
+  'What does the blog need to do for the business this month?':
+    '이번 달 블로그가 비즈니스에 어떤 역할을 해야 하나요?',
+  'drive trial signups / conversions': '체험 가입·전환 늘리기',
+  'capture organic search traffic': '검색 유입 확보하기',
+  'build authority with a specific audience': '특정 독자층에서 전문성 쌓기',
+  'support sales / partnerships': '영업·파트너십 지원하기',
+  'keep customers engaged after signup': '가입 후 고객 관계 유지하기',
+  'What\'s the single number you\'d most like to move?': '가장 움직이고 싶은 지표 하나는 무엇인가요?',
+  'product signups from blog': '블로그를 통한 제품 가입',
+  'organic search sessions': '검색 유입 세션',
+  'newsletter subscriptions': '뉴스레터 구독',
+  'inbound demo requests': '데모 문의',
+  'time-on-page / read-through': '체류 시간 / 완독률',
+  'Who specifically do you want each article to land with? (pick up to 2)':
+    '각 글이 정확히 누구에게 닿기를 바라시나요? (최대 2개)',
+  'These become the lens every example, anecdote, and CTA is written for.':
+    '모든 예시와 일화, CTA가 이 독자를 기준으로 쓰입니다.',
+  'founders / solo product owners': '창업자 / 1인 제품 담당자',
+  'product designers': '프로덕트 디자이너',
+  'engineering managers / tech leads': '엔지니어링 매니저 / 테크 리드',
+  'marketing / growth ops': '마케팅 / 그로스',
+  'agencies & freelancers': '에이전시·프리랜서',
+  'enterprise buyers': '엔터프라이즈 구매 담당자',
+  'individual consumers': '개인 소비자',
+  'What\'s the concrete next-step you want a conversion-intent article to push?':
+    '전환을 노리는 글에서 독자가 밟았으면 하는 구체적인 다음 단계는 무엇인가요?',
+  'Used verbatim by the manager agent when grading CTAs.':
+    '관리자 에이전트가 CTA를 평가할 때 그대로 사용합니다.',
+  'Any topics, competitors, or framings the blog should never touch?':
+    '블로그가 절대 다루지 말아야 할 주제나 경쟁사, 표현이 있나요?',
+  'Name competitors explicitly — they become a hard do-not-mention list for the writer + validator.':
+    '경쟁사는 이름을 그대로 적어 주세요. 작성 에이전트와 검증 단계의 금지 목록이 됩니다.',
+  'Paste 1–2 posts (or URLs) that already sound exactly like your brand.':
+    '이미 브랜드 톤에 꼭 맞는 글 1~2편(또는 URL)을 붙여 넣어 주세요.',
+  'The single biggest lever on voice. The writer is few-shot anchored on these real excerpts — not on guesses from your landing page.':
+    '톤앤매너에 가장 큰 영향을 주는 항목입니다. 작성 에이전트가 랜딩 페이지에서 추측하는 대신 이 실제 예시를 기준으로 글을 씁니다.',
+  'Who is the article narrator?': '글의 화자는 누구인가요?',
+  'Drives the opening hook and every "I/we" in the piece.':
+    '도입부와 글 전체의 1인칭 표현을 결정합니다.',
+  'a named person ("I", a founder/author with a byline)': '실명 개인 (바이라인이 있는 창업자·저자, "나")',
+  'the company ("we", collective voice)': '회사 (집합적인 "우리")',
+  'no first person (third-person, editorial)': '1인칭 없음 (3인칭 에디토리얼)',
+  'Pick the 2–3 attributes that most define how you sound.':
+    '브랜드의 목소리를 가장 잘 설명하는 속성을 2~3개 골라 주세요.',
+  'Each becomes a we-are / we-are-not rule the writer and brand-review grade against.':
+    '각 항목이 작성과 브랜드 검토 단계에서 "이렇게 쓴다 / 이렇게 쓰지 않는다" 규칙이 됩니다.',
+  'casual & conversational (not formal/institutional)': '편안한 대화체 (격식체·기관 어투가 아님)',
+  'peer-level & collaborative (not authoritative/expert-down)': '동료 같은 협업 톤 (내려다보는 전문가 어투가 아님)',
+  'direct & matter-of-fact (not warm/effusive)': '단도직입적이고 담백함 (따뜻하고 다정한 어투가 아님)',
+  'technical & precise (not simplified/hand-wavy)': '기술적이고 정확함 (뭉뚱그리거나 단순화하지 않음)',
+  'bold & energetic (not calm/measured)': '대담하고 활기참 (차분하고 절제된 어투가 아님)',
+  'playful & witty (not serious/earnest)': '재치 있고 유쾌함 (진지하고 무게 있는 어투가 아님)',
+  'opinionated & forward-looking (not neutral/established)': '뚜렷한 관점과 미래 지향 (중립적이거나 정석적이지 않음)',
+  'Words, phrases, or clichés you\'d never say.': '절대 쓰지 않을 단어나 표현, 상투어를 적어 주세요.',
+  'Merged into the banned-phrase list for this brand specifically.':
+    '이 브랜드 전용 금지 표현 목록에 추가됩니다.',
+
+  /* ── plan catalogue (lib/plans.ts) ───────────────────────────────────────
+     Shown on the landing's pricing table and on /dashboard/billing. Plan
+     NAMES stay English — "Starter" is what the invoice says. */
+  'One site, publishing about three times a week.': '사이트 1개, 주 3회 정도 발행합니다.',
+  '12 posts / month': '월 12편',
+  '1 domain': '도메인 1개',
+  'Full SEO pipeline': 'SEO 파이프라인 전체',
+  'Email support': '이메일 지원',
+  'Up to three sites, publishing daily.': '사이트 최대 3개, 매일 발행합니다.',
+  '40 posts / month': '월 40편',
+  'Up to 3 domains': '도메인 최대 3개',
+  'Social auto-publish': '소셜 자동 게시',
+  'Search Console insights': 'Search Console 인사이트',
+  'Agencies and teams running many client blogs.': '여러 고객사 블로그를 운영하는 에이전시와 팀을 위한 플랜입니다.',
+  '150 posts / month': '월 150편',
+  'Unlimited domains': '도메인 무제한',
+  'Priority pipeline': '우선 처리 파이프라인',
+  'Priority support': '우선 지원',
+  'billed monthly': '월간 결제',
+  '${total} billed yearly': '연 $({total}) 결제',
+  '/mo — ${total} billed annually': '/월 — 연 $({total}) 결제',
+  'Start free': '무료로 시작하기',
+
+  /* ── landing · search result (lib/site.ts) ───────────────────────────────
+     The <title> and meta description. What a Korean searcher reads BEFORE
+     the page — the highest-value strings on the marketing site. */
+  'grove — AI agent that writes & auto-publishes SEO blog posts':
+    'grove — SEO 블로그 글을 쓰고 자동 발행하는 AI 에이전트',
+  'grove is an AI marketing agent that researches the live SERP, writes blog posts in your voice, and auto-publishes them to your site — built to rank on Google and get cited by ChatGPT.':
+    'grove는 실시간 검색 결과를 조사하고, 브랜드의 목소리로 블로그 글을 써서, 사이트에 자동으로 발행하는 AI 마케팅 에이전트입니다. 구글 상위 노출과 ChatGPT 인용을 목표로 만들었습니다.',
+
+  /* ── landing · nav + footer ──────────────────────────────────────────── */
+  'Agents': '에이전트',
+  'Platform': '플랫폼',
+  'Pricing': '요금제',
+  'FAQ': '자주 묻는 질문',
+  'Get Started': '시작하기',
+  'Dashboard': '대시보드',
+  'Product': '제품',
+  'Legal': '약관',
+  'Privacy': '개인정보처리방침',
+  'Terms': '이용약관',
+  'Plant your domain once. Grove researches, writes and publishes the blog from there.':
+    '도메인을 한 번 심어 두면, Grove가 조사하고 쓰고 발행합니다.',
+  '© {year} Grove — plant once, grow from there.': '© {year} Grove — 한 번 심고, 계속 키우세요.',
+
+  /* ── landing · hero ─────────────────────────────────────────────────────
+     `{br}` marks where the display headline breaks; the translation puts it
+     where Korean wants it, or drops it. */
+  'Plant your domain{br}and watch your traffic grow.': '도메인을 심고{br}트래픽이 자라는 걸 지켜보세요.',
+  'Connect your domain. Grove finds what your customers are searching for, writes the posts, and publishes them on your site — under your name, on a schedule you set.':
+    '도메인만 연결하세요. Grove가 고객이 무엇을 검색하는지 찾아내고, 글을 쓰고, 정해 둔 일정에 맞춰 여러분의 이름으로 사이트에 발행합니다.',
+  'Get started': '시작하기',
+  'Open dashboard': '대시보드 열기',
+  'See how it works': '어떻게 작동하나요',
+  'Plant your domain': '도메인 심기',
+  'One field. Nothing to install.': '입력 한 칸이면 됩니다. 설치할 것도 없어요.',
+  'Verify you own it': '소유권 확인',
+  'DNS or meta tag · 2 min': 'DNS 또는 메타 태그 · 2분',
+  'Approve, or let it run': '직접 승인하거나, 맡겨 두거나',
+  'Your call, changeable any time': '언제든 바꿀 수 있습니다',
+
+  /* ── landing · product mockups (grove's own UI chrome) ───────────────────
+     The demo customer's article titles and keywords are `sample()` in
+     components/Landing.tsx — English on purpose. Everything here is grove's
+     own interface, which a Korean owner really does see in Korean. */
+  '61 reads this week': '이번 주 읽음 61회',
+  '3 a week, on schedule': '주 3편, 일정대로',
+  'being researched now': '지금 조사하는 중',
+  'one draft needs a look': '초안 1편을 확인해 주세요',
+  'manage site': '사이트 관리',
+  'When each post goes live': '각 글이 언제 게시되는지',
+  'Published 4 articles this week. Reads are up on last month.': '이번 주에 4편을 발행했어요. 읽음 수가 지난달보다 늘었습니다.',
+  'All caught up — no drafts to review': '모두 처리했어요 — 검토할 초안이 없습니다',
+  '“{post}” is your best post this month. Want me to write three more around it?':
+    '이번 달 성과가 가장 좋은 글은 “{post}”입니다. 이 주제로 3편 더 쓸까요?',
+  'Topical authority map': '주제 권위도 맵',
+  'Hub-and-spoke clusters — own a topic, not just a keyword': '허브-스포크 클러스터 — 키워드가 아니라 주제를 차지하세요',
+  'Published|cluster node': '발행됨',
+  'Gap': '공백',
+  '6 of 6 spokes covered · 0 gaps worth filling': '스포크 6개 중 6개 완료 · 메울 공백 없음',
+  'How July’s effort is allocated': '7월 작업량 배분',
+  '{n} posts planned': '{n}편 계획됨',
+  'The month, week by week': '주 단위로 본 이번 달',
+  '{n} posts': '{n}편',
+  'Thought · {n}s': '생각함 · {n}초',
+  'I’ll map topical authority, allocate the content pillars, and lay out the month week by week.':
+    '주제 권위도를 그리고, 콘텐츠 축을 배분한 다음, 이번 달을 주 단위로 짜 볼게요.',
+  'Undo': '되돌리기',
+  'Strategy agent': '전략 에이전트',
+  'Decides what to write next': '다음에 쓸 글을 정합니다',
+  'Grove checks what already ranks for your keywords, compares it to what you’ve published, and turns the gaps into a dated plan for the month.':
+    'Grove가 해당 키워드에서 이미 상위에 오른 글을 확인하고, 여러분이 발행한 글과 비교한 뒤, 그 차이를 날짜가 박힌 한 달 계획으로 만듭니다.',
+  'Explore the Strategy agent →': '전략 에이전트 살펴보기 →',
+  'the agent loop, running live': '실제로 돌아가는 에이전트 루프',
+  'Add a topic… e.g. “{example}”': '주제를 추가하세요… 예: “{example}”',
+  'PUBLISHING': '발행 방식',
+  'CADENCE': '주기',
+  '/ week': '/ 주',
+  'PUBLISHED': '발행됨',
+  '{n} reads': '읽음 {n}회',
+  'SCORE': '점수',
+  'I’ll draft the post in your voice, score it against the publish bar, and schedule it with the rest of the queue.':
+    '브랜드의 목소리로 초안을 쓰고, 발행 기준에 맞춰 점수를 매긴 다음, 대기열에 함께 예약해 둘게요.',
+  '{n} queued': '{n}편 대기 중',
+  'Write agent': '작성 에이전트',
+  'Writes full drafts in your voice': '브랜드의 목소리로 완성된 초안을 씁니다',
+  'Grove learns from the posts you already have, then writes finished articles with real sources — and shows you where it matched your voice.':
+    'Grove가 기존 글에서 배운 다음, 실제 출처를 인용한 완성된 글을 씁니다. 어느 부분에서 목소리를 맞췄는지도 보여 드려요.',
+  'Explore the Write agent →': '작성 에이전트 살펴보기 →',
+  'how the blog is compounding': '블로그가 어떻게 쌓이고 있는지',
+  'Over the past 30 days, your content earned {clicks}.': '지난 30일 동안 콘텐츠가 {clicks}를 만들었습니다.',
+  '{n} clicks': '클릭 {n}회',
+  'Google Search': '구글 검색',
+  'Direct': '직접 유입',
+  'Social + referral': '소셜·추천 유입',
+  'What’s actually driving clicks this month?': '이번 달 클릭을 실제로 만든 건 무엇인가요?',
+  'Google Search still drives the vast majority of visits. Impressions are climbing faster than clicks — a CTR opportunity.':
+    '방문의 대부분은 여전히 구글 검색에서 옵니다. 노출이 클릭보다 빠르게 늘고 있으니 CTR을 올릴 여지가 있어요.',
+  'Titles': '제목',
+  '{n} rewritten': '{n}개 다시 씀',
+  'Analytics agent': '분석 에이전트',
+  'Shows you what’s actually working': '무엇이 실제로 통하는지 보여 줍니다',
+  // "plain English" is an idiom for "no jargon", not a claim about the
+  // language — so the Korean says "쉬운 말", which is what it actually means.
+  'Ask a question in plain English, get an answer in plain English — which posts earn clicks, which are slipping, what to do next. No Search Console spreadsheet to decipher.':
+    '쉬운 말로 물으면 쉬운 말로 답합니다. 어떤 글이 클릭을 얻고, 어떤 글이 밀리고 있으며, 다음에 무엇을 해야 하는지까지요. Search Console 스프레드시트를 해독할 필요가 없습니다.',
+  'Explore the Analytics agent →': '분석 에이전트 살펴보기 →',
+
+  /* ── landing · embed section ─────────────────────────────────────────── */
+  'Embed anywhere': '어디에나 임베드',
+  'One line of code.{br}The blog lives on your site.': '코드 한 줄이면{br}블로그가 내 사이트 안에 자리잡습니다.',
+  'Paste one script tag and your newest posts appear on your own domain — updating themselves every time Grove publishes. No rebuild, no CMS to wire up.':
+    '스크립트 태그 하나만 붙여 넣으면 최신 글이 내 도메인에 나타나고, Grove가 발행할 때마다 알아서 갱신됩니다. 다시 빌드할 필요도, CMS를 연결할 필요도 없어요.',
+  'Embed snippet': '임베드 스니펫',
+  'Turn homepage visitors into readers': '홈페이지 방문자를 독자로',
+  'Paste it once.{br}Never touch it again.': '한 번 붙여 넣으면{br}다시 손댈 일이 없습니다.',
+  'Consistent voice': '일관된 목소리',
+  'Sounds like you, everywhere': '어디서든 우리 브랜드의 말투로',
+  'Grove reads your site first — what you sell, who you sell to, how you write — before it drafts a word.':
+    'Grove는 한 글자 쓰기 전에 사이트부터 읽습니다. 무엇을 파는지, 누구에게 파는지, 어떻게 쓰는지까지요.',
+  'Auto-posting': '자동 게시',
+  'Posts to X and{br}LinkedIn for you': 'X와 LinkedIn에도{br}대신 올려 줍니다',
+  'Zero upkeep': '관리 부담 없음',
+  'Set it once, forget it': '한 번 설정하면 끝',
+  'Nothing to babysit. Every new post reaches your site, your blog and your social accounts on its own.':
+    '지켜볼 것이 없습니다. 새 글이 사이트와 블로그, 소셜 계정까지 알아서 도착합니다.',
+  'Where your posts can go': '글이 도착할 수 있는 곳',
+  'Hosted blog': '호스팅 블로그',
+  'One-line embed': '한 줄 임베드',
+  'Webhook': '웹훅',
+  'JSON API': 'JSON API',
+
+  /* ── landing · stats strip ───────────────────────────────────────────── */
+  '4 checks': '4가지 검사',
+  'every draft is scored on strategy, marketing, craft and safety': '모든 초안을 전략·마케팅·완성도·안전성으로 채점합니다',
+  'a post has to earn its score before it can publish': '점수를 얻지 못한 글은 발행되지 않습니다',
+  '1 line': '한 줄',
+  'of code to run the whole blog on your own site': '의 코드로 내 사이트에서 블로그 전체를 운영합니다',
+  'third-party trackers — your reader data stays yours': '개의 서드파티 추적기 — 독자 데이터는 온전히 여러분의 것입니다',
+
+  /* ── landing · agents + platform sections ────────────────────────────── */
+  'Meet the agents': '에이전트 소개',
+  'Three agents.{br}One growing blog.': '에이전트 셋이{br}블로그 하나를 키웁니다.',
+  'Each one does a job you’d otherwise hire for, and hands the work to the next without being asked.':
+    '각자 사람을 뽑아야 했을 일을 맡고, 시키지 않아도 다음 에이전트에게 넘깁니다.',
+  'Everything a content team does.': '콘텐츠 팀이 하는 모든 일.',
+  'Planning, writing, scheduling, publishing, distribution and reporting — connected, so nothing falls between tools.':
+    '기획, 작성, 일정 관리, 발행, 배포, 리포팅까지 하나로 이어져 도구 사이에서 새는 일이 없습니다.',
+  'Published|post status': '발행됨',
+  'Posted': '게시됨',
+  'Distribution →': '배포 →',
+  'Sun': '일',
+  'Mon': '월',
+  'Tue': '화',
+  'Wed': '수',
+  'Thu': '목',
+  'Fri': '금',
+  'Sat': '토',
+  '+{n} more': '+{n}개 더',
+  'Calendar →': '캘린더 →',
+  'Openings Grove spotted': 'Grove가 찾은 기회',
+  'live SERP': '실시간 검색 결과',
+  'Queries you rank on page 2 for': '2페이지에 걸려 있는 검색어',
+  '{n} impr': '노출 {n}회',
+  'NEAR WIN': '근접',
+  'Rank {rank} — a stronger page can reach page one.': '순위 {rank} — 더 강한 글이면 1페이지에 오를 수 있습니다.',
+  'Search openings →': '검색 기회 →',
+  'Idea studio →': '아이디어 스튜디오 →',
+  'OVERALL': '종합',
+  'STRATEGIC FIT': '전략 적합도',
+  'MARKETING': '마케팅',
+  'CRAFT': '완성도',
+  'SAFETY': '안전성',
+  'Quality gate →': '품질 게이트 →',
+  'Analytics →': '분석 →',
+  'Your own blog subdomain →': '내 블로그 서브도메인 →',
+
+  /* ── landing · pricing, FAQ, closing ─────────────────────────────────── */
+  'Plans': '요금제',
+  'Start free. Pay when it’s working.': '무료로 시작하고, 효과를 본 뒤에 결제하세요.',
+  'Every plan starts free — no card needed to see your first post. Cancel any time and keep everything published.':
+    '모든 플랜은 무료로 시작합니다. 첫 글을 보는 데 카드가 필요 없어요. 언제든 해지해도 발행한 글은 그대로 남습니다.',
+  'In their words': '고객의 말',
+  'What customers actually say.': '고객이 실제로 한 말.',
+  'Every quote below was written by someone running Grove on their own domain, published with their permission, and left exactly as they wrote it.':
+    '아래 문장은 모두 자신의 도메인에서 Grove를 쓰고 있는 분들이 직접 쓴 것이며, 동의를 받아 쓴 그대로 실었습니다.',
+  'The honest FAQ.': '솔직한 FAQ.',
+  'The questions skeptical founders actually ask before handing over their blog.':
+    '블로그를 맡기기 전에 창업자들이 실제로 던지는 질문들입니다.',
+  'Open dashboard →': '대시보드 열기 →',
+  'Start free →': '무료로 시작하기 →',
+  'Do I need WordPress or any hosting?': '워드프레스나 호스팅이 필요한가요?',
+  'No. Grove hosts the blog for you at no extra cost. If you would rather it live on your own site, one script tag renders it inside anything — WordPress, Webflow, Framer, Shopify, Next.js. A publish webhook can also push every post into Zapier, Make or n8n.':
+    '아니요. Grove가 추가 비용 없이 블로그를 호스팅해 드립니다. 내 사이트 안에 두고 싶다면 스크립트 태그 하나로 워드프레스, Webflow, Framer, Shopify, Next.js 어디에나 렌더링됩니다. 발행 웹훅으로 모든 글을 Zapier, Make, n8n으로 보낼 수도 있어요.',
+  'Will the posts actually sound like me?': '정말 제 말투로 써 주나요?',
+  'Grove reads the posts you have already written and drafts to match them. When something is off, correct it once and the correction carries into every draft after. Expect to steer the first few; after that it needs much less.':
+    'Grove가 이미 쓰신 글을 읽고 그에 맞춰 초안을 씁니다. 어색한 부분은 한 번만 고쳐 주면 이후 모든 초안에 반영돼요. 처음 몇 편은 손이 가지만, 그다음부터는 훨씬 덜합니다.',
+  'Isn’t AI content bad for SEO now?': '요즘 AI 콘텐츠는 SEO에 안 좋지 않나요?',
+  'Thin, generic AI content is. Grove researches what already ranks for each keyword before it writes, and cites real sources — the goal is a page that deserves to rank, not more pages.':
+    '얄팍하고 뻔한 AI 콘텐츠가 그렇습니다. Grove는 쓰기 전에 각 키워드에서 이미 상위에 오른 글을 조사하고 실제 출처를 인용합니다. 목표는 글을 더 많이 찍어내는 게 아니라 상위에 오를 자격이 있는 글입니다.',
+  'Can I review posts before they go live?': '게시 전에 제가 검토할 수 있나요?',
+  'Always. Approve every post yourself, or let Grove publish on its own once you trust it. You set this per site and can change it any time.':
+    '언제든지요. 모든 글을 직접 승인할 수도 있고, 믿음이 생기면 Grove가 알아서 발행하게 둘 수도 있습니다. 사이트마다 설정하고 언제든 바꿀 수 있어요.',
+  'What’s the catch with the subscription?': '구독에 숨은 조건이 있나요?',
+  'None. Cancel any time and keep everything published — the posts are on your domain and they stay yours. No long contracts, no per-seat pricing.':
+    '없습니다. 언제든 해지해도 발행한 글은 모두 남습니다. 글은 여러분의 도메인에 있고 여러분의 것입니다. 장기 계약도, 좌석당 요금도 없어요.',
+  'How fast is the first post?': '첫 글은 얼마나 빨리 나오나요?',
+  'Add your domain, verify you own it, and Grove starts researching straight away. The first draft usually lands in your queue within a few minutes, in the same sitting.':
+    '도메인을 추가하고 소유권을 확인하면 Grove가 바로 조사를 시작합니다. 첫 초안은 보통 몇 분 안에, 자리에서 일어나기 전에 대기열에 도착합니다.',
+  'Dogfood': '자체 운영',
+  'Our blog runs on Grove.': '저희 블로그도 Grove로 돌아갑니다.',
+  'Nobody wrote these posts for this page. Grove researched, wrote and published them to our own domain, and what you see below is the same embed snippet we hand you, rendering the same feed. Judge us on it.':
+    '아래 글은 이 페이지를 위해 따로 쓴 것이 아닙니다. Grove가 조사하고 써서 저희 도메인에 발행한 글이고, 보이는 화면은 여러분에게 드리는 것과 똑같은 임베드 스니펫이 똑같은 피드를 그린 것입니다. 이걸로 판단해 주세요.',
+  'Your next post starts here.': '다음 글은 여기서 시작합니다.',
+  'Plant your domain tonight. Wake up to a researched, written and published post on your own site.':
+    '오늘 밤 도메인을 심어 두세요. 일어나면 조사와 작성을 마치고 사이트에 발행된 글이 기다리고 있습니다.',
+  'Your domain': '내 도메인',
+  'Plant →': '심기 →',
 };

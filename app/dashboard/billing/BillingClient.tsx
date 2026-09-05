@@ -144,14 +144,19 @@ export default function BillingClient({
                   <span style={{ fontSize: 13, color: 'var(--gv-dim)' }}>/mo</span>
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--gv-faint)', marginTop: 3 }}>
-                  {interval === 'year' ? `$${formatUsd(yearlyPriceUsd(p.id))} billed yearly` : 'billed monthly'}
+                  {interval === 'year'
+                    ? t('${total} billed yearly', { total: formatUsd(yearlyPriceUsd(p.id)) })
+                    : t('billed monthly')}
                 </div>
-                <div style={{ fontSize: 13, color: 'var(--gv-dim)', marginTop: 6 }}>{p.blurb}</div>
+                {/* Plan copy is module-level English marked with `msg` in
+                    lib/plans.ts — translated here and on the landing's pricing
+                    table, the only two places it is shown. */}
+                <div style={{ fontSize: 13, color: 'var(--gv-dim)', marginTop: 6 }}>{t(p.blurb)}</div>
               </div>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {p.features.map((f) => (
                   <li key={f} style={{ fontSize: 13.5, color: 'var(--gv-soft)', display: 'flex', gap: 9 }}>
-                    <span style={{ color: ACCENT_INK }}>✓</span>{f}
+                    <span style={{ color: ACCENT_INK }}>✓</span>{t(f)}
                   </li>
                 ))}
               </ul>

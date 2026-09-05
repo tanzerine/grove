@@ -4,7 +4,15 @@
  *
  * Prices themselves live in Stripe; we only ever reference Stripe *price IDs*
  * (server-side, from env) so the client can never influence the amount charged.
+ *
+ * `blurb` and `features` are customer-facing copy, rendered on the landing's
+ * pricing table and on /dashboard/billing. They are marked with `msg` and
+ * translated at those two render sites: this table is module-level, evaluated
+ * once per process, so a `t` call here would freeze whichever locale loaded
+ * the module first and serve it to everyone. Plan NAMES stay untranslated —
+ * "Starter" is what the Stripe invoice and the support conversation call it.
  */
+import { msg } from './i18n';
 
 export type PlanId = 'starter' | 'growth' | 'agency';
 
@@ -41,8 +49,8 @@ export const PLANS: Record<PlanId, Plan> = {
     priceUsd: 29,
     postsQuota: 12,
     domainLimit: 1,
-    blurb: 'One site, publishing about three times a week.',
-    features: ['12 posts / month', '1 domain', 'Full SEO pipeline', 'Email support'],
+    blurb: msg('One site, publishing about three times a week.'),
+    features: [msg('12 posts / month'), msg('1 domain'), msg('Full SEO pipeline'), msg('Email support')],
   },
   growth: {
     id: 'growth',
@@ -50,8 +58,8 @@ export const PLANS: Record<PlanId, Plan> = {
     priceUsd: 79,
     postsQuota: 40,
     domainLimit: 3,
-    blurb: 'Up to three sites, publishing daily.',
-    features: ['40 posts / month', 'Up to 3 domains', 'Social auto-publish', 'Search Console insights'],
+    blurb: msg('Up to three sites, publishing daily.'),
+    features: [msg('40 posts / month'), msg('Up to 3 domains'), msg('Social auto-publish'), msg('Search Console insights')],
   },
   agency: {
     id: 'agency',
@@ -59,8 +67,8 @@ export const PLANS: Record<PlanId, Plan> = {
     priceUsd: 199,
     postsQuota: 150,
     domainLimit: null,
-    blurb: 'Agencies and teams running many client blogs.',
-    features: ['150 posts / month', 'Unlimited domains', 'Priority pipeline', 'Priority support'],
+    blurb: msg('Agencies and teams running many client blogs.'),
+    features: [msg('150 posts / month'), msg('Unlimited domains'), msg('Priority pipeline'), msg('Priority support')],
   },
 };
 

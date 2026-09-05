@@ -18,10 +18,18 @@
  * asserts against the fixture.
  */
 import type { CSSProperties } from 'react';
+import { createT, type UiLocale } from '@/lib/i18n';
+import LangSwitch from '@/components/LangSwitch';
 
 export type SiteNavLink = { label: string; hash?: string; href?: string };
 
-/** The bar, top to bottom. Add an item here and every grove page gains it. */
+/**
+ * The bar, top to bottom. Add an item here and every grove page gains it.
+ *
+ * The `label` is BOTH the English text and the identity of the item — the
+ * catalogue key, and what `active` is matched against. It stays English for
+ * that reason; `locale` decides what is rendered.
+ */
 export const SITE_NAV_LINKS: readonly SiteNavLink[] = [
   { label: 'Agents', hash: '#agents' },
   { label: 'Platform', hash: '#platform' },
@@ -47,7 +55,13 @@ const CSS = `
 .gv-snav-link:hover, .gv-snav-link[aria-current='page'] { color: #f4f4f2; }
 .gv-snav-cta { margin-left: auto; height: 32px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; padding: 0 18px; border-radius: 8px; background: #f4f4f2; color: #0a0a0a; font-size: 14px; font-weight: 500; text-decoration: none; white-space: nowrap; transition: transform .18s, opacity .18s; }
 .gv-snav-cta:hover { transform: translateY(-2px); opacity: 0.92; }
-@media (max-width: 700px) { .gv-snav-links { display: none; } .gv-snav-in { gap: 14px; padding: 14px 16px; } }
+.gv-snav .gv-langsw { display: inline-flex; align-items: center; gap: 2px; margin-left: auto; padding: 2px; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; }
+.gv-snav .gv-langsw + .gv-snav-cta { margin-left: 10px; }
+.gv-snav-btn-reset { font: inherit; }
+.gv-snav .gv-langsw-btn { appearance: none; background: transparent; border: none; cursor: pointer; font-family: inherit; font-size: 12.5px; font-weight: 500; line-height: 1; color: #9a9d97; padding: 6px 9px; border-radius: 6px; transition: color .2s, background-color .2s; }
+.gv-snav .gv-langsw-btn:hover { color: #f4f4f2; }
+.gv-snav .gv-langsw-btn.on { background: rgba(255,255,255,0.1); color: #f4f4f2; cursor: default; }
+@media (max-width: 700px) { .gv-snav-links { display: none; } .gv-snav-in { gap: 14px; padding: 14px 16px; } .gv-snav .gv-langsw { margin-left: 0; } }
 `;
 
 export default function SiteNav({
@@ -55,12 +69,19 @@ export default function SiteNav({
   onLanding = false,
   /** The landing overlays its hero; every other page keeps the bar in flow. */
   position = 'sticky',
-  ctaLabel = 'Get Started',
+  ctaLabel,
   ctaHref = '/signup',
   /** Label of the item representing the current page, highlighted. */
   active,
   brandHref = '/',
   style,
+  /** Language of the bar's own labels. `createT` rather than a context so this
+   *  works unchanged in a server component (/blog) and a client one (Landing). */
+  locale = 'en',
+  /** Show the EN / 한국어 picker. Only the landing passes it — it navigates
+   *  between the landing's per-language URLs, which are the only pages that
+   *  exist in both. */
+  langSwitch = false,
 }: {
   onLanding?: boolean;
   position?: 'sticky' | 'fixed';
@@ -69,7 +90,10 @@ export default function SiteNav({
   active?: string;
   brandHref?: string;
   style?: CSSProperties;
+  locale?: UiLocale;
+  langSwitch?: boolean;
 }) {
+  const t = createT(locale);
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
@@ -88,12 +112,13 @@ export default function SiteNav({
                 href={siteNavHref(l, onLanding)}
                 aria-current={active === l.label ? 'page' : undefined}
               >
-                {l.label}
+                {t(l.label)}
               </a>
             ))}
           </div>
+          {langSwitch && <LangSwitch current={locale} />}
           <a className="gv-snav-cta" href={ctaHref}>
-            {ctaLabel}
+            {ctaLabel ?? t('Get Started')}
           </a>
         </div>
       </div>

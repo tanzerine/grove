@@ -9,6 +9,7 @@ import {
   smallestPlanForDomains,
   PLANS,
 } from '@/lib/plans';
+import { getPublicUiLocale } from '@/lib/i18n/server';
 
 const body = z.object({ hostname: z.string().min(3) });
 
@@ -64,9 +65,26 @@ export async function POST(req: Request) {
     /* couldn't evaluate the ceiling — don't punish the customer for it */
   }
 
+  // Seed the site's language from the language the owner just did the whole
+  // sign-up in. Without this the funnel dead-ends: someone who read the auth
+  // form and every onboarding step in Korean lands, one click later, in an
+  // English dashboard — because `domains.language` defaults to 'en' and
+  // `getUiLocale` reads the site first.
+  //
+  // It is a starting value, not a verdict. `/dashboard/voice` is the one
+  // control that moves both publication and UI language, and it is the very
+  // next screen where any of this becomes visible. A Korean-speaking owner
+  // running an English blog changes it there in one click; the alternative —
+  // defaulting everyone to English — silently gets the Korean owner wrong and
+  // gives them no signal that the setting exists.
   const { data, error } = await sb
     .from('domains')
-    .insert({ user_id: user.id, hostname, blog_slug: makeBlogSlug(hostname) })
+    .insert({
+      user_id: user.id,
+      hostname,
+      blog_slug: makeBlogSlug(hostname),
+      language: await getPublicUiLocale(),
+    })
     .select('id')
     .single();
 

@@ -79,6 +79,25 @@ export function translate(locale: UiLocale, source: string, vars?: Vars): string
  */
 export const msg = (source: string): string => source;
 
+/**
+ * Mark a string as DELIBERATELY untranslated sample content.
+ *
+ * The landing's product mockups are full of a fictional customer's own
+ * material: article titles, target keywords, their hostname, their content
+ * pillars. None of it should be translated — grove does not translate its
+ * customers' articles, and the mockup sits beside PNG screenshots of the real
+ * English product that cannot be translated either. A Korean visitor sees the
+ * chrome in Korean and one English customer's blog inside it, which is exactly
+ * what a Korean owner running an English site sees in the real dashboard.
+ *
+ * `sample` is the identity function, the mirror image of `msg`: `msg` says
+ * "English now, translated at the render site", `sample` says "English on
+ * purpose, forever". Making that explicit is what lets tests/i18n-unwrapped
+ * scan this file at all — without it the scanner reports forty article titles
+ * and the real finding is lost in them.
+ */
+export const sample = (source: string): string => source;
+
 export function createT(locale: unknown): T {
   const code = normalizeLang(locale);
   const t = ((source: string, vars?: Vars) => translate(code, source, vars)) as T;
@@ -108,8 +127,10 @@ export function coverage(locale: UiLocale): number {
   return Math.min(1, Object.keys(dict ?? {}).length / widest);
 }
 
-/** The cookie the switcher writes. Read by the server on every request. */
-export const UI_LANG_COOKIE = 'gv_lang';
+/** The cookie the switcher writes. Read by the server on every request.
+ *  Defined in ./detect (which imports nothing) so middleware can read the
+ *  name without pulling the catalogues into the edge bundle. */
+export { UI_LANG_COOKIE } from './detect';
 
 /** Where the choice is persisted so it follows the user across devices. */
 export const UI_LANG_METADATA_KEY = 'ui_language';

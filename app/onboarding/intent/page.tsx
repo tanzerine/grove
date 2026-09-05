@@ -7,11 +7,13 @@ import { INTERVIEW, type InterviewAnswers } from '@/lib/strategy/interview';
 import GroveMark from '@/components/GroveMark';
 import StepView from '../StepView';
 import { captureClient } from '@/lib/analytics/capture-client';
+import { useT } from '@/components/LocaleProvider';
 
 const DIM = 'var(--gv-dim)';
 
 export default function IntentPage() {
   const router = useRouter();
+  const t = useT();
   const [domainId, setDomainId] = useState<string | null>(null);
   const [hostname, setHostname] = useState<string>('');
   const [answers, setAnswers] = useState<InterviewAnswers>({});
@@ -56,7 +58,7 @@ export default function IntentPage() {
     setBusy(false);
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
-      setErr(j?.error ?? 'Failed to save');
+      setErr(j?.error ?? t('Failed to save'));
       return;
     }
     // `skip` is tracked because a skipped interview produces a weaker strategy
@@ -72,20 +74,24 @@ export default function IntentPage() {
       <div className="gv-auth-glow" aria-hidden><span className="b1" /><span className="b2" /></div>
       <div className="gv-onb-in" style={{ maxWidth: 720 }}>
         <div style={{ fontFamily: 'DM Mono, monospace', fontSize: 11, letterSpacing: '0.1em', color: DIM }}>
-          STEP 5 OF 6 — INTENT
+          {t('STEP 5 OF 6 — INTENT')}
         </div>
         <h1 className="gv-onb-title" style={{ fontSize: 'clamp(27px, 6.5vw, 38px)' }}>
-          A few questions for {hostname || 'your blog'}.
+          {t('A few questions for {host}.', { host: hostname || t('your blog') })}
         </h1>
         <p className="gv-onb-lede">
-          The strategist agent uses these to plan each month. All optional — skip what&apos;s not clear yet.
+          {t('The strategist agent uses these to plan each month. All optional — skip what’s not clear yet.')}
         </p>
 
         <div style={{ marginTop: 30, display: 'flex', flexDirection: 'column', gap: 16 }}>
           {INTERVIEW.map((q) => (
             <section key={q.id} className="gv-onb-card" style={{ padding: '22px 24px' }}>
-              <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--gv-ink)' }}>{q.prompt}</div>
-              {q.help && <div style={{ fontSize: 13, color: DIM, marginTop: 4 }}>{q.help}</div>}
+              {/* The interview table is module-level English marked with `msg`
+                  (lib/strategy/interview.ts) — translated here, at the render
+                  site, because a module-level table evaluates once per process
+                  and would freeze whichever locale loaded it first. */}
+              <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--gv-ink)' }}>{t(q.prompt)}</div>
+              {q.help && <div style={{ fontSize: 13, color: DIM, marginTop: 4 }}>{t(q.help)}</div>}
 
               {q.kind === 'single' && (
                 <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -95,7 +101,7 @@ export default function IntentPage() {
                       <label key={opt} style={radioRow(selected)}>
                         <input type="radio" name={q.id} checked={selected} onChange={() => setAns(q.id, opt)}
                           style={{ marginRight: 10, accentColor: 'var(--gv-accent)' }} />
-                        {opt}
+                        {t(opt)}
                       </label>
                     );
                   })}
@@ -111,17 +117,17 @@ export default function IntentPage() {
                       <label key={opt} style={radioRow(selected)}>
                         <input type="checkbox" checked={selected} onChange={() => toggleMulti(q.id, opt, 2)}
                           style={{ marginRight: 10, accentColor: 'var(--gv-accent)' }} />
-                        {opt}
+                        {t(opt)}
                       </label>
                     );
                   })}
-                  <div style={{ fontSize: 11, color: DIM }}>Pick up to 2.</div>
+                  <div style={{ fontSize: 11, color: DIM }}>{t('Pick up to 2.')}</div>
                 </div>
               )}
 
               {q.kind === 'text' && (
                 <textarea className="gv-onb-input" value={(answers[q.id] as string) ?? ''}
-                  onChange={(e) => setAns(q.id, e.target.value)} placeholder="Type a sentence or two…" rows={3}
+                  onChange={(e) => setAns(q.id, e.target.value)} placeholder={t('Type a sentence or two…')} rows={3}
                   style={{ marginTop: 14, resize: 'vertical' }} />
               )}
             </section>
@@ -131,9 +137,9 @@ export default function IntentPage() {
         {err && <div style={{ marginTop: 20, color: 'var(--gv-red-text)', fontSize: 14 }}>{err}</div>}
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 30 }}>
-          <button onClick={() => submit(true)} disabled={busy} className="gv-onb-ghost">Skip for now</button>
+          <button onClick={() => submit(true)} disabled={busy} className="gv-onb-ghost">{t('Skip for now')}</button>
           <button onClick={() => submit(false)} disabled={busy} className="gv-onb-btn">
-            {busy ? 'Saving…' : 'Save and continue →'}
+            {busy ? t('Saving…') : t('Save and continue →')}
           </button>
         </div>
       </div>

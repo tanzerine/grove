@@ -205,6 +205,25 @@ changes at once, and switching sites switches the language with it.
 - **A route that already knows its domain uses `localeForDomain(domain)`**, not
   `getUiLocale()` — no extra query, and it cannot disagree with the row the
   route is writing to.
+- **The SIGN-UP FUNNEL uses `getPublicUiLocale()` instead** — cookie →
+  `Accept-Language` → `en`, with the active site deliberately left out. Auth
+  (`/login`, `/signup`) and every `/onboarding/*` step are translated and read
+  the locale from `components/LocaleProvider` (a one-field client context;
+  the dashboard's `useT` needs the whole Chrome object, which does not exist
+  on a sign-up screen). Three entry points mount it: the two auth pages and
+  `app/onboarding/layout.tsx`. Reading the SITE there would be wrong in the
+  one case that matters — onboarding is where the owner picks what the site
+  publishes in, so a Korean owner adding an English site would watch the flow
+  flip language underneath them, mid-flow, with no control on screen.
+- **`POST /api/domains` seeds `domains.language` from that same locale.**
+  Without it the funnel dead-ends: Korean landing → Korean signup → Korean
+  onboarding → a domain defaulted to `en` → an English dashboard one click
+  later. It is a starting value, changed on `/dashboard/voice` (still the one
+  control), not a verdict.
+- **A sentence with markup inside it uses `tNodes(t('… {host} …'), {host: …})`**,
+  never a t() call per fragment. Korean puts the object first and the verb
+  last, so "Verify ownership of" + `<span>{host}</span>` type-checks, passes
+  both guards, and renders backwards. Same lesson as the strategy hero.
 - `strategyLanguageRule(pub, ui)` still takes two languages and still has a
   split-language branch. With one setting per site the two are always equal and
   it collapses to a single instruction; the branch is kept because it is pure,
@@ -225,8 +244,9 @@ changes at once, and switching sites switches the language with it.
   and the render site translates; `msg('…')` marks those strings so the
   extractor still sees them.
 - **TWO guards, and the second is the one that matters.**
-  `tests/i18n-unwrapped.test.ts` fails on any user-facing literal in the
-  customer dashboard that never reaches `t` — the industry's
+  `tests/i18n-unwrapped.test.ts` fails on any user-facing literal that never
+  reaches `t` — in the customer dashboard, in `app/onboarding/*`, and in
+  `components/AuthForm.tsx`, `Landing.tsx` and `SiteNav.tsx` — the industry's
   `eslint-plugin-i18next/no-literal-string`, rebuilt as a test because this repo
   has no ESLint config and `npm test` is the gate. It exists because the
   catalogue guard below cannot see a string that was never wrapped.
@@ -276,8 +296,56 @@ changes at once, and switching sites switches the language with it.
 - Topic suggestions (`/api/topics/suggest`) follow the PUBLICATION language,
   LLM path and offline templates alike: a suggestion the owner queues becomes
   an article title verbatim.
-- Deliberately NOT translated: `/dashboard/admin/*` (only the operator sees it)
-  and the marketing landing page (a voice decision, not an engineering one).
+- Deliberately NOT translated: `/dashboard/admin/*` (only the operator sees
+  it), and the legal pages.
+
+**The marketing landing** (0038) is the one translated surface a SEARCH ENGINE
+sees, so it is the one that does NOT resolve its language from the request.
+`lib/landing-locale.ts` is the whole policy.
+- **A real URL per language** — `/` and `/ko`, declared to each other by
+  `alternates.languages` (`landingAlternates()`, including `x-default`) and
+  both in the sitemap. Vary the language on `Accept-Language` at `/` instead
+  and Googlebot — US IPs, `en` headers — only ever sees English, so the Korean
+  page exists and is unfindable by search. For a product that sells SEO that
+  is not a small bug. Sharing breaks the same way: a link pasted in a Korean
+  group chat would render per-recipient.
+- **Detection is a one-time nudge, never the mechanism.** `landingRedirect()`
+  is pure and has four ways to say no: `/` only, never a bot (`isBot`), never
+  once `gv_lang` is set, and only to a language the landing actually has. It
+  writes no cookie, so it stays a function of the request. 307 + `Vary`.
+- **`LANDING_LOCALES` is deliberately shorter than `LANG_CODES`** — `es`/`zh`
+  are UI scaffolds with no landing, because a half-translated landing that
+  gets INDEXED is worse than an English one. Adding a language means one entry
+  plus a complete catalogue.
+- The nav switcher (`components/LangSwitch.tsx`) writes `gv_lang` and does a
+  full load, so picking Korean there carries into signup, onboarding and the
+  dashboard. `SiteNav` takes `locale` (via `createT`, so it works in the
+  server-rendered /blog and the client-rendered landing alike) and renders the
+  switcher only when `langSwitch` is passed — the landing is the only page
+  that exists at a URL per language.
+- **`sample()` (`lib/i18n`) marks English that is English ON PURPOSE** — the
+  demo customer's article titles, keywords and hostname inside the product
+  mockups. grove doesn't translate customers' articles, and those panels sit
+  beside PNG screenshots of the real English product. It is the mirror of
+  `msg`, and it is what lets `tests/i18n-unwrapped.test.ts` scan Landing.tsx
+  at all: unmarked, that file reports forty article titles and buries the one
+  real finding. A test bounds it to ≤20 words so it can't become an escape
+  hatch for prose.
+- `lib/plans.ts` blurbs/features and `lib/site.ts` title/description are
+  `msg`-marked and translated at their render sites (the pricing table, the
+  billing page, `app/ko/page.tsx`). The `<title>` there needs
+  `title: { absolute: … }` or the root layout appends `· grove` twice over.
+- **`<html lang>` stays `en`**; the landing sets `lang` on its own wrapper.
+  Changing the root attribute means reading the request in the root layout,
+  which would opt every route — blog pages included — into dynamic rendering
+  to change one attribute. hreflang + per-language canonical are the signals
+  that actually drive language targeting.
+- `lib/i18n/detect.ts` imports NOTHING, because middleware bundles what it can
+  reach: `lib/i18n/index.ts` would drag all four catalogues into the edge
+  bundle. `UI_LANG_COOKIE` lives there too, for the same reason. Middleware
+  grew 0.6 KB.
+- Auth and onboarding are the opposite case — unindexed, so they detect
+  silently, carry no switcher, and stay at one URL.
 
 Other key surfaces:
 - `lib/agent-brief.ts` — plain-English weekly brief on the dashboard home.

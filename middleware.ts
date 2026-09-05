@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { subdomainSlugFromHost, normalizeBlogHostname, appBase, blogRootDomain } from '@/lib/seo';
+import { landingRedirect } from '@/lib/landing-locale';
+import { UI_LANG_COOKIE } from '@/lib/i18n/detect';
 
 const PROTECTED = ['/dashboard', '/onboarding'];
 
@@ -81,7 +83,32 @@ export async function middleware(req: NextRequest) {
   const custom = await customBlogSlug(req.headers.get('host'));
   if (custom) return rewriteBlogHost(req, custom);
 
-  // ── 2. App auth — refresh the session on EVERY route ─────────────────────
+  // ── 2. Landing language — a one-time nudge, never the mechanism ──────────
+  // Each language of the landing has its own URL so it can be crawled, ranked
+  // and shared (lib/landing-locale.ts). Detection's only job is to spare a
+  // first-time Korean visitor from hunting for a switcher on a page they
+  // can't read. `landingRedirect` is pure and deliberately narrow: `/` only,
+  // never a bot, and never once `gv_lang` says the visitor has chosen.
+  //
+  // 307, not 308: the correct page for this URL depends on who is asking, so
+  // it must not be cached as permanent by the browser or a CDN.
+  const to = landingRedirect({
+    path: req.nextUrl.pathname,
+    cookieLocale: req.cookies.get(UI_LANG_COOKIE)?.value ?? null,
+    acceptLanguage: req.headers.get('accept-language'),
+    userAgent: req.headers.get('user-agent'),
+  });
+  if (to) {
+    const url = req.nextUrl.clone();
+    url.pathname = to;
+    const redirect = NextResponse.redirect(url, 307);
+    // Tells shared caches that this URL's response depends on the header, so
+    // one visitor's redirect is never replayed to the next.
+    redirect.headers.set('Vary', 'Accept-Language');
+    return redirect;
+  }
+
+  // ── 3. App auth — refresh the session on EVERY route ─────────────────────
   // Supabase rotates the access/refresh token pair on expiry, and the rotated
   // cookies can only be persisted from a place that can write to the response.
   // Server components can't (their setAll is a no-op), so if we only refreshed
