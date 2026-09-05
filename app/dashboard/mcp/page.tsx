@@ -15,7 +15,10 @@ import { TOOLS } from '@/lib/mcp/tools';
 import { DashHeader } from '../gv-chrome';
 import Icon from '../gv-icons';
 import KeyManager, { type KeyRow } from './KeyManager';
-import { getT } from '@/lib/i18n/server';
+import GrantList from './GrantList';
+import { summarizeGrants, toView } from '@/lib/mcp/grants';
+import { getT, getUiLocale } from '@/lib/i18n/server';
+import { intlLocale } from '@/lib/i18n';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,6 +46,29 @@ export default async function Page() {
     : { data: [] as any[] };
 
   const keys: KeyRow[] = (keyRows ?? []).map((k: any) => ({ ...k, state: keyState(k) }));
+
+  // Browser-approved grants. Same service-role reasoning as the keys above:
+  // oauth_tokens is policy-less by design (0039), so `.eq('user_id', …)` is the
+  // access check. Rotation means one agent owns several rows — summarizeGrants
+  // collapses each lineage back into the one thing the customer approved.
+  const { data: tokenRows } = user
+    ? await admin
+        .from('oauth_tokens')
+        .select('id,client_id,scopes,created_at,last_used_at,last_tool,calls,revoked_at,expires_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+    : { data: [] as any[] };
+
+  const clientIds = [...new Set((tokenRows ?? []).map((r: any) => r.client_id as string))];
+  const { data: clientRows } = clientIds.length
+    ? await admin.from('oauth_clients').select('client_id,client_name').in('client_id', clientIds)
+    : { data: [] as any[] };
+  const clientNames = Object.fromEntries((clientRows ?? []).map((c: any) => [c.client_id, c.client_name]));
+  // Formatted here, not in the client component: see toView's note on why
+  // rendering a date or a relative time during hydration breaks it.
+  const dateLocale = intlLocale(await getUiLocale());
+  const grants = summarizeGrants((tokenRows ?? []) as any, clientNames)
+    .map((g) => toView(g, dateLocale));
 
   // Delivery state per site — the honest answer to "is my content actually on
   // my site?", which nothing else in the dashboard can tell them once grove
@@ -85,6 +111,8 @@ export default async function Page() {
               sites={sites.map((s) => ({ id: s.id, hostname: s.hostname }))}
               endpoint={endpoint}
             />
+
+            <GrantList initial={grants} />
 
             <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '22px 24px' }}>
               <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 4 }}>{t('Step 3 · Let it work')}</div>
