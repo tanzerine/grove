@@ -32,9 +32,25 @@
 export const MCP_SCOPES = ['posts:read', 'posts:write'] as const;
 export type McpScope = (typeof MCP_SCOPES)[number];
 
-/** The minimum a token needs to reach the endpoint at all. Write is obtained
- *  on top of it, via the step-up flow, when a write tool is actually called. */
+/** The minimum a token needs to reach the endpoint at all. */
 export const MINIMUM_SCOPE: McpScope = 'posts:read';
+
+/**
+ * What the 401 challenge asks for — read AND write.
+ *
+ * Phase 0 challenged for `posts:read` alone, on a least-privilege reading of
+ * the spec. That was wrong for this resource in a way that only became obvious
+ * with the flow built: grove's documented loop is pull_new → write the article
+ * → record_delivery, so a read-only grant fails on the customer's second call,
+ * every time, and the step-up that would rescue it does not exist until phase
+ * 2. Challenging for what the loop needs matches the bearer-key default
+ * (write-back is on by default in the dashboard) and asks the customer once
+ * rather than twice.
+ *
+ * A client that wants read-only can still request it; nothing here forces the
+ * wider grant, and the consent screen shows what was asked for.
+ */
+export const CHALLENGE_SCOPES: McpScope[] = ['posts:read', 'posts:write'];
 
 /** The MCP endpoint's path on the app origin. */
 const MCP_PATH = '/api/mcp';
@@ -113,8 +129,51 @@ export function challengeHeader(base: string, reason: ChallengeReason, descripti
   if (reason === 'invalid') parts.push('error="invalid_token"');
   if (description) parts.push(`error_description="${description.replace(/"/g, "'")}"`);
   parts.push(`resource_metadata="${protectedResourceMetadataUrl(base)}"`);
-  // Least privilege on the first hop: the client asks for the minimum that
-  // reaches the resource, and steps up when it actually needs to write.
-  parts.push(`scope="${MINIMUM_SCOPE}"`);
+  parts.push(`scope="${CHALLENGE_SCOPES.join(' ')}"`);
   return `Bearer ${parts.join(', ')}`;
+}
+
+/* ── authorization server metadata (RFC 8414) ───────────────────────────── */
+
+export type AuthorizationServerMetadata = {
+  issuer: string;
+  authorization_endpoint: string;
+  token_endpoint: string;
+  registration_endpoint: string;
+  scopes_supported: string[];
+  response_types_supported: string[];
+  grant_types_supported: string[];
+  code_challenge_methods_supported: string[];
+  token_endpoint_auth_methods_supported: string[];
+  authorization_response_iss_parameter_supported: boolean;
+  service_documentation: string;
+};
+
+/**
+ * The document that closes the discovery chain the 401 opens.
+ *
+ * `issuer` is the identity a client records before it opens a browser and
+ * compares against the `iss` that comes back (RFC 9207) — so it must be
+ * appBase() and byte-stable, never derived from whichever host asked.
+ *
+ * `token_endpoint_auth_methods_supported: ["none"]` is not an oversight: every
+ * client here is public — a CLI, a desktop app — and cannot keep a secret. PKCE
+ * is what stands in for one, which is why S256 is the only challenge method
+ * advertised.
+ */
+export function authorizationServerMetadata(base: string): AuthorizationServerMetadata {
+  const origin = trim(base);
+  return {
+    issuer: origin,
+    authorization_endpoint: `${origin}/oauth/authorize`,
+    token_endpoint: `${origin}/api/oauth/token`,
+    registration_endpoint: `${origin}/api/oauth/register`,
+    scopes_supported: [...MCP_SCOPES],
+    response_types_supported: ['code'],
+    grant_types_supported: ['authorization_code', 'refresh_token'],
+    code_challenge_methods_supported: ['S256'],
+    token_endpoint_auth_methods_supported: ['none'],
+    authorization_response_iss_parameter_supported: true,
+    service_documentation: `${origin}/dashboard/mcp`,
+  };
 }
