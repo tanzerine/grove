@@ -14,8 +14,15 @@ import path from 'node:path';
  * dependencies, and its enforcement point is `npm test`, so the same rule lives
  * here instead.
  *
- * Scope: the customer-facing dashboard. `/dashboard/admin/*` and the marketing
- * pages are deliberately English (see CLAUDE.md) and are not scanned.
+ * Scope: everything a CUSTOMER reads — the dashboard, the auth form and every
+ * onboarding step. `/dashboard/admin/*` (only the operator sees it) and the
+ * marketing landing (a voice decision, see CLAUDE.md) are not scanned.
+ *
+ * Auth and onboarding were added to the scan when they were translated. They
+ * are the first three minutes of the product, and leaving them out would have
+ * meant the same slow rediscovery the dashboard already went through: the
+ * guard has to cover a surface from the day it ships, because the catalogue
+ * test below cannot see a string that never reached `t`.
  */
 
 const ENTITIES: Record<string, string> = {
@@ -42,6 +49,11 @@ const ALLOWED = [
   /^github_pat_/,                            // an input format example
   /^https?:\/\//,                            // URLs and URL examples
   /^[\w.-]+\.(com|io|ai|dev)\b/,             // hostname examples
+  // Product names on the MCP step's tabs. These label which tool's config
+  // format the snippet below is in, so they have to match what the customer
+  // sees in that tool's own UI — a translated "Claude Desktop" would be
+  // looking for an app that doesn't exist under that name.
+  /^(?:Claude Code|Cursor \/ Claude Desktop)$/,
 ];
 
 function tsxFiles(dir: string, out: string[] = []): string[] {
@@ -68,9 +80,19 @@ const isProse = (s: string) =>
 
 type Finding = { file: string; text: string };
 
+/** Every customer-facing .tsx: the dashboard minus admin, onboarding, and the
+ *  one shared component the auth routes render. */
+function scanned(): string[] {
+  return [
+    ...tsxFiles('app/dashboard').filter((p) => !p.includes(`${path.sep}admin${path.sep}`)),
+    ...tsxFiles('app/onboarding'),
+    path.join('components', 'AuthForm.tsx'),
+  ];
+}
+
 function unwrapped(): Finding[] {
   const found: Finding[] = [];
-  const files = tsxFiles('app/dashboard').filter((p) => !p.includes(`${path.sep}admin${path.sep}`));
+  const files = scanned();
   for (const file of files) {
     // Blank out everything already passed to t()/msg() so its CONTENT can't be
     // re-reported by the broader literal rules below.
@@ -118,6 +140,15 @@ describe('no unwrapped English in the customer dashboard', () => {
         `render English in every locale:\n${report}\n\n` +
         `Wrap them in t('…'), or add a reason to ALLOWED in this file.`,
     ).toEqual([]);
+  });
+
+  it('actually scans the funnel, not just the dashboard', () => {
+    // The scope is the point of this file, and it is one line away from
+    // silently shrinking back to the dashboard.
+    const files = scanned();
+    expect(files).toContain(path.join('components', 'AuthForm.tsx'));
+    expect(files).toContain(path.join('app', 'onboarding', 'verify', 'page.tsx'));
+    expect(files.some((f) => f.includes(`${path.sep}admin${path.sep}`))).toBe(false);
   });
 
   it('the scanner itself still works', () => {

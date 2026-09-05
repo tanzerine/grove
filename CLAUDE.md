@@ -205,6 +205,25 @@ changes at once, and switching sites switches the language with it.
 - **A route that already knows its domain uses `localeForDomain(domain)`**, not
   `getUiLocale()` — no extra query, and it cannot disagree with the row the
   route is writing to.
+- **The SIGN-UP FUNNEL uses `getPublicUiLocale()` instead** — cookie →
+  `Accept-Language` → `en`, with the active site deliberately left out. Auth
+  (`/login`, `/signup`) and every `/onboarding/*` step are translated and read
+  the locale from `components/LocaleProvider` (a one-field client context;
+  the dashboard's `useT` needs the whole Chrome object, which does not exist
+  on a sign-up screen). Three entry points mount it: the two auth pages and
+  `app/onboarding/layout.tsx`. Reading the SITE there would be wrong in the
+  one case that matters — onboarding is where the owner picks what the site
+  publishes in, so a Korean owner adding an English site would watch the flow
+  flip language underneath them, mid-flow, with no control on screen.
+- **`POST /api/domains` seeds `domains.language` from that same locale.**
+  Without it the funnel dead-ends: Korean landing → Korean signup → Korean
+  onboarding → a domain defaulted to `en` → an English dashboard one click
+  later. It is a starting value, changed on `/dashboard/voice` (still the one
+  control), not a verdict.
+- **A sentence with markup inside it uses `tNodes(t('… {host} …'), {host: …})`**,
+  never a t() call per fragment. Korean puts the object first and the verb
+  last, so "Verify ownership of" + `<span>{host}</span>` type-checks, passes
+  both guards, and renders backwards. Same lesson as the strategy hero.
 - `strategyLanguageRule(pub, ui)` still takes two languages and still has a
   split-language branch. With one setting per site the two are always equal and
   it collapses to a single instruction; the branch is kept because it is pure,
@@ -225,8 +244,9 @@ changes at once, and switching sites switches the language with it.
   and the render site translates; `msg('…')` marks those strings so the
   extractor still sees them.
 - **TWO guards, and the second is the one that matters.**
-  `tests/i18n-unwrapped.test.ts` fails on any user-facing literal in the
-  customer dashboard that never reaches `t` — the industry's
+  `tests/i18n-unwrapped.test.ts` fails on any user-facing literal that never
+  reaches `t` — in the customer dashboard, in `app/onboarding/*`, and in
+  `components/AuthForm.tsx` — the industry's
   `eslint-plugin-i18next/no-literal-string`, rebuilt as a test because this repo
   has no ESLint config and `npm test` is the gate. It exists because the
   catalogue guard below cannot see a string that was never wrapped.
@@ -278,6 +298,15 @@ changes at once, and switching sites switches the language with it.
   an article title verbatim.
 - Deliberately NOT translated: `/dashboard/admin/*` (only the operator sees it)
   and the marketing landing page (a voice decision, not an engineering one).
+  **The landing is the remaining English surface in the funnel** — 1,260 lines
+  of copy that needs a Korean writer, not a translator. When it is done it
+  should be path-based (`/ko` + `alternates.languages` hreflang), NOT
+  header-detected at `/`: grove sells SEO, and Googlebot crawls from US IPs
+  with `en` headers, so a header-varied landing means Korean copy that no
+  Korean can find by searching. Detection's job there is a one-time soft
+  redirect for a visitor with no `gv_lang` cookie, never the primary
+  mechanism. Auth and onboarding are the opposite case — unindexed, so they
+  detect silently and carry no switcher.
 
 Other key surfaces:
 - `lib/agent-brief.ts` — plain-English weekly brief on the dashboard home.

@@ -5,6 +5,7 @@ import { supabaseBrowser } from '@/lib/supabase/client';
 import GroveMark from '@/components/GroveMark';
 import { afterSignIn, afterCreate } from '@/lib/auth/flow';
 import { captureClient } from '@/lib/analytics/capture-client';
+import { useT } from '@/components/LocaleProvider';
 
 /**
  * One auth surface — no separate sign-up. The user enters an email + password
@@ -16,6 +17,7 @@ export default function AuthForm() {
   const sb = supabaseBrowser();
   const router = useRouter();
   const sp = useSearchParams();
+  const t = useT();
 
   // A domain typed on the landing hero flows straight into onboarding; a plain
   // sign-in goes to the dashboard, which redirects new (domain-less) users into
@@ -108,10 +110,12 @@ export default function AuthForm() {
         captureClient('signed_up', { method: 'email', confirmation_required: true });
         // No longer "come back and sign in" — emailRedirectTo sends the link to
         // /auth/callback, which exchanges the code and lands them signed in.
-        return setNotice(`Account created — check ${email} and click the link to finish. It signs you straight in.`);
+        return setNotice(
+          t('Account created — check {email} and click the link to finish. It signs you straight in.', { email }),
+        );
       case 'wrong-password':
         captureClient('sign_in_failed', { reason: 'wrong_password' });
-        return setErr('That email already has an account, but the password is wrong. Try again, or reset it.');
+        return setErr(t('That email already has an account, but the password is wrong. Try again, or reset it.'));
       case 'error':
         captureClient('sign_in_failed', { reason: 'other' });
         return setErr(d2.message);
@@ -134,9 +138,9 @@ export default function AuthForm() {
           <span>grove<span className="dot">.</span></span>
         </a>
 
-        <h1 className="gv-auth-title">Sign in to Grove</h1>
+        <h1 className="gv-auth-title">{t('Sign in to Grove')}</h1>
         <p className="gv-auth-sub">
-          Enter your email to continue. New here? We’ll create your account automatically.
+          {t('Enter your email to continue. New here? We’ll create your account automatically.')}
         </p>
 
         <button type="button" className="gv-auth-google" onClick={withGoogle} disabled={busy !== null}>
@@ -146,15 +150,15 @@ export default function AuthForm() {
             <path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z" />
             <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.9 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z" />
           </svg>
-          {busy === 'google' ? 'Connecting…' : 'Continue with Google'}
+          {busy === 'google' ? t('Connecting…') : t('Continue with Google')}
         </button>
 
-        <div className="gv-auth-or"><span>or</span></div>
+        <div className="gv-auth-or"><span>{t('or')}</span></div>
 
         <form onSubmit={withEmail} className="gv-auth-fields">
           <input
             className="gv-auth-input"
-            placeholder="Email"
+            placeholder={t('Email')}
             type="email"
             autoComplete="email"
             value={email}
@@ -163,7 +167,7 @@ export default function AuthForm() {
           />
           <input
             className="gv-auth-input"
-            placeholder="Password (8+ chars)"
+            placeholder={t('Password (8+ chars)')}
             type="password"
             autoComplete="current-password"
             value={pw}
@@ -175,12 +179,12 @@ export default function AuthForm() {
           {notice && <p className="gv-auth-sub" style={{ marginTop: 4 }}>{notice}</p>}
 
           <button type="submit" className="gv-auth-submit" disabled={busy !== null}>
-            {busy === 'email' ? '…' : 'Continue →'}
+            {busy === 'email' ? '…' : t('Continue →')}
           </button>
         </form>
 
         <p className="gv-auth-switch">
-          One sign-in for everything. No account yet? Just continue — we’ll set it up.
+          {t('One sign-in for everything. No account yet? Just continue — we’ll set it up.')}
         </p>
       </div>
     </main>
