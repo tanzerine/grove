@@ -14,6 +14,8 @@ import CopySnippet from '../embed/CopySnippet';
 import { useT } from '../i18n';
 import { captureClient } from '@/lib/analytics/capture-client';
 import { KEY_PLACEHOLDER, installCommand, mcpJson } from '@/lib/mcp/install';
+// Shared with GrantList so the two credential lists cannot render time differently.
+import { ago } from '@/lib/mcp/grants';
 
 export type KeyRow = {
   id: string;
@@ -38,17 +40,6 @@ function fieldStyle(): React.CSSProperties {
     borderRadius: 8, color: 'var(--gv-ink)', fontFamily: 'inherit', fontSize: 13,
     padding: '8px 11px', minWidth: 0,
   };
-}
-
-function ago(iso: string | null): string {
-  if (!iso) return 'never';
-  const ms = Date.now() - new Date(iso).getTime();
-  const mins = Math.round(ms / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.round(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.round(hrs / 24)}d ago`;
 }
 
 export default function KeyManager({ initialKeys, sites, endpoint }: {
