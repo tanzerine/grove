@@ -201,3 +201,20 @@ describe('normalizeResource', () => {
     expect(normalizeResource('https://trygroveai.com/api/mcp2')).not.toBe(normalizeResource(RESOURCE));
   });
 });
+
+describe('missingColumn (the 0040 deploy-order hazard)', () => {
+  // Code reached production before the migration it needed, and every OAuth
+  // token 503'd until the column landed. The retry has to be narrow: matching
+  // any error would turn a transient database failure into "no site scope
+  // recorded", which WIDENS a grant instead of refusing it.
+  it('matches only a genuinely absent column', async () => {
+    const { missingColumn } = await import('@/lib/mcp/auth');
+    expect(missingColumn({ code: '42703', message: 'column oauth_tokens.domain_ids does not exist' }, 'domain_ids')).toBe(true);
+    // A different column going missing is not this bug.
+    expect(missingColumn({ code: '42703', message: 'column oauth_tokens.scopes does not exist' }, 'domain_ids')).toBe(false);
+    // Transient failures must fall through to "unavailable", never to a retry.
+    expect(missingColumn({ code: '57014', message: 'canceling statement due to statement timeout' }, 'domain_ids')).toBe(false);
+    expect(missingColumn({ message: 'connection terminated' }, 'domain_ids')).toBe(false);
+    expect(missingColumn(null, 'domain_ids')).toBe(false);
+  });
+});
