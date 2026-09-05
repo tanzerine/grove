@@ -4,10 +4,19 @@ import Landing from '@/components/Landing';
 import StructuredData from '@/components/StructuredData';
 import { supabaseServer } from '@/lib/supabase/server';
 import { publishedTestimonials } from '@/lib/feedback-store';
+import { landingAlternates } from '@/lib/landing-locale';
 
 export const metadata: Metadata = {
-  alternates: { canonical: '/' },
-  openGraph: { url: '/' },
+  alternates: {
+    canonical: '/',
+    // Declares the Korean landing at /ko as this page's counterpart, and
+    // itself as the x-default. Without the pair Google treats the two as
+    // near-duplicates and picks one; with it, each is served to the searcher
+    // it was written for. See lib/landing-locale.ts for why the landing is
+    // path-based when the rest of the product is not.
+    languages: landingAlternates(),
+  },
+  openGraph: { url: '/', locale: 'en_US' },
 };
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ code?: string }> }) {
@@ -38,7 +47,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
   return (
     <>
       <StructuredData />
-      <Landing loggedIn={loggedIn} testimonials={testimonials} />
+      <Landing loggedIn={loggedIn} testimonials={testimonials} locale="en" />
     </>
   );
 }

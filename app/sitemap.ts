@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { appBase } from '@/lib/seo';
+import { LANDING_LOCALES, landingAlternates } from '@/lib/landing-locale';
 
 /**
  * Marketing sitemap. The per-blog sitemaps live under /b/[slug]/sitemap.xml;
@@ -10,8 +11,23 @@ import { appBase } from '@/lib/seo';
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = appBase();
   const now = new Date();
+
+  // Every language of the landing is its own entry, each carrying the same
+  // hreflang set as the pages themselves. A translation Google cannot find in
+  // the sitemap is a translation that waits on being stumbled upon.
+  const abs = Object.fromEntries(
+    Object.entries(landingAlternates()).map(([k, path]) => [k, `${base}${path === '/' ? '/' : path}`]),
+  );
+  const landings: MetadataRoute.Sitemap = LANDING_LOCALES.map(({ path }) => ({
+    url: `${base}${path === '/' ? '/' : path}`,
+    lastModified: now,
+    changeFrequency: 'weekly' as const,
+    priority: path === '/' ? 1 : 0.9,
+    alternates: { languages: abs },
+  }));
+
   return [
-    { url: `${base}/`, lastModified: now, changeFrequency: 'weekly', priority: 1 },
+    ...landings,
     // The blog index. Articles themselves live in the per-blog sitemap under
     // /b/[slug]/sitemap.xml — this page only links to them.
     { url: `${base}/blog`, lastModified: now, changeFrequency: 'daily', priority: 0.8 },

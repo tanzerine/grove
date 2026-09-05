@@ -28,27 +28,22 @@ import { cache } from 'react';
 import { supabaseServer } from '../supabase/server';
 import { getActiveDomainFields } from '../active-domain';
 import { normalizeLang, LANG_CODES } from '../language';
+import { pickAcceptLanguage } from './detect';
 import { createT, UI_LANG_COOKIE, type T, type UiLocale } from './index';
 
 const supported = (v: unknown): v is UiLocale =>
   typeof v === 'string' && (LANG_CODES as readonly string[]).includes(v);
 
-/** First supported language in an Accept-Language header, or null. */
+/**
+ * First supported language in an Accept-Language header, or null.
+ *
+ * The parsing lives in `./detect`, which imports nothing, so middleware can
+ * use it without dragging the catalogues into the edge bundle. This is the
+ * binding to the product's four codes.
+ */
 export function localeFromAcceptLanguage(header: string | null): UiLocale | null {
-  if (!header) return null;
-  const parts = header.split(',')
-    .map((chunk) => {
-      const [tag, ...params] = chunk.trim().split(';');
-      const q = params.find((p) => p.trim().startsWith('q='));
-      return { tag: tag.trim().toLowerCase(), q: q ? Number(q.split('=')[1]) || 0 : 1 };
-    })
-    .filter((p) => p.tag)
-    .sort((a, b) => b.q - a.q);
-  for (const { tag } of parts) {
-    const base = tag.split('-')[0];
-    if (supported(base)) return base;
-  }
-  return null;
+  const hit = pickAcceptLanguage(header, LANG_CODES);
+  return supported(hit) ? hit : null;
 }
 
 export const getUiLocale = cache(async (): Promise<UiLocale> => {

@@ -80,13 +80,15 @@ const isProse = (s: string) =>
 
 type Finding = { file: string; text: string };
 
-/** Every customer-facing .tsx: the dashboard minus admin, onboarding, and the
- *  one shared component the auth routes render. */
+/** Every customer-facing .tsx: the dashboard minus admin, onboarding, the one
+ *  shared component the auth routes render, and the marketing landing. */
 function scanned(): string[] {
   return [
     ...tsxFiles('app/dashboard').filter((p) => !p.includes(`${path.sep}admin${path.sep}`)),
     ...tsxFiles('app/onboarding'),
     path.join('components', 'AuthForm.tsx'),
+    path.join('components', 'Landing.tsx'),
+    path.join('components', 'SiteNav.tsx'),
   ];
 }
 
@@ -94,10 +96,16 @@ function unwrapped(): Finding[] {
   const found: Finding[] = [];
   const files = scanned();
   for (const file of files) {
-    // Blank out everything already passed to t()/msg() so its CONTENT can't be
-    // re-reported by the broader literal rules below.
+    // Blank out everything already passed to t()/msg()/sample() so its CONTENT
+    // can't be re-reported by the broader literal rules below.
+    //
+    // `sample` is what lets the landing be scanned at all. That page's product
+    // mockups are full of a fictional customer's own material — article
+    // titles, target keywords, their hostname — which is English on purpose
+    // and always will be. Marked, it is one word per string saying so;
+    // unmarked, it would be forty findings burying the one that matters.
     const src = fs.readFileSync(file, 'utf8')
-      .replace(/\b(?:t|msg)\(\s*(['"`])(?:\\.|(?!\1)[\s\S])*?\1/g, (m) => ' '.repeat(m.length));
+      .replace(/\b(?:t|msg|sample)\(\s*(['"`])(?:\\.|(?!\1)[\s\S])*?\1/g, (m) => ' '.repeat(m.length));
     const push = (raw: string) => {
       const text = decode(raw.trim());
       if (text === 'X' || /^X[\s·—-]*$/.test(text)) return;   // an all-placeholder template
@@ -147,8 +155,24 @@ describe('no unwrapped English in the customer dashboard', () => {
     // silently shrinking back to the dashboard.
     const files = scanned();
     expect(files).toContain(path.join('components', 'AuthForm.tsx'));
+    expect(files).toContain(path.join('components', 'Landing.tsx'));
     expect(files).toContain(path.join('app', 'onboarding', 'verify', 'page.tsx'));
     expect(files.some((f) => f.includes(`${path.sep}admin${path.sep}`))).toBe(false);
+  });
+
+  it('does not let sample() blank out more of the landing than it should', () => {
+    // `sample` earns its keep only if it stays rare and specific. If it ever
+    // starts wrapping whole paragraphs of marketing copy, this file goes green
+    // while the Korean landing fills up with English — the exact failure the
+    // scanner exists to catch. A demo article title is a handful of words.
+    const src = fs.readFileSync(path.join('components', 'Landing.tsx'), 'utf8');
+    const marked = [...src.matchAll(/\bsample\(\s*'((?:\\.|[^'])*)'/g)].map((m) => m[1]);
+    expect(marked.length, 'sample() is used at all').toBeGreaterThan(10);
+    // 20 words: the longest demo headline here is 15 ("How to Make Drop-In
+    // Ready Assets in 60 Seconds With an AI 3D Icon Maker"), and the shortest
+    // paragraph of real marketing copy on the page is well past 20.
+    const long = marked.filter((s) => s.split(/\s+/).length > 20);
+    expect(long, 'sample() should mark demo content, not prose').toEqual([]);
   });
 
   it('the scanner itself still works', () => {
