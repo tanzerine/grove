@@ -33,6 +33,20 @@ const nextConfig = {
         source: '/.well-known/oauth-protected-resource/:path*',
         destination: '/api/oauth/protected-resource',
       },
+      // RFC 8414. Clients also probe the OpenID variant, which carries the
+      // same document — supporting both costs one line and saves a dead end.
+      {
+        source: '/.well-known/oauth-authorization-server',
+        destination: '/api/oauth/authorization-server',
+      },
+      {
+        source: '/.well-known/oauth-authorization-server/:path*',
+        destination: '/api/oauth/authorization-server',
+      },
+      {
+        source: '/.well-known/openid-configuration',
+        destination: '/api/oauth/authorization-server',
+      },
       {
         source: '/ingest/static/:path*',
         destination: 'https://us-assets.i.posthog.com/static/:path*',
@@ -76,6 +90,17 @@ const nextConfig = {
         headers: [
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'Content-Security-Policy', value: "frame-ancestors 'none'" },
+        ],
+      },
+      // The OAuth consent screen most of all: its one button grants an agent
+      // access to the customer's content, which is precisely what a clickjack
+      // would want to borrow a click for.
+      {
+        source: '/oauth/:path*',
+        headers: [
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'none'" },
+          { key: 'Cache-Control', value: 'no-store' },
         ],
       },
     ];

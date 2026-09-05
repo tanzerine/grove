@@ -14,10 +14,15 @@
  * is long-running or server-initiated, so a stream would only be a socket held
  * open for no traffic.
  *
- * Auth is a bearer key (lib/mcp/keys). The MCP spec prefers OAuth for remote
- * servers, but the client here is an agent on a developer's laptop or in CI,
- * where a revocable, scopeable key in a header is what every client can
- * actually send today.
+ * TWO CREDENTIALS REACH THIS ENDPOINT, and lib/mcp/auth.ts flattens both into
+ * one McpContext so nothing downstream has to care which arrived:
+ *
+ *   - an OAuth access token (`gvo_…`), which a human granted in a browser. This
+ *     is the path a person takes — the install command carries no secret, and
+ *     the token lands in the client's keychain rather than a config file.
+ *   - a bearer key (`gv_mcp_…`, lib/mcp/keys), minted in the dashboard. This is
+ *     the path a machine takes: CI and service accounts have no browser to open
+ *     and need a credential that outlives any session.
  */
 import { NextResponse } from 'next/server';
 import { authenticate, touchKey, type McpContext } from '@/lib/mcp/auth';
@@ -147,7 +152,7 @@ export async function POST(req: Request) {
 
   // Usage trail after the work, not before: a rate-limited or malformed call
   // shouldn't move "last used".
-  await touchKey(ctx.keyId, calledTool);
+  await touchKey(ctx, calledTool);
 
   if (!responses.length) {
     // Everything in the payload was a notification. 202 with no body is what
