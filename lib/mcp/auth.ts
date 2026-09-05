@@ -98,16 +98,45 @@ export async function authenticate(secret: string | null): Promise<AuthResult> {
  * for a grant made before per-site consent existed (0040) — which means every
  * site, the same convention a key uses.
  */
+/** Postgres 42703 — the column in the select does not exist on the table. */
+export function missingColumn(err: any, column: string): boolean {
+  const code = String(err?.code ?? '');
+  const message = String(err?.message ?? '');
+  return (code === '42703' || /does not exist/i.test(message)) && message.includes(column);
+}
+
 async function authenticateOAuth(token: string): Promise<AuthResult> {
+  const digest = hashKey(token);
+  const BASE = 'id,user_id,client_id,scopes,resource,revoked_at,expires_at';
+
   let data: any = null;
   try {
     const res = await supabaseAdmin()
       .from('oauth_tokens')
-      .select('id,user_id,client_id,scopes,resource,domain_ids,revoked_at,expires_at')
-      .eq('token_hash', hashKey(token))
+      .select(`${BASE},domain_ids`)
+      .eq('token_hash', digest)
       .maybeSingle();
-    if (res.error) return { ok: false, reason: 'unavailable' };
-    data = res.data;
+
+    if (res.error) {
+      // Code can reach production before the migration that supports it does —
+      // 0040 did exactly that, and every OAuth token 503'd until the column
+      // landed. Retrying without it degrades to the pre-0040 meaning (no site
+      // scope recorded = every site), which is CORRECT while the column is
+      // absent: nothing can have written a scope into a column that isn't
+      // there. Narrowly matched on the column being missing, never on a
+      // transient failure — treating one of those as "no scope recorded" would
+      // widen a grant instead of failing it.
+      if (!missingColumn(res.error, 'domain_ids')) return { ok: false, reason: 'unavailable' };
+      const retry = await supabaseAdmin()
+        .from('oauth_tokens')
+        .select(BASE)
+        .eq('token_hash', digest)
+        .maybeSingle();
+      if (retry.error) return { ok: false, reason: 'unavailable' };
+      data = retry.data;
+    } else {
+      data = res.data;
+    }
   } catch {
     return { ok: false, reason: 'unavailable' };
   }
