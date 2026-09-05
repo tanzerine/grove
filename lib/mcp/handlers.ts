@@ -39,9 +39,19 @@ type DomainRow = Record<string, any>;
 // ── scoping ────────────────────────────────────────────────────────────────
 
 /** Every site this key may read: the user's own, narrowed to the pinned one. */
+/** Count without pulling rows; 0 on any error, since this only sharpens a note. */
+async function countRows(q: any): Promise<number> {
+  try {
+    const { count, error } = await q;
+    return error ? 0 : (count ?? 0);
+  } catch {
+    return 0;
+  }
+}
+
 async function sitesFor(sb: Sb, ctx: McpContext): Promise<DomainRow[]> {
   let q = sb.from('domains').select(DOMAIN_COLUMNS).eq('user_id', ctx.userId);
-  if (ctx.domainId) q = q.eq('id', ctx.domainId);
+  if (ctx.domainIds) q = q.in('id', ctx.domainIds);
   const { data } = await q.order('created_at', { ascending: true });
   return data ?? [];
 }
@@ -229,19 +239,42 @@ export async function callTool(name: string, rawArgs: unknown, ctx: McpContext):
  * have to trip on purpose to see. So the scope travels with the list.
  */
 export type KeyScope = {
-  covers: 'one site' | 'every site on this account';
-  pinned_to: string | null;
+  covers: 'one site' | 'some of your sites' | 'every site on this account';
+  /** The hostnames actually reachable. Null when the credential is unscoped. */
+  scoped_to: string[] | null;
   note: string | null;
 };
 
-export function keyScope(pinnedDomainId: string | null, pinnedHostname: string | null): KeyScope {
-  if (!pinnedDomainId) return { covers: 'every site on this account', pinned_to: null, note: null };
+export function keyScope(
+  domainIds: string[] | null,
+  hostnames: string[],
+  ownedTotal: number = hostnames.length,
+): KeyScope {
+  if (!domainIds) return { covers: 'every site on this account', scoped_to: null, note: null };
+
+  if (!hostnames.length) {
+    return {
+      covers: 'one site',
+      scoped_to: [],
+      note: 'This credential is scoped to a site that is no longer on this account. Approve the agent again, or make a new key.',
+    };
+  }
+
+  // Scoped to every site the account currently has. Saying "some of your sites"
+  // here would be alarming and wrong — but so would saying "everything", since
+  // the list is fixed and a site added tomorrow is NOT in it.
+  if (hostnames.length >= ownedTotal) {
+    return {
+      covers: 'every site on this account',
+      scoped_to: hostnames,
+      note: 'This credential is scoped to a fixed list that happens to be all of your sites. A site you add later is not included until the agent is approved again.',
+    };
+  }
+
   return {
-    covers: 'one site',
-    pinned_to: pinnedHostname,
-    note: pinnedHostname
-      ? `This key is pinned to ${pinnedHostname}. Every other site on this account is invisible through it — make an all-sites key in the grove dashboard if the agent should see them.`
-      : 'This key is pinned to a site that is no longer on this account. Make a new key in the grove dashboard.',
+    covers: hostnames.length === 1 ? 'one site' : 'some of your sites',
+    scoped_to: hostnames,
+    note: `This credential can only reach ${hostnames.join(', ')}. Every other site on this account is invisible through it — re-approve the agent, or make an all-sites key, if it should see them.`,
   };
 }
 
@@ -251,8 +284,8 @@ async function listSites(sb: Sb, ctx: McpContext): Promise<ToolResult> {
   // the site it was made for, and "connect a domain" would send the customer
   // to fix something that isn't broken.
   if (!sites.length) {
-    return toolText(ctx.domainId
-      ? 'This key is pinned to a site that is no longer on this account. Make a new key in the grove dashboard.'
+    return toolText(ctx.domainIds
+      ? 'This credential is scoped to a site that is no longer on this account. Approve the agent again, or make a new key.'
       : 'No sites on this key yet. Connect a domain in the grove dashboard first.');
   }
 
@@ -278,7 +311,17 @@ async function listSites(sb: Sb, ctx: McpContext): Promise<ToolResult> {
 
   // key_scope first: the model reads the answer to "is this everything?" before
   // it reads the list, not after.
-  return toolJson({ key_scope: keyScope(ctx.domainId, sites[0]?.hostname ?? null), sites: rows });
+  // How many sites the account owns, not how many this credential can see —
+  // the difference is what separates "scoped to a subset" from "scoped to a
+  // list that is currently everything".
+  const owned = ctx.domainIds
+    ? await countRows(sb.from('domains').select('id', { count: 'exact', head: true }).eq('user_id', ctx.userId))
+    : sites.length;
+
+  return toolJson({
+    key_scope: keyScope(ctx.domainIds, sites.map((d) => d.hostname), owned),
+    sites: rows,
+  });
 }
 
 async function listPosts(sb: Sb, ctx: McpContext, args: Record<string, unknown>): Promise<ToolResult> {

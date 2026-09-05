@@ -68,8 +68,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
 
   // What they are about to hand over, named concretely. RLS-scoped, so this is
   // exactly the set of sites the resulting token would reach.
-  const { data: domains } = await sb.from('domains').select('hostname').order('created_at', { ascending: true });
-  const sites = (domains ?? []).map((d: any) => d.hostname as string);
+  const { data: domains } = await sb.from('domains').select('id,hostname').order('created_at', { ascending: true });
+  const siteRows = (domains ?? []).map((d: any) => ({ id: d.id as string, hostname: d.hostname as string }));
+  const sites = siteRows.map((s) => s.hostname);
 
   const scopes = check.ok ? check.scopes : [];
   const writes = scopes.includes('posts:write');
@@ -97,12 +98,41 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
             note="Which articles your site has taken, and pointing grove's canonical URLs at your own."
           />
           <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 14 }}>
-            <div style={{ fontSize: 13, color: 'var(--gv-soft)', fontWeight: 600 }}>
-              {sites.length ? `Across ${sites.length === 1 ? 'your site' : `all ${sites.length} of your sites`}` : 'You have no sites connected yet'}
+            <div style={{ fontSize: 13, color: 'var(--gv-soft)', fontWeight: 600, marginBottom: 3 }}>
+              {sites.length ? 'On these sites' : 'You have no sites connected yet'}
             </div>
-            <div style={{ fontSize: 12.5, color: DIM, marginTop: 5, fontFamily: MONO, lineHeight: 1.6 }}>
-              {sites.length ? sites.join(' · ') : 'Connect a domain first and the agent will see nothing until you do.'}
-            </div>
+            {!sites.length ? (
+              <div style={{ fontSize: 12.5, color: DIM, marginTop: 5, lineHeight: 1.6 }}>
+                Connect a domain first and the agent will see nothing until you do.
+              </div>
+            ) : (
+              <>
+                <div style={{ fontSize: 12, color: DIM, marginBottom: 10, lineHeight: 1.55 }}>
+                  Untick any it should not see. The grant covers exactly what you tick &mdash; a site you add
+                  later is not included until you approve the agent again.
+                </div>
+                {/* Named checkboxes rather than a summary line: an agency running
+                    six client blogs out of one account should be able to let one
+                    client's agent near one client's articles. All ticked by
+                    default, because that is the common case and the screen
+                    should not make the ordinary customer do work. */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  {siteRows.map((s) => (
+                    <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 13.5, color: 'var(--gv-soft)', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        name="site"
+                        value={s.id}
+                        defaultChecked
+                        form="consent"
+                        style={{ accentColor: 'var(--gv-accent)', width: 15, height: 15 }}
+                      />
+                      <span style={{ fontFamily: MONO, fontSize: 12.5 }}>{s.hostname}</span>
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -111,10 +141,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
           it at any time from <span style={{ fontFamily: MONO }}>Content API</span>.
         </p>
 
-        <form method="post" action="/api/oauth/consent" style={{ display: 'flex', gap: 12, marginTop: 26, alignItems: 'center' }}>
+        <form id="consent" method="post" action="/api/oauth/consent" style={{ display: 'flex', gap: 12, marginTop: 26, alignItems: 'center' }}>
           {Object.entries(params).map(([k, v]) =>
             v ? <input key={k} type="hidden" name={k} value={String(v)} /> : null,
           )}
+          <input type="hidden" name="offered_any" value={siteRows.length ? '1' : '0'} />
+
           <button type="submit" name="decision" value="allow" className="gv-onb-btn">Allow access</button>
           <button type="submit" name="decision" value="deny" className="gv-onb-ghost">Cancel</button>
         </form>

@@ -11,6 +11,7 @@ import {
   CHALLENGE_SCOPES,
   MCP_SCOPES,
   challengeHeader,
+  insufficientScopeHeader,
   mcpResourceUri,
   protectedResourceMetadata,
   protectedResourceMetadataUrl,
@@ -100,5 +101,24 @@ describe('challengeHeader', () => {
     const h = challengeHeader(BASE, 'invalid', 'nope');
     expect(h.split('Bearer ').length).toBe(2);
     expect(h).toMatch(/^Bearer realm="grove", error="invalid_token", error_description=".*", resource_metadata=".*", scope=".*"$/);
+  });
+});
+
+describe('insufficientScopeHeader', () => {
+  it('is a 403 challenge, not a 401 one', () => {
+    const h = insufficientScopeHeader(BASE, ['posts:read', 'posts:write'], 'record_delivery needs write access.');
+    // The distinction a client branches on: invalid_token means "authenticate
+    // again", insufficient_scope means "you are known, ask for more". A client
+    // told the first for a scope problem throws away a working token.
+    expect(h).toContain('error="insufficient_scope"');
+    expect(h).not.toContain('invalid_token');
+  });
+
+  it('names every scope the operation needs, not just the missing one', () => {
+    // Re-authorizing with only the missing half would drop the half already
+    // granted, so the client would step up and immediately lose read access.
+    const h = insufficientScopeHeader(BASE, ['posts:read', 'posts:write'], 'x');
+    expect(h).toContain('scope="posts:read posts:write"');
+    expect(h).toContain('resource_metadata="https://trygroveai.com/.well-known/oauth-protected-resource/api/mcp"');
   });
 });
