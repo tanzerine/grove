@@ -129,9 +129,10 @@ vi.mock('@/lib/supabase/admin', () => ({
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
-const ALL_SITES = { keyId: 'k1', userId: 'u1', domainId: null, scopes: ['read', 'write'] as any, name: 'test' };
+const ALL_SITES = { keyId: 'k1', kind: 'key' as const, userId: 'u1', domainIds: null, scopes: ['read', 'write'] as any, name: 'test' };
 const READ_ONLY = { ...ALL_SITES, scopes: ['read'] as any };
-const PINNED_D1 = { ...ALL_SITES, domainId: 'd1' };
+const PINNED_D1 = { ...ALL_SITES, domainIds: ['d1'] };
+const BOTH_SITES = { ...ALL_SITES, domainIds: ['d1', 'd2'] };
 
 async function call(tool: string, args: any, ctx: any = ALL_SITES) {
   const { callTool } = await import('@/lib/mcp/handlers');
@@ -391,30 +392,48 @@ describe('list_sites', () => {
     const r = json(await call('list_sites', {}, PINNED_D1));
     expect(r.sites).toHaveLength(1);
     expect(r.key_scope.covers).toBe('one site');
-    expect(r.key_scope.pinned_to).toBe('acme.com');
-    expect(r.key_scope.note).toContain('all-sites key');
+    expect(r.key_scope.scoped_to).toEqual(['acme.com']);
+    expect(r.key_scope.note).toContain('acme.com');
   });
 
-  it('claims nothing when the key really does see everything', async () => {
+  it('claims nothing when the credential really is unscoped', async () => {
     const r = json(await call('list_sites', {}));
     expect(r.sites.length).toBeGreaterThan(1);
     expect(r.key_scope).toEqual({
       covers: 'every site on this account',
-      pinned_to: null,
+      scoped_to: null,
       note: null,
     });
+  });
+
+  it('does not cry wolf when the scope happens to list every site', async () => {
+    // u1 owns exactly d1 and d2. A grant naming both can reach everything today
+    // — calling that "some of your sites" would be alarming and wrong — but it
+    // is still a FIXED list, so the note has to say a new site is not included.
+    const r = json(await call('list_sites', {}, BOTH_SITES));
+    expect(r.key_scope.covers).toBe('every site on this account');
+    expect(r.key_scope.scoped_to).toEqual(['acme.com', 'other.com']);
+    expect(r.key_scope.note).toContain('not included');
   });
 });
 
 describe('keyScope', () => {
-  it('distinguishes an outlived key from an empty account', async () => {
+  it('distinguishes an outlived credential from an empty account', async () => {
     const { keyScope } = await import('@/lib/mcp/handlers');
-    // The site the key was pinned to is gone: "connect a domain" would send the
-    // customer to fix something that is not broken.
-    expect(keyScope('d-deleted', null).note).toContain('no longer on this account');
-    expect(keyScope(null, null)).toEqual({
-      covers: 'every site on this account', pinned_to: null, note: null,
+    expect(keyScope(['d-deleted'], []).note).toContain('no longer on this account');
+    expect(keyScope(null, [])).toEqual({
+      covers: 'every site on this account', scoped_to: null, note: null,
     });
+  });
+
+  it('names a subset as a subset', async () => {
+    const { keyScope } = await import('@/lib/mcp/handlers');
+    const s = keyScope(['d1'], ['acme.com'], 3);
+    expect(s.covers).toBe('one site');
+    expect(s.note).toContain('Every other site');
+
+    const two = keyScope(['d1', 'd2'], ['acme.com', 'other.com'], 5);
+    expect(two.covers).toBe('some of your sites');
   });
 });
 

@@ -28,12 +28,12 @@ import { NextResponse } from 'next/server';
 import { authenticate, touchKey, type McpContext } from '@/lib/mcp/auth';
 import { callTool } from '@/lib/mcp/handlers';
 import { bearerToken } from '@/lib/mcp/keys';
-import { challengeHeader } from '@/lib/mcp/oauth-metadata';
+import { CHALLENGE_SCOPES, challengeHeader, insufficientScopeHeader } from '@/lib/mcp/oauth-metadata';
 import {
   initializeResult, isNotification, LATEST_PROTOCOL, parseBody, RPC, rpcError, rpcResult,
   type RpcRequest, type RpcResponse,
 } from '@/lib/mcp/protocol';
-import { toolListPayload } from '@/lib/mcp/tools';
+import { toolByName, toolListPayload } from '@/lib/mcp/tools';
 import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
 import { appBase } from '@/lib/seo';
 
@@ -138,6 +138,36 @@ export async function POST(req: Request) {
   const parsed = parseBody(body);
   if (parsed.kind === 'invalid') {
     return NextResponse.json(rpcError(null, RPC.INVALID_REQUEST, parsed.message), { status: 400, headers: CORS });
+  }
+
+  // A write tool called with a read-only grant is an AUTHORIZATION problem, not
+  // a tool failure, and the spec has a specific shape for it: 403 with
+  // error="insufficient_scope" and the scopes the call needs. A client that
+  // gets that can step up and retry; one that gets a tool error just reports
+  // "grove said no" to the customer and stops. Checked before dispatch so the
+  // answer is the same whether the call arrived alone or inside a batch.
+  const needsWrite = parsed.messages.some((m) => {
+    if (m.method !== 'tools/call') return false;
+    return toolByName(String((m.params as any)?.name ?? ''))?.scope === 'write';
+  });
+  // Only for an OAuth grant. A read-only bearer KEY cannot step up — there is
+  // no authorization server in that path, and the customer's actual fix is to
+  // make a new key — so a 403 would replace a message the model can read and
+  // relay with a transport error it can only report as "grove said no". The
+  // tool error stays the right answer there; tests/mcp-route.test.ts pins it.
+  if (needsWrite && ctx.kind === 'oauth' && !ctx.scopes.includes('write')) {
+    const tools = parsed.messages
+      .filter((m) => m.method === 'tools/call')
+      .map((m) => String((m.params as any)?.name ?? ''))
+      .filter((n) => toolByName(n)?.scope === 'write');
+    const description = `${tools.join(', ')} needs write access; this credential is read-only.`;
+    return NextResponse.json(
+      { jsonrpc: '2.0', id: null, error: { code: RPC.INVALID_REQUEST, message: `${description} Re-approve the agent with write access, or create a read + write key under Content API.` } },
+      {
+        status: 403,
+        headers: { ...CORS, 'www-authenticate': insufficientScopeHeader(appBase(), CHALLENGE_SCOPES, description) },
+      },
+    );
   }
 
   const responses: RpcResponse[] = [];

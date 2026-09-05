@@ -12,6 +12,8 @@ import { hashKey, mintKey } from '@/lib/mcp/keys';
 
 const KEY = mintKey();
 const READ_KEY = mintKey();
+/** A browser-granted, read-only OAuth token — the credential that CAN step up. */
+const READ_GRANT = 'gvo_' + 'r'.repeat(40);
 
 type Row = Record<string, any>;
 
@@ -30,8 +32,17 @@ const POSTS: Row[] = [
 
 let deliveries: Row[] = [];
 
+const OAUTH_TOKENS: Row[] = [
+  {
+    id: 'o1', user_id: 'u1', client_id: 'gvc_a', scopes: ['posts:read'], domain_ids: null,
+    resource: 'https://trygroveai.com/api/mcp', token_hash: hashKey(READ_GRANT),
+    revoked_at: null, expires_at: '2099-01-01T00:00:00Z', calls: 0,
+  },
+];
+
 const TABLES: Record<string, () => Row[]> = {
   mcp_keys: () => KEYS,
+  oauth_tokens: () => OAUTH_TOKENS,
   domains: () => DOMAINS,
   posts: () => POSTS,
   mcp_deliveries: () => deliveries,
@@ -221,6 +232,30 @@ describe('tools/call', () => {
     expect(r.body.result.isError).toBe(true);
     expect(r.body.result.content[0].text).toContain('read-only');
     expect(DOMAINS[0].canonical_blog_base).toBeNull();
+  });
+
+  // The asymmetry is deliberate and easy to lose. A read-only KEY gets a tool
+  // error it can relay, because there is no step-up in that path and the fix is
+  // for the customer to make a new key. A read-only GRANT gets the spec's 403,
+  // because a client holding one can ask for more scope and retry.
+  it('answers a read-only OAuth grant with a step-up challenge instead', async () => {
+    const r = await post(
+      { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'set_canonical_base', arguments: { base: 'https://acme.com/blog' } } },
+      READ_GRANT,
+    );
+    expect(r.status).toBe(403);
+    const challenge = r.headers.get('www-authenticate') ?? '';
+    expect(challenge).toContain('error="insufficient_scope"');
+    expect(challenge).toContain('scope="posts:read posts:write"');
+    // Never invalid_token: the token is fine, it just may not do this.
+    expect(challenge).not.toContain('invalid_token');
+    expect(DOMAINS[0].canonical_blog_base).toBeNull();
+  });
+
+  it('lets the same grant read, so the 403 is about the scope and not the token', async () => {
+    const r = await post({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'list_sites', arguments: {} } }, READ_GRANT);
+    expect(r.status).toBe(200);
+    expect(r.body.result.structuredContent.sites).toHaveLength(1);
   });
 
   it('needs a tool name', async () => {

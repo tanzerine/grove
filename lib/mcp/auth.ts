@@ -24,8 +24,15 @@ export type McpContext = {
    */
   kind: 'key' | 'oauth';
   userId: string;
-  /** Non-null when the key is pinned to one site; null = every site the user owns. */
-  domainId: string | null;
+  /**
+   * The sites this credential may reach. NULL = every site the user owns.
+   *
+   * One concept for both credential types: a pinned key resolves to a list of
+   * one, an OAuth grant to whatever the customer ticked on the consent screen.
+   * Never an empty array — a credential that can see nothing would authenticate
+   * and then fail every call, which is worse than being refused outright.
+   */
+  domainIds: string[] | null;
   scopes: Scope[];
   name: string;
 };
@@ -77,7 +84,7 @@ export async function authenticate(secret: string | null): Promise<AuthResult> {
       keyId: data.id,
       kind: 'key',
       userId: data.user_id,
-      domainId: data.domain_id ?? null,
+      domainIds: data.domain_id ? [data.domain_id] : null,
       scopes: normalizeScopes(data.scopes),
       name: data.name ?? 'Content layer',
     },
@@ -87,16 +94,16 @@ export async function authenticate(secret: string | null): Promise<AuthResult> {
 /**
  * The OAuth path. Same shape of answer as a key, deliberately.
  *
- * `domainId` is null: a browser grant covers every site on the account, which
- * is what the consent screen says it does. Per-site consent is a later change
- * to what gets STORED here, not to anything downstream.
+ * `domain_ids` is whatever the customer ticked on the consent screen, and NULL
+ * for a grant made before per-site consent existed (0040) — which means every
+ * site, the same convention a key uses.
  */
 async function authenticateOAuth(token: string): Promise<AuthResult> {
   let data: any = null;
   try {
     const res = await supabaseAdmin()
       .from('oauth_tokens')
-      .select('id,user_id,client_id,scopes,resource,revoked_at,expires_at')
+      .select('id,user_id,client_id,scopes,resource,domain_ids,revoked_at,expires_at')
       .eq('token_hash', hashKey(token))
       .maybeSingle();
     if (res.error) return { ok: false, reason: 'unavailable' };
@@ -122,7 +129,11 @@ async function authenticateOAuth(token: string): Promise<AuthResult> {
       keyId: data.id,
       kind: 'oauth',
       userId: data.user_id,
-      domainId: null,
+      // An empty array is normalised to null rather than trusted: it would
+      // otherwise scope every query to nothing and read as "this account has no
+      // sites", which is a confusing way to express a grant that should not
+      // exist in the first place.
+      domainIds: data.domain_ids?.length ? data.domain_ids : null,
       scopes: toKeyScopes(data.scopes ?? []),
       name: 'Connected agent',
     },

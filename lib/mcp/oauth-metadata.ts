@@ -177,3 +177,25 @@ export function authorizationServerMetadata(base: string): AuthorizationServerMe
     service_documentation: `${origin}/dashboard/mcp`,
   };
 }
+
+/**
+ * The 403 challenge for a token that authenticated fine but may not do this.
+ *
+ * Distinct from a 401 on purpose: 401 means "I don't know who you are", 403
+ * means "I know exactly who you are and this particular call needs more". A
+ * client that gets the second can run a step-up authorization and retry;
+ * a client that gets the first for a scope problem throws its token away and
+ * asks the customer to authenticate again, which fixes nothing.
+ *
+ * `scope` names everything the operation needs, not just what is missing —
+ * a client re-authorizing with only the missing half would lose the half it
+ * already had.
+ */
+export function insufficientScopeHeader(base: string, needed: McpScope[], description: string): string {
+  return [
+    'Bearer error="insufficient_scope"',
+    `error_description="${description.replace(/"/g, "'")}"`,
+    `scope="${needed.join(' ')}"`,
+    `resource_metadata="${protectedResourceMetadataUrl(base)}"`,
+  ].join(', ');
+}

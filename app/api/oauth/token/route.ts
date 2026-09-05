@@ -64,7 +64,7 @@ async function exchangeCode(f: (k: string) => string) {
   const admin = supabaseAdmin();
   const { data: row, error } = await admin
     .from('oauth_codes')
-    .select('code_hash,client_id,user_id,redirect_uri,code_challenge,code_challenge_method,scopes,resource,expires_at,consumed_at')
+    .select('code_hash,client_id,user_id,redirect_uri,code_challenge,code_challenge_method,scopes,resource,domain_ids,expires_at,consumed_at')
     .eq('code_hash', sha256(code))
     .maybeSingle();
 
@@ -100,7 +100,7 @@ async function exchangeCode(f: (k: string) => string) {
   if (burnErr) return fail('server_error', 'Could not complete the exchange. Retry shortly.', 503);
   if (!burned?.length) return fail('invalid_grant', 'That authorization code is not valid.');
 
-  return issue(row.user_id, row.client_id, row.scopes as string[], row.resource);
+  return issue(row.user_id, row.client_id, row.scopes as string[], row.resource, (row as any).domain_ids ?? null);
 }
 
 async function refresh(f: (k: string) => string) {
@@ -111,7 +111,7 @@ async function refresh(f: (k: string) => string) {
   const admin = supabaseAdmin();
   const { data: row, error } = await admin
     .from('oauth_tokens')
-    .select('id,client_id,user_id,scopes,resource,revoked_at,refresh_expires_at')
+    .select('id,client_id,user_id,scopes,resource,domain_ids,revoked_at,refresh_expires_at')
     .eq('refresh_hash', sha256(token))
     .maybeSingle();
 
@@ -126,10 +126,11 @@ async function refresh(f: (k: string) => string) {
   // that keeps working after use is a credential with no expiry that nobody
   // notices has been copied.
   await admin.from('oauth_tokens').update({ revoked_at: new Date().toISOString() }).eq('id', row.id);
-  return issue(row.user_id, row.client_id, row.scopes as string[], row.resource);
+  // The refreshed token inherits the site scope; a refresh must never widen it.
+  return issue(row.user_id, row.client_id, row.scopes as string[], row.resource, (row as any).domain_ids ?? null);
 }
 
-async function issue(userId: string, clientId: string, scopes: string[], resource: string) {
+async function issue(userId: string, clientId: string, scopes: string[], resource: string, domainIds: string[] | null) {
   // Never mint for an audience this deployment does not serve, even from a row
   // that already exists — a stored resource is only as trustworthy as the day
   // it was written.
@@ -148,6 +149,7 @@ async function issue(userId: string, clientId: string, scopes: string[], resourc
     user_id: userId,
     scopes,
     resource,
+    domain_ids: domainIds,
     expires_at: new Date(now + ACCESS_TTL_MS).toISOString(),
     refresh_expires_at: new Date(now + REFRESH_TTL_MS).toISOString(),
   });

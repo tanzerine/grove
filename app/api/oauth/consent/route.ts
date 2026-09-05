@@ -88,6 +88,27 @@ export async function POST(req: Request) {
     return seeOther(authorizeRedirect(params.redirect_uri, appBase(), { error: 'access_denied', description: 'The account owner declined.' }, params.state));
   }
 
+  // Which sites were ticked. Every id is checked against the domains this user
+  // actually owns, through their OWN client — a forged id in the form cannot
+  // widen the grant to somebody else's site, and a stale one (deleted between
+  // render and submit) simply drops out.
+  const ticked = form.getAll('site').filter((v): v is string => typeof v === 'string');
+  let domainIds: string[] | null = null;
+  if (ticked.length) {
+    const { data: owned } = await sb.from('domains').select('id').in('id', ticked);
+    const allowed = (owned ?? []).map((d: any) => d.id as string);
+    if (!allowed.length) {
+      return seeOther(authorizeRedirect(params.redirect_uri, appBase(), { error: 'invalid_scope', description: 'None of the selected sites belong to this account.' }, params.state));
+    }
+    domainIds = allowed;
+  }
+  // No sites ticked, and some were offered, means the customer deselected
+  // everything — a grant that can reach nothing. Send them back rather than
+  // minting a credential that authenticates and then fails every call.
+  if (!ticked.length && form.get('offered_any') === '1') {
+    return seeOther(authorizeRedirect(params.redirect_uri, appBase(), { error: 'invalid_scope', description: 'No sites were selected, so there is nothing to grant.' }, params.state));
+  }
+
   const code = mintOpaque('gvac_');
   const { error } = await admin.from('oauth_codes').insert({
     code_hash: code.hash,
@@ -99,6 +120,9 @@ export async function POST(req: Request) {
     code_challenge: params.code_challenge,
     code_challenge_method: 'S256',
     scopes: check.scopes,
+    // Null only when the account has no sites at all; otherwise the explicit
+    // list the customer saw and ticked.
+    domain_ids: domainIds,
     resource: mcpResourceUri(appBase()),
     expires_at: new Date(Date.now() + CODE_TTL_MS).toISOString(),
   });
