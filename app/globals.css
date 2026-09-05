@@ -676,6 +676,13 @@ a { color: inherit; text-decoration: none; }
 .pagenav-link:hover { border-color: var(--moss); transform: translateY(-1px); }
 .pagenav-link.off { color: var(--line); pointer-events: none; }
 
+/* Archive index under the blog's card grid — every published article as a real
+   link, on every page. Deliberately quiet: it is a utility list, not a second
+   feed, so it reads as ink and only picks up the brand color on hover. */
+.archive-link { color: var(--ink); text-decoration: none; border-bottom: 1px solid transparent; transition: color .14s ease, border-color .14s ease; }
+.archive-link:hover { color: var(--moss); border-bottom-color: var(--moss); }
+.archive-link:focus-visible { outline: 2px solid var(--moss); outline-offset: 2px; }
+
 /* pipeline timeline */
 @keyframes grove-pulse-dot {
   0%, 100% { opacity: 1; transform: scale(1); }

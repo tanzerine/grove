@@ -37,6 +37,27 @@ export const KO: Record<string, string> = {
   'Log out': '로그아웃',
   'Logging out…': '로그아웃 중…',
 
+  /* ── content API · connected agents (OAuth grants) ───────────────────── */
+  'Connected agents': '연결된 에이전트',
+  'Approved in a browser, not pasted from here. Disconnecting one stops its access immediately, including any refresh token it still holds.':
+    '여기서 붙여넣은 키가 아니라, 브라우저에서 승인한 에이전트예요. 연결을 끊으면 남아 있는 갱신 토큰까지 포함해 접근 권한이 즉시 사라져요.',
+  'Nothing connected yet. An agent appears here after you approve it in the browser.':
+    '아직 연결된 에이전트가 없어요. 브라우저에서 승인하면 여기에 나타나요.',
+  'Could not disconnect that agent. Try again.': '에이전트 연결을 끊지 못했어요. 다시 시도해 주세요.',
+  'Disconnect': '연결 끊기',
+  'Disconnecting…': '연결 끊는 중…',
+  'Disconnected': '연결 해제됨',
+  'Cut off access?': '접근을 차단할까요?',
+  'Yes, disconnect': '네, 끊을게요',
+  'Keep': '유지',
+  'read + write': '읽기 + 쓰기',
+  'read only': '읽기 전용',
+  'connected': '연결일',
+  'call': '회 호출',
+  'calls': '회 호출',
+  'last used': '마지막 사용',
+  'refreshed': '갱신',
+
   /* ── site switcher ───────────────────────────────────────────────────── */
   'Your sites': '내 사이트',
   'Connect another website': '다른 사이트 연결',
@@ -1482,4 +1503,7 @@ export const KO: Record<string, string> = {
     '오늘 밤 도메인을 심어 두세요. 일어나면 조사와 작성을 마치고 사이트에 발행된 글이 기다리고 있습니다.',
   'Your domain': '내 도메인',
   'Plant →': '심기 →',
+  // Fallback link inside the landing's blog widget — the crawlable route to
+  // grove's own articles before embed.js replaces the container.
+  'Read the blog': '블로그 보기',
 };

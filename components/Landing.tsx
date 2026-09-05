@@ -6,6 +6,7 @@ import GroveEmbed from '@/components/GroveEmbed';
 import SiteNav from '@/components/SiteNav';
 import { ANNUAL_DISCOUNT, PLANS, formatUsd, monthlyPriceUsd, yearlyPriceUsd } from '@/lib/plans';
 import type { Testimonial } from '@/lib/feedback';
+import type { ArchiveEntry } from '@/lib/blog-archive';
 import { createT, msg, sample, type UiLocale } from '@/lib/i18n';
 
 /* Faithful port of the "Grove Landing" design comp (dark / accent #A2FF01,
@@ -92,6 +93,8 @@ export default function Landing({
   loggedIn = false,
   testimonials = [],
   locale = 'en',
+  blogLinks = [],
+  blogBase = null,
 }: {
   loggedIn?: boolean;
   /**
@@ -113,6 +116,14 @@ export default function Landing({
    * same lie in a nicer font.
    */
   testimonials?: Testimonial[];
+  /**
+   * Newest articles, server-rendered inside the blog widget as the crawlable
+   * fallback embed.js replaces on mount. Empty is valid — the widget then
+   * ships as it always did, and the client render still fills it.
+   */
+  blogLinks?: ArchiveEntry[];
+  /** Crawlable blog home, linked from the same fallback. */
+  blogBase?: string | null;
 }) {
   const t = createT(locale);
   const router = useRouter();
@@ -1287,7 +1298,22 @@ export default function Landing({
           </p>
         </div>
         <div className="gv-r">
-          <GroveEmbed mode="widget" count={3} blogUrl="/blog" />
+          <GroveEmbed mode="widget" count={3} blogUrl="/blog">
+            {/* Server-rendered fallback, replaced by embed.js on mount. The
+                homepage is the highest-authority page on the domain, so these
+                three links are the strongest internal signal grove's articles
+                get — and before this the section shipped an empty div. */}
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0, lineHeight: 1.8 }}>
+              {blogLinks.map((a) => (
+                <li key={a.slug}>
+                  <a href={a.url} style={{ color: '#9a9d97', textDecoration: 'none' }}>{a.title}</a>
+                </li>
+              ))}
+              {blogBase && (
+                <li><a href={blogBase} style={{ color: '#9a9d97', textDecoration: 'none' }}>{t('Read the blog')}</a></li>
+              )}
+            </ul>
+          </GroveEmbed>
         </div>
       </section>
 

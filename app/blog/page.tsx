@@ -14,9 +14,7 @@
 import type { Metadata } from 'next';
 import GroveEmbed, { groveEmbedHost } from '@/components/GroveEmbed';
 import SiteNav from '@/components/SiteNav';
-import { resolveBlogDomain } from '@/lib/blog-domain';
-import { blogHomeUrl, canonicalBaseFor } from '@/lib/seo';
-import { supabaseAdmin } from '@/lib/supabase/admin';
+import { groveBlogLinks } from '@/lib/grove-blog';
 
 export const metadata: Metadata = {
   title: 'Blog',
@@ -31,18 +29,11 @@ export const revalidate = 300;
 
 const ACCENT = '#A2FF01';
 
-async function articleBase(): Promise<string | null> {
-  try {
-    const domain = await resolveBlogDomain(supabaseAdmin(), groveEmbedHost());
-    return domain?.blog_slug ? blogHomeUrl(domain.blog_slug, canonicalBaseFor(domain)) : null;
-  } catch {
-    // No service key / DB unreachable: fall back to the in-page reader.
-    return null;
-  }
-}
-
 export default async function Page() {
-  const base = await articleBase();
+  // Every published article, server-rendered inside the embed container.
+  // embed.js replaces it on mount, so this is what a crawler gets — see
+  // lib/grove-blog for the indexing defect it fixes.
+  const { base, entries } = await groveBlogLinks(groveEmbedHost());
   const link = { color: '#9a9d97', textDecoration: 'none', fontSize: 14, fontWeight: 500 };
 
   return (
@@ -92,7 +83,20 @@ export default async function Page() {
           </p>
         </div>
 
-        <GroveEmbed mode="blog" articleBase={base} />
+        <GroveEmbed mode="blog" articleBase={base}>
+          {/* Server-rendered fallback. embed.js assigns `root.innerHTML` on
+              mount, so a reader never sees this — a crawler, and anyone
+              without JS, sees the whole blog as plain links. */}
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0, lineHeight: 1.8 }}>
+            {entries.map((a) => (
+              <li key={a.slug}>
+                <a href={a.url} style={{ color: '#f4f4f2', textDecoration: 'none' }}>
+                  {a.title}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </GroveEmbed>
       </main>
 
       <footer
@@ -107,6 +111,9 @@ export default async function Page() {
           <span>© {new Date().getFullYear()} grove — plant once, grows forever.</span>
           <span style={{ display: 'flex', gap: 18 }}>
             <a href="/" style={{ ...link, fontSize: 12 }}>Home</a>
+            {/* The crawlable blog home. It carries a link to every article and
+                was, before this, reachable from nothing but a sitemap entry. */}
+            {base && <a href={base} style={{ ...link, fontSize: 12 }}>All articles</a>}
             <a href="/privacy" style={{ ...link, fontSize: 12 }}>Privacy</a>
             <a href="/terms" style={{ ...link, fontSize: 12 }}>Terms</a>
           </span>

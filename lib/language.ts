@@ -83,6 +83,9 @@ export type ReaderUi = {
   newer: string;
   older: string;
   pageOf: (a: number, b: number) => string;
+  /** Heading of the complete, crawlable archive list under the card grid.
+   *  Distinct from `allArticles`, which is the article page's back-link. */
+  articleIndex: string;
 };
 
 export type Language = {
@@ -177,6 +180,7 @@ const UI_EN: ReaderUi = {
   newer: '← Newer',
   older: 'Older →',
   pageOf: (a, b) => `Page ${a} / ${b}`,
+  articleIndex: 'Every article',
 };
 
 const UI_KO: ReaderUi = {
@@ -212,6 +216,7 @@ const UI_KO: ReaderUi = {
   newer: '← 최신',
   older: '이전 →',
   pageOf: (a, b) => `${a} / ${b} 페이지`,
+  articleIndex: '전체 글 목록',
 };
 
 const UI_ES: ReaderUi = {
@@ -247,6 +252,7 @@ const UI_ES: ReaderUi = {
   newer: '← Más recientes',
   older: 'Más antiguos →',
   pageOf: (a, b) => `Página ${a} / ${b}`,
+  articleIndex: 'Todos los artículos',
 };
 
 const UI_ZH: ReaderUi = {
@@ -282,6 +288,7 @@ const UI_ZH: ReaderUi = {
   newer: '← 更新',
   older: '更早 →',
   pageOf: (a, b) => `第 ${a} / ${b} 页`,
+  articleIndex: '全部文章',
 };
 
 /* ───────────────────────────── the registry ────────────────────────────── */
