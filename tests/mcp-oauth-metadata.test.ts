@@ -8,8 +8,8 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
+  CHALLENGE_SCOPES,
   MCP_SCOPES,
-  MINIMUM_SCOPE,
   challengeHeader,
   mcpResourceUri,
   protectedResourceMetadata,
@@ -67,8 +67,17 @@ describe('challengeHeader', () => {
   it('points an unauthenticated client at the metadata document', () => {
     const h = challengeHeader(BASE, 'missing');
     expect(h).toContain('resource_metadata="https://trygroveai.com/.well-known/oauth-protected-resource/api/mcp"');
-    expect(h).toContain(`scope="${MINIMUM_SCOPE}"`);
     expect(h.startsWith('Bearer ')).toBe(true);
+  });
+
+  it('asks for the scopes grove’s documented loop actually needs', () => {
+    // Phase 0 challenged for posts:read alone, on a least-privilege reading.
+    // With the flow built that is wrong for this resource: the loop is
+    // pull_new → write the article → record_delivery, so a read-only grant
+    // fails on the customer's SECOND call, every time, and the step-up that
+    // would rescue it does not exist yet. Asking once beats asking twice.
+    expect(challengeHeader(BASE, 'missing')).toContain('scope="posts:read posts:write"');
+    expect(CHALLENGE_SCOPES).toEqual(['posts:read', 'posts:write']);
   });
 
   it('omits error when no credentials were sent at all', () => {
