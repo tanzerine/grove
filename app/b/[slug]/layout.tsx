@@ -19,8 +19,7 @@
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { designCss, isFontStylesheet, type SiteDesign } from '@/lib/site-design';
 import { blogThemeVars, resolveBranding } from '@/lib/blog-theme';
-import { subdomainSlugFromHost, isCustomBlogHost } from '@/lib/seo';
-import { headers } from 'next/headers';
+import { blogLinkBase } from '@/lib/seo';
 import { cache } from 'react';
 
 /**
@@ -69,11 +68,9 @@ export default async function HostedBlogLayout({
   // stylesheets to every article.
   const fonts = (design?.fonts.stylesheets ?? []).filter(isFontStylesheet).slice(0, 4);
 
-  // On a blog host the middleware strips the /b/{slug} prefix, so the blog's
-  // own links must be root-relative there and prefixed on the app host.
-  const host = (await headers()).get('host');
-  const onBlogHost = !!subdomainSlugFromHost(host) || isCustomBlogHost(host, domain);
-  const blogHome = onBlogHost ? '/' : `/b/${slug}`;
+  // Where the nav's blog link points. Off the domain row, not the Host header —
+  // a headers() call in THIS layout made every page under it dynamic.
+  const blogHome = blogLinkBase(domain, slug);
 
   const nav = design?.nav ?? null;
   const siteName =

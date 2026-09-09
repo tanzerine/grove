@@ -4,7 +4,7 @@ import { rewriteImgsToCdn } from '@/lib/image-cdn';
 import Image from 'next/image';
 import { stripLeadingH1, stripLeadingCoverImage } from '@/lib/article-body';
 import { extractFaq } from '@/lib/faq';
-import { jsonLdScript, blogHomeUrl, blogPostUrl, subdomainSlugFromHost, isCustomBlogHost, canonicalBaseFor, servedBlogBaseFor, buildArticleGraph } from '@/lib/seo';
+import { jsonLdScript, blogHomeUrl, blogPostUrl, blogLinkBase, canonicalBaseFor, servedBlogBaseFor, buildArticleGraph } from '@/lib/seo';
 import { pickRelated } from '@/lib/related-posts';
 import { injectInternalLinks } from '@/lib/internal-links';
 import { genreFor, authorFor, authorIsOrg } from '@/lib/blog-genre';
@@ -12,7 +12,17 @@ import { sameAsFor } from '@/lib/org-identity';
 import { languageForDomain, readMinutes, contentLength } from '@/lib/language';
 import { blogThemeVars, resolveBranding } from '@/lib/blog-theme';
 import { notFound } from 'next/navigation';
-import { headers } from 'next/headers';
+
+/**
+ * Articles are cacheable now that nothing here reads the request.
+ *
+ * There was no `revalidate` on this route at all — the value CLAUDE.md
+ * describes lives on other blog surfaces — and it would not have applied
+ * anyway while the layout and this page both called headers(). Five minutes
+ * matches what the rest of the public blog assumes, and a publish or refresh
+ * is visible within one window.
+ */
+export const revalidate = 300;
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string; post: string }> }) {
   const { slug, post } = await params;
@@ -79,12 +89,9 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   // The one honest writer of posts.reads is the client 'view' beacon, deduped
   // per session in lib/analytics/track.ts ingestEvent().
 
-  // On a blog host (grove subdomain or the customer's CNAME'd hostname) the
-  // middleware strips the /b/{slug} prefix, so relative links must be
-  // root-relative there and prefixed on the app host.
-  const host = (await headers()).get('host');
-  const onBlogHost = !!subdomainSlugFromHost(host) || isCustomBlogHost(host, domain);
-  const prefix = onBlogHost ? '' : `/b/${slug}`;
+  // Where in-blog links point. Read off the domain row, not the Host header —
+  // see blogLinkBase. Reading headers() here made every article dynamic.
+  const prefix = blogLinkBase(domain, slug);
 
   // Siblings power both retention features: contextual in-body links and the
   // "Keep reading" block. Injection happens at render time so every existing

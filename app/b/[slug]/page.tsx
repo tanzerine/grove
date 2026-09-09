@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { jsonLdScript, blogHomeUrl, blogPostUrl, subdomainSlugFromHost, isCustomBlogHost, canonicalBaseFor, servedBlogBaseFor, organizationNode } from '@/lib/seo';
+import { jsonLdScript, blogHomeUrl, blogPostUrl, blogLinkBase, canonicalBaseFor, servedBlogBaseFor, organizationNode } from '@/lib/seo';
 import { sameAsFor } from '@/lib/org-identity';
 import { genreFor, authorFor, authorIsOrg, type Genre } from '@/lib/blog-genre';
 import { languageForDomain, type Language } from '@/lib/language';
@@ -8,7 +8,6 @@ import { blogThemeVars, fallbackPalette, resolveBranding } from '@/lib/blog-them
 import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
-import { headers } from 'next/headers';
 
 const PER_PAGE = 9;
 
@@ -75,9 +74,8 @@ export default async function BlogIndex({
     .order('published_at', { ascending: false });
   const all = (data ?? []) as unknown as Row[];
 
-  const host = (await headers()).get('host');
-  const onBlogHost = !!subdomainSlugFromHost(host) || isCustomBlogHost(host, domain);
-  const prefix = onBlogHost ? '' : `/b/${slug}`;
+  // Off the domain row, not the Host header — see blogLinkBase.
+  const prefix = blogLinkBase(domain, slug);
   const lg = languageForDomain(domain);
   const t = lg.ui;
   const author = authorFor((domain as any).site_profile, domain.hostname, lg.code);
