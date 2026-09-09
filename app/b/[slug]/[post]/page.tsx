@@ -24,6 +24,37 @@ import { notFound } from 'next/navigation';
  */
 export const revalidate = 300;
 
+/**
+ * Empty on purpose, and NOT optional — this export is what makes `revalidate`
+ * above do anything at all.
+ *
+ * Removing the request reads was necessary but not sufficient. A dynamic-param
+ * route with no `generateStaticParams` is classified `ƒ` and served from
+ * scratch on every request no matter what `revalidate` says; measured against a
+ * pure route with no data access and no dynamic APIs, `revalidate = 300` alone
+ * still returned:
+ *
+ *   cache-control: private, no-cache, no-store, max-age=0, must-revalidate
+ *
+ * on every hit — byte-identical to the headers this whole change set out to
+ * remove. Adding this export (returning `[]`) flips the route to `●` and the
+ * same request returns `s-maxage=300, stale-while-revalidate` with
+ * `x-nextjs-cache: MISS` then `HIT`.
+ *
+ * It returns nothing because there is nothing worth prerendering at build time:
+ * articles belong to every customer's domain, they are published continuously,
+ * and enumerating them would put a DB read in the build and be stale by deploy.
+ * `dynamicParams` defaults to true, so an article not in this list renders on
+ * its first request and is cached from then on — which is exactly what we want.
+ *
+ * One consequence to know: 404s cache for the same window, so a slug hit BEFORE
+ * it exists stays 404 for up to five minutes. postSlug() embeds the post id, so
+ * in practice only a crawler following a stale link can do that.
+ */
+export async function generateStaticParams(): Promise<{ slug: string; post: string }[]> {
+  return [];
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string; post: string }> }) {
   const { slug, post } = await params;
   const sb = supabaseAdmin();

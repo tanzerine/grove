@@ -3,6 +3,7 @@ import {
   escapeXml, isBot, jsonLdScript, appBase, normalizeCanonicalBase,
   blogHomeUrl, blogPostUrl, subdomainSlugFromHost, buildLlmsTxt, buildArticleGraph, buildSitemapXml, buildRssXml,
   sanitizeEmbedHost, normalizeBlogHostname, canonicalBaseFor, servedBlogBaseFor, isCustomBlogHost,
+  blogLinkBase,
   organizationNode,
 } from '../lib/seo';
 
@@ -521,6 +522,56 @@ describe('servedBlogBaseFor', () => {
       custom_blog_hostname: 'blog.example.com',
     })).toBe('https://blog.example.com');
     expect(servedBlogBaseFor(null)).toBeNull();
+  });
+});
+
+describe('blogLinkBase', () => {
+  const saved = process.env.GROVE_BLOG_ROOT_DOMAIN;
+  beforeEach(() => { delete process.env.GROVE_BLOG_ROOT_DOMAIN; });
+  afterEach(() => {
+    if (saved === undefined) delete process.env.GROVE_BLOG_ROOT_DOMAIN;
+    else process.env.GROVE_BLOG_ROOT_DOMAIN = saved;
+  });
+
+  it('stays relative when the domain has no blog host of its own', () => {
+    // The case that keeps previews and localhost linking to themselves rather
+    // than to production.
+    expect(blogLinkBase({}, 'acme')).toBe('/b/acme');
+    expect(blogLinkBase(null, 'acme')).toBe('/b/acme');
+  });
+
+  it('points at the CNAME hostname when there is one', () => {
+    expect(blogLinkBase({ custom_blog_hostname: 'blog.example.com' }, 'acme'))
+      .toBe('https://blog.example.com');
+  });
+
+  it('points at the grove subdomain when that is the served surface', () => {
+    process.env.GROVE_BLOG_ROOT_DOMAIN = 'grove.so';
+    expect(blogLinkBase({}, 'acme')).toBe('https://acme.grove.so');
+  });
+
+  it('prefers the CNAME hostname over the grove subdomain', () => {
+    process.env.GROVE_BLOG_ROOT_DOMAIN = 'grove.so';
+    expect(blogLinkBase({ custom_blog_hostname: 'blog.example.com' }, 'acme'))
+      .toBe('https://blog.example.com');
+  });
+
+  it('ignores a customer-rendered canonical base — these links must resolve', () => {
+    // canonical_blog_base is where the EQUITY goes; it is not necessarily a
+    // surface that serves this article. In-blog links have to land somewhere
+    // real, so they follow servedBlogBaseFor, not canonicalBaseFor.
+    process.env.GROVE_BLOG_ROOT_DOMAIN = 'grove.so';
+    expect(blogLinkBase({ canonical_blog_base: 'https://www.example.com/blog' }, 'acme'))
+      .toBe('https://acme.grove.so');
+  });
+
+  it('composes into a post href without a doubled or missing slash', () => {
+    process.env.GROVE_BLOG_ROOT_DOMAIN = 'grove.so';
+    expect(`${blogLinkBase({ custom_blog_hostname: 'blog.example.com' }, 'acme')}/my-post`)
+      .toBe('https://blog.example.com/my-post');
+    expect(`${blogLinkBase({}, 'acme')}/my-post`).toBe('https://acme.grove.so/my-post');
+    delete process.env.GROVE_BLOG_ROOT_DOMAIN;
+    expect(`${blogLinkBase({}, 'acme')}/my-post`).toBe('/b/acme/my-post');
   });
 });
 
