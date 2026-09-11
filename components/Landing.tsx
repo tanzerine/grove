@@ -511,8 +511,8 @@ export default function Landing({
         {/* 3-step setup */}
         <div className="gv-steps3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, padding: '16px 0 20px', maxWidth: 1200, margin: '0 auto', width: '100%' }}>
           {[
-            { n: '01', head: t('Plant your domain'), s: t('One field. Nothing to install.') },
-            { n: '02', head: t('Verify you own it'), s: t('DNS or meta tag · 2 min') },
+            { n: '01', head: t('Paste the blog section'), s: t('One snippet. Nothing to install.') },
+            { n: '02', head: t('Verify you own the domain'), s: t('DNS or meta tag · 2 min') },
             { n: '03', head: t('Approve, or let it run'), s: t('Your call, changeable any time') },
           ].map((st) => (
             <div key={st.n} style={{ display: 'flex', alignItems: 'center', gap: 12, border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '14px 16px' }}>
@@ -1321,11 +1321,11 @@ export default function Landing({
       <section style={{ padding: '162px 24px 175px', textAlign: 'center' }}>
         <div className="gv-r" style={{ maxWidth: 680, margin: '0 auto' }}>
           <h2 style={{ ...h2Style, lineHeight: 1.08, margin: '0 0 22px' }}>{t('Your next post starts here.')}</h2>
-          <p style={{ fontSize: 18, fontWeight: 500, color: '#9a9d97', margin: '0 0 32px' }}>{t('Plant your domain tonight. Wake up to a researched, written and published post on your own site.')}</p>
+          <p style={{ fontSize: 18, fontWeight: 500, color: '#9a9d97', margin: '0 0 32px' }}>{t('Paste the section tonight. Wake up to a researched, written and published post on your own site.')}</p>
           <form onSubmit={onSubmit} style={{ display: 'flex', gap: 8, maxWidth: 440, margin: '0 auto', background: '#111110', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '6px 6px 6px 18px', height: 44 }}>
             <span style={{ display: 'flex', alignItems: 'center', color: '#7c7f77', fontSize: 14 }}>https://</span>
             <input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="yourdomain.com" aria-label={t('Your domain')} style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#f4f4f2', fontSize: 14, fontFamily: 'inherit', minWidth: 0 }} />
-            <button className="gv-btn" type="submit" style={{ ...ctaBtn, background: '#f4f4f2', color: '#0a0a0a', padding: '0 20px', borderRadius: 9, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}>{t('Plant →')}</button>
+            <button className="gv-btn" type="submit" style={{ ...ctaBtn, background: '#f4f4f2', color: '#0a0a0a', padding: '0 20px', borderRadius: 9, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}>{t('Grow →')}</button>
           </form>
         </div>
       </section>
@@ -1338,7 +1338,7 @@ export default function Landing({
               <img src="/landing/grove-mark.png" alt="Grove" style={{ width: 28, height: 28, objectFit: 'contain' }} />
               <span style={{ fontWeight: 700, fontSize: 17, letterSpacing: '-0.02em' }}>Grove</span>
             </a>
-            <p style={{ fontSize: 14, fontWeight: 500, color: '#7c7f77', lineHeight: 1.6, maxWidth: 250, margin: 0 }}>{t('Plant your domain once. Grove researches, writes and publishes the blog from there.')}</p>
+            <p style={{ fontSize: 14, fontWeight: 500, color: '#7c7f77', lineHeight: 1.6, maxWidth: 250, margin: 0 }}>{t('Paste the blog section once. Grove researches, writes and publishes into it from there.')}</p>
           </div>
           {footcols.map((col) => (
             <div key={col.head}>
@@ -1352,7 +1352,7 @@ export default function Landing({
           ))}
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, paddingTop: 22, fontSize: 12, color: '#565952' }}>
-          <span>{t('© {year} Grove — plant once, grow from there.', { year: new Date().getFullYear() })}</span>
+          <span>{t('© {year} Grove — paste once, grow from there.', { year: new Date().getFullYear() })}</span>
         </div>
       </footer>
     </div>

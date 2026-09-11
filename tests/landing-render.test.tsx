@@ -125,7 +125,7 @@ describe('what stays English, stays English', () => {
   });
 
   it('renders English at the English URL, with no Korean leaking in', () => {
-    expect(en).toContain('Plant your domain');
+    expect(en).toContain('Paste the blog section');
     expect(en).not.toContain('붙여 넣고');
   });
 });
