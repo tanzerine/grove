@@ -367,10 +367,10 @@ export default function Landing({
       <section id="hero" style={{ padding: '152px 24px 0', maxWidth: 1200, margin: '0 auto', textAlign: 'left', width: '100%' }}>
         <div className="gv-r">
           <h1 style={{ fontSize: 'clamp(34px, 5.2vw, 54px)', lineHeight: 1.08, fontWeight: 500, letterSpacing: '-0.03em', margin: '0 0 20px', color: '#f7f7f5', display: 'inline-block', fontFamily: "'GT Walsheim', 'Inter', sans-serif" }}>
-            {lines(t('Plant your domain{br}and watch your traffic grow.'))}
+            {lines(t('Paste a blog section into your site{br}and watch it grow.'))}
           </h1>
           <p style={{ fontSize: 18, fontWeight: 400, lineHeight: 1.6, color: '#9a9d97', maxWidth: 540, margin: '0 0 30px' }}>
-            {t('Connect your domain. Grove finds what your customers are searching for, writes the posts, and publishes them on your site — under your name, on a schedule you set.')}
+            {t('One snippet, pasted once. Grove finds what your customers are searching for, writes the posts, and publishes them into that section — under your name, on a schedule you set.')}
           </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 56 }}>
             <a className="gv-btn" href={startHref} style={{ ...ctaBtn, background: '#f4f4f2', color: '#0a0a0a', padding: '0 24px', borderRadius: 8, textDecoration: 'none' }}>{loggedIn ? t('Open dashboard') : t('Get started')}</a>

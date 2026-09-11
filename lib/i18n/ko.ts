@@ -1313,9 +1313,9 @@ export const KO: Record<string, string> = {
   /* ── landing · hero ─────────────────────────────────────────────────────
      `{br}` marks where the display headline breaks; the translation puts it
      where Korean wants it, or drops it. */
-  'Plant your domain{br}and watch your traffic grow.': '도메인을 심고{br}트래픽이 자라는 걸 지켜보세요.',
-  'Connect your domain. Grove finds what your customers are searching for, writes the posts, and publishes them on your site — under your name, on a schedule you set.':
-    '도메인만 연결하세요. Grove가 고객이 무엇을 검색하는지 찾아내고, 글을 쓰고, 정해 둔 일정에 맞춰 여러분의 이름으로 사이트에 발행합니다.',
+  'Paste a blog section into your site{br}and watch it grow.': '블로그 섹션을 사이트에 붙여 넣고{br}자라는 걸 지켜보세요.',
+  'One snippet, pasted once. Grove finds what your customers are searching for, writes the posts, and publishes them into that section — under your name, on a schedule you set.':
+    '코드 한 줄을 한 번만 붙여 넣으세요. Grove가 고객이 무엇을 검색하는지 찾아내고, 글을 쓰고, 정해 둔 일정에 맞춰 여러분의 이름으로 그 섹션에 발행합니다.',
   'Get started': '시작하기',
   'Open dashboard': '대시보드 열기',
   'See how it works': '어떻게 작동하나요',

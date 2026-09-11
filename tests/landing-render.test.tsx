@@ -41,9 +41,9 @@ const escaped = (s: string) =>
 
 describe('the Korean landing renders Korean', () => {
   it('translates the hero — the first thing anyone reads', () => {
-    expect(ko).toContain('도메인을 심고');
-    expect(ko).toContain(escaped(KO['Connect your domain. Grove finds what your customers are searching for, writes the posts, and publishes them on your site — under your name, on a schedule you set.']));
-    expect(ko).not.toContain('Plant your domain');
+    expect(ko).toContain('붙여 넣고');
+    expect(ko).toContain(escaped(KO['One snippet, pasted once. Grove finds what your customers are searching for, writes the posts, and publishes them into that section — under your name, on a schedule you set.']));
+    expect(ko).not.toContain('Paste a blog section');
   });
 
   it('translates every section heading', () => {
@@ -126,7 +126,7 @@ describe('what stays English, stays English', () => {
 
   it('renders English at the English URL, with no Korean leaking in', () => {
     expect(en).toContain('Plant your domain');
-    expect(en).not.toContain('도메인을 심고');
+    expect(en).not.toContain('붙여 넣고');
   });
 });
 
@@ -137,8 +137,8 @@ describe('the {br} marker never reaches a reader', () => {
     // And the break actually happened rather than being silently dropped:
     // `lines()` emits each half in its own span with the <br/> leading the
     // second, so the hero headline is two spans with a break between them.
-    expect(en).toContain('<span>Plant your domain</span><span><br/>and watch your traffic grow.</span>');
-    expect(ko).toContain('<span>도메인을 심고</span><span><br/>');
+    expect(en).toContain('<span>Paste a blog section into your site</span><span><br/>and watch it grow.</span>');
+    expect(ko).toContain('<span>블로그 섹션을 사이트에 붙여 넣고</span><span><br/>');
   });
 
   it('leaves no unsubstituted placeholder anywhere on the page', () => {
