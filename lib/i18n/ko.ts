@@ -1494,7 +1494,7 @@ export const KO: Record<string, string> = {
   'How fast is the first post?': '첫 글은 얼마나 빨리 나오나요?',
   'Add your domain, verify you own it, and Grove starts researching straight away. The first draft usually lands in your queue within a few minutes, in the same sitting.':
     '도메인을 추가하고 소유권을 확인하면 Grove가 바로 조사를 시작합니다. 첫 초안은 보통 몇 분 안에, 자리에서 일어나기 전에 대기열에 도착합니다.',
-  'Dogfood': '자체 운영',
+  'Built with Grove': 'Grove로 만든 블로그',
   'Our blog runs on Grove.': '저희 블로그도 Grove로 돌아갑니다.',
   'Nobody wrote these posts for this page. Grove researched, wrote and published them to our own domain, and what you see below is the same embed snippet we hand you, rendering the same feed. Judge us on it.':
     '아래 글은 이 페이지를 위해 따로 쓴 것이 아닙니다. Grove가 조사하고 써서 저희 도메인에 발행한 글이고, 보이는 화면은 여러분에게 드리는 것과 똑같은 임베드 스니펫이 똑같은 피드를 그린 것입니다. 이걸로 판단해 주세요.',
