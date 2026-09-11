@@ -26,9 +26,11 @@
 
    Options (data-attributes on the mount div):
      data-count      widget only — how many posts (default 4)
-     data-blog-url   widget only — where "Read the blog →" + cards link (default /blog)
+     data-blog-url   widget only — where "Read the blog →" links (default /blog),
+                     and where cards open in the blog's in-page reader when no
+                     article base is known ({blogUrl}#grove/{slug}).
      data-article-base
-                     full blog only — base URL the cards link to ({base}/{slug}).
+                     base URL the cards link to ({base}/{slug}), both modes.
                      You normally DON'T set this: grove already knows where your
                      articles are crawlable (your blog subdomain, or the base you
                      set as canonical) and links there automatically. Set it only
@@ -722,12 +724,33 @@
   }
 
   /* ───────────────────────── widget mode ───────────────────────── */
+
+  /* Where a widget card opens. Same precedence as the full blog: an explicit
+     data-article-base, else the base the API says is crawlable, else the blog
+     page's own hash reader.
+
+     This used to be `{blogUrl}/{slug}` unconditionally — which is only a page
+     on a site that renders its own article route. On every default install
+     (`#grove-blog` at /blog, articles served by grove) it was a 404 on every
+     card, and grove's own landing shipped exactly that for months: the
+     no-JS fallback links pointed at /b/… and the cards embed.js drew over
+     them pointed at /blog/…. A site with its own route sets data-article-base,
+     the same escape hatch blog mode documents.
+
+     Top-level and pure so it's unit-testable — embed.js has no DOM harness. */
+  function widgetHref(slug, artBase, blogUrl) {
+    if (artBase) return artBase.replace(/\/$/, '') + '/' + slug;
+    return blogUrl.replace(/\/$/, '') + '#grove/' + slug;
+  }
+
   function mountWidget(root, host) {
     var count = Math.max(1, Math.min(8, +root.getAttribute('data-count') || 4));
     var blogUrl = root.getAttribute('data-blog-url') || '/blog';
+    var artBase = (root.getAttribute('data-article-base') || '').trim() || null;
     getJSON(api(host, '?limit=' + count)).then(function (d) {
       var posts = d.posts || [];
       if (!posts.length) return;
+      if (!artBase && d.blog_base) artBase = d.blog_base;
       var T = strings(d.language || initialLang(root));
       root.className = 'gv' + themeClass(root);
       applyBranding(root, d.branding);
@@ -738,7 +761,7 @@
           '<div class="gv-h" style="font-size:20px">' + esc(T.latest) + '</div>' +
         '</div><a class="gv-link" href="' + esc(blogUrl) + '">' + esc(T.readTheBlog) + '</a></div>' +
         '<div class="gv-grid">' +
-          posts.map(function (p) { return cardHTML(p, blogUrl.replace(/\/$/, '') + '/' + p.slug, T); }).join('') +
+          posts.map(function (p) { return cardHTML(p, widgetHref(p.slug, artBase, blogUrl), T); }).join('') +
         '</div>';
     }).catch(function () {});
   }

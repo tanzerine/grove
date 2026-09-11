@@ -52,8 +52,9 @@ export default function GroveEmbed({
   count?: number;
   /** widget only — where the cards and "Read the blog →" point. */
   blogUrl?: string;
-  /** blog only — link cards at server-rendered article pages instead of the
-   *  in-page hash reader, so the articles stay crawlable. */
+  /** Link cards at server-rendered article pages instead of the in-page
+   *  hash reader, so the articles stay crawlable. Both modes; embed.js falls
+   *  back to the API's `blog_base` when this is unset. */
   articleBase?: string | null;
   /** Server-rendered fallback, replaced by embed.js on mount. See the note
    *  above: this is what a crawler (and a no-JS reader) actually gets. */
@@ -68,7 +69,7 @@ export default function GroveEmbed({
         data-accent={ACCENT}
         data-count={mode === 'widget' ? count : undefined}
         data-blog-url={mode === 'widget' ? blogUrl : undefined}
-        data-article-base={mode === 'blog' ? articleBase ?? undefined : undefined}
+        data-article-base={articleBase ?? undefined}
       >
         {children}
       </div>
