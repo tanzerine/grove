@@ -1306,9 +1306,9 @@ export const KO: Record<string, string> = {
   'Legal': '약관',
   'Privacy': '개인정보처리방침',
   'Terms': '이용약관',
-  'Plant your domain once. Grove researches, writes and publishes the blog from there.':
-    '도메인을 한 번 심어 두면, Grove가 조사하고 쓰고 발행합니다.',
-  '© {year} Grove — plant once, grow from there.': '© {year} Grove — 한 번 심고, 계속 키우세요.',
+  'Paste the blog section once. Grove researches, writes and publishes into it from there.':
+    '블로그 섹션을 한 번 붙여 넣어 두면, Grove가 조사하고 쓰고 그 안에 발행합니다.',
+  '© {year} Grove — paste once, grow from there.': '© {year} Grove — 한 번 붙여 넣고, 계속 키우세요.',
 
   /* ── landing · hero ─────────────────────────────────────────────────────
      `{br}` marks where the display headline breaks; the translation puts it
@@ -1319,9 +1319,9 @@ export const KO: Record<string, string> = {
   'Get started': '시작하기',
   'Open dashboard': '대시보드 열기',
   'See how it works': '어떻게 작동하나요',
-  'Plant your domain': '도메인 심기',
-  'One field. Nothing to install.': '입력 한 칸이면 됩니다. 설치할 것도 없어요.',
-  'Verify you own it': '소유권 확인',
+  'Paste the blog section': '블로그 섹션 붙여 넣기',
+  'One snippet. Nothing to install.': '스니펫 하나면 됩니다. 설치할 것도 없어요.',
+  'Verify you own the domain': '도메인 소유권 확인',
   'DNS or meta tag · 2 min': 'DNS 또는 메타 태그 · 2분',
   'Approve, or let it run': '직접 승인하거나, 맡겨 두거나',
   'Your call, changeable any time': '언제든 바꿀 수 있습니다',
@@ -1499,10 +1499,10 @@ export const KO: Record<string, string> = {
   'Nobody wrote these posts for this page. Grove researched, wrote and published them to our own domain, and what you see below is the same embed snippet we hand you, rendering the same feed. Judge us on it.':
     '아래 글은 이 페이지를 위해 따로 쓴 것이 아닙니다. Grove가 조사하고 써서 저희 도메인에 발행한 글이고, 보이는 화면은 여러분에게 드리는 것과 똑같은 임베드 스니펫이 똑같은 피드를 그린 것입니다. 이걸로 판단해 주세요.',
   'Your next post starts here.': '다음 글은 여기서 시작합니다.',
-  'Plant your domain tonight. Wake up to a researched, written and published post on your own site.':
-    '오늘 밤 도메인을 심어 두세요. 일어나면 조사와 작성을 마치고 사이트에 발행된 글이 기다리고 있습니다.',
+  'Paste the section tonight. Wake up to a researched, written and published post on your own site.':
+    '오늘 밤 섹션을 붙여 넣어 두세요. 일어나면 조사와 작성을 마치고 사이트에 발행된 글이 기다리고 있습니다.',
   'Your domain': '내 도메인',
-  'Plant →': '심기 →',
+  'Grow →': '키우기 →',
   // Fallback link inside the landing's blog widget — the crawlable route to
   // grove's own articles before embed.js replaces the container.
   'Read the blog': '블로그 보기',
