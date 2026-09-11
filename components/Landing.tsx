@@ -1298,7 +1298,7 @@ export default function Landing({
           </p>
         </div>
         <div className="gv-r">
-          <GroveEmbed mode="widget" count={3} blogUrl="/blog">
+          <GroveEmbed mode="widget" count={3} blogUrl="/blog" articleBase={blogBase}>
             {/* Server-rendered fallback, replaced by embed.js on mount. The
                 homepage is the highest-authority page on the domain, so these
                 three links are the strongest internal signal grove's articles
