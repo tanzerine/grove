@@ -19,7 +19,7 @@ import { groveBlogLinks } from '@/lib/grove-blog';
 export const metadata: Metadata = {
   title: 'Blog',
   description:
-    "Every post here was researched, written, quality-gated and published by grove — the same agent loop customers run on their own domain. We read our own dogfood.",
+    "Every post here was researched, written, quality-gated and published by grove — the same agent loop customers run on their own domain. Our blog runs on Grove.",
   alternates: { canonical: '/blog' },
   openGraph: { url: '/blog' },
 };
@@ -74,7 +74,7 @@ export default async function Page() {
               fontFamily: "'GT Walsheim', 'Inter', sans-serif",
             }}
           >
-            We read our own dogfood.
+            Our blog runs on Grove.
           </h1>
           <p style={{ fontSize: 18, color: '#9a9d97', lineHeight: 1.6, margin: 0 }}>
             Every post below was researched, written, scored and published by the same agent

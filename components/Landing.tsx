@@ -1291,7 +1291,7 @@ export default function Landing({
           anything written here. If it looks wrong, fix embed.js. */}
       <section id="blog" style={{ padding: '30px 24px 40px', maxWidth: 1120, margin: '0 auto' }}>
         <div className="gv-r" style={{ maxWidth: 620, marginBottom: 30 }}>
-          <div style={eyebrow}>{t('Dogfood')}</div>
+          <div style={eyebrow}>{t('Built with Grove')}</div>
           <h2 style={h2Style}>{t('Our blog runs on Grove.')}</h2>
           <p style={leadStyle}>
             {t('Nobody wrote these posts for this page. Grove researched, wrote and published them to our own domain, and what you see below is the same embed snippet we hand you, rendering the same feed. Judge us on it.')}
