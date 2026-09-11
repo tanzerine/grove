@@ -21,7 +21,7 @@
  * drift into pointing at different URLs for the same posts.
  */
 import { resolveBlogDomain } from '@/lib/blog-domain';
-import { blogHomeUrl, canonicalBaseFor } from '@/lib/seo';
+import { blogHomeUrl, blogPostUrl, canonicalBaseFor } from '@/lib/seo';
 import { archiveEntries, type ArchiveEntry } from '@/lib/blog-archive';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
@@ -68,5 +68,34 @@ export async function groveBlogLinks(
     };
   } catch {
     return { base: null, entries: [] };
+  }
+}
+
+/**
+ * The crawlable URL of ONE of grove's own articles, by slug — or null when no
+ * published post has it.
+ *
+ * Exists for `/blog/[slug]`, a URL grove never served. The embed widget on the
+ * landing linked every card there for months (fixed in #277), so the shape is
+ * in shared links and possibly Google's index; a permanent redirect onto the
+ * real article is what turns those dead links back into readers. Unknown slugs
+ * get null so the route can 404 honestly rather than soft-404 onto /blog.
+ */
+export async function groveBlogPostUrl(host: string, slug: string): Promise<string | null> {
+  try {
+    const sb = supabaseAdmin();
+    const domain = await resolveBlogDomain(sb, host);
+    if (!domain?.blog_slug) return null;
+    const { data } = await sb
+      .from('posts')
+      .select('slug')
+      .eq('domain_id', domain.id)
+      .eq('slug', slug)
+      .eq('status', 'published')
+      .maybeSingle();
+    if (!data) return null;
+    return blogPostUrl(domain.blog_slug, data.slug, canonicalBaseFor(domain));
+  } catch {
+    return null;
   }
 }
