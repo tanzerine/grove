@@ -7,8 +7,9 @@
  * the visitor goes to the other landing URL, AND `gv_lang` is written so the
  * choice sticks. That cookie is the same one Brand voice writes and the same
  * one `getPublicUiLocale` reads, so picking Korean here also means a Korean
- * sign-up and a Korean onboarding — and it is what stops `landingRedirect`
- * from second-guessing someone who has told us what they want.
+ * sign-up and a Korean onboarding. It is also the ONLY way a first-time
+ * visitor gets anything but English: nothing reads the browser's language,
+ * so this switcher is the whole entry point.
  *
  * A plain <a> cannot set a cookie, which is the only reason this is a client
  * component rather than two links.

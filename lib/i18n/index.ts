@@ -127,10 +127,14 @@ export function coverage(locale: UiLocale): number {
   return Math.min(1, Object.keys(dict ?? {}).length / widest);
 }
 
-/** The cookie the switcher writes. Read by the server on every request.
- *  Defined in ./detect (which imports nothing) so middleware can read the
- *  name without pulling the catalogues into the edge bundle. */
-export { UI_LANG_COOKIE } from './detect';
+/**
+ * The cookie holding the language the owner last CHOSE — written by the
+ * landing's switcher and by the Brand voice settings API, read by
+ * `getUiLocale` and `getPublicUiLocale`. It is the only signal a visitor
+ * without a site carries, and it exists only when they set it: nothing writes
+ * it from a browser header, so its absence means English.
+ */
+export const UI_LANG_COOKIE = 'gv_lang';
 
 /** Where the choice is persisted so it follows the user across devices. */
 export const UI_LANG_METADATA_KEY = 'ui_language';

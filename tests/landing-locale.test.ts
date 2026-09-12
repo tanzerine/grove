@@ -7,23 +7,16 @@
  * Korean copy exists but is unfindable, since Googlebot crawls from US IPs
  * sending `en`. For a product that sells SEO that is not a small bug.
  *
- * So: a real URL per language, an hreflang pair that declares them, and
- * detection reduced to a single one-time nudge with four ways to say no.
+ * So: a real URL per language, an hreflang pair that declares them, and no
+ * detection at all — `/` is English for everyone until they pick otherwise.
  */
 import { describe, it, expect } from 'vitest';
-import {
-  LANDING_LOCALES,
-  LANDING_LOCALE_CODES,
-  landingPath,
-  landingAlternates,
-  landingRedirect,
-} from '../lib/landing-locale';
+import fs from 'node:fs';
+import path from 'node:path';
+import * as landing from '../lib/landing-locale';
 import { KO } from '../lib/i18n/ko';
 
-const GOOGLEBOT =
-  'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
-const CHROME =
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36';
+const { LANDING_LOCALES, LANDING_LOCALE_CODES, landingPath, landingAlternates } = landing;
 
 describe('the landing exists at one URL per language', () => {
   it('serves English at / and Korean at /ko', () => {
@@ -49,58 +42,27 @@ describe('the landing exists at one URL per language', () => {
   });
 });
 
-describe('landingRedirect — the one job detection has here', () => {
-  it('sends a first-time Korean visitor to the Korean landing', () => {
-    expect(landingRedirect({
-      path: '/', acceptLanguage: 'ko-KR,ko;q=0.9,en;q=0.8', userAgent: CHROME,
-    })).toBe('/ko');
+describe('the landing never detects a language', () => {
+  it('exports no redirect — / is English for every first-time visitor', () => {
+    // An earlier version 307'd a Korean browser from / to /ko once, until
+    // gv_lang was set. The product default is now English on every page until
+    // the visitor chooses, so nothing in this module (or middleware, which
+    // used to call it) reads Accept-Language. If a redirect comes back it
+    // needs to be a deliberate decision, not a leftover.
+    expect('landingRedirect' in landing).toBe(false);
   });
 
-  it('NEVER redirects a crawler, whatever it asks for', () => {
-    // The hreflang pair promises English at / and Korean at /ko. Redirecting
-    // a crawler by its headers breaks that promise and is how a site ends up
-    // with one language indexed at both URLs.
-    expect(landingRedirect({
-      path: '/', acceptLanguage: 'ko-KR,ko;q=0.9', userAgent: GOOGLEBOT,
-    })).toBe(null);
-  });
-
-  it('never overrides a stated preference', () => {
-    // gv_lang is written by the nav switcher and by Brand voice. Someone who
-    // picked English gets English, in a Korean browser, every time.
-    expect(landingRedirect({
-      path: '/', cookieLocale: 'en', acceptLanguage: 'ko-KR,ko;q=0.9', userAgent: CHROME,
-    })).toBe(null);
-  });
-
-  it('only acts on the English landing itself', () => {
-    for (const path of ['/ko', '/blog', '/signup', '/dashboard', '/privacy']) {
-      expect(landingRedirect({ path, acceptLanguage: 'ko-KR', userAgent: CHROME }), path).toBe(null);
+  it('nothing that picks a UI language reads Accept-Language', () => {
+    // The three files that resolve or route on language. A header read in any
+    // of them is the old behaviour coming back.
+    for (const file of ['middleware.ts', 'lib/i18n/server.ts', 'lib/landing-locale.ts']) {
+      const src = fs.readFileSync(path.join(process.cwd(), file), 'utf8');
+      // Prose may mention the header when explaining why it is NOT read;
+      // code reads it through a string literal or a `headers()` call.
+      const code = src.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '');
+      expect(code, file).not.toMatch(/accept-language/i);
+      expect(code, file).not.toMatch(/\bheaders\(\)/);
     }
-  });
-
-  it('leaves an English or unsupported-language visitor alone', () => {
-    expect(landingRedirect({ path: '/', acceptLanguage: 'en-US,en;q=0.9', userAgent: CHROME })).toBe(null);
-    // French is a supported UI locale's neighbour but not a landing language;
-    // Spanish IS a UI locale and still has no landing, which is the case that
-    // would break if this read the four UI codes instead of the two here.
-    expect(landingRedirect({ path: '/', acceptLanguage: 'fr-FR,fr;q=0.9', userAgent: CHROME })).toBe(null);
-    expect(landingRedirect({ path: '/', acceptLanguage: 'es-ES,es;q=0.9', userAgent: CHROME })).toBe(null);
-    expect(landingRedirect({ path: '/', acceptLanguage: null, userAgent: CHROME })).toBe(null);
-  });
-
-  it('honours q-weights rather than header order', () => {
-    expect(landingRedirect({
-      path: '/', acceptLanguage: 'ko;q=0.3,en;q=0.9', userAgent: CHROME,
-    })).toBe(null);
-    expect(landingRedirect({
-      path: '/', acceptLanguage: 'en;q=0.3,ko;q=0.9', userAgent: CHROME,
-    })).toBe('/ko');
-  });
-
-  it('is idempotent — the redirect target never redirects again', () => {
-    const first = landingRedirect({ path: '/', acceptLanguage: 'ko', userAgent: CHROME })!;
-    expect(landingRedirect({ path: first, acceptLanguage: 'ko', userAgent: CHROME })).toBe(null);
   });
 });
 

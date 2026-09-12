@@ -16,34 +16,36 @@
  *      re-resolves this;
  *   2. the `gv_lang` cookie — written whenever the site's language is saved,
  *      and the only answer available before a site exists (onboarding);
- *   3. `Accept-Language`, so a first-time Korean visitor isn't made to hunt
- *      for a menu to read the page they just landed on;
- *   4. English.
+ *   3. English.
+ *
+ * ── English until told otherwise ──────────────────────────────────────────
+ * There is deliberately no `Accept-Language` step. An earlier version put one
+ * between the cookie and the default, so a Korean browser got a Korean sign-up
+ * without hunting for a switcher. The product decision now is the opposite:
+ * every page renders in English until the visitor CHOOSES a language — in the
+ * landing's switcher or on Brand voice — and a browser header is not a choice.
+ * The two signals this reads are both things someone set on purpose.
  *
  * `cache()` makes the whole thing once per request, so the layout and every
  * page it renders share a single lookup.
  */
-import { cookies, headers } from 'next/headers';
+import { cookies } from 'next/headers';
 import { cache } from 'react';
 import { supabaseServer } from '../supabase/server';
 import { getActiveDomainFields } from '../active-domain';
 import { normalizeLang, LANG_CODES } from '../language';
-import { pickAcceptLanguage } from './detect';
 import { createT, UI_LANG_COOKIE, type T, type UiLocale } from './index';
 
 const supported = (v: unknown): v is UiLocale =>
   typeof v === 'string' && (LANG_CODES as readonly string[]).includes(v);
 
-/**
- * First supported language in an Accept-Language header, or null.
- *
- * The parsing lives in `./detect`, which imports nothing, so middleware can
- * use it without dragging the catalogues into the edge bundle. This is the
- * binding to the product's four codes.
- */
-export function localeFromAcceptLanguage(header: string | null): UiLocale | null {
-  const hit = pickAcceptLanguage(header, LANG_CODES);
-  return supported(hit) ? hit : null;
+/** The `gv_lang` cookie's value when it holds a supported language, else null. */
+async function chosenLocale(): Promise<UiLocale | null> {
+  try {
+    const cookieValue = (await cookies()).get(UI_LANG_COOKIE)?.value;
+    if (supported(cookieValue)) return cookieValue;
+  } catch { /* no cookie store in this context */ }
+  return null;
 }
 
 export const getUiLocale = cache(async (): Promise<UiLocale> => {
@@ -56,18 +58,7 @@ export const getUiLocale = cache(async (): Promise<UiLocale> => {
   } catch { /* fall through */ }
 
   // 2. Last saved choice — also the only answer before any site exists.
-  try {
-    const cookieValue = (await cookies()).get(UI_LANG_COOKIE)?.value;
-    if (supported(cookieValue)) return cookieValue;
-  } catch { /* no cookie store in this context */ }
-
-  // 3. What the browser asked for.
-  try {
-    const fromHeader = localeFromAcceptLanguage((await headers()).get('accept-language'));
-    if (fromHeader) return fromHeader;
-  } catch { /* no headers in this context */ }
-
-  return 'en';
+  return (await chosenLocale()) ?? 'en';
 });
 
 /** The bound translator for the current request. */
@@ -77,8 +68,8 @@ export async function getT(): Promise<T> {
 
 /**
  * The locale for the surfaces that come BEFORE the dashboard — the auth form
- * and every onboarding step. Cookie → `Accept-Language` → English, and
- * deliberately NOT the active site's language.
+ * and every onboarding step. Cookie → English, and deliberately NOT the active
+ * site's language.
  *
  * `getUiLocale()` reads the site first, which is right once someone is inside
  * the dashboard managing a specific blog. It is wrong here, and in a way that
@@ -90,25 +81,16 @@ export async function getT(): Promise<T> {
  * Before a site exists the two resolvers agree anyway (both fall through to the
  * cookie), so the only case this changes is the one it exists for: a returning
  * owner adding a second site.
+ *
+ * A first-time visitor has no cookie and no site, and reads English. That is
+ * the intended default, not a gap — see the module comment.
  */
 export const getPublicUiLocale = cache(async (): Promise<UiLocale> => {
-  // The last language actually chosen — written by the settings API whenever a
-  // site's language is saved, so a returning owner keeps the language they
-  // picked even while adding a site that publishes in another one.
-  try {
-    const cookieValue = (await cookies()).get(UI_LANG_COOKIE)?.value;
-    if (supported(cookieValue)) return cookieValue;
-  } catch { /* no cookie store in this context */ }
-
-  // A first-time visitor has no cookie and no site. This is the only signal
-  // there is, and it is why a Korean sign-up reads Korean without anyone
-  // hunting for a switcher.
-  try {
-    const fromHeader = localeFromAcceptLanguage((await headers()).get('accept-language'));
-    if (fromHeader) return fromHeader;
-  } catch { /* no headers in this context */ }
-
-  return 'en';
+  // The last language actually chosen — written by the landing's switcher and
+  // by the settings API whenever a site's language is saved, so a returning
+  // owner keeps the language they picked even while adding a site that
+  // publishes in another one.
+  return (await chosenLocale()) ?? 'en';
 });
 
 /**

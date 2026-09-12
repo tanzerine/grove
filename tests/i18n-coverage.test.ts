@@ -5,7 +5,6 @@ import { KO } from '../lib/i18n/ko';
 import { ES } from '../lib/i18n/es';
 import { ZH } from '../lib/i18n/zh';
 import { translate, coverage, createT, UI_LOCALES } from '../lib/i18n';
-import { localeFromAcceptLanguage } from '../lib/i18n/server';
 
 /**
  * The guarantee this file exists for: a `t('…')` added to the dashboard and
@@ -138,20 +137,6 @@ describe('translate', () => {
     expect(t.locale).toBe('ko');
     expect(t('Pipeline')).toBe(KO['Pipeline']);
     expect(createT('nonsense').locale).toBe('en');
-  });
-});
-
-describe('Accept-Language', () => {
-  it('picks the highest-q supported language', () => {
-    expect(localeFromAcceptLanguage('ko-KR,ko;q=0.9,en;q=0.8')).toBe('ko');
-    expect(localeFromAcceptLanguage('en-GB,en;q=0.9')).toBe('en');
-    expect(localeFromAcceptLanguage('fr-FR,fr;q=0.9,es;q=0.5')).toBe('es');
-  });
-
-  it('returns null when nothing is supported, so the caller can default', () => {
-    expect(localeFromAcceptLanguage('fr-FR,de;q=0.8')).toBe(null);
-    expect(localeFromAcceptLanguage(null)).toBe(null);
-    expect(localeFromAcceptLanguage('')).toBe(null);
   });
 });
 
