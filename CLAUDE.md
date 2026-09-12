@@ -199,14 +199,24 @@ changes at once, and switching sites switches the language with it.
   belongs behind one explicit "dashboard language" override, not a second
   equal control.**
 - `getUiLocale()` (`lib/i18n/server.ts`, wrapped in React `cache()`) resolves
-  active site → `gv_lang` cookie → `Accept-Language` → `en`. The cookie is only
-  a fallback for surfaces with no site yet (onboarding); it is refreshed
-  whenever the language is saved so it can never contradict the site.
+  active site → `gv_lang` cookie → `en`. The cookie is only a fallback for
+  surfaces with no site yet (onboarding); it is refreshed whenever the
+  language is saved so it can never contradict the site.
+- **The default is ENGLISH everywhere, and `Accept-Language` is never read.**
+  An earlier version put the browser header between the cookie and `en` (and
+  307'd `/` → `/ko` in middleware for Korean browsers), so a Korean visitor
+  got a Korean landing, sign-up and onboarding without touching anything.
+  That was reversed on 2026-09-12 as a product decision: every page, including
+  onboarding, renders English until the visitor CHOOSES a language — the
+  landing's nav switcher or `/dashboard/voice`, both of which write `gv_lang`.
+  A header is not a choice. `tests/landing-locale.test.ts` greps the three
+  files that resolve or route on language and fails on any header read, so
+  bringing detection back has to be deliberate.
 - **A route that already knows its domain uses `localeForDomain(domain)`**, not
   `getUiLocale()` — no extra query, and it cannot disagree with the row the
   route is writing to.
-- **The SIGN-UP FUNNEL uses `getPublicUiLocale()` instead** — cookie →
-  `Accept-Language` → `en`, with the active site deliberately left out. Auth
+- **The SIGN-UP FUNNEL uses `getPublicUiLocale()` instead** — cookie → `en`,
+  with the active site deliberately left out. Auth
   (`/login`, `/signup`) and every `/onboarding/*` step are translated and read
   the locale from `components/LocaleProvider` (a one-field client context;
   the dashboard's `useT` needs the whole Chrome object, which does not exist
@@ -216,10 +226,11 @@ changes at once, and switching sites switches the language with it.
   publishes in, so a Korean owner adding an English site would watch the flow
   flip language underneath them, mid-flow, with no control on screen.
 - **`POST /api/domains` seeds `domains.language` from that same locale.**
-  Without it the funnel dead-ends: Korean landing → Korean signup → Korean
-  onboarding → a domain defaulted to `en` → an English dashboard one click
-  later. It is a starting value, changed on `/dashboard/voice` (still the one
-  control), not a verdict.
+  Without it the funnel dead-ends: a visitor who picked Korean in the nav →
+  Korean signup → Korean onboarding → a domain defaulted to `en` → an English
+  dashboard one click later. It is a starting value, changed on
+  `/dashboard/voice` (still the one control), not a verdict. With no cookie
+  it seeds `en`, which is the same default the rest of the funnel showed.
 - **A sentence with markup inside it uses `tNodes(t('… {host} …'), {host: …})`**,
   never a t() call per fragment. Korean puts the object first and the verb
   last, so "Verify ownership of" + `<span>{host}</span>` type-checks, passes
@@ -309,10 +320,11 @@ sees, so it is the one that does NOT resolve its language from the request.
   page exists and is unfindable by search. For a product that sells SEO that
   is not a small bug. Sharing breaks the same way: a link pasted in a Korean
   group chat would render per-recipient.
-- **Detection is a one-time nudge, never the mechanism.** `landingRedirect()`
-  is pure and has four ways to say no: `/` only, never a bot (`isBot`), never
-  once `gv_lang` is set, and only to a language the landing actually has. It
-  writes no cookie, so it stays a function of the request. 307 + `Vary`.
+- **No detection at all.** `/` is English for every first-time visitor;
+  `/ko` is reached through the nav switcher or a shared link. There used to
+  be a `landingRedirect()` (a one-time 307 from `/` to `/ko` for Korean
+  browsers, skipped for bots and once `gv_lang` was set) — removed with the
+  English-default decision above. Middleware no longer touches language.
 - **`LANDING_LOCALES` is deliberately shorter than `LANG_CODES`** — `es`/`zh`
   are UI scaffolds with no landing, because a half-translated landing that
   gets INDEXED is worse than an English one. Adding a language means one entry
@@ -340,12 +352,15 @@ sees, so it is the one that does NOT resolve its language from the request.
   which would opt every route — blog pages included — into dynamic rendering
   to change one attribute. hreflang + per-language canonical are the signals
   that actually drive language targeting.
-- `lib/i18n/detect.ts` imports NOTHING, because middleware bundles what it can
-  reach: `lib/i18n/index.ts` would drag all four catalogues into the edge
-  bundle. `UI_LANG_COOKIE` lives there too, for the same reason. Middleware
-  grew 0.6 KB.
-- Auth and onboarding are the opposite case — unindexed, so they detect
-  silently, carry no switcher, and stay at one URL.
+- `UI_LANG_COOKIE` lives in `lib/i18n/index.ts`. It used to sit in a
+  dependency-free `lib/i18n/detect.ts` so middleware could read it without
+  pulling the catalogues into the edge bundle; with middleware out of the
+  language business that file is gone. **If middleware ever needs the cookie
+  name again, put the constant back in an import-free module** — `lib/i18n`
+  imports all four catalogues.
+- Auth and onboarding are the opposite case — unindexed, so they carry no
+  switcher and stay at one URL, reading the cookie the landing's switcher (or
+  Brand voice) wrote, else English.
 
 Other key surfaces:
 - `lib/agent-brief.ts` — plain-English weekly brief on the dashboard home.

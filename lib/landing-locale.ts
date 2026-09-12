@@ -16,8 +16,16 @@
  * each recipient's browser happens to ask for.
  *
  * So each language gets a real URL, the pair declare each other with
- * `hreflang`, and both are in the sitemap. Detection still has a job — it just
- * isn't the mechanism. See `landingRedirect` below.
+ * `hreflang`, and both are in the sitemap.
+ *
+ * ── No detection at all ───────────────────────────────────────────────────
+ * `/` is the English landing for everyone. An earlier version 307'd a
+ * first-time visitor with a Korean `Accept-Language` from `/` to `/ko` once,
+ * in middleware, until `gv_lang` was set. That is gone: the product default is
+ * English on every page until the visitor picks a language themselves, and
+ * the nav switcher (`components/LangSwitch.tsx`) is how they do it. The
+ * switcher writes `gv_lang`, so the choice carries into sign-up, onboarding
+ * and the dashboard — but it is a choice, never an inference from a header.
  *
  * ── Adding a language ─────────────────────────────────────────────────────
  * One entry here plus a COMPLETE catalogue. A half-translated landing is worse
@@ -25,12 +33,7 @@
  * switches language halfway down. That is why `es`/`zh` are absent even though
  * `lib/i18n` scaffolds them.
  */
-// Both imports are middleware-safe: `./i18n/detect` has no dependencies at
-// all, and `./seo` is already in the edge bundle for the blog-host rewrite.
-// Importing `./i18n` here instead would drag all four catalogues in.
 import type { LangCode } from './language';
-import { pickAcceptLanguage } from './i18n/detect';
-import { isBot } from './seo';
 
 export type LandingLocale = { locale: LangCode; path: string; nativeName: string };
 
@@ -56,44 +59,4 @@ export function landingAlternates(): Record<string, string> {
   for (const { locale, path } of LANDING_LOCALES) out[locale] = path;
   out['x-default'] = landingPath('en');
   return out;
-}
-
-/**
- * Where a request for the English landing should be sent instead — or null to
- * serve it as asked. The one job detection has on this page.
- *
- * Deliberately conservative, because every rule here is a way to serve the
- * wrong page to someone who cannot tell you so:
- *
- *  - Only from `/`. A visitor who asked for `/ko` gets `/ko`, and one who asked
- *    for `/` in English after being redirected once gets `/` (they now have a
- *    cookie).
- *  - Never a bot. Googlebot must see the English landing at `/` and the Korean
- *    one at `/ko`, exactly as the hreflang pair claims. Redirecting a crawler
- *    by its headers is how a site ends up with one language indexed at both
- *    URLs, or neither indexed properly.
- *  - Never when `gv_lang` is set. That cookie is written when someone picks a
- *    language — in the nav switcher here, or on Brand voice in the dashboard —
- *    so it is a stated preference and outranks a browser default.
- *  - Only to a language the landing is actually translated into, which is why
- *    this takes LANDING_LOCALE_CODES rather than the four UI locales.
- *
- * The redirect writes no cookie: it stays a pure function of the request, so a
- * visitor who then picks English gets `/` from that point on, and one who never
- * picks anything keeps landing on Korean. Nothing to invalidate.
- */
-export function landingRedirect(req: {
-  path: string;
-  cookieLocale?: string | null;
-  acceptLanguage?: string | null;
-  userAgent?: string | null;
-}): string | null {
-  if (req.path !== '/') return null;
-  if (req.cookieLocale) return null;
-  if (isBot(req.userAgent)) return null;
-
-  const wanted = pickAcceptLanguage(req.acceptLanguage, LANDING_LOCALE_CODES);
-  if (!wanted || wanted === 'en') return null;
-  const to = landingPath(wanted);
-  return to === '/' ? null : to;
 }

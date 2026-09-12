@@ -9,6 +9,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
  * was a property of the SITE, so the two could disagree and the person-level
  * one silently won. There is one control now — the picker on Brand voice —
  * and the resolver reads the ACTIVE SITE first.
+ *
+ * The second thing it locks down: the default is ENGLISH. Nothing here reads
+ * `Accept-Language`. A first-time visitor with a Korean browser gets an
+ * English landing, sign-up and onboarding until they pick Korean themselves;
+ * the header mock below exists so a test can prove it is ignored.
  */
 
 const state = {
@@ -35,8 +40,7 @@ vi.mock('../lib/active-domain', () => ({
   },
 }));
 
-const { getUiLocale, getPublicUiLocale, localeForDomain, localeFromAcceptLanguage } =
-  await import('../lib/i18n/server');
+const { getUiLocale, getPublicUiLocale, localeForDomain } = await import('../lib/i18n/server');
 const { UI_LANG_COOKIE } = await import('../lib/i18n');
 
 beforeEach(() => {
@@ -73,12 +77,12 @@ describe('falling back when there is no site', () => {
     expect(await getUiLocale()).toBe('es');
   });
 
-  it('then the browser\'s own preference', async () => {
-    state.acceptLanguage = 'ko-KR,ko;q=0.9,en;q=0.8';
-    expect(await getUiLocale()).toBe('ko');
+  it('then English', async () => {
+    expect(await getUiLocale()).toBe('en');
   });
 
-  it('then English', async () => {
+  it('never the browser\'s Accept-Language — English until the owner chooses', async () => {
+    state.acceptLanguage = 'ko-KR,ko;q=0.9,en;q=0.8';
     expect(await getUiLocale()).toBe('en');
   });
 
@@ -102,14 +106,14 @@ describe('falling back when there is no site', () => {
 });
 
 describe('getPublicUiLocale — auth and onboarding, before the dashboard', () => {
-  it('detects a first-time Korean visitor from the browser alone', async () => {
-    // The whole point of the funnel work: nobody hunts for a switcher to read
-    // the sign-up page they just landed on.
+  it('shows a first-time visitor English, whatever their browser asks for', async () => {
+    // The product default. A Korean browser does not make a Korean sign-up;
+    // the landing's switcher (which writes gv_lang) is how someone opts in.
     state.acceptLanguage = 'ko-KR,ko;q=0.9,en;q=0.8';
-    expect(await getPublicUiLocale()).toBe('ko');
+    expect(await getPublicUiLocale()).toBe('en');
   });
 
-  it('prefers the language the owner actually chose', async () => {
+  it('follows the language the owner actually chose', async () => {
     state.cookies[UI_LANG_COOKIE] = 'ko';
     state.acceptLanguage = 'en-US,en;q=0.9';
     expect(await getPublicUiLocale()).toBe('ko');
@@ -129,9 +133,8 @@ describe('getPublicUiLocale — auth and onboarding, before the dashboard', () =
     expect(await getPublicUiLocale()).toBe('en');
   });
 
-  it('ignores an unsupported language in either source', async () => {
+  it('ignores an unsupported language in the cookie', async () => {
     state.cookies[UI_LANG_COOKIE] = 'de';
-    state.acceptLanguage = 'fr-FR';
     expect(await getPublicUiLocale()).toBe('en');
   });
 });
@@ -142,17 +145,5 @@ describe('localeForDomain — for routes that already know the site', () => {
     expect(localeForDomain({ language: null })).toBe('en');
     expect(localeForDomain(null)).toBe('en');
     expect(localeForDomain({ language: 'nonsense' })).toBe('en');
-  });
-});
-
-describe('localeFromAcceptLanguage', () => {
-  it('picks the highest-q supported language', () => {
-    expect(localeFromAcceptLanguage('ko-KR,ko;q=0.9,en;q=0.8')).toBe('ko');
-    expect(localeFromAcceptLanguage('fr-FR,fr;q=0.9,es;q=0.5')).toBe('es');
-  });
-
-  it('returns null when nothing is supported', () => {
-    expect(localeFromAcceptLanguage('fr-FR,de;q=0.8')).toBe(null);
-    expect(localeFromAcceptLanguage(null)).toBe(null);
   });
 });
