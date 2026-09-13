@@ -303,6 +303,12 @@ export async function keywordSuggestionsDetailed(
     limit: opts.limit ?? 200,
     include_seed_keyword: true,
     include_serp_info: false,
+    // The phrase in order, not any of its words. Without this, seeds like
+    // "publish blog posts" came back as "dog with the blog cast" (33,100/mo)
+    // and "blog the dog" (60,500/mo) — the highest-volume phrases containing
+    // "blog" — and the top of the pool was pop culture. Fewer results, and
+    // every one of them contains what was actually asked for.
+    exact_match: true,
   }], opts.timeoutMs ?? 20_000);
   if (!call.ok) return { keywords: null, outcome: call };
   // A 200 can still carry a failed task, so the task status is the real result.

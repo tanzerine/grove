@@ -23,7 +23,8 @@ import { buildCustomerProfile, icpSeeds, icpIsUsable, formatIcpForPrompt, type C
 import { gatherLabsDemand } from '../keywords/dataforseo';
 import { selectKeywords, type ScoredKeyword } from '../keywords/opportunity';
 import { buildClusters, formatClustersForPrompt } from '../keywords/cluster';
-import { recordCandidates, excludedKeywords } from './candidate-store';
+import { recordCandidates, excludedKeywords, markRejected } from './candidate-store';
+import { screenClusters } from '../keywords/relevance';
 import { monthlySlots } from '../plans';
 import type { MonthlyReport } from './review';
 import { language, strategyLanguageRule, type LangCode } from '../language';
@@ -353,9 +354,26 @@ export async function buildStrategy(input: BuildStrategyInput): Promise<Strategy
     // One cluster is one article. Twice the month's slots so the planner can
     // still balance intent across pillars rather than being handed a
     // pre-decided plan.
-    const clusters = buildClusters(pool, {
+    const built = buildClusters(pool, {
       maxClusters: Math.max(monthlyPostCount * 2, 12),
     });
+
+    // ── STEP 4½: are these about the customer's problem at all? ──────────
+    // Everything above is arithmetic on volume and difficulty, and arithmetic
+    // handed grove's own blog "dog with the blog cast" (33,100/mo, KD 6) as
+    // its best opportunity. One model call over the clusters, verdict per
+    // cluster; the dropped ones are written to the ledger with the reason so
+    // the owner can see why they were passed over and next month's build
+    // doesn't propose them again. See lib/keywords/relevance.ts.
+    const screened = await screenClusters(built, { business: profile.business, icp });
+    if (domainId && screened.dropped.length) {
+      await markRejected(
+        domainId,
+        screened.dropped.flatMap((d) => [d.cluster.pillar.keyword, ...d.cluster.members.map((m) => m.keyword)]),
+        'off_topic',
+      );
+    }
+    const clusters = screened.kept;
     clusterCount = clusters.length;
     demandBlock = formatClustersForPrompt(clusters);
 
@@ -500,7 +518,12 @@ above, used at most once across the whole plan, and its "secondary_keywords"
 MUST be that cluster's "also covers" phrases. Do not invent keywords while
 clusters are listed — they were selected on real volume and difficulty, and an
 invented one has neither. Choose WHICH clusters to run and in what order; that
-is the judgement being asked of you.` : ''}
+is the judgement being asked of you.
+SKIP a cluster whose phrase is about something else — a show, a film, a
+recipe, a game, a job listing, a trivia query — however large its volume. A
+phrase searched by people who will never need this business is not demand for
+it, and an article bent to fit one is an article nobody who matters reads.
+If fewer relevant clusters remain than slots, plan FEWER slots.` : ''}
 
 TOPIC RULE: at most ONE slot this month may be about ${profile.business.name} itself. Every other slot targets a problem the audience searches for, with a target_keyword a stranger would actually type. "${profile.business.name}" is not a keyword.
 

@@ -224,6 +224,41 @@ export async function markPlanned(
 }
 
 /**
+ * Record why a screened-out keyword lost — the other half of "what did we
+ * pass over". Only rows still `new` are touched: a keyword already planned
+ * or published has an outcome, and a fresh rejection must not overwrite it.
+ *
+ * A rejection is a snapshot (see 0041): `metrics_at` stays as it was, so a
+ * measured rejection expires with its metrics and is re-screened, while an
+ * unmeasured one is re-screened immediately. For `off_topic` that means the
+ * model gets asked again in a quarter — cheap, and it keeps the ledger
+ * honest about being a decision log rather than a blocklist. Fail-soft.
+ */
+export async function markRejected(
+  domainId: string,
+  keywords: string[],
+  reason: string,
+): Promise<number> {
+  const list = [...new Set(keywords.map((k) => k.trim()).filter(Boolean))];
+  if (!domainId || !list.length) return 0;
+  let n = 0;
+  try {
+    const sb = supabaseAdmin();
+    for (let i = 0; i < list.length; i += 100) {
+      const { data, error } = await sb
+        .from('keyword_candidates')
+        .update({ status: 'rejected', rejected_reason: reason })
+        .eq('domain_id', domainId)
+        .eq('status', 'new')
+        .in('keyword', list.slice(i, i + 100))
+        .select('id');
+      if (!error) n += data?.length ?? 0;
+    }
+  } catch { /* the ledger is not worth the month's plan */ }
+  return n;
+}
+
+/**
  * The rows that belong to one published post, or null when there are none.
  *
  * Pure, and it exists because of a bug worth stating: `slot_id` is NOT unique.
