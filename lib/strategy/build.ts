@@ -17,8 +17,12 @@ import type { SiteProfile } from '../pipeline/site-profile';
 import { interviewSummary, type InterviewAnswers } from './interview';
 import { assignPublishDates, slotsForRemainder } from './schedule';
 import { titleTokens } from '../related-posts';
-import { gatherKeywordDemand, formatDemandForPrompt } from './keywords';
+import { gatherKeywordDemand } from './keywords';
 import { searchSeeds, isBrandTerm, localizeSeeds } from './seeds';
+import { buildCustomerProfile, icpSeeds, formatIcpForPrompt } from './icp';
+import { gatherLabsDemand } from '../keywords/dataforseo';
+import { selectKeywords, type ScoredKeyword } from '../keywords/opportunity';
+import { buildClusters, formatClustersForPrompt } from '../keywords/cluster';
 import { monthlySlots } from '../plans';
 import type { MonthlyReport } from './review';
 import { language, strategyLanguageRule, type LangCode } from '../language';
@@ -68,6 +72,11 @@ export type PostSlot = {
   topic: string;
   intent: 'editorial' | 'contextual' | 'conversion';
   target_keyword?: string;
+  /** The rest of the keyword cluster this slot targets — phrases the SAME
+   *  article should also satisfy. A page ranks for its cluster, not for one
+   *  phrase, so planning one keyword per article leaves most of the reachable
+   *  demand on the table. See lib/keywords/cluster.ts. */
+  secondary_keywords?: string[];
   notes?: string;
   publish_date?: string;   // ISO instant this slot is slated to publish (UTC; UI renders local)
 };
@@ -245,22 +254,78 @@ export async function buildStrategy(input: BuildStrategyInput): Promise<Strategy
   // The profile is written in English whatever the blog publishes in, so for a
   // non-English blog the seeds are localized first — otherwise the research is
   // real but aimed at the wrong market. No-ops (and costs nothing) for English.
-  const seeds = await localizeSeeds(searchSeeds(profile, { limit: 8 }), pubLang.code);
-  let demandBlock = '(none captured — plan from the business profile)';
+  // ── STEP 2: who the customer is ─────────────────────────────────────────
+  // Before deciding what to write, decide who for. The site profile describes
+  // the BUSINESS in the seller's words; nobody searches in the seller's words.
+  // Fail-soft: an empty profile falls through to the old profile-derived seeds.
+  const icp = await buildCustomerProfile(profile, pubLang.code);
+
+  // ── STEP 3: seeds, from the CUSTOMER's vocabulary ───────────────────────
+  // This is the fix for the defect seeds.ts measured: seeding research from
+  // products_services/value_props meant seeding it from marketing copy, and
+  // every one of grove's own seeds returned zero. Customer vocabulary is
+  // already search-shaped because it is what someone types before they know a
+  // product category exists. The profile-derived seeds remain the fallback,
+  // not the default.
+  const fromIcp = icpSeeds(icp, { limit: 8, brand: profile.business.name });
+  const seeds = await localizeSeeds(
+    fromIcp.length ? fromIcp : searchSeeds(profile, { limit: 8 }),
+    pubLang.code,
+  );
+
+  // ── STEP 4: measured demand, and the selection it makes possible ────────
+  let demandBlock = '(none captured — plan from the customer profile)';
+  let clusterCount = 0;
   try {
-    // In the publication language: this is the demand the articles will chase.
-    const demand = await gatherKeywordDemand(seeds, { maxSeeds: 8, limit: 36, lang: pubLang.code });
+    // DataForSEO Labs carries volume AND difficulty; Autocomplete carries
+    // neither and is a head-term service besides (four-word ceiling, measured
+    // in seeds.ts), which biases its pool toward exactly the keywords a young
+    // domain cannot win. So Labs is the source and Autocomplete is the floor —
+    // NOT a peer. null from Labs means "never asked"; [] means "asked, nothing
+    // there", and only the first should fall back.
+    const labs = await gatherLabsDemand(seeds, pubLang.code, { perSeed: 150 });
+    let scored: ScoredKeyword[];
+    if (labs?.length) {
+      scored = labs;
+    } else {
+      const auto = await gatherKeywordDemand(seeds, { maxSeeds: 8, limit: 36, lang: pubLang.code });
+      scored = auto.map((a) => ({
+        keyword: a.keyword, volume: null, difficulty: null, intent: a.intent, source: 'autocomplete',
+      }));
+    }
+
     // The brand's own name is not demand. It classifies as `informational`
     // (no navigational pattern matches a bare product name), so without this
     // it reaches the planner as a keyword to build pillars on — which is how a
     // blog ends up writing "What Is <Product>?" for an audience that has never
     // heard of it.
-    const offBrand = demand.filter((d) => !isBrandTerm(d.keyword, profile.business.name));
-    demandBlock = formatDemandForPrompt(offBrand);
-    if (!offBrand.length) {
+    scored = scored.filter((k) => !isBrandTerm(k.keyword, profile.business.name));
+
+    // Arithmetic, not vibes: rank by expected impressions and cut what is out
+    // of reach. With Autocomplete-only input every candidate is unscorable, so
+    // `chosen` is empty and the raw pool carries through — the planner then
+    // sees phrases with "KD ?" rather than fabricated numbers.
+    const selection = selectKeywords(scored, { limit: 60 });
+    const pool = selection.chosen.length ? selection.chosen : scored;
+
+    // ── STEP 5: clusters ──────────────────────────────────────────────────
+    // One cluster is one article. Twice the month's slots so the planner can
+    // still balance intent across pillars rather than being handed a
+    // pre-decided plan.
+    const clusters = buildClusters(pool, {
+      maxClusters: Math.max(monthlyPostCount * 2, 12),
+    });
+    clusterCount = clusters.length;
+    demandBlock = formatClustersForPrompt(clusters);
+
+    if (!scored.length) {
       // Loud: an empty demand list looked identical to a network failure for
       // months, and it was neither — it was unusable seeds.
       console.warn(`[buildStrategy] no search demand captured from seeds: ${seeds.join(', ') || '(none)'}`);
+    } else if (selection.unscorable === scored.length) {
+      // Not a failure, but the thing that keeps selection from being real.
+      console.warn(`[buildStrategy] ${scored.length} candidates carried no volume/difficulty ` +
+        `(source: autocomplete). Set DATAFORSEO_LOGIN/PASSWORD to screen on KD.`);
     }
   } catch { /* demand is best-effort signal */ }
 
@@ -372,8 +437,22 @@ ${prevReport ? digestReport(prevReport) : '(none — first month)'}
 PROGRESS LOG (weekly entries, newest last — the season so far):
 ${progressMd?.trim() ? progressMd.trim().slice(-4000) : '(no weekly history yet)'}
 
-VALIDATED SEARCH DEMAND (real Google autocomplete phrases for this business — prioritize covering these and pull target_keyword from here):
-${demandBlock}
+WHO YOU ARE WRITING FOR (inferred customer profile — plan for this person, not for the company):
+${formatIcpForPrompt(icp)}
+
+MEASURED DEMAND — keyword clusters, best opportunity first.
+ONE CLUSTER IS ONE ARTICLE. Target the pillar keyword; satisfy the "also covers"
+phrases in the same piece. KD is 0-100 ranking difficulty (lower is winnable);
+"cluster total" is the monthly searches that one article can reach, which is the
+number worth planning against — not the pillar's own volume.
+${demandBlock}${clusterCount ? `
+
+CLUSTER RULE: every slot's "target_keyword" MUST be one of the cluster pillars
+above, used at most once across the whole plan, and its "secondary_keywords"
+MUST be that cluster's "also covers" phrases. Do not invent keywords while
+clusters are listed — they were selected on real volume and difficulty, and an
+invented one has neither. Choose WHICH clusters to run and in what order; that
+is the judgement being asked of you.` : ''}
 
 TOPIC RULE: at most ONE slot this month may be about ${profile.business.name} itself. Every other slot targets a problem the audience searches for, with a target_keyword a stranger would actually type. "${profile.business.name}" is not a keyword.
 
@@ -407,7 +486,8 @@ Produce the new strategy as JSON:
       "kpi_id": "matches a kpi id",
       "topic": "the specific article topic",
       "intent": "editorial | contextual | conversion",
-      "target_keyword": "optional primary SEO keyword",
+      "target_keyword": "a cluster pillar from MEASURED DEMAND when any are listed",
+      "secondary_keywords": ["that cluster's 'also covers' phrases"],
       "notes": "optional"
     }
   ],
@@ -421,7 +501,7 @@ Produce the new strategy as JSON:
 publishing_plan should contain exactly ${monthlyPostCount} slots, distributed across pillars in proportion to each pillar's importance.${langRule ? `
 
 WHICH LANGUAGE EACH FIELD TAKES
-- ${pubLang.nativeName} (it becomes an article): pillars[].title, publishing_plan[].topic, publishing_plan[].target_keyword
+- ${pubLang.nativeName} (it becomes an article): pillars[].title, publishing_plan[].topic, publishing_plan[].target_keyword, publishing_plan[].secondary_keywords[]
 - ${language(ownerLocale).nativeName} (the owner reads it): goals[].title, goals[].why, kpis[].note, pillars[].audience, pillars[].promise, publishing_plan[].notes, direction.month, direction.weeks[], notes
 - unchanged: every id, every date, source, metric, intent, intent_mix
 
@@ -479,6 +559,15 @@ export function normalizeStrategy(
     goal_id: goalIds.has(slot.goal_id) ? slot.goal_id : parsed.goals[0]?.id ?? 'goal-1',
     kpi_id: kpiIds.has(slot.kpi_id) ? slot.kpi_id : parsed.kpis[0]?.id ?? 'kpi-1',
     intent: ['editorial', 'contextual', 'conversion'].includes(slot.intent) ? slot.intent : 'contextual',
+    // The model is asked for the cluster's other phrases; it may return a
+    // string, nulls, or forty of them. Capped at the cluster ceiling so a
+    // runaway list cannot turn one article into an unfocused sweep.
+    secondary_keywords: Array.isArray((slot as any).secondary_keywords)
+      ? (slot as any).secondary_keywords
+          .map((k: unknown) => (typeof k === 'string' ? k.trim() : ''))
+          .filter(Boolean)
+          .slice(0, 8)
+      : undefined,
   }));
 
   // Drop within-plan duplicates BEFORE dates are assigned — the prompt forbids

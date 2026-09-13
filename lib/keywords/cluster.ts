@@ -1,0 +1,189 @@
+/**
+ * Step 5: group keywords into clusters, one article per cluster.
+ *
+ * ── Why cluster at all ─────────────────────────────────────────────────────
+ * A page does not rank for one keyword. It ranks for the phrase it targets
+ * plus every near-variant that shares the intent — so the demand a single
+ * article can capture is the SUM across its cluster, not the head term's
+ * volume. Planning against the head term alone systematically undervalues
+ * every topic and picks the wrong ones: a 200/mo head with eight 150/mo
+ * variants beats an 800/mo head that stands alone, and volume-sorting cannot
+ * see that.
+ *
+ * This is also the opposite trade from `lib/pseo.ts`, deliberately. pSEO makes
+ * N thin pages, one keyword each; this makes one substantial page per cluster.
+ * Both are legitimate and they are not interchangeable — pSEO buys coverage,
+ * clustering buys depth and carries far less thin-content risk.
+ *
+ * ── What a cluster is worth ────────────────────────────────────────────────
+ *   value  = Σ volume over every member          (all the traffic in reach)
+ *   gate   = the PILLAR's difficulty             (what you must actually beat)
+ *   score  = value × winProbability(gate)
+ *
+ * The gate is the pillar's difficulty and not the cluster's average, because
+ * ranking is won or lost on the page's primary target. Averaging in a pile of
+ * easy long-tail variants would make a brutal head term look reachable, which
+ * is exactly the error that produces a year of articles stuck on page three.
+ */
+import { STOP } from '../related-posts';
+import {
+  opportunityScore, winProbability, DEFAULT_KD_CEILING, type ScoredKeyword,
+} from './opportunity';
+
+export type KeywordCluster = {
+  /** The phrase the article actually targets — highest opportunity in the set. */
+  pillar: ScoredKeyword;
+  /** Secondary phrases the same page should also satisfy. Excludes the pillar. */
+  members: ScoredKeyword[];
+  /** Σ volume across pillar + members. The "implicit search sum" — the real
+   *  size of the prize, and the number worth sorting a plan by. */
+  totalVolume: number;
+  /** The pillar's difficulty: what must be beaten for any of it to land. */
+  difficulty: number | null;
+  /** totalVolume × winProbability(difficulty). Estimated monthly impressions. */
+  score: number;
+};
+
+/**
+ * Tokens for overlap comparison, CJK-aware.
+ *
+ * Latin scripts split on non-word characters and drop stopwords. CJK cannot:
+ * Chinese has no word spaces at all, and Korean eojeol glue particles onto
+ * stems, so "블로그 자동화" and "블로그 자동화를" would share nothing on a
+ * whitespace split. Both get CHARACTER BIGRAMS instead, which is the standard
+ * cheap segmentation for these scripts and makes those two phrases overlap
+ * heavily, as they should.
+ */
+export function clusterTokens(phrase: string): Set<string> {
+  const out = new Set<string>();
+  const runs = (phrase ?? '').toLowerCase().split(/[^a-z0-9가-힣ぁ-ゟァ-ヿ一-鿿]+/);
+  for (const run of runs) {
+    if (!run) continue;
+    if (/[가-힣ぁ-ゟァ-ヿ一-鿿]/.test(run)) {
+      if (run.length <= 2) out.add(run);
+      else for (let i = 0; i + 2 <= run.length; i++) out.add(run.slice(i, i + 2));
+    } else if (run.length >= 2 && !STOP.has(run) && !/^\d+$/.test(run)) {
+      out.add(run);
+    }
+  }
+  return out;
+}
+
+/** Jaccard-ish: shared tokens over the smaller set, so a short phrase can
+ *  still belong to a longer one ("blog automation" inside "best blog
+ *  automation tool for small teams" scores 1, which is the intent). */
+export function overlap(a: Set<string>, b: Set<string>): number {
+  if (!a.size || !b.size) return 0;
+  let shared = 0;
+  for (const t of a) if (b.has(t)) shared++;
+  return shared / Math.min(a.size, b.size);
+}
+
+export type ClusterOptions = {
+  /** Minimum overlap to join a cluster. 0.5 = half the shorter phrase's tokens
+   *  are shared. Lower and unrelated topics merge; higher and obvious variants
+   *  split into separate articles that then compete with each other. */
+  threshold?: number;
+  maxClusters?: number;
+  /** Secondary keywords per cluster, excluding the pillar. Past roughly eight
+   *  an article stops being about one thing, which costs the ranking the
+   *  cluster was built to win. */
+  maxMembers?: number;
+  ceiling?: number;
+};
+
+/**
+ * Greedy agglomeration, highest-opportunity phrase first.
+ *
+ * Greedy rather than k-means or hierarchical for three reasons that matter
+ * more than cluster quality: it is deterministic (the same month's inputs
+ * produce the same plan, so a diff is meaningful), the pillar is chosen rather
+ * than emergent (a centroid is not a phrase anyone can write an article
+ * about), and it is inspectable — an owner asking "why is this keyword in this
+ * article" gets a real answer.
+ */
+export function buildClusters(keywords: ScoredKeyword[], opts: ClusterOptions = {}): KeywordCluster[] {
+  const threshold = opts.threshold ?? 0.5;
+  const maxMembers = opts.maxMembers ?? 8;
+  const ceiling = opts.ceiling ?? DEFAULT_KD_CEILING;
+
+  // Sort by opportunity so the pillar of each cluster is its best keyword.
+  // Unscorable candidates (score 0) sort last and become their own single-
+  // keyword clusters rather than silently attaching to something measured.
+  const pool = [...keywords].sort((a, b) => opportunityScore(b, ceiling) - opportunityScore(a, ceiling));
+  const tokenCache = new Map<string, Set<string>>();
+  const tok = (k: string) => {
+    let t = tokenCache.get(k);
+    if (!t) { t = clusterTokens(k); tokenCache.set(k, t); }
+    return t;
+  };
+
+  const taken = new Set<number>();
+  const clusters: KeywordCluster[] = [];
+
+  for (let i = 0; i < pool.length; i++) {
+    if (taken.has(i)) continue;
+    taken.add(i);
+    const pillar = pool[i];
+    const pTok = tok(pillar.keyword);
+    const members: ScoredKeyword[] = [];
+
+    for (let j = i + 1; j < pool.length && members.length < maxMembers; j++) {
+      if (taken.has(j)) continue;
+      if (overlap(pTok, tok(pool[j].keyword)) >= threshold) {
+        taken.add(j);
+        members.push(pool[j]);
+      }
+    }
+
+    const totalVolume = [pillar, ...members].reduce((s, k) => s + (k.volume ?? 0), 0);
+    clusters.push({
+      pillar,
+      members,
+      totalVolume,
+      difficulty: pillar.difficulty,
+      score: Math.round(totalVolume * winProbability(pillar.difficulty, ceiling)),
+    });
+  }
+
+  return clusters
+    .sort((a, b) => {
+      const d = b.score - a.score;
+      if (d !== 0) return d;
+      // Equal expected impressions: prefer the DEEPER cluster. Same traffic
+      // reachable several ways is a sturdier bet than the same traffic riding
+      // on one phrase — more internal-link surface, broader semantic coverage,
+      // and a near-miss on the pillar still earns something from the variants.
+      return b.members.length - a.members.length;
+    })
+    .slice(0, opts.maxClusters ?? clusters.length);
+}
+
+/**
+ * Render clusters for the planner's prompt.
+ *
+ * This exists because `formatDemandForPrompt` did the opposite: it computed a
+ * demand score and then emitted a bare comma-separated list, so the model
+ * chose keywords on semantic plausibility with no idea which had ten times the
+ * demand of another. Numbers that were computed and then withheld are worse
+ * than numbers never computed — they create the appearance of a data-driven
+ * plan over a guess.
+ *
+ * The cluster total is stated separately from the pillar's own volume because
+ * it is the number the article is actually worth, and a planner shown only the
+ * pillar volume will systematically under-rate deep clusters.
+ */
+export function formatClustersForPrompt(clusters: KeywordCluster[]): string {
+  if (!clusters.length) return '(no measured demand — plan from the customer profile)';
+  const n = (v: number | null) => (v == null ? '?' : v.toLocaleString('en-US'));
+  return clusters
+    .map((c, i) => {
+      const head = `C${i + 1}. "${c.pillar.keyword}" — KD ${c.difficulty ?? '?'}, ${n(c.pillar.volume)}/mo` +
+        (c.members.length ? `, cluster total ${n(c.totalVolume)}/mo` : '') +
+        (c.pillar.intent ? `, ${c.pillar.intent}` : '');
+      if (!c.members.length) return head;
+      const also = c.members.map((m) => `${m.keyword} (${n(m.volume)})`).join(', ');
+      return `${head}\n    also covers: ${also}`;
+    })
+    .join('\n');
+}
