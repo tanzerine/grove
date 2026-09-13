@@ -136,16 +136,59 @@ export function describeLabsOutcome(o: LabsOutcome): string {
       return 'DATAFORSEO_LOGIN/DATAFORSEO_PASSWORD not set in this runtime — ' +
              'check the vars are scoped to this environment (Production is a separate checkbox) ' +
              'and that a deploy has happened since they were set';
-    case 'http':
+    case 'http': {
+      // A 401 has three plausible causes and they are not equally likely; the
+      // double-encoded token is checked first because it is the one that looks
+      // like correct credentials to the person who set it.
+      const shape = credentialShapeWarning(
+        process.env.DATAFORSEO_LOGIN ?? '', process.env.DATAFORSEO_PASSWORD ?? '',
+      );
+      if (shape) return `DataForSEO returned ${o.detail} — ${shape}`;
       return `DataForSEO returned ${o.detail} — a 401 means the API password ` +
              '(from the API CREDENTIALS block, not the dashboard sign-in password); ' +
              'a 403 often means the account\'s IP whitelist excludes this host';
+    }
     case 'task':
       return `DataForSEO accepted the request but the task failed: ${o.detail} — ` +
              'usually a malformed field or an account out of funds';
     case 'network':
       return `could not reach DataForSEO: ${o.detail} — egress or timeout`;
   }
+}
+
+/**
+ * Catch the credential mix-up that cost grove its first live run.
+ *
+ * DataForSEO's dashboard shows the raw login and password AND a ready-made
+ * `Authorization: Basic <token>` example, where the token is
+ * base64("login:password"). Pasting that token into the password field looks
+ * entirely plausible — it is long, opaque and sits next to the thing you want.
+ * The client then base64s it a second time together with the login, and the
+ * API answers 40100 "not authorized", which reads as wrong credentials rather
+ * than as double-encoded ones.
+ *
+ * Detected by decoding: if the password is base64 whose plaintext starts with
+ * this very login followed by a colon, it is the token, not the password.
+ * Deliberately narrow — it must match the configured login — so an ordinary
+ * password that happens to be base64-shaped never trips it.
+ *
+ * Pure, and returns null when there is nothing to say.
+ */
+export function credentialShapeWarning(login: string, password: string): string | null {
+  if (!login || !password) return null;
+  if (password.length < 16 || !/^[A-Za-z0-9+/]+={0,2}$/.test(password)) return null;
+  let decoded: string;
+  try {
+    decoded = Buffer.from(password, 'base64').toString('utf8');
+  } catch {
+    return null;
+  }
+  const [maybeLogin, ...rest] = decoded.split(':');
+  if (!rest.length || maybeLogin.toLowerCase() !== login.toLowerCase()) return null;
+  return 'DATAFORSEO_PASSWORD looks like the base64 "Authorization: Basic" TOKEN ' +
+         '(it decodes to your own login + ":" + password), not the password itself. ' +
+         'Use the API password from the API CREDENTIALS block on its own — this client ' +
+         'does the base64 encoding for you, so passing the token double-encodes it.';
 }
 
 /** Collapse a batch into one line, so a 30-seed run logs once rather than 30 times. */

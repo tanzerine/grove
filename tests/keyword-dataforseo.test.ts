@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   parseLabsItem, parseLabsResponse, dataforseoConfigured,
-  describeLabsOutcome, summarizeLabsOutcomes,
+  describeLabsOutcome, summarizeLabsOutcomes, credentialShapeWarning,
 } from '../lib/keywords/dataforseo';
 
 // Shaped from the documented Labs response. The parsing is tested rather than
@@ -147,5 +147,37 @@ describe('summarizeLabsOutcomes', () => {
     expect(summarizeLabsOutcomes([])).toBe('no calls made');
     expect(summarizeLabsOutcomes([{ ok: false, reason: 'not_configured', detail: '' }]))
       .toMatch(/0\/1 succeeded/);
+  });
+});
+
+describe('credentialShapeWarning', () => {
+  const LOGIN = 'someone@example.com';
+  const token = (l: string, p: string) => Buffer.from(`${l}:${p}`).toString('base64');
+
+  it('catches the pre-encoded Authorization token pasted as the password', () => {
+    // The failure that cost grove its first live run: the dashboard shows the
+    // raw credentials next to a ready-made Basic token, and the token looks
+    // exactly like a long opaque password.
+    const msg = credentialShapeWarning(LOGIN, token(LOGIN, '9ed7dafe2ed000a5'));
+    expect(msg).toMatch(/TOKEN/);
+    expect(msg).toMatch(/double-encode/);
+  });
+
+  it('is case-insensitive on the login, as email is', () => {
+    expect(credentialShapeWarning('SomeOne@Example.com', token(LOGIN, 'pw123456'))).not.toBeNull();
+  });
+
+  it('does NOT fire on an ordinary password that happens to look like base64', () => {
+    // Narrow on purpose: it must decode to THIS login, or it stays quiet.
+    expect(credentialShapeWarning(LOGIN, 'aGVsbG93b3JsZGhlbGxv')).toBeNull();
+    expect(credentialShapeWarning(LOGIN, token('other@example.com', 'pw123456'))).toBeNull();
+  });
+
+  it('stays quiet on short, non-base64 or missing values', () => {
+    expect(credentialShapeWarning(LOGIN, '9ed7dafe2ed000a5')).toBeNull();   // the correct shape
+    expect(credentialShapeWarning(LOGIN, 'short')).toBeNull();
+    expect(credentialShapeWarning(LOGIN, 'has spaces and !!')).toBeNull();
+    expect(credentialShapeWarning('', 'anything')).toBeNull();
+    expect(credentialShapeWarning(LOGIN, '')).toBeNull();
   });
 });
