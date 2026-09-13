@@ -25,7 +25,7 @@
  * customer's register rather than the brand's, because a model left to its own
  * devices will happily echo the marketing copy it was just shown.
  */
-import { fastLlmCall, extractJson } from '../llm';
+import { llmCall, extractJson } from '../llm';
 import type { SiteProfile } from '../pipeline/site-profile';
 import { seedCandidates, isBrandTerm } from './seeds';
 import { language, languageCommand, type LangCode } from '../language';
@@ -132,10 +132,21 @@ export function icpSeeds(
 /**
  * Infer the customer profile from the site profile.
  *
- * `fastLlmCall` rather than the strategy model: this is extraction and
- * re-registering, not planning, and it runs before the plan's own budget is
- * spent. Fail-soft — an empty profile makes the caller fall back to the
- * profile-derived seeds rather than skipping the month.
+ * The WORKHORSE model, not the fast one. The first production build after
+ * this step shipped (trygroveai.com, 2026-09-13 10:46Z) came back with no
+ * profile at all, and the plan it produced was seeded from the site's
+ * industry label — "saas and b2b", "b2b saas company", "b2b saas meme" — the
+ * exact failure this module exists to prevent. The call had gone to Llama
+ * 3.2 3B with a 30s ceiling, asked for six arrays of customer-register
+ * prose, and whatever it returned was unusable; the catch below swallowed it
+ * without a line of log. Re-registering marketing copy into a customer's
+ * words is judgement, not extraction, and a 3B model is the wrong tool for
+ * it. One call per plan per month; the cost is noise.
+ *
+ * Fail-soft — an empty profile makes the caller fall back to the
+ * profile-derived seeds rather than skipping the month — but LOUD: the
+ * fallback is the degraded path, and a warning is the only way anyone finds
+ * out it was taken.
  *
  * The language command goes FIRST in the user prompt, never in the system
  * prompt. That is not a style preference: grove's first ko-configured article
@@ -146,6 +157,7 @@ export function icpSeeds(
 export async function buildCustomerProfile(
   profile: Pick<SiteProfile, 'business'>,
   lang: LangCode = 'en',
+  opts: { timeoutMs?: number } = {},
 ): Promise<CustomerProfile> {
   const biz = profile?.business;
   if (!biz) return EMPTY;
@@ -188,9 +200,15 @@ Return JSON only:
 }`;
 
   try {
-    const { text } = await fastLlmCall({ system, user, maxTokens: 1200 });
-    return normalizeIcp(extractJson<unknown>(text));
-  } catch {
+    const { text } = await llmCall({ system, user, maxTokens: 1500, timeoutMs: opts.timeoutMs ?? 60_000 });
+    const icp = normalizeIcp(extractJson<unknown>(text));
+    if (!icpIsUsable(icp)) {
+      console.warn(`[icp] profile for ${biz.name ?? '?'} came back too thin to research from (` +
+        `${icp.vocabulary.length} vocabulary, ${icp.pains.length} pains, ${icp.jobs.length} jobs)`);
+    }
+    return icp;
+  } catch (err) {
+    console.warn(`[icp] customer profile inference failed for ${biz.name ?? '?'}: ${String((err as any)?.message ?? err)}`);
     return EMPTY;
   }
 }
