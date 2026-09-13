@@ -468,12 +468,11 @@ export const KO: Record<string, string> = {
   'Who your site speaks to': '사이트가 말을 거는 대상',
   'What the blog must do': '블로그의 역할',
   'The number to move': '움직일 지표',
-  'The reader of each cluster': '클러스터별 독자',
+  'The reader of each pillar': '콘텐츠 축별 독자',
   'Nothing on file yet.': '아직 기록이 없습니다.',
   'Your answers outrank what the crawl inferred whenever the two disagree.':
     '둘이 다를 때는 크롤링 추정보다 직접 답하신 내용이 우선합니다.',
   'Where the research starts': '조사의 출발점',
-  'No head terms yet — they come from what your site sells.': '아직 핵심 용어가 없습니다. 사이트가 파는 것에서 뽑아냅니다.',
   'grove asks the search engine what people type after each of these, in {lang}, and keeps the suggestions in the order searchers use them. The brand name is left out on purpose: nobody searches for a product they have not heard of.':
     'grove는 이 용어들 뒤에 사람들이 무엇을 이어서 입력하는지 검색엔진에 {lang}로 물어보고, 검색되는 순서 그대로 제안을 보관합니다. 브랜드명은 일부러 뺍니다. 들어 본 적 없는 제품을 검색하는 사람은 없으니까요.',
   'English': '영어',
@@ -490,15 +489,43 @@ export const KO: Record<string, string> = {
   'Searches / mo': '월 검색량',
   'KD': 'KD',
   'Article': '글',
-  'Searches per month and keyword difficulty (KD, 0–100) come from live keyword data. One keyword per article, so two pages never compete for the same query.':
-    '월 검색량과 키워드 난이도(KD, 0–100)는 실시간 키워드 데이터에서 가져옵니다. 글 한 편에 키워드 하나씩이라 두 페이지가 같은 검색어를 두고 경쟁하지 않습니다.',
   'Ranked by live search demand — the order a search engine suggests them in. One keyword per article, so two pages never compete for the same query.':
     '실시간 검색 수요, 즉 검색엔진이 제안하는 순서로 정렬했습니다. 글 한 편에 키워드 하나씩이라 두 페이지가 같은 검색어를 두고 경쟁하지 않습니다.',
+  // step 2 — the inferred customer profile (lib/strategy/icp.ts)
+  'Who grove found on the other side': 'grove가 찾아낸 반대편의 사람',
+  'Their words for the problem': '문제를 부르는 그들의 말',
+  'What hurts today': '지금 아픈 것',
+  'What makes them start searching': '검색을 시작하게 만드는 계기',
+  'What holds them back': '망설이게 하는 것',
+  'Inferred from your site, in the reader’s register rather than the brand’s — people search in their own words, usually before they know a product category exists. Your answers outrank it wherever the two disagree.':
+    '사이트에서 추론하되 브랜드의 말투가 아니라 독자의 말투로 정리했습니다. 사람들은 제품 카테고리가 있는 줄도 모를 때 자기 말로 검색하니까요. 둘이 다를 때는 직접 답하신 내용이 우선합니다.',
+  // step 3 — what the research turned up
+  'Google suggestions': 'Google 자동완성',
+  'Search Console': 'Search Console',
+  'Related searches': '연관 검색어',
+  'Added by hand': '직접 추가',
+  'No head terms yet — they come from what your customers call the problem.': '아직 핵심 용어가 없습니다. 고객이 문제를 부르는 말에서 뽑아냅니다.',
+  'What the research turned up': '조사에서 나온 것',
+  'phrases people actually search': '개의 실제 검색 문구',
+  '{n}/mo': '월 {n}',
+  'Each head term is expanded into the phrases people search around it, in {lang}, with monthly search volume from DataForSEO. The brand name is left out on purpose: nobody searches for a product they have not heard of.':
+    '핵심 용어마다 사람들이 주변에서 검색하는 문구로 {lang} 기준 확장하고, 월 검색량은 DataForSEO에서 가져옵니다. 브랜드명은 일부러 뺍니다. 들어 본 적 없는 제품을 검색하는 사람은 없으니까요.',
+  // step 4 — scoring
+  'kept, out of {n} considered': '개 선정 · 검토한 문구 {n}개 중',
+  'keywords kept': '개 키워드 선정',
+  'Screened at KD ≤ {n} — what a site this age can win': 'KD {n} 이하로 걸렀습니다 — 이 연차의 사이트가 이길 수 있는 범위',
+  'Est. reach': '예상 도달',
+  'Searches per month and keyword difficulty (KD, 0–100) are measured by DataForSEO. Est. reach is the searches grove expects to actually win: volume × the chance a site this age ranks for it. One primary keyword per article, so two pages never compete for the same query.':
+    '월 검색량과 키워드 난이도(KD, 0–100)는 DataForSEO가 측정한 값입니다. 예상 도달은 grove가 실제로 가져올 수 있다고 보는 검색량으로, 검색량 × 이 연차의 사이트가 순위에 오를 확률입니다. 글 한 편에 주 키워드 하나씩이라 두 페이지가 같은 검색어를 두고 경쟁하지 않습니다.',
+  // step 5 — clusters per article
+  '1 phrase': '문구 1개',
+  '{n} phrases': '문구 {n}개',
+  'One cluster is one article: the phrase it targets plus the near-variants the same page can rank for. The number is the whole cluster’s monthly searches — what the article is really worth — gated by the target’s difficulty, never the average.':
+    '클러스터 하나가 글 한 편입니다. 노리는 문구와, 같은 페이지가 함께 오를 수 있는 유사 문구들이죠. 숫자는 클러스터 전체의 월 검색량, 즉 그 글이 실제로 가져올 수 있는 크기이며, 평균이 아니라 타깃 문구의 난이도로 가릅니다.',
+  '{kept} kept of {n}': '{n}개 중 {kept}개 선정',
   'No clusters yet.': '아직 클러스터가 없습니다.',
   '1 article': '글 1편',
   '{n} articles': '글 {n}편',
-  '1 keyword': '키워드 1개',
-  '{n} keywords': '키워드 {n}개',
   'A cluster is one topic seen from several searches. Articles in it link to each other, which is how a new site earns authority faster than one-off posts can.':
     '클러스터는 여러 검색어로 바라본 하나의 주제입니다. 안의 글들이 서로 링크되어, 낱개 글보다 훨씬 빨리 새 사이트의 신뢰도를 쌓습니다.',
   'of {n} articles live': '/ {n}편 발행 완료',

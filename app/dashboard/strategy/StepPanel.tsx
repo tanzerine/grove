@@ -165,31 +165,73 @@ function BusinessPanel({ f, t, hostname }: { f: Extract<StepFacts, { kind: 'busi
 }
 
 function CustomersPanel({ f, t }: { f: Extract<StepFacts, { kind: 'customers' }>; t: T }) {
-  const nothing = !f.chosen.length && !f.inferred && !f.personas.length;
+  const icp = f.icp;
+  const nothing = !icp && !f.chosen.length && !f.inferred && !f.personas.length;
+  let i = 0;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       {f.chosen.length > 0 && (
-        <Block label={t('Who you asked us to write for')} i={0}>
+        <Block label={t('Who you asked us to write for')} i={i++}>
           {/* Interview options are stored in English and translated on display. */}
           <Chips items={f.chosen.map((c) => t(c))} />
         </Block>
       )}
-      {f.inferred && (
-        <Block label={t('Who your site speaks to')} i={1}>
+      {icp && icp.segments.length > 0 && (
+        <Block label={t('Who grove found on the other side')} i={i++}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
+            {icp.segments.map((sg, k) => (
+              <div key={k} style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 11, padding: '11px 13px' }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gv-ink)', lineHeight: 1.35 }}>{sg.name}</div>
+                {sg.situation && <div style={{ fontSize: 12, color: 'var(--gv-dim)', lineHeight: 1.5, marginTop: 4 }}>{sg.situation}</div>}
+              </div>
+            ))}
+          </div>
+        </Block>
+      )}
+      {icp && icp.vocabulary.length > 0 && (
+        <Block label={t('Their words for the problem')} i={i++}>
+          <Chips items={icp.vocabulary} mono />
+        </Block>
+      )}
+      {icp && (icp.pains.length > 0 || icp.triggers.length > 0) && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 18 }}>
+          {icp.pains.length > 0 && (
+            <Block label={t('What hurts today')} i={i++}>
+              <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12.5, lineHeight: 1.6, color: 'var(--gv-soft)' }}>
+                {icp.pains.map((pn, k) => <li key={k}>{pn}</li>)}
+              </ul>
+            </Block>
+          )}
+          {icp.triggers.length > 0 && (
+            <Block label={t('What makes them start searching')} i={i++}>
+              <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12.5, lineHeight: 1.6, color: 'var(--gv-soft)' }}>
+                {icp.triggers.map((tr, k) => <li key={k}>{tr}</li>)}
+              </ul>
+            </Block>
+          )}
+        </div>
+      )}
+      {icp && icp.objections.length > 0 && (
+        <Block label={t('What holds them back')} i={i++}>
+          <div style={{ fontSize: 12.5, lineHeight: 1.6, color: 'var(--gv-soft)' }}>{icp.objections.join(' · ')}</div>
+        </Block>
+      )}
+      {!icp && f.inferred && (
+        <Block label={t('Who your site speaks to')} i={i++}>
           <p style={{ fontSize: 13.5, lineHeight: 1.6, color: 'var(--gv-soft)', margin: 0 }}>{f.inferred}</p>
         </Block>
       )}
       {(f.goal || f.kpi) && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 18 }}>
-          {f.goal && <Block label={t('What the blog must do')} i={2}><span style={{ fontSize: 13.5, color: 'var(--gv-ink)', fontWeight: 600 }}>{t(f.goal)}</span></Block>}
-          {f.kpi && <Block label={t('The number to move')} i={3}><span style={{ fontSize: 13.5, color: 'var(--gv-ink)', fontWeight: 600 }}>{t(f.kpi)}</span></Block>}
+          {f.goal && <Block label={t('What the blog must do')} i={i++}><span style={{ fontSize: 13.5, color: 'var(--gv-ink)', fontWeight: 600 }}>{t(f.goal)}</span></Block>}
+          {f.kpi && <Block label={t('The number to move')} i={i++}><span style={{ fontSize: 13.5, color: 'var(--gv-ink)', fontWeight: 600 }}>{t(f.kpi)}</span></Block>}
         </div>
       )}
       {f.personas.length > 0 && (
-        <Block label={t('The reader of each cluster')} i={4}>
+        <Block label={t('The reader of each pillar')} i={i++}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {f.personas.map((p, i) => (
-              <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'baseline', fontSize: 12.5 }}>
+            {f.personas.map((p, k) => (
+              <div key={k} style={{ display: 'flex', gap: 10, alignItems: 'baseline', fontSize: 12.5 }}>
                 <span style={{ color: 'var(--gv-dim)', flexShrink: 0, minWidth: 120, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.pillar}</span>
                 <span style={{ color: 'var(--gv-soft)' }}>{p.audience}</span>
               </div>
@@ -198,37 +240,69 @@ function CustomersPanel({ f, t }: { f: Extract<StepFacts, { kind: 'customers' }>
         </Block>
       )}
       {nothing && <p style={{ fontSize: 13.5, color: 'var(--gv-dim)', margin: 0 }}>{t('Nothing on file yet.')}</p>}
-      <Foot>{t('Your answers outrank what the crawl inferred whenever the two disagree.')}</Foot>
+      <Foot>
+        {icp
+          ? t('Inferred from your site, in the reader’s register rather than the brand’s — people search in their own words, usually before they know a product category exists. Your answers outrank it wherever the two disagree.')
+          : t('Your answers outrank what the crawl inferred whenever the two disagree.')}
+      </Foot>
     </div>
   );
 }
 
+const SOURCE_LABEL: Record<string, string> = {
+  dataforseo: 'DataForSEO',
+  autocomplete: msg('Google suggestions'),
+  gsc: msg('Search Console'),
+  related: msg('Related searches'),
+  manual: msg('Added by hand'),
+};
+
+const fmtVol = (n: number | null | undefined) => (n == null ? '—' : n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : String(n));
+
 function BrainstormPanel({ f, t }: { f: Extract<StepFacts, { kind: 'brainstorm' }>; t: T }) {
-  const byIntent = (['informational', 'commercial', 'transactional'] as SearchIntent[])
-    .map((k) => ({ k, items: f.phrases.filter((p) => p.intent === k).map((p) => p.keyword) }))
-    .filter((g) => g.items.length);
+  const measured = f.bySource.some((b) => b.source === 'dataforseo' || b.source === 'gsc');
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       <Block label={t('Where the research starts')} i={0}>
         {f.seeds.length ? (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {f.seeds.map((s, i) => (
-              <span key={i} className="gv-steps-row" style={{ ...CHIP, ...MONO, display: 'inline-flex', alignItems: 'center', gap: 6, ...stagger(i) }}>
-                <span style={{ display: 'flex', color: 'var(--gv-fainter)' }}><Icon name="search2" size={11} /></span>{s}
+            {f.seeds.map((sd, k) => (
+              <span key={k} className="gv-steps-row" style={{ ...CHIP, ...MONO, display: 'inline-flex', alignItems: 'center', gap: 6, ...stagger(k) }}>
+                <span style={{ display: 'flex', color: 'var(--gv-fainter)' }}><Icon name="search2" size={11} /></span>{sd}
               </span>
             ))}
           </div>
         ) : (
-          <p style={{ fontSize: 13, color: 'var(--gv-dim)', margin: 0 }}>{t('No head terms yet — they come from what your site sells.')}</p>
+          <p style={{ fontSize: 13, color: 'var(--gv-dim)', margin: 0 }}>{t('No head terms yet — they come from what your customers call the problem.')}</p>
         )}
       </Block>
-      {byIntent.length > 0 && byIntent.map((g, gi) => (
-        <Block key={g.k} label={t(INTENT[g.k].label)} i={gi + 1}>
-          <Chips items={g.items} max={10} />
+      {f.considered > 0 && (
+        <Block label={t('What the research turned up')} i={1}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+            <span style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--gv-ink)' }}>{f.considered}</span>
+            <span style={{ fontSize: 12.5, color: 'var(--gv-dim)' }}>{t('phrases people actually search')}</span>
+            <span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap', marginLeft: 'auto' }}>
+              {f.bySource.map((b) => (
+                <span key={b.source} style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--gv-dim)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 999, padding: '2px 9px', whiteSpace: 'nowrap' }}>
+                  {t(SOURCE_LABEL[b.source] ?? b.source)} · {b.n}
+                </span>
+              ))}
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {f.phrases.map((ph, k) => (
+              <span key={k} className="gv-steps-row" style={{ ...CHIP, display: 'inline-flex', alignItems: 'baseline', gap: 6, ...stagger(k) }}>
+                {ph.keyword}
+                {ph.volume != null && <span style={{ fontSize: 10.5, color: 'var(--gv-faint)', fontVariantNumeric: 'tabular-nums' }}>{t('{n}/mo', { n: fmtVol(ph.volume) })}</span>}
+              </span>
+            ))}
+          </div>
         </Block>
-      ))}
+      )}
       <Foot>
-        {t('grove asks the search engine what people type after each of these, in {lang}, and keeps the suggestions in the order searchers use them. The brand name is left out on purpose: nobody searches for a product they have not heard of.', { lang: t(LANG_NAME[f.language] ?? 'English') })}
+        {measured
+          ? t('Each head term is expanded into the phrases people search around it, in {lang}, with monthly search volume from DataForSEO. The brand name is left out on purpose: nobody searches for a product they have not heard of.', { lang: t(LANG_NAME[f.language] ?? 'English') })
+          : t('grove asks the search engine what people type after each of these, in {lang}, and keeps the suggestions in the order searchers use them. The brand name is left out on purpose: nobody searches for a product they have not heard of.', { lang: t(LANG_NAME[f.language] ?? 'English') })}
       </Foot>
     </div>
   );
@@ -236,46 +310,67 @@ function BrainstormPanel({ f, t }: { f: Extract<StepFacts, { kind: 'brainstorm' 
 
 const LANG_NAME: Record<string, string> = { en: msg('English'), ko: msg('Korean'), es: msg('Spanish'), zh: msg('Chinese') };
 
+/** KD against the ceiling the plan is screened on: comfortably under, within reach, past it. */
+function KdChip({ kd, ceiling }: { kd: number | null; ceiling: number }) {
+  if (kd == null) return <span style={{ fontSize: 12.5, color: 'var(--gv-faint)' }}>—</span>;
+  const color = kd <= ceiling * 0.5 ? ACCENT_INK : kd <= ceiling * 1.5 ? 'var(--gv-amber)' : 'var(--gv-red-text)';
+  return <span style={{ fontSize: 12.5, fontWeight: 700, color, fontVariantNumeric: 'tabular-nums' }}>{kd}</span>;
+}
+
 function ScorePanel({ f, t, colorFor }: { f: Extract<StepFacts, { kind: 'score' }>; t: T; colorFor: (pillarId: string) => string }) {
-  const cols = f.scored ? 'minmax(0,1.4fr) 110px 90px 70px minmax(0,1.2fr)' : 'minmax(0,1.2fr) 118px minmax(0,1.4fr)';
+  const cols = f.scored ? 'minmax(0,1.5fr) 104px 96px 44px 88px minmax(0,1.1fr)' : 'minmax(0,1.2fr) 118px minmax(0,1.4fr)';
   const th: React.CSSProperties = { ...EYEBROW, padding: '0 0 8px' };
+  const num: React.CSSProperties = { fontSize: 12.5, color: 'var(--gv-soft)', fontVariantNumeric: 'tabular-nums' };
   const rows = f.keywords.slice(0, 14);
-  const fmt = (n: number | null | undefined) => (n == null ? '—' : n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : String(n));
   return (
     <div>
       {rows.length === 0 ? (
         <p style={{ fontSize: 13.5, color: 'var(--gv-dim)', margin: 0 }}>{t('The plan has no target keywords yet.')}</p>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <div style={{ minWidth: f.scored ? 620 : 440 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 12, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-              <span style={th}>{t('Keyword')}</span>
-              <span style={th}>{t('Intent')}</span>
-              {f.scored && <span style={th}>{t('Searches / mo')}</span>}
-              {f.scored && <span style={th}>{t('KD')}</span>}
-              <span style={th}>{t('Article')}</span>
-            </div>
-            {rows.map((k: KeywordRow, i) => (
-              <div key={i} className="gv-steps-row" style={{ display: 'grid', gridTemplateColumns: cols, gap: 12, alignItems: 'center', padding: '9px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', ...stagger(i) }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                  <span style={{ width: 7, height: 7, borderRadius: 2, background: colorFor(k.pillarId), flexShrink: 0 }} />
-                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--gv-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{k.keyword}</span>
-                </span>
-                <span><IntentChip intent={k.intent} /></span>
-                {f.scored && <span style={{ fontSize: 12.5, color: 'var(--gv-soft)', fontVariantNumeric: 'tabular-nums' }}>{fmt(k.volume)}</span>}
-                {f.scored && <span style={{ fontSize: 12.5, color: 'var(--gv-soft)', fontVariantNumeric: 'tabular-nums' }}>{fmt(k.kd)}</span>}
-                <span style={{ fontSize: 12, color: 'var(--gv-dim)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{k.topic}</span>
-              </div>
-            ))}
-            {f.keywords.length > rows.length && (
-              <div style={{ fontSize: 11.5, color: 'var(--gv-faint)', padding: '8px 0 0' }}>{t('+{n} more', { n: f.keywords.length - rows.length })}</div>
+        <>
+          <div className="gv-steps-row" style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 12, ...stagger(0) }}>
+            <span style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--gv-ink)' }}>{f.keywords.length}</span>
+            <span style={{ fontSize: 12.5, color: 'var(--gv-dim)' }}>
+              {f.considered > 0 ? t('kept, out of {n} considered', { n: f.considered }) : t('keywords kept')}
+            </span>
+            {f.scored && (
+              <span style={{ marginLeft: 'auto', fontSize: 11.5, color: 'var(--gv-faint)' }}>{t('Screened at KD ≤ {n} — what a site this age can win', { n: Math.round(f.ceiling * 1.5) })}</span>
             )}
           </div>
-        </div>
+          <div style={{ overflowX: 'auto' }}>
+            <div style={{ minWidth: f.scored ? 640 : 440 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 12, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                <span style={th}>{t('Keyword')}</span>
+                <span style={th}>{t('Intent')}</span>
+                {f.scored && <span style={th}>{t('Searches / mo')}</span>}
+                {f.scored && <span style={th}>{t('KD')}</span>}
+                {f.scored && <span style={th}>{t('Est. reach')}</span>}
+                <span style={th}>{t('Article')}</span>
+              </div>
+              {rows.map((k: KeywordRow, i) => (
+                <div key={i} className="gv-steps-row" style={{ display: 'grid', gridTemplateColumns: cols, gap: 12, alignItems: 'center', padding: '9px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', ...stagger(i + 1) }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                    <span style={{ width: 7, height: 7, borderRadius: 2, background: colorFor(k.pillarId), flexShrink: 0 }} />
+                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--gv-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{k.keyword}</span>
+                    {k.secondary > 0 && <span style={{ fontSize: 10.5, color: 'var(--gv-faint)', whiteSpace: 'nowrap' }}>+{k.secondary}</span>}
+                  </span>
+                  <span><IntentChip intent={k.intent} /></span>
+                  {f.scored && <span style={num}>{fmtVol(k.volume)}</span>}
+                  {f.scored && <span><KdChip kd={k.kd} ceiling={f.ceiling} /></span>}
+                  {f.scored && <span style={num}>{k.score == null ? '—' : t('{n}/mo', { n: fmtVol(k.score) })}</span>}
+                  <span style={{ fontSize: 12, color: 'var(--gv-dim)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{k.topic}</span>
+                </div>
+              ))}
+              {f.keywords.length > rows.length && (
+                <div style={{ fontSize: 11.5, color: 'var(--gv-faint)', padding: '8px 0 0' }}>{t('+{n} more', { n: f.keywords.length - rows.length })}</div>
+              )}
+            </div>
+          </div>
+        </>
       )}
       <Foot>
         {f.scored
-          ? t('Searches per month and keyword difficulty (KD, 0–100) come from live keyword data. One keyword per article, so two pages never compete for the same query.')
+          ? t('Searches per month and keyword difficulty (KD, 0–100) are measured by DataForSEO. Est. reach is the searches grove expects to actually win: volume × the chance a site this age ranks for it. One primary keyword per article, so two pages never compete for the same query.')
           : t('Ranked by live search demand — the order a search engine suggests them in. One keyword per article, so two pages never compete for the same query.')}
       </Foot>
     </div>
@@ -283,32 +378,55 @@ function ScorePanel({ f, t, colorFor }: { f: Extract<StepFacts, { kind: 'score' 
 }
 
 function ClusterPanel({ f, t, colorFor }: { f: Extract<StepFacts, { kind: 'cluster' }>; t: T; colorFor: (pillarId: string) => string }) {
+  const article = f.mode === 'article';
   return (
     <div>
       {f.clusters.length === 0 ? (
         <p style={{ fontSize: 13.5, color: 'var(--gv-dim)', margin: 0 }}>{t('No clusters yet.')}</p>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 12 }}>
           {f.clusters.map((c, i) => {
-            const color = colorFor(c.id);
+            const color = colorFor(c.pillarId);
+            const phrases = c.keywords.length + (article ? 1 : 0);
             return (
               <div key={c.id} className="gv-steps-row" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.08)', borderLeft: `3px solid ${color}`, borderRadius: 12, padding: '14px 15px', ...stagger(i) }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--gv-ink)', flex: 1, minWidth: 0, lineHeight: 1.3 }}>{c.title}</span>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                  <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--gv-ink)', flex: 1, minWidth: 0, lineHeight: 1.3, ...(article ? MONO : {}) }}>{c.title}</span>
                   <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.05em', color, border: `1px solid ${color}55`, borderRadius: 6, padding: '2px 7px', flexShrink: 0 }}>{FUNNEL[c.intent]}</span>
                 </div>
                 {c.promise && <div style={{ fontSize: 12, color: 'var(--gv-dim)', lineHeight: 1.5, marginTop: 5 }}>{c.promise}</div>}
-                <div style={{ fontSize: 11, color: 'var(--gv-faint)', margin: '10px 0 8px' }}>
-                  {c.slots === 1 ? t('1 article') : t('{n} articles', { n: c.slots })}
-                  {c.keywords.length ? ` · ${c.keywords.length === 1 ? t('1 keyword') : t('{n} keywords', { n: c.keywords.length })}` : ''}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: 'var(--gv-faint)', margin: '10px 0 8px', flexWrap: 'wrap' }}>
+                  {c.total != null && (
+                    <span style={{ color: 'var(--gv-soft)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{t('{n}/mo', { n: fmtVol(c.total) })}</span>
+                  )}
+                  {c.kd != null && <span>{t('KD')} {c.kd}</span>}
+                  <span>
+                    {article
+                      ? (phrases === 1 ? t('1 phrase') : t('{n} phrases', { n: phrases }))
+                      : (c.slots === 1 ? t('1 article') : t('{n} articles', { n: c.slots }))}
+                  </span>
                 </div>
-                {c.keywords.length > 0 && <Chips items={c.keywords} max={4} />}
+                {c.keywords.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {c.keywords.slice(0, 6).map((k, j) => (
+                      <span key={j} style={{ ...CHIP, display: 'inline-flex', alignItems: 'baseline', gap: 5 }}>
+                        {k.keyword}
+                        {k.volume != null && <span style={{ fontSize: 10, color: 'var(--gv-faint)', fontVariantNumeric: 'tabular-nums' }}>{fmtVol(k.volume)}</span>}
+                      </span>
+                    ))}
+                    {c.keywords.length > 6 && <span style={{ ...CHIP, color: 'var(--gv-faint)' }}>{t('+{n} more', { n: c.keywords.length - 6 })}</span>}
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
       )}
-      <Foot>{t('A cluster is one topic seen from several searches. Articles in it link to each other, which is how a new site earns authority faster than one-off posts can.')}</Foot>
+      <Foot>
+        {article
+          ? t('One cluster is one article: the phrase it targets plus the near-variants the same page can rank for. The number is the whole cluster’s monthly searches — what the article is really worth — gated by the target’s difficulty, never the average.')
+          : t('A cluster is one topic seen from several searches. Articles in it link to each other, which is how a new site earns authority faster than one-off posts can.')}
+      </Foot>
     </div>
   );
 }

@@ -80,6 +80,23 @@ export default async function StrategyPage() {
     .from('posts').select('id,title,slug,status,topic,published_at,scheduled_at,slot_id,research')
     .eq('domain_id', domain.id).order('created_at', { ascending: false });
 
+  // The keyword ledger (keyword_candidates, 0041): every phrase the research
+  // considered for this site. Steps 3–5 of the tracker are drawn from it —
+  // what was found, what was kept and at what volume/difficulty, what each
+  // article's cluster is worth. Best-effort: an empty ledger (a plan from
+  // before the table, or a source that could not measure) degrades every
+  // panel to the plan's own keywords with no numbers, never to an error.
+  let candidates: { keyword: string; source: string; volume: number | null; difficulty: number | null; intent: string | null; status: string }[] = [];
+  try {
+    const { data } = await admin
+      .from('keyword_candidates')
+      .select('keyword,source,volume,difficulty,intent,status')
+      .eq('domain_id', domain.id)
+      .order('volume', { ascending: false, nullsFirst: false })
+      .limit(600);
+    candidates = (data ?? []) as typeof candidates;
+  } catch { /* the ledger is optional */ }
+
   const slotStatusByTopic = new Map<string, SlotStatus>();
   const slotStatusById = new Map<string, SlotStatus>();
   for (const p of posts ?? []) {
@@ -293,7 +310,7 @@ export default async function StrategyPage() {
   // two can't disagree about where the month stands.
   const stepsModel: StepsModel = strategySteps({
     profile: domain.site_profile, interview: parseInterview(domain.interview),
-    verified: !!domain.verified_at, strategy: s, posts: posts ?? [],
+    verified: !!domain.verified_at, strategy: s, posts: posts ?? [], candidates,
     lang: languageForDomain({ language: domain.language }).code, stale: stalePlan, now,
   });
   const pillarColorById = Object.fromEntries((s.pillars ?? []).map((p, i) => [p.id, PILLAR_COLORS[i % PILLAR_COLORS.length]]));
