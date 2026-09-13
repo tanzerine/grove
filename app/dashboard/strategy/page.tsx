@@ -7,12 +7,15 @@ import type { Strategy, Goal, Pillar, PostSlot, KPI } from '@/lib/strategy/build
 import { horizons } from '@/lib/strategy/context';
 import { monthKey, planIsStale, startOfMonthUTC } from '@/lib/strategy/rollover';
 import { strategyBrief } from '@/lib/strategy/brief';
+import { strategySteps, type StepsModel } from '@/lib/strategy/steps';
+import { parseInterview } from '@/lib/strategy/interview';
+import { languageForDomain } from '@/lib/language';
 import Icon from '../gv-icons';
 import { DashHeader } from '../gv-chrome';
 import PlanChat from './PlanChat';
-import BuildPlanNow from './BuildPlanNow';
 import PlanningCadence, { type CadenceItem, type CadenceView } from './PlanningCadence';
 import PillarsAndCalendar, { type PillarCard, type CalRow, type Week } from './PillarsAndCalendar';
+import StrategySteps from './StrategySteps';
 import { getT } from '@/lib/i18n/server';
 import { intlLocale, type T } from '@/lib/i18n';
 
@@ -48,13 +51,21 @@ export default async function StrategyPage() {
     .from('strategies').select('*')
     .eq('domain_id', domain.id).eq('active', true)
     .order('month', { ascending: false }).limit(1).maybeSingle();
-  if (!strategy) return (
-    <NoStrategy t={t}
-      hasInterview={!!domain.interview}
-      verified={!!domain.verified_at}
-      domainId={domain.id}
-    />
-  );
+  const currentMonthKey = monthKey(startOfMonthUTC(new Date())).slice(0, 7);
+  const currentMonthLabel = new Date(`${currentMonthKey}-01T00:00:00Z`)
+    .toLocaleString(undefined, { month: 'long', year: 'numeric' });
+
+  if (!strategy) {
+    // No plan yet. The tracker still has plenty to say — which of the six
+    // steps is blocked, on whom, and the one thing that unblocks it — which is
+    // exactly what an empty page used to leave the owner guessing at.
+    const model = strategySteps({
+      profile: domain.site_profile, interview: parseInterview(domain.interview),
+      verified: !!domain.verified_at, strategy: null, posts: [],
+      lang: languageForDomain({ language: domain.language }).code,
+    });
+    return <NoStrategy t={t} model={model} domainId={domain.id} hostname={domain.hostname} currentMonth={currentMonthLabel} />;
+  }
 
   let report: MonthlyReport | null = null;
   try {
@@ -93,10 +104,9 @@ export default async function StrategyPage() {
   // empty state, which a domain with any plan at all never reaches. The owner
   // whose month is actually broken was the one owner with no way to ask for it.
   // On 2026-08-01 that was www.oveners.com for a day and a half.
-  const currentMonthKey = monthKey(startOfMonthUTC(new Date())).slice(0, 7);
+  // The tracker carries the flag: step 3 reopens, and "your move" becomes the
+  // rebuild — one place for it instead of a banner AND an empty state.
   const stalePlan = planIsStale(s.month, new Date());
-  const currentMonthLabel = new Date(`${currentMonthKey}-01T00:00:00Z`)
-    .toLocaleString(undefined, { month: 'long', year: 'numeric' });
 
   // ---------- goals (rings) ----------
   const now = new Date();
@@ -274,48 +284,34 @@ export default async function StrategyPage() {
     { value: String(domain.posts_per_week ?? '—'), unit: t('/ wk'), label: t('Cadence') },
   ];
 
-  const totalPosts = (posts ?? []).length;
-  const pastManagerCount = (posts ?? []).filter((p) => ['review', 'scheduled', 'published', 'failed'].includes(p.status)).length;
-  const toolchain = [
-    { name: t('Live SERP research'), icon: 'search2', runs: totalPosts === 1 ? t('1 run') : t('{n} runs', { n: totalPosts }), desc: t('Crawls search results & competitor posts to find the ranking gaps worth taking.') },
-    { name: t('Writer'), icon: 'pen', runs: totalPosts === 1 ? t('1 draft') : t('{n} drafts', { n: totalPosts }), desc: t('Drafts every post in your brand voice, structured for the target keyword.') },
-    { name: t('Manager'), icon: 'manager', runs: pastManagerCount === 1 ? t('1 review') : t('{n} reviews', { n: pastManagerCount }), desc: t('Scores each draft 0–100 on strategy fit & craft, and gates publish.') },
-    { name: t('Analytics'), icon: 'analytics', runs: t('continuous'), desc: t('Reads first-party events to grade the plan and tune next month.') },
-  ];
-
   // The hero states the *play* this month is running — deliberately not the
   // strategist's `direction.month` narrative, which the Planning-cadence card
   // already prints under "Monthly". One sentence, one job each.
   const brief = strategyBrief(s, t);
+
+  // The six-step tracker reads the same rows as everything below it, so the
+  // two can't disagree about where the month stands.
+  const stepsModel: StepsModel = strategySteps({
+    profile: domain.site_profile, interview: parseInterview(domain.interview),
+    verified: !!domain.verified_at, strategy: s, posts: posts ?? [],
+    lang: languageForDomain({ language: domain.language }).code, stale: stalePlan, now,
+  });
+  const pillarColorById = Object.fromEntries((s.pillars ?? []).map((p, i) => [p.id, PILLAR_COLORS[i % PILLAR_COLORS.length]]));
 
   return (
     <>
       <DashHeader title={t('Strategy')} subtitle={t("{host} · the agent's plan for {month}", { host: domain.hostname, month: planMonth })} />
 
       <div className="gv-body">
-        {stalePlan && (
-          <section style={{ background: 'var(--gv-card)', border: '1px solid rgba(224,200,120,0.34)', borderRadius: 14, padding: '18px 20px', marginBottom: 14 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 10.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--gv-amber)' }}>
-              <Icon name="clock" size={13} /> {t('Plan out of date')}
-            </div>
-            <h3 style={{ fontSize: 17, fontWeight: 600, color: 'var(--gv-ink)', margin: '10px 0 0' }}>
-              {t('You’re looking at your {month} plan. {current} hasn’t been built yet.', { month: planMonth, current: currentMonthLabel })}
-            </h3>
-            <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--gv-dim)', margin: '8px 0 0', maxWidth: 680 }}>
-              The agent builds each month’s plan automatically and retries every hour, so this
-              usually clears itself. Below is last month’s calendar — its dates have passed, so
-              nothing new is being queued from it. Build {currentMonthLabel} now if you’d rather
-              not wait.
-            </p>
-            {domain.verified_at
-              ? <BuildPlanNow domainId={domain.id} label={t('Build {month}’s plan →', { month: currentMonthLabel })} />
-              : (
-                <p style={{ fontSize: 12.5, color: 'var(--gv-dim)', margin: '12px 0 0' }}>
-                  {t('Verify this domain and the strategist can draft it.')}
-                </p>
-              )}
-          </section>
-        )}
+        {/* ===== HOW THE PLAN IS BUILT — the six steps, live ===== */}
+        <StrategySteps
+          model={stepsModel}
+          domainId={domain.id}
+          hostname={domain.hostname}
+          planMonth={planMonth}
+          currentMonth={currentMonthLabel}
+          pillarColors={pillarColorById}
+        />
 
         {/* ===== HERO BRIEF ===== */}
         <section className="gv-card" style={{ background: 'var(--gv-card-grad)', border: '1px solid rgba(162,255,1,0.18)', borderRadius: 18, padding: '26px 28px', marginBottom: 14 }}>
@@ -373,59 +369,33 @@ export default async function StrategyPage() {
         {/* ===== PLANNING CADENCE ===== */}
         <PlanningCadence views={cadenceViews} />
 
-        {/* ===== OKRs + TOOLCHAIN =====
-             alignItems defaults to `stretch` on purpose: the two cards carry
-             different amounts of content but should read as one row. */}
-        <div className="gv-2col" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.5fr) minmax(0,1fr)', gap: 16, marginBottom: 14 }}>
-          {/* OKRs */}
-          {goals.length > 0 && (
-            <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '22px 24px' }}>
-              <div style={{ fontSize: 15, fontWeight: 700 }}>{t('Objective & key results')}</div>
-              <div style={{ fontSize: 12, color: 'var(--gv-faint)', margin: '3px 0 18px' }}>{t('How this month\'s plan is tracking against its targets')}</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                {goals.map((g, i) => (
-                  <div key={i}>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 8 }}>
-                      <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--gv-soft)', flex: 1, minWidth: 0 }}>{g.label}</span>
-                      <span style={{ fontSize: 12.5, color: 'var(--gv-faint)', fontVariantNumeric: 'tabular-nums' }}>{g.current}</span>
-                      <span style={{ display: 'flex', color: '#4a4d44' }}><Icon name="arrow" size={12} /></span>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--gv-ink)', fontVariantNumeric: 'tabular-nums' }}>{g.target}</span>
-                    </div>
-                    <div style={{ position: 'relative', height: 8, borderRadius: 99, background: 'rgba(255,255,255,0.07)', overflow: 'hidden' }}>
-                      <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: `${g.pct}%`, borderRadius: 99, background: ACCENT }} />
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 7, fontSize: 11, color: 'var(--gv-faint)' }}>
-                      <span style={{ display: 'flex', color: 'var(--gv-fainter)' }}><Icon name={g.toolIcon} size={12} /></span> {t('Tracked by Analytics')} · {g.note}
-                    </div>
+        {/* ===== OKRs =====
+             The "how grove will execute" toolchain that used to sit beside
+             this card now lives inside step 6 of the tracker above. */}
+        {goals.length > 0 && (
+          <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '22px 24px', marginBottom: 14 }}>
+            <div style={{ fontSize: 15, fontWeight: 700 }}>{t('Objective & key results')}</div>
+            <div style={{ fontSize: 12, color: 'var(--gv-faint)', margin: '3px 0 18px' }}>{t('How this month\'s plan is tracking against its targets')}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              {goals.map((g, i) => (
+                <div key={i}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 8 }}>
+                    <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--gv-soft)', flex: 1, minWidth: 0 }}>{g.label}</span>
+                    <span style={{ fontSize: 12.5, color: 'var(--gv-faint)', fontVariantNumeric: 'tabular-nums' }}>{g.current}</span>
+                    <span style={{ display: 'flex', color: '#4a4d44' }}><Icon name="arrow" size={12} /></span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--gv-ink)', fontVariantNumeric: 'tabular-nums' }}>{g.target}</span>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* TOOLCHAIN */}
-          <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '22px 24px' }}>
-            <div style={{ fontSize: 15, fontWeight: 700 }}>{t('How grove will execute')}</div>
-            <div style={{ fontSize: 12, color: 'var(--gv-faint)', margin: '3px 0 18px' }}>{t('The tools the agent runs to ship this plan')}</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {toolchain.map((t, i) => (
-                <div key={i} style={{ display: 'flex', gap: 13, paddingBottom: 16, paddingTop: 4 }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
-                    <span style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.14)', color: 'var(--gv-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={t.icon} size={17} /></span>
-                    {i < toolchain.length - 1 && <span style={{ flex: 1, width: 1, minHeight: 12, background: 'rgba(255,255,255,0.14)', marginTop: 4 }} />}
+                  <div style={{ position: 'relative', height: 8, borderRadius: 99, background: 'rgba(255,255,255,0.07)', overflow: 'hidden' }}>
+                    <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: `${g.pct}%`, borderRadius: 99, background: ACCENT }} />
                   </div>
-                  <div style={{ flex: 1, minWidth: 0, paddingTop: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--gv-ink)' }}>{t.name}</span>
-                      <span style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 700, color: 'var(--gv-dim)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 999, padding: '2px 9px', whiteSpace: 'nowrap' }}>{t.runs}</span>
-                    </div>
-                    <div style={{ fontSize: 12, color: 'var(--gv-dim)', lineHeight: 1.5, marginTop: 3 }}>{t.desc}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 7, fontSize: 11, color: 'var(--gv-faint)' }}>
+                    <span style={{ display: 'flex', color: 'var(--gv-fainter)' }}><Icon name={g.toolIcon} size={12} /></span> {t('Tracked by Analytics')} · {g.note}
                   </div>
                 </div>
               ))}
             </div>
           </div>
-        </div>
+        )}
 
         {/* ===== CONTENT PILLARS + MONTH CALENDAR ===== */}
         {pillars.length > 0 && (
@@ -479,47 +449,17 @@ function Empty({ t }: { t: T }) {
 }
 
 function NoStrategy({
-  hasInterview,
-  verified,
-  domainId,
-  t,
-}: { hasInterview: boolean; verified: boolean; domainId: string; t: T }) {
-  // The strategist only plans for a domain whose ownership has been proven, so
-  // an unverified site would otherwise sit here with a CTA that can't work.
-  // Point at the thing that actually unblocks it instead.
-  const cta = verified
-    ? { href: '/onboarding/intent', label: hasInterview ? t('Edit intent') : t('Answer 5 questions →') }
-    : { href: `/onboarding/verify?domain=${domainId}`, label: t('Verify domain →') };
-  // Answers on file and nothing to show means the build that runs with the
-  // interview didn't land (failed crawl, LLM blip). That's a retry, not a
-  // month-long wait — which is what this page used to tell people.
-  const canBuildNow = verified && hasInterview;
+  model, domainId, hostname, currentMonth, t,
+}: { model: StepsModel; domainId: string; hostname: string; currentMonth: string; t: T }) {
+  // No plan yet, so the tracker IS the page: it shows which step the domain is
+  // stuck on (verify → answer → build), who it's waiting for, and the one
+  // action that moves it — the same "your move" box a live plan gets, so the
+  // owner learns the page's shape before there is anything else on it.
   return (
     <>
       <DashHeader title={t('Strategy')} subtitle={t('the monthly plan your agent works from')} />
       <div className="gv-body">
-        <div style={{ background: 'var(--gv-card)', border: '1px dashed rgba(255,255,255,0.12)', borderRadius: 14, padding: '40px 30px', textAlign: 'center' }}>
-          <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>{t('No strategy yet.')}</h3>
-          <p style={{ color: 'var(--gv-dim)', marginTop: 8 }}>
-            {!verified
-              ? t('Verify that you own this domain and the strategist will draft this month’s plan.')
-              : hasInterview
-                ? t('Your answers are saved — the strategist just hasn’t drafted the plan yet. Build it now, it takes about a minute.')
-                : t('Answer a few questions and the strategist will draft this month’s plan.')}
-          </p>
-          {canBuildNow ? (
-            <>
-              <BuildPlanNow domainId={domainId} />
-              <Link href={cta.href} style={{ display: 'inline-block', marginTop: 12, fontSize: 12.5, color: 'var(--gv-dim)' }}>
-                {t('or change your answers first')}
-              </Link>
-            </>
-          ) : (
-            <Link href={cta.href} className="gv-btn" style={{ display: 'inline-block', marginTop: 16, border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontWeight: 700, padding: '10px 18px', borderRadius: 10, textDecoration: 'none' }}>
-              {cta.label}
-            </Link>
-          )}
-        </div>
+        <StrategySteps model={model} domainId={domainId} hostname={hostname} planMonth={null} currentMonth={currentMonth} pillarColors={{}} />
       </div>
     </>
   );

@@ -13,7 +13,9 @@ const ACCENT = 'var(--gv-accent)';
  * auto-build). Waiting for the 1st of next month is not an acceptable answer to
  * that, and the strategist is a single call: let them ask for it.
  */
-export default function BuildPlanNow({ domainId, label = 'Build this month’s plan →' }: { domainId: string; label?: string }) {
+export default function BuildPlanNow({
+  domainId, label, compact = false,
+}: { domainId: string; label?: string; compact?: boolean }) {
   const t = useT();
   const r = useRouter();
   const [busy, setBusy] = useState(false);
@@ -43,12 +45,16 @@ export default function BuildPlanNow({ domainId, label = 'Build this month’s p
   return (
     <div>
       <button onClick={build} disabled={busy} className="gv-btn"
-        style={{ display: 'inline-block', marginTop: 16, border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 700, padding: '10px 18px', borderRadius: 10, cursor: busy ? 'default' : 'pointer' }}>
-        {busy ? 'Planning your month…' : label}
+        style={{ display: 'inline-block', marginTop: compact ? 0 : 16, border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 700, padding: '10px 18px', borderRadius: 10, cursor: busy ? 'default' : 'pointer' }}>
+        {busy ? t('Planning your month…') : (label ?? t('Build this month’s plan →'))}
       </button>
-      <div style={{ fontSize: 11.5, color: busy ? 'var(--gv-dim)' : 'transparent', marginTop: 8 }}>
-        {t('The strategist is reading your site and your answers — about a minute.')}
-      </div>
+      {/* Inside the tracker's "your move" box the busy hint would push the box
+          around; the button's own label already says the strategist is at work. */}
+      {!compact && (
+        <div style={{ fontSize: 11.5, color: busy ? 'var(--gv-dim)' : 'transparent', marginTop: 8 }}>
+          {t('The strategist is reading your site and your answers — about a minute.')}
+        </div>
+      )}
       {err && <p style={{ fontSize: 12.5, color: 'var(--gv-red)', margin: '4px 0 0' }}>{err}</p>}
     </div>
   );
