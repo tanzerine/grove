@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { candidateRow, diffCandidates, shouldExclude } from '../lib/strategy/candidate-store';
+import { candidateRow, diffCandidates, shouldExclude, candidateMatch } from '../lib/strategy/candidate-store';
 import type { ScoredKeyword } from '../lib/keywords/opportunity';
 
 const kw = (
@@ -99,5 +99,33 @@ describe('shouldExclude', () => {
 
   it('survives an unparseable timestamp by re-screening rather than excluding', () => {
     expect(shouldExclude({ status: 'rejected', metrics_at: 'not-a-date' }, now, 90)).toBe(false);
+  });
+});
+
+describe('candidateMatch', () => {
+  it('requires strategy_id — slot ids REPEAT across months', () => {
+    // "slot-3" exists in every strategy a domain has ever had. Matching on
+    // (domain_id, slot_id) alone would mark this month's article as the
+    // outcome of a keyword chosen last March.
+    expect(candidateMatch({ domain_id: 'd', slot_id: 'slot-3', strategy_id: 's' }))
+      .toEqual({ domain_id: 'd', slot_id: 'slot-3', strategy_id: 's' });
+    expect(candidateMatch({ domain_id: 'd', slot_id: 'slot-3' })).toBeNull();
+  });
+
+  it('returns null for a hand-written post, which never came from a plan', () => {
+    // Write-page posts carry no slot; there is no candidate to close.
+    expect(candidateMatch({ domain_id: 'd', slot_id: null, strategy_id: null })).toBeNull();
+    expect(candidateMatch({ domain_id: 'd' })).toBeNull();
+  });
+
+  it('is null-safe on a missing post', () => {
+    expect(candidateMatch(null)).toBeNull();
+    expect(candidateMatch(undefined)).toBeNull();
+    expect(candidateMatch({})).toBeNull();
+  });
+
+  it('treats an empty string as missing, not as a match', () => {
+    expect(candidateMatch({ domain_id: '', slot_id: 'slot-1', strategy_id: 's' })).toBeNull();
+    expect(candidateMatch({ domain_id: 'd', slot_id: '', strategy_id: 's' })).toBeNull();
   });
 });

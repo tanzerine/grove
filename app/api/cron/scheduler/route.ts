@@ -60,6 +60,7 @@ import { consumeQuota, quotaForUsers, releaseQuota, shareAllowance } from '@/lib
 import { publishToSocials } from '@/lib/social/publish';
 import { syncDomain } from '@/lib/search-console/sync';
 import { captureServer } from '@/lib/analytics/capture-server';
+import { markPublishedForPost } from '@/lib/strategy/candidate-store';
 import { languageForDomain } from '@/lib/language';
 
 export const maxDuration = 300;
@@ -208,6 +209,11 @@ export async function GET(req: Request) {
       // separates "the agent shipped this" from "a person clicked approve".
       const userId = (p as any).domains?.user_id;
       if (userId) await captureServer(userId, 'post_published', { post_id: p.id, scheduled: true });
+      // Same ledger close as the manual path (lib/pipeline/approve.ts). Most
+      // articles reach readers through THIS branch, not through a person
+      // clicking approve, so omitting it here would leave the backtest blind
+      // to the autopilot it exists to measure.
+      await markPublishedForPost(p.id);
     }
   }
 

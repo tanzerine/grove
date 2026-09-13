@@ -223,14 +223,61 @@ export async function markPlanned(
   return n;
 }
 
-/** Promote a slot's keyword once its article actually published. */
-export async function markPublished(domainId: string, slotId: string, postId: string): Promise<void> {
-  if (!domainId || !slotId) return;
+/**
+ * The rows that belong to one published post, or null when there are none.
+ *
+ * Pure, and it exists because of a bug worth stating: `slot_id` is NOT unique.
+ * It is a position within one month's plan ("slot-3"), so every strategy a
+ * domain has ever had contains a slot-3. Matching a candidate on
+ * (domain_id, slot_id) alone would mark this month's article as the outcome of
+ * a keyword chosen last March. `strategy_id` is what disambiguates, so all
+ * three are required and a post missing any of them has no candidate to mark —
+ * which is the correct answer for a hand-written post from the Write page,
+ * since it never came from a plan.
+ */
+export function candidateMatch(
+  post: { domain_id?: string | null; slot_id?: string | null; strategy_id?: string | null } | null | undefined,
+): { domain_id: string; slot_id: string; strategy_id: string } | null {
+  const domain_id = post?.domain_id ?? '';
+  const slot_id = post?.slot_id ?? '';
+  const strategy_id = post?.strategy_id ?? '';
+  if (!domain_id || !slot_id || !strategy_id) return null;
+  return { domain_id, slot_id, strategy_id };
+}
+
+/**
+ * Close the loop: a slot's keyword becomes `published` and gains its post_id,
+ * which is the join the whole backtest runs through
+ * (candidate -> post -> gsc_page_queries -> the queries it actually earned).
+ *
+ * Takes only a post id and resolves the rest itself, because there are two
+ * publish paths — the manual approve and the scheduler cron — and threading
+ * three identifiers through both is how they drift apart. approve.ts exists
+ * for exactly that reason; this follows it.
+ *
+ * Fail-soft and idempotent: re-publishing the same post rewrites the same row.
+ */
+export async function markPublishedForPost(postId: string): Promise<boolean> {
+  if (!postId) return false;
   try {
-    await supabaseAdmin()
+    const sb = supabaseAdmin();
+    const { data: post } = await sb
+      .from('posts')
+      .select('domain_id, slot_id, strategy_id')
+      .eq('id', postId)
+      .maybeSingle();
+
+    const match = candidateMatch(post as any);
+    if (!match) return false;
+
+    const { error } = await sb
       .from('keyword_candidates')
       .update({ status: 'published', post_id: postId })
-      .eq('domain_id', domainId)
-      .eq('slot_id', slotId);
-  } catch { /* ledger only */ }
+      .eq('domain_id', match.domain_id)
+      .eq('strategy_id', match.strategy_id)
+      .eq('slot_id', match.slot_id);
+    return !error;
+  } catch {
+    return false;   // the ledger is never worth failing a publish that succeeded
+  }
 }
