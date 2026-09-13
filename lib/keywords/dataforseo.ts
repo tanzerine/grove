@@ -102,10 +102,71 @@ export function parseLabsResponse(json: any): ScoredKeyword[] | null {
   return items.map(parseLabsItem).filter((k: ScoredKeyword | null): k is ScoredKeyword => !!k);
 }
 
-async function labsCall(path: string, body: unknown[], timeoutMs: number): Promise<any | null> {
+/**
+ * Why a Labs call did or did not produce keywords.
+ *
+ * This type exists because of a failure this module actually shipped. Every
+ * path returned a bare `null`, so "the credentials are not set" and "the API
+ * rejected us" were indistinguishable — and when grove's first live plan fell
+ * back to autocomplete, nothing anywhere could say which it had been. That is
+ * precisely the confusion lib/strategy/seeds.ts spent a paragraph on ("an
+ * empty demand list looked identical to a network failure for months"), and
+ * the fix there was the same as the fix here: make the distinction a value,
+ * not an inference.
+ *
+ * `reason` is what a human needs to act on, and each one has a different
+ * remedy: not_configured is a Vercel env-var scope, http is credentials or an
+ * IP whitelist, task is a malformed request or an out-of-funds account, and
+ * network is the egress path.
+ */
+export type LabsOutcome =
+  | { ok: true; json: any }
+  | { ok: false; reason: 'not_configured' | 'http' | 'task' | 'network'; detail: string };
+
+/**
+ * One log line that names the remedy, not just the symptom.
+ *
+ * Pure, so the message a future operator reads at 2am is unit-tested rather
+ * than composed in an untested catch block.
+ */
+export function describeLabsOutcome(o: LabsOutcome): string {
+  if (o.ok) return 'ok';
+  switch (o.reason) {
+    case 'not_configured':
+      return 'DATAFORSEO_LOGIN/DATAFORSEO_PASSWORD not set in this runtime — ' +
+             'check the vars are scoped to this environment (Production is a separate checkbox) ' +
+             'and that a deploy has happened since they were set';
+    case 'http':
+      return `DataForSEO returned ${o.detail} — a 401 means the API password ` +
+             '(from the API CREDENTIALS block, not the dashboard sign-in password); ' +
+             'a 403 often means the account\'s IP whitelist excludes this host';
+    case 'task':
+      return `DataForSEO accepted the request but the task failed: ${o.detail} — ` +
+             'usually a malformed field or an account out of funds';
+    case 'network':
+      return `could not reach DataForSEO: ${o.detail} — egress or timeout`;
+  }
+}
+
+/** Collapse a batch into one line, so a 30-seed run logs once rather than 30 times. */
+export function summarizeLabsOutcomes(outcomes: LabsOutcome[]): string {
+  if (!outcomes.length) return 'no calls made';
+  const ok = outcomes.filter((o) => o.ok).length;
+  if (ok === outcomes.length) return `ok (${ok}/${outcomes.length})`;
+  // Report the first failure in full: in practice a batch fails the same way
+  // every time, and one actionable sentence beats thirty truncated ones.
+  const first = outcomes.find((o) => !o.ok)!;
+  return `${ok}/${outcomes.length} succeeded — ${describeLabsOutcome(first)}`;
+}
+
+async function labsCall(path: string, body: unknown[], timeoutMs: number): Promise<LabsOutcome> {
   const login = process.env.DATAFORSEO_LOGIN;
   const password = process.env.DATAFORSEO_PASSWORD;
-  if (!login || !password) return null;
+  if (!login || !password) {
+    const missing = [!login && 'DATAFORSEO_LOGIN', !password && 'DATAFORSEO_PASSWORD']
+      .filter(Boolean).join(' + ');
+    return { ok: false, reason: 'not_configured', detail: `missing ${missing}` };
+  }
 
   // The sandbox echoes fixtures rather than data. Useful for wiring, useless
   // for planning — so it is opt-in and never the default.
@@ -122,11 +183,32 @@ async function labsCall(path: string, body: unknown[], timeoutMs: number): Promi
       body: JSON.stringify(body),
     });
     clearTimeout(t);
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
-    return null;
+    if (!res.ok) {
+      // The body often names the real problem where the status alone does not.
+      // Bounded, because an error page can be enormous and this reaches logs.
+      let hint = '';
+      try { hint = (await res.text()).slice(0, 200).replace(/\s+/g, ' ').trim(); } catch { /* body already consumed */ }
+      return { ok: false, reason: 'http', detail: `HTTP ${res.status}${hint ? ` — ${hint}` : ''}` };
+    }
+    return { ok: true, json: await res.json() };
+  } catch (e) {
+    return { ok: false, reason: 'network', detail: String((e as Error)?.message ?? e) };
   }
+}
+
+/**
+ * Read the per-task status DataForSEO reports INSIDE a 200 response.
+ *
+ * Separate from the HTTP check because a failed task arrives with HTTP 200,
+ * so `res.ok` alone would report success for a request that returned nothing.
+ */
+function taskOutcome(json: any): LabsOutcome {
+  const task = json?.tasks?.[0];
+  if (!task) return { ok: false, reason: 'task', detail: 'no task in response' };
+  if (typeof task.status_code === 'number' && task.status_code !== 20000) {
+    return { ok: false, reason: 'task', detail: `${task.status_code} ${task.status_message ?? ''}`.trim() };
+  }
+  return { ok: true, json };
 }
 
 /**
@@ -138,7 +220,21 @@ export async function keywordSuggestions(
   lang: LangCode,
   opts: { limit?: number; timeoutMs?: number } = {},
 ): Promise<ScoredKeyword[] | null> {
-  const json = await labsCall('/v3/dataforseo_labs/google/keyword_suggestions/live', [{
+  const { keywords } = await keywordSuggestionsDetailed(seed, lang, opts);
+  return keywords;
+}
+
+/**
+ * The same call, but it also says WHY when it comes back empty. The planner
+ * uses this one so a fallback to autocomplete can be logged with its cause
+ * instead of appearing as an unexplained absence of demand.
+ */
+export async function keywordSuggestionsDetailed(
+  seed: string,
+  lang: LangCode,
+  opts: { limit?: number; timeoutMs?: number } = {},
+): Promise<{ keywords: ScoredKeyword[] | null; outcome: LabsOutcome }> {
+  const call = await labsCall('/v3/dataforseo_labs/google/keyword_suggestions/live', [{
     keyword: seed,
     language_code: lang,
     location_code: LOCATION[lang] ?? LOCATION.en,
@@ -146,7 +242,11 @@ export async function keywordSuggestions(
     include_seed_keyword: true,
     include_serp_info: false,
   }], opts.timeoutMs ?? 20_000);
-  return json ? parseLabsResponse(json) : null;
+  if (!call.ok) return { keywords: null, outcome: call };
+  // A 200 can still carry a failed task, so the task status is the real result.
+  const task = taskOutcome(call.json);
+  if (!task.ok) return { keywords: null, outcome: task };
+  return { keywords: parseLabsResponse(call.json), outcome: task };
 }
 
 /**
@@ -162,12 +262,13 @@ export async function keywordOverview(
 ): Promise<ScoredKeyword[] | null> {
   const list = keywords.map((k) => k.trim()).filter(Boolean).slice(0, 700);
   if (!list.length) return [];
-  const json = await labsCall('/v3/dataforseo_labs/google/keyword_overview/live', [{
+  const call = await labsCall('/v3/dataforseo_labs/google/keyword_overview/live', [{
     keywords: list,
     language_code: lang,
     location_code: LOCATION[lang] ?? LOCATION.en,
   }], opts.timeoutMs ?? 20_000);
-  return json ? parseLabsResponse(json) : null;
+  if (!call.ok) return null;
+  return parseLabsResponse(call.json);
 }
 
 /**
@@ -183,21 +284,27 @@ export async function gatherLabsDemand(
   lang: LangCode,
   opts: { perSeed?: number; concurrency?: number } = {},
 ): Promise<ScoredKeyword[] | null> {
-  if (!dataforseoConfigured() || !seeds.length) return null;
+  if (!seeds.length) return null;
+  if (!dataforseoConfigured()) {
+    console.warn(`[dataforseo] ${describeLabsOutcome({ ok: false, reason: 'not_configured', detail: '' })}`);
+    return null;
+  }
   const concurrency = Math.max(1, Math.min(opts.concurrency ?? 5, 25));
 
   const out = new Map<string, ScoredKeyword>();
+  const outcomes: LabsOutcome[] = [];
   let anySucceeded = false;
 
   for (let i = 0; i < seeds.length; i += concurrency) {
     const batch = seeds.slice(i, i + concurrency);
     const results = await Promise.all(
-      batch.map((s) => keywordSuggestions(s, lang, { limit: opts.perSeed ?? 200 })),
+      batch.map((s) => keywordSuggestionsDetailed(s, lang, { limit: opts.perSeed ?? 200 })),
     );
-    for (const r of results) {
-      if (r == null) continue;
+    for (const { keywords, outcome } of results) {
+      outcomes.push(outcome);
+      if (keywords == null) continue;
       anySucceeded = true;
-      for (const k of r) {
+      for (const k of keywords) {
         const key = k.keyword.toLowerCase();
         const prev = out.get(key);
         // Keep the richer record when the same phrase arrives from two seeds.
@@ -205,6 +312,12 @@ export async function gatherLabsDemand(
       }
     }
   }
+
+  // One line, always — a silent success is as hard to debug as a silent
+  // failure when the question is "did the paid source actually get used".
+  const summary = summarizeLabsOutcomes(outcomes);
+  if (anySucceeded) console.info(`[dataforseo] ${out.size} keywords from ${seeds.length} seeds — ${summary}`);
+  else console.warn(`[dataforseo] no keywords — ${summary}`);
 
   return anySucceeded ? [...out.values()] : null;
 }

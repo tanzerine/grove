@@ -351,9 +351,16 @@ export async function buildStrategy(input: BuildStrategyInput): Promise<Strategy
       // months, and it was neither — it was unusable seeds.
       console.warn(`[buildStrategy] no search demand captured from seeds: ${seeds.join(', ') || '(none)'}`);
     } else if (selection.unscorable === scored.length) {
-      // Not a failure, but the thing that keeps selection from being real.
-      console.warn(`[buildStrategy] ${scored.length} candidates carried no volume/difficulty ` +
-        `(source: autocomplete). Set DATAFORSEO_LOGIN/PASSWORD to screen on KD.`);
+      // Not a failure, but the thing that keeps selection from being real: with
+      // no volume and no difficulty there is nothing to rank on, so the plan is
+      // chosen the way it was before any of this existed.
+      //
+      // The CAUSE is logged by lib/keywords/dataforseo.ts immediately above this
+      // line — deliberately there rather than here, because only that module
+      // knows whether the credentials were missing, refused, or unreachable, and
+      // the first live run of this pipeline fell back with no way to tell which.
+      console.warn(`[buildStrategy] ${scored.length} candidates carried no volume/difficulty; ` +
+        `planning without keyword difficulty. See the [dataforseo] line above for why.`);
     }
   } catch { /* demand is best-effort signal */ }
 

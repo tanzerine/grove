@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { parseLabsItem, parseLabsResponse, dataforseoConfigured } from '../lib/keywords/dataforseo';
+import {
+  parseLabsItem, parseLabsResponse, dataforseoConfigured,
+  describeLabsOutcome, summarizeLabsOutcomes,
+} from '../lib/keywords/dataforseo';
 
 // Shaped from the documented Labs response. The parsing is tested rather than
 // the transport, because grove's sandboxes block dataforseo.com and a wrong
@@ -90,5 +93,59 @@ describe('dataforseoConfigured', () => {
     expect(dataforseoConfigured()).toBe(true);
     if (l === undefined) delete process.env.DATAFORSEO_LOGIN; else process.env.DATAFORSEO_LOGIN = l;
     if (p === undefined) delete process.env.DATAFORSEO_PASSWORD; else process.env.DATAFORSEO_PASSWORD = p;
+  });
+});
+
+describe('describeLabsOutcome', () => {
+  it('names the remedy for a missing configuration, not just the symptom', () => {
+    const msg = describeLabsOutcome({ ok: false, reason: 'not_configured', detail: 'missing DATAFORSEO_LOGIN' });
+    expect(msg).toMatch(/not set/i);
+    expect(msg).toMatch(/Production/);        // the Vercel checkbox that bit us
+    expect(msg).toMatch(/deploy/);            // vars only apply to later deploys
+  });
+
+  it('tells a 401 apart from a 403 — different credentials vs whitelist remedies', () => {
+    const msg = describeLabsOutcome({ ok: false, reason: 'http', detail: 'HTTP 401' });
+    expect(msg).toContain('401');
+    expect(msg).toMatch(/API password/);      // not the dashboard sign-in password
+    expect(msg).toMatch(/IP whitelist/);
+  });
+
+  it('reports a task failure that arrived inside a 200', () => {
+    const msg = describeLabsOutcome({ ok: false, reason: 'task', detail: '40501 invalid field' });
+    expect(msg).toContain('40501');
+    expect(msg).toMatch(/out of funds|malformed/);
+  });
+
+  it('reports an unreachable host distinctly from a rejected one', () => {
+    expect(describeLabsOutcome({ ok: false, reason: 'network', detail: 'fetch failed' }))
+      .toMatch(/could not reach/);
+  });
+
+  it('says ok when it worked', () => {
+    expect(describeLabsOutcome({ ok: true, json: {} })).toBe('ok');
+  });
+});
+
+describe('summarizeLabsOutcomes', () => {
+  it('collapses a wholly successful batch', () => {
+    expect(summarizeLabsOutcomes([{ ok: true, json: {} }, { ok: true, json: {} }])).toBe('ok (2/2)');
+  });
+
+  it('reports the first failure in full rather than thirty truncated ones', () => {
+    const out = summarizeLabsOutcomes([
+      { ok: true, json: {} },
+      { ok: false, reason: 'http', detail: 'HTTP 401' },
+      { ok: false, reason: 'http', detail: 'HTTP 401' },
+    ]);
+    expect(out).toContain('1/3 succeeded');
+    expect(out).toContain('401');
+  });
+
+  it('distinguishes "no calls made" from "every call failed"', () => {
+    // The whole point of the type: absence and refusal are different events.
+    expect(summarizeLabsOutcomes([])).toBe('no calls made');
+    expect(summarizeLabsOutcomes([{ ok: false, reason: 'not_configured', detail: '' }]))
+      .toMatch(/0\/1 succeeded/);
   });
 });
