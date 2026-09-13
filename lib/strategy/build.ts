@@ -23,6 +23,7 @@ import { buildCustomerProfile, icpSeeds, formatIcpForPrompt } from './icp';
 import { gatherLabsDemand } from '../keywords/dataforseo';
 import { selectKeywords, type ScoredKeyword } from '../keywords/opportunity';
 import { buildClusters, formatClustersForPrompt } from '../keywords/cluster';
+import { recordCandidates, excludedKeywords } from './candidate-store';
 import { monthlySlots } from '../plans';
 import type { MonthlyReport } from './review';
 import { language, strategyLanguageRule, type LangCode } from '../language';
@@ -151,6 +152,11 @@ export type BuildStrategyInput = {
   /** What the blog PUBLISHES in — pillar titles, slot titles and target
    *  keywords are handed to the writer verbatim, so they must be in it. */
   lang?: LangCode;
+  /** Enables the keyword ledger (keyword_candidates, 0041): every phrase
+   *  considered is recorded, and ones already planned or published are not
+   *  proposed again. Omit and planning behaves exactly as it did before the
+   *  table existed — the ledger is bookkeeping, never a dependency. */
+  domainId?: string;
   /** What the OWNER reads grove in — goals, promises and notes are addressed
    *  to them and never published. Defaults to `lang` when omitted, which is
    *  the common case (a Korean blog run from a Korean dashboard). */
@@ -225,7 +231,7 @@ export function digestReport(r: MonthlyReport): string {
 }
 
 export async function buildStrategy(input: BuildStrategyInput): Promise<Strategy> {
-  const { month, postsPerWeek, profile, interview, prevStrategy, prevReport, progressMd, alreadyCovered } = input;
+  const { month, postsPerWeek, profile, interview, prevStrategy, prevReport, progressMd, alreadyCovered, domainId } = input;
   // The cadence and the plan allowance set the size; the calendar sets the
   // ceiling. A plan built mid-month can only reach as far as the month still
   // goes, so it's pro-rated to the days left instead of promising articles that
@@ -300,6 +306,20 @@ export async function buildStrategy(input: BuildStrategyInput): Promise<Strategy
     // blog ends up writing "What Is <Product>?" for an audience that has never
     // heard of it.
     scored = scored.filter((k) => !isBrandTerm(k.keyword, profile.business.name));
+
+    // Write the ledger BEFORE selecting, so it records what was CONSIDERED and
+    // not merely what won. A pool of winners cannot answer "what did we keep
+    // passing over", which is half of why the table exists.
+    if (domainId) await recordCandidates(domainId, scored, { lang: pubLang.code });
+
+    // Don't re-propose what is already planned or published — two of our own
+    // pages splitting the signal for one query is cannibalisation, and it is
+    // invisible without this record. Rejections expire (see shouldExclude), so
+    // a keyword out of reach today comes back when the domain has grown into it.
+    if (domainId) {
+      const excluded = new Set((await excludedKeywords(domainId)).map((k) => k.toLowerCase()));
+      if (excluded.size) scored = scored.filter((k) => !excluded.has(k.keyword.toLowerCase()));
+    }
 
     // Arithmetic, not vibes: rank by expected impressions and cut what is out
     // of reach. With Autocomplete-only input every candidate is unscorable, so

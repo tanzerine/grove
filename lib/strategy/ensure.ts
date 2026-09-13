@@ -18,6 +18,7 @@
  */
 import { supabaseAdmin } from '../supabase/admin';
 import { buildStrategy, type Strategy } from './build';
+import { markPlanned } from './candidate-store';
 import { summarizeMonth } from './review';
 import { parseInterview } from './interview';
 import { getAgentContext, savePlanContext } from './context-store';
@@ -165,6 +166,7 @@ export async function ensureMonthlyStrategy(
   const monthlyQuota = domain.user_id ? (await getQuota(domain.user_id)).limit : null;
 
   const strategy = await buildStrategy({
+    domainId: domain.id,
     month: monthLabel,
     postsPerWeek: domain.posts_per_week ?? 4,
     monthlyQuota,
@@ -224,6 +226,27 @@ export async function ensureMonthlyStrategy(
         `${retryErr.message} (first attempt: ${insertErr.message})`,
       );
     }
+  }
+
+  // The keyword ledger (keyword_candidates, 0041): mark what this plan
+  // committed to, so next month does not propose the same targets and the
+  // backtest can trace candidate -> slot -> post -> the queries it earned.
+  //
+  // After the insert, because `strategy_id` does not exist until then, and via
+  // a lookup rather than by threading the id out of the insert — that path has
+  // a retry branch whose failure must stay loud, and changing its shape to
+  // carry an id back is not worth the risk to a bookkeeping write. Fail-soft:
+  // markPlanned swallows its own errors.
+  {
+    const { data: stored } = await sb
+      .from('strategies')
+      .select('id')
+      .eq('domain_id', domain.id)
+      .eq('month', monthDate)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    await markPlanned(domain.id, (stored as any)?.id ?? null, strategy.publishing_plan ?? []);
   }
 
   // Refresh the plan memo the chat + downstream prompts read — but only for the

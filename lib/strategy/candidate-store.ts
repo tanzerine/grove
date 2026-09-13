@@ -1,0 +1,236 @@
+/**
+ * Reads and writes for `keyword_candidates` (migration 0041).
+ *
+ * The table turns the planner's amnesia into a record: every keyword grove has
+ * considered for a domain, what each source could say about it, and what became
+ * of it. This module is the only thing that touches it, so the query shapes
+ * stay in one place — same split as lib/feedback.ts (vocabulary) and
+ * lib/feedback-store.ts (queries).
+ *
+ * FAIL-SOFT THROUGHOUT. Losing a month's candidate bookkeeping must never cost
+ * the month's plan: the planner is the product, this is the ledger. Every
+ * function swallows its errors and returns a neutral value, and callers are
+ * written so that a total outage here is indistinguishable from the behaviour
+ * before the table existed.
+ */
+import { supabaseAdmin } from '../supabase/admin';
+import type { ScoredKeyword } from '../keywords/opportunity';
+import type { LangCode } from '../language';
+
+/** A keyword already spoken for. Re-proposing these is churn, not planning. */
+export type Exclusion = { keyword: string; status: string };
+
+export type CandidateRow = {
+  domain_id: string;
+  keyword: string;
+  lang: LangCode;
+  source: string;
+  seed: string | null;
+  volume: number | null;
+  difficulty: number | null;
+  intent: string | null;
+  demand_score: number | null;
+  metrics_at: string | null;
+};
+
+/**
+ * Shape one candidate for the table.
+ *
+ * `metrics_at` is stamped only when a metric actually arrived. A row whose
+ * volume and difficulty are both null has not been measured, and dating it
+ * would make a never-measured keyword look freshly screened — which is exactly
+ * the signal `metrics_at` exists to carry (see 0041: rejection is a snapshot,
+ * and re-screening depends on knowing when the numbers are from).
+ */
+export function candidateRow(
+  domainId: string,
+  kw: ScoredKeyword,
+  lang: LangCode,
+  seed: string | null,
+  now: () => string = () => new Date().toISOString(),
+): CandidateRow {
+  const measured = kw.volume != null || kw.difficulty != null;
+  return {
+    domain_id: domainId,
+    keyword: kw.keyword.trim(),
+    lang,
+    source: kw.source === 'dataforseo' || kw.source === 'gsc' || kw.source === 'related' || kw.source === 'manual'
+      ? kw.source
+      : 'autocomplete',
+    seed,
+    volume: kw.volume,
+    difficulty: kw.difficulty,
+    intent: kw.intent,
+    demand_score: null,
+    metrics_at: measured ? now() : null,
+  };
+}
+
+/**
+ * Split incoming candidates against what the domain already has.
+ *
+ * Pure, so the decision is testable without a database — and it is a real
+ * decision: the table is unique on (domain_id, lower(keyword)), so an insert
+ * of something already present would be rejected, and blindly updating every
+ * row every month would destroy `first_seen`, the only column that says how
+ * long grove has been looking at a keyword.
+ */
+export function diffCandidates<T extends { keyword: string }>(
+  existing: Iterable<string>,
+  incoming: T[],
+): { toInsert: T[]; toTouch: string[] } {
+  const have = new Set([...existing].map((k) => k.toLowerCase()));
+  const seen = new Set<string>();
+  const toInsert: T[] = [];
+  const toTouch: string[] = [];
+
+  for (const c of incoming) {
+    const key = c.keyword.trim().toLowerCase();
+    if (!key || seen.has(key)) continue;   // the batch can repeat a phrase
+    seen.add(key);
+    if (have.has(key)) toTouch.push(c.keyword.trim());
+    else toInsert.push(c);
+  }
+  return { toInsert, toTouch };
+}
+
+/**
+ * Which previously-seen keywords this month should skip.
+ *
+ * `published` and `planned` are permanent: writing the same target twice is
+ * cannibalisation, where two of your own pages split the signal for one query.
+ *
+ * `rejected` is deliberately NOT permanent. Difficulty is a property of a
+ * keyword AND a domain, so a KD the site could not touch in month 1 is
+ * ordinary by month 18 — a permanent rejection list would quietly cap the
+ * blog at whatever its authority was on day one. A rejection expires with its
+ * metrics, and the keyword returns to the pool to be screened against the
+ * domain grove has now.
+ */
+export function shouldExclude(
+  row: { status: string; metrics_at: string | null },
+  now: Date,
+  rejectionTtlDays: number,
+): boolean {
+  if (row.status === 'published' || row.status === 'planned') return true;
+  if (row.status !== 'rejected') return false;
+  if (!row.metrics_at) return false;             // never measured — re-screen it
+  const age = (now.getTime() - new Date(row.metrics_at).getTime()) / 86_400_000;
+  return Number.isFinite(age) && age < rejectionTtlDays;
+}
+
+/** Record everything considered. Returns how many rows were new. */
+export async function recordCandidates(
+  domainId: string,
+  cands: ScoredKeyword[],
+  opts: { lang: LangCode; seed?: string | null },
+): Promise<number> {
+  if (!domainId || !cands.length) return 0;
+  try {
+    const sb = supabaseAdmin();
+    const { data } = await sb
+      .from('keyword_candidates')
+      .select('keyword')
+      .eq('domain_id', domainId);
+
+    const { toInsert, toTouch } = diffCandidates(
+      (data ?? []).map((r: any) => String(r.keyword ?? '')),
+      cands,
+    );
+
+    if (toInsert.length) {
+      // Chunked: a month's research can be several hundred rows and a single
+      // oversized request is the kind of thing that fails only in production.
+      for (let i = 0; i < toInsert.length; i += 200) {
+        const rows = toInsert.slice(i, i + 200).map((k) => candidateRow(domainId, k, opts.lang, opts.seed ?? null));
+        // A concurrent planner run can insert the same phrase between our read
+        // and our write. The unique index rejects it, which is correct; losing
+        // the rest of the chunk to that is not, so each chunk stands alone.
+        await sb.from('keyword_candidates').insert(rows);
+      }
+    }
+
+    if (toTouch.length) {
+      await sb
+        .from('keyword_candidates')
+        .update({ last_seen: new Date().toISOString() })
+        .eq('domain_id', domainId)
+        .in('keyword', toTouch.slice(0, 500));
+    }
+
+    return toInsert.length;
+  } catch {
+    return 0;   // the ledger is not worth the month's plan
+  }
+}
+
+/**
+ * Keywords this month must not propose again. [] on any failure, which reads
+ * as "nothing is excluded" — the pre-table behaviour.
+ */
+export async function excludedKeywords(
+  domainId: string,
+  opts: { rejectionTtlDays?: number } = {},
+): Promise<string[]> {
+  if (!domainId) return [];
+  const ttl = opts.rejectionTtlDays ?? 90;
+  try {
+    const sb = supabaseAdmin();
+    const { data } = await sb
+      .from('keyword_candidates')
+      .select('keyword, status, metrics_at')
+      .eq('domain_id', domainId)
+      .in('status', ['planned', 'published', 'rejected']);
+
+    const now = new Date();
+    return (data ?? [])
+      .filter((r: any) => shouldExclude({ status: String(r.status), metrics_at: r.metrics_at ?? null }, now, ttl))
+      .map((r: any) => String(r.keyword));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * After a plan is stored, mark the keywords it committed to.
+ *
+ * Runs from the caller that owns the strategy row, because `strategy_id` does
+ * not exist until that insert returns. Matching is case-insensitive via
+ * `ilike` to line up with the table's `lower(keyword)` uniqueness — a plain
+ * `eq` would miss a pillar the model title-cased on its way through the LLM.
+ */
+export async function markPlanned(
+  domainId: string,
+  strategyId: string | null,
+  slots: { id?: string; target_keyword?: string }[],
+): Promise<number> {
+  if (!domainId || !slots?.length) return 0;
+  let n = 0;
+  try {
+    const sb = supabaseAdmin();
+    const now = new Date().toISOString();
+    for (const slot of slots) {
+      const kw = (slot.target_keyword ?? '').trim();
+      if (!kw) continue;
+      const { error } = await sb
+        .from('keyword_candidates')
+        .update({ status: 'planned', strategy_id: strategyId, slot_id: slot.id ?? null, chosen_at: now })
+        .eq('domain_id', domainId)
+        .ilike('keyword', kw);
+      if (!error) n++;
+    }
+  } catch { /* the ledger is not worth the month's plan */ }
+  return n;
+}
+
+/** Promote a slot's keyword once its article actually published. */
+export async function markPublished(domainId: string, slotId: string, postId: string): Promise<void> {
+  if (!domainId || !slotId) return;
+  try {
+    await supabaseAdmin()
+      .from('keyword_candidates')
+      .update({ status: 'published', post_id: postId })
+      .eq('domain_id', domainId)
+      .eq('slot_id', slotId);
+  } catch { /* ledger only */ }
+}
