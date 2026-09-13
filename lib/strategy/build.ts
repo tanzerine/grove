@@ -19,7 +19,7 @@ import { assignPublishDates, slotsForRemainder } from './schedule';
 import { titleTokens } from '../related-posts';
 import { gatherKeywordDemand } from './keywords';
 import { searchSeeds, isBrandTerm, localizeSeeds } from './seeds';
-import { buildCustomerProfile, icpSeeds, formatIcpForPrompt } from './icp';
+import { buildCustomerProfile, icpSeeds, icpIsUsable, formatIcpForPrompt, type CustomerProfile } from './icp';
 import { gatherLabsDemand } from '../keywords/dataforseo';
 import { selectKeywords, type ScoredKeyword } from '../keywords/opportunity';
 import { buildClusters, formatClustersForPrompt } from '../keywords/cluster';
@@ -109,6 +109,14 @@ export type Strategy = {
    * "no" for every automated build until the budget bug in lib/llm was found.
    */
   planned_by?: string;
+  /**
+   * The customer this plan was built for (step 2 of the keyword strategy).
+   *
+   * Persisted to strategies.customer_profile so the dashboard can show the
+   * reader the strategist actually planned for. Absent when inference failed
+   * and the build fell back to the site profile's own description.
+   */
+  customer_profile?: CustomerProfile;
 };
 
 /**
@@ -545,6 +553,7 @@ ${langRule}` : ''}`;
   }
 
   strategy.planned_by = model;
+  if (icpIsUsable(icp)) strategy.customer_profile = icp;
   return strategy;
 }
 

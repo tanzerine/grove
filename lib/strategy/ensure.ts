@@ -247,6 +247,17 @@ export async function ensureMonthlyStrategy(
       .limit(1)
       .maybeSingle();
     await markPlanned(domain.id, (stored as any)?.id ?? null, strategy.publishing_plan ?? []);
+
+    // The customer profile the plan was built for (strategies.customer_profile,
+    // 0042). A separate update, not a column on the insert, for the same
+    // reason planned_by has a retry branch: a column that hasn't landed yet
+    // must cost the diagnostic, never the plan. Fail-soft.
+    if (strategy.customer_profile && (stored as any)?.id) {
+      await sb
+        .from('strategies')
+        .update({ customer_profile: strategy.customer_profile })
+        .eq('id', (stored as any).id);
+    }
   }
 
   // Refresh the plan memo the chat + downstream prompts read — but only for the

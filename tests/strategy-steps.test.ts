@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { strategySteps, interviewAnswered, STEP_KEYS, type StepsInput } from '@/lib/strategy/steps';
 import type { SiteProfile } from '@/lib/pipeline/site-profile';
 import type { Strategy } from '@/lib/strategy/build';
+import { opportunityScore } from '@/lib/keywords/opportunity';
 
 /**
  * The tracker's whole promise is that it never disagrees with the page under
@@ -50,6 +51,37 @@ const STRATEGY: Strategy = {
   ],
   notes: '',
 };
+
+/** The customer profile the plan was built for (lib/strategy/icp.ts). */
+const ICP = {
+  segments: [{ name: 'solo founder running a SaaS side project', situation: 'no marketing hire, ships on weekends' }],
+  jobs: ['get organic traffic without hiring writers'],
+  pains: ['blog has been empty for months', 'no time to write'],
+  triggers: ['a competitor started ranking'],
+  vocabulary: ['automate blog posts', 'blog automation tools', 'saas seo strategy'],
+  objections: ['ai content reads like ai content'],
+};
+
+/** keyword_candidates rows — the ledger the keepers were picked from. */
+const LEDGER = [
+  { keyword: 'automate blog posts', source: 'dataforseo', volume: 880, difficulty: 22, intent: 'informational', status: 'planned' },
+  { keyword: 'Best Blog Automation Tools', source: 'dataforseo', volume: 590, difficulty: 28, intent: 'commercial', status: 'planned' },
+  { keyword: 'saas seo strategy', source: 'dataforseo', volume: 1300, difficulty: 41, intent: 'informational', status: 'planned' },
+  { keyword: 'blog automation software', source: 'dataforseo', volume: 210, difficulty: 19, intent: 'commercial', status: 'new' },
+  { keyword: 'automated blogging', source: 'dataforseo', volume: 320, difficulty: 25, intent: 'informational', status: 'new' },
+  { keyword: 'how to automate a blog', source: 'autocomplete', volume: null, difficulty: null, intent: 'informational', status: 'new' },
+];
+
+/** A plan from measured demand: every slot carries its cluster. */
+const CLUSTERED: Strategy = {
+  ...STRATEGY,
+  customer_profile: ICP,
+  publishing_plan: [
+    { ...STRATEGY.publishing_plan[0], secondary_keywords: ['automated blogging', 'how to automate a blog'] },
+    { ...STRATEGY.publishing_plan[1], secondary_keywords: ['blog automation software'] },
+    { ...STRATEGY.publishing_plan[2], secondary_keywords: [] },
+  ],
+} as Strategy;
 
 const NOW = new Date('2026-09-12T12:00:00Z');
 
@@ -113,16 +145,18 @@ describe('a running plan', () => {
     expect(score.scored).toBe(false);   // no volume/difficulty provider yet
   });
 
-  it('draws one cluster per pillar with that pillar\'s keywords and dominant intent', () => {
+  it('falls back to one cluster per pillar for a plan from before clustering existed', () => {
     const m = strategySteps(input());
     const c = m.steps[4].facts;
     if (c?.kind !== 'cluster') throw new Error('no cluster facts');
+    expect(c.mode).toBe('pillar');
     expect(c.clusters).toHaveLength(2);
-    expect(c.clusters[0]).toMatchObject({ title: 'Blog automation', slots: 2, keywords: ['automate blog posts', 'best blog automation tools'] });
+    expect(c.clusters[0]).toMatchObject({ title: 'Blog automation', slots: 2, total: null });
+    expect(c.clusters[0].keywords.map((k) => k.keyword)).toEqual(['automate blog posts', 'best blog automation tools']);
     // p2 has one conversion slot and one contextual — a tie, broken by first
     // seen; what matters is that the dominant intent is one of its own.
     expect(['conversion', 'contextual']).toContain(c.clusters[1].intent);
-    expect(c.clusters[1].keywords).toEqual(['saas seo strategy', 'Best Blog Automation Tools']);
+    expect(c.clusters[1].keywords.map((k) => k.keyword)).toEqual(['saas seo strategy', 'Best Blog Automation Tools']);
   });
 
   it('profiles the reader from the answers, the crawl and the pillars', () => {
@@ -135,14 +169,87 @@ describe('a running plan', () => {
     expect(c.personas).toEqual([{ pillar: 'Blog automation', audience: 'Solo founders' }, { pillar: 'SEO for SaaS', audience: 'Growth marketers' }]);
   });
 
-  it('starts the brainstorm from head terms, never the brand', () => {
+  it('starts the brainstorm from the site\'s head terms when no customer profile is on file, never the brand', () => {
     const m = strategySteps(input());
     const b = m.steps[2].facts;
     if (b?.kind !== 'brainstorm') throw new Error('no brainstorm facts');
     expect(b.seeds.length).toBeGreaterThan(0);
     expect(b.seeds.some((s) => /grove/i.test(s))).toBe(false);
     expect(b.language).toBe('en');
+    expect(b.considered).toBe(0);
     expect(b.phrases).toEqual([]);
+  });
+});
+
+describe('a plan built from measured demand', () => {
+  const m = strategySteps(input({ strategy: CLUSTERED, candidates: LEDGER }));
+
+  it('shows the customer the strategist planned for', () => {
+    const c = m.steps[1].facts;
+    if (c?.kind !== 'customers') throw new Error('no customer facts');
+    expect(c.icp?.segments[0].name).toMatch(/solo founder/);
+    expect(c.icp?.vocabulary).toContain('automate blog posts');
+    expect(c.icp?.pains).toHaveLength(2);
+  });
+
+  it('seeds the brainstorm from the customer\'s words, and counts what the research found', () => {
+    const b = m.steps[2].facts;
+    if (b?.kind !== 'brainstorm') throw new Error('no brainstorm facts');
+    // icpSeeds: vocabulary first, narrowed by seedCandidates — the customer's
+    // phrases, not the site's product names.
+    expect(b.seeds[0]).toBe('automate blog posts');
+    expect(b.seeds.some((s) => /embed blog hosting/.test(s))).toBe(false);
+    expect(b.considered).toBe(6);
+    expect(b.bySource).toEqual([{ source: 'dataforseo', n: 5 }, { source: 'autocomplete', n: 1 }]);
+    // most-searched first, the unmeasured autocomplete phrase last
+    expect(b.phrases[0]).toMatchObject({ keyword: 'saas seo strategy', volume: 1300 });
+    expect(b.phrases[b.phrases.length - 1]).toMatchObject({ keyword: 'how to automate a blog', volume: null });
+  });
+
+  it('joins each kept keyword to its volume, difficulty and expected impressions', () => {
+    const sc = m.steps[3].facts;
+    if (sc?.kind !== 'score') throw new Error('no score facts');
+    expect(sc.scored).toBe(true);
+    expect(sc.considered).toBe(6);
+    const [a, b, c] = sc.keywords;
+    expect(a).toMatchObject({ keyword: 'automate blog posts', volume: 880, kd: 22, secondary: 2, source: 'dataforseo' });
+    // The arithmetic is lib/keywords/opportunity's, not re-derived here: KD 22
+    // sits inside the 30 ceiling's decay band, so expected impressions are a
+    // measured fraction of the 880 searches, not the whole number.
+    expect(a.score).toBe(opportunityScore({ keyword: a.keyword, volume: 880, difficulty: 22, intent: null, source: 'dataforseo' }));
+    expect(a.score).toBeLessThan(880);
+    // joined case-insensitively: the plan says lowercase, the ledger title-cased it
+    expect(b).toMatchObject({ keyword: 'best blog automation tools', volume: 590, kd: 28 });
+    // KD 41 is past the ceiling: expected impressions shrink, never fabricate
+    expect(c.kd).toBe(41);
+    expect(c.score).toBeLessThan(1300);
+    expect(c.score).toBeGreaterThan(0);
+  });
+
+  it('draws one cluster per article: the target, the phrases it also covers, and the whole prize', () => {
+    const c = m.steps[4].facts;
+    if (c?.kind !== 'cluster') throw new Error('no cluster facts');
+    expect(c.mode).toBe('article');
+    expect(c.clusters).toHaveLength(3);
+    expect(c.clusters[0]).toMatchObject({
+      title: 'automate blog posts', promise: 'How to automate a company blog', kd: 22, slots: 1,
+      // 880 + 320 + (unmeasured counts as 0, but the total is still measured)
+      total: 1200,
+    });
+    expect(c.clusters[0].keywords).toEqual([
+      { keyword: 'automated blogging', volume: 320 },
+      { keyword: 'how to automate a blog', volume: null },
+    ]);
+    // a cluster with no secondary phrases is still one article
+    expect(c.clusters[2]).toMatchObject({ title: 'saas seo strategy', keywords: [], total: 1300 });
+  });
+
+  it('a profile too thin to research from is not shown as the reader', () => {
+    const thin = { ...CLUSTERED, customer_profile: { segments: [], jobs: [], pains: [], triggers: [], vocabulary: ['x'], objections: [] } } as Strategy;
+    const t = strategySteps(input({ strategy: thin }));
+    const c = t.steps[1].facts;
+    if (c?.kind !== 'customers') throw new Error('no customer facts');
+    expect(c.icp).toBeNull();
   });
 });
 

@@ -3,18 +3,19 @@
  * publishing plan, as a model the dashboard can DRAW.
  *
  *   1. business    — read the site: what it sells, to whom, what's different
- *   2. customers   — profile the reader from the owner's answers + the site
+ *   2. customers   — the reader: segments, pains, their own words (icp.ts)
  *   3. brainstorm  — the phrases those readers would actually type
- *   4. score       — keep the phrases worth chasing (demand vs. difficulty)
- *   5. cluster     — group the keepers so every article supports the others
- *   6. schedule    — one article per keyword, drafted, gated, published
+ *   4. score       — keep the phrases worth chasing: volume vs. difficulty
+ *   5. cluster     — group the keepers so one article captures a whole topic
+ *   6. schedule    — one article per cluster, drafted, gated, published
  *
  * Why this exists: the strategy page showed the OUTPUT of the plan (pillars,
  * calendar, OKRs) and nothing about how it got there, and the feedback was
  * "I don't know what's going on or what I'm supposed to do". Both answers are
  * derived here from state the app already holds — the site profile, the
- * interview, the active strategy, the posts — so the tracker can never
- * disagree with the page below it. Nothing here calls the network.
+ * interview, the active strategy with the customer profile it was built for,
+ * the keyword ledger (keyword_candidates, 0041) and the posts — so the tracker
+ * can never disagree with the page below it. Nothing here calls the network.
  *
  * Every string a reader sees is rendered by the component; this file returns
  * keys and data only, so it can be unit-tested without a locale.
@@ -23,7 +24,9 @@ import type { SiteProfile } from '../pipeline/site-profile';
 import type { InterviewAnswers } from './interview';
 import type { Strategy, PostSlot } from './build';
 import { searchSeeds } from './seeds';
+import { icpSeeds, icpIsUsable, type CustomerProfile } from './icp';
 import { classifyIntent, type SearchIntent } from './keywords';
+import { opportunityScore, DEFAULT_KD_CEILING } from '../keywords/opportunity';
 import type { LangCode } from '../language';
 
 export type StepKey = 'business' | 'customers' | 'brainstorm' | 'score' | 'cluster' | 'schedule';
@@ -50,7 +53,7 @@ export type BusinessFacts = {
 
 export type CustomersFacts = {
   kind: 'customers';
-  /** What the crawl inferred about the reader. */
+  /** What the crawl inferred about the reader, in the seller's words. */
   inferred: string;
   /** The owner's own pick(s) — interview `audience_focus`, stored in English. */
   chosen: string[];
@@ -58,15 +61,27 @@ export type CustomersFacts = {
   kpi: string | null;
   /** One line per pillar: who it is written for. */
   personas: { pillar: string; audience: string }[];
+  /** Step 2 proper — the profile the strategist inferred and planned for. */
+  icp: {
+    segments: { name: string; situation: string }[];
+    pains: string[];
+    triggers: string[];
+    vocabulary: string[];
+    objections: string[];
+  } | null;
 };
 
 export type BrainstormFacts = {
   kind: 'brainstorm';
-  /** The head terms the research starts from — derived from the profile. */
+  /** The head terms the research expands from — the customer's words when
+   *  a profile exists, the site's products otherwise (build.ts, step 3). */
   seeds: string[];
   language: LangCode;
-  /** Real phrases people search, when the build's research is on file. */
-  phrases: { keyword: string; intent: SearchIntent }[];
+  /** Every phrase the research has turned up for this domain, and where from. */
+  considered: number;
+  bySource: { source: string; n: number }[];
+  /** The most-searched of them — volume descending, unmeasured last. */
+  phrases: { keyword: string; volume: number | null; source: string }[];
 };
 
 export type KeywordRow = {
@@ -75,30 +90,52 @@ export type KeywordRow = {
   /** The article it was chosen for. */
   topic: string;
   pillarId: string;
-  /** Monthly searches, when a keyword data provider has scored it. */
-  volume?: number | null;
+  /** Monthly searches, when the ledger measured it. */
+  volume: number | null;
   /** Keyword difficulty 0–100, same condition. */
-  kd?: number | null;
+  kd: number | null;
+  /** Estimated monthly impressions: volume × the chance this site ranks
+   *  (lib/keywords/opportunity). Null when unmeasured. */
+  score: number | null;
+  source: string | null;
+  /** Secondary phrases the same article also targets. */
+  secondary: number;
 };
 
 export type ScoreFacts = {
   kind: 'score';
   keywords: KeywordRow[];
-  /** True when at least one row carries volume or difficulty. */
+  /** True when at least one kept keyword carries volume or difficulty. */
   scored: boolean;
+  /** Phrases on the ledger for this domain — what the keepers were picked from. */
+  considered: number;
+  /** The KD a site of this age is planned against. */
+  ceiling: number;
 };
 
 export type ClusterCard = {
   id: string;
+  pillarId: string;
+  /** Article mode: the target keyword. Pillar mode: the pillar's title. */
   title: string;
+  /** Article mode: the article's topic. Pillar mode: the pillar's promise. */
   promise: string;
-  keywords: string[];
+  /** Article mode: the secondary phrases. Pillar mode: the pillar's targets. */
+  keywords: { keyword: string; volume: number | null }[];
   slots: number;
-  /** Dominant funnel intent across its slots. */
   intent: PostSlot['intent'];
+  kd: number | null;
+  /** Σ volume across the cluster — the size of the prize one article can reach. */
+  total: number | null;
 };
 
-export type ClusterFacts = { kind: 'cluster'; clusters: ClusterCard[] };
+export type ClusterFacts = {
+  kind: 'cluster';
+  /** `article` once slots carry secondary keywords (plans built from measured
+   *  demand); `pillar` for plans from before clustering existed. */
+  mode: 'article' | 'pillar';
+  clusters: ClusterCard[];
+};
 
 export type ScheduleFacts = {
   kind: 'schedule';
@@ -140,22 +177,33 @@ export type StepsPost = {
   scheduled_at?: string | null;
 };
 
+/** A keyword_candidates row, as much of it as the tracker reads. */
+export type StepsCandidate = {
+  keyword: string;
+  source: string;
+  volume: number | null;
+  difficulty: number | null;
+  intent: string | null;
+  status: string;
+};
+
 export type StepsInput = {
   profile: SiteProfile | null | undefined;
   interview: InterviewAnswers | null | undefined;
   verified: boolean;
-  strategy: Strategy | null | undefined;
+  strategy: (Strategy & { customer_profile?: CustomerProfile | null }) | null | undefined;
   posts: StepsPost[];
+  /** The keyword ledger for this domain (keyword_candidates). */
+  candidates?: StepsCandidate[];
   lang: LangCode;
   /** The active plan is for a month that has ended (see rollover.planIsStale). */
   stale?: boolean;
-  /** Persisted research from the build, when a strategy row carries it. */
-  research?: { phrases?: { keyword: string; intent: SearchIntent }[] } | null;
   now?: Date;
 };
 
 const asList = (v: unknown): string[] => (Array.isArray(v) ? v.map(String).filter(Boolean) : []);
 const asText = (v: unknown): string | null => (typeof v === 'string' && v.trim() ? v.trim() : null);
+const norm = (s: string) => s.trim().toLowerCase();
 
 /** An interview counts once any question has an answer. */
 export function interviewAnswered(answers: InterviewAnswers | null | undefined): boolean {
@@ -180,7 +228,8 @@ function businessFacts(profile: SiteProfile): BusinessFacts {
 function customersFacts(
   profile: SiteProfile | null | undefined,
   interview: InterviewAnswers | null | undefined,
-  strategy: Strategy | null | undefined,
+  strategy: StepsInput['strategy'],
+  icp: CustomerProfile | null,
 ): CustomersFacts {
   return {
     kind: 'customers',
@@ -192,34 +241,136 @@ function customersFacts(
       .filter((p) => p.audience)
       .slice(0, 4)
       .map((p) => ({ pillar: p.title, audience: p.audience })),
+    icp: icp
+      ? {
+          segments: icp.segments.slice(0, 4),
+          pains: icp.pains.slice(0, 6),
+          triggers: icp.triggers.slice(0, 4),
+          vocabulary: icp.vocabulary.slice(0, 12),
+          objections: icp.objections.slice(0, 4),
+        }
+      : null,
   };
 }
 
-/** Distinct target keywords across the plan, in calendar order. */
-function keywordRows(strategy: Strategy, lang: LangCode): KeywordRow[] {
+/** The ledger keyed by lowercase phrase, for the joins below. */
+function ledger(candidates: StepsCandidate[]): Map<string, StepsCandidate> {
+  const m = new Map<string, StepsCandidate>();
+  for (const c of candidates) {
+    const k = norm(c.keyword);
+    if (k && !m.has(k)) m.set(k, c);
+  }
+  return m;
+}
+
+const byVolume = (a: { volume: number | null }, b: { volume: number | null }) => {
+  if (a.volume == null && b.volume == null) return 0;
+  if (a.volume == null) return 1;
+  if (b.volume == null) return -1;
+  return b.volume - a.volume;
+};
+
+function brainstormFacts(
+  profile: SiteProfile | null | undefined,
+  icp: CustomerProfile | null,
+  candidates: StepsCandidate[],
+  lang: LangCode,
+): BrainstormFacts {
+  // The same precedence build.ts uses: the customer's vocabulary when a
+  // profile exists, the site's own products otherwise.
+  const seeds = icpIsUsable(icp)
+    ? icpSeeds(icp, { limit: 8, brand: profile?.business?.name })
+    : searchSeeds(profile, { limit: 8 });
+  const counts = new Map<string, number>();
+  for (const c of candidates) counts.set(c.source, (counts.get(c.source) ?? 0) + 1);
+  const bySource = [...counts.entries()].map(([source, n]) => ({ source, n })).sort((a, b) => b.n - a.n);
+  const phrases = [...candidates]
+    .sort(byVolume)
+    .slice(0, 24)
+    .map((c) => ({ keyword: c.keyword, volume: c.volume, source: c.source }));
+  return { kind: 'brainstorm', seeds, language: lang, considered: candidates.length, bySource, phrases };
+}
+
+/** Distinct target keywords across the plan, in calendar order, joined to the ledger. */
+function keywordRows(strategy: Strategy, lang: LangCode, book: Map<string, StepsCandidate>): KeywordRow[] {
   const seen = new Set<string>();
   const rows: KeywordRow[] = [];
   for (const slot of strategy.publishing_plan ?? []) {
     const kw = slot.target_keyword?.trim();
     if (!kw) continue;
-    const key = kw.toLowerCase();
+    const key = norm(kw);
     if (seen.has(key)) continue;
     seen.add(key);
-    rows.push({ keyword: kw, intent: classifyIntent(kw, lang), topic: slot.topic, pillarId: slot.pillar_id });
+    const c = book.get(key);
+    const measured = c && (c.volume != null || c.difficulty != null);
+    rows.push({
+      keyword: kw,
+      intent: classifyIntent(kw, lang),
+      topic: slot.topic,
+      pillarId: slot.pillar_id,
+      volume: c?.volume ?? null,
+      kd: c?.difficulty ?? null,
+      score: measured
+        ? opportunityScore({ keyword: kw, volume: c.volume, difficulty: c.difficulty, intent: null, source: c.source })
+        : null,
+      source: c?.source ?? null,
+      secondary: slot.secondary_keywords?.length ?? 0,
+    });
   }
   return rows;
 }
 
-function clusterCards(strategy: Strategy): ClusterCard[] {
+function clusterFacts(strategy: Strategy, book: Map<string, StepsCandidate>): ClusterFacts {
   const plan = strategy.publishing_plan ?? [];
-  return (strategy.pillars ?? []).map((p) => {
+  const volumeOf = (kw: string) => book.get(norm(kw))?.volume ?? null;
+  const sum = (vals: (number | null)[]): number | null =>
+    vals.some((v) => v != null) ? vals.reduce<number>((s, v) => s + (v ?? 0), 0) : null;
+
+  // Article mode: a plan built from measured demand carries each slot's
+  // cluster on the slot itself — the target is the pillar keyword, the
+  // secondary phrases are the rest of the cluster the same page satisfies.
+  if (plan.some((s) => (s.secondary_keywords?.length ?? 0) > 0)) {
+    const clusters = plan
+      .filter((s) => s.target_keyword?.trim())
+      .map((s) => {
+        const target = s.target_keyword!.trim();
+        const members = (s.secondary_keywords ?? []).map((k) => ({ keyword: k, volume: volumeOf(k) }));
+        return {
+          id: s.id,
+          pillarId: s.pillar_id,
+          title: target,
+          promise: s.topic,
+          keywords: members,
+          slots: 1,
+          intent: s.intent,
+          kd: book.get(norm(target))?.difficulty ?? null,
+          total: sum([volumeOf(target), ...members.map((m) => m.volume)]),
+        };
+      });
+    return { kind: 'cluster', mode: 'article', clusters };
+  }
+
+  // Pillar mode: before clustering existed, a pillar is the only grouping the
+  // plan has — its slots' target keywords are the cluster.
+  const clusters = (strategy.pillars ?? []).map((p) => {
     const slots = plan.filter((s) => s.pillar_id === p.id);
     const counts = new Map<PostSlot['intent'], number>();
     for (const s of slots) counts.set(s.intent, (counts.get(s.intent) ?? 0) + 1);
     const intent = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'contextual';
-    const keywords = [...new Set(slots.map((s) => s.target_keyword?.trim()).filter((k): k is string => !!k))];
-    return { id: p.id, title: p.title, promise: p.promise ?? '', keywords, slots: slots.length, intent };
+    const kws = [...new Set(slots.map((s) => s.target_keyword?.trim()).filter((k): k is string => !!k))];
+    return {
+      id: p.id,
+      pillarId: p.id,
+      title: p.title,
+      promise: p.promise ?? '',
+      keywords: kws.map((k) => ({ keyword: k, volume: volumeOf(k) })),
+      slots: slots.length,
+      intent,
+      kd: null,
+      total: sum(kws.map(volumeOf)),
+    };
   });
+  return { kind: 'cluster', mode: 'pillar', clusters };
 }
 
 const WORKING = new Set(['queued', 'researching', 'writing']);
@@ -261,9 +412,12 @@ function scheduleFacts(strategy: Strategy, posts: StepsPost[], now: Date): Sched
 export function strategySteps(input: StepsInput): StepsModel {
   const { profile, interview, verified, strategy, posts, lang } = input;
   const now = input.now ?? new Date();
+  const candidates = input.candidates ?? [];
+  const book = ledger(candidates);
   const hasProfile = !!profile?.business?.name;
   const answered = interviewAnswered(interview);
   const hasPlan = !!strategy && (strategy.pillars?.length ?? 0) + (strategy.publishing_plan?.length ?? 0) > 0;
+  const icp = hasPlan && strategy?.customer_profile && icpIsUsable(strategy.customer_profile) ? strategy.customer_profile : null;
   const stale = !!input.stale;
 
   // 1 — the crawl. It runs the moment the owner answers the interview on a
@@ -280,7 +434,7 @@ export function strategySteps(input: StepsInput): StepsModel {
   const customers: Step = {
     key: 'customers', n: 2,
     state: answered || hasPlan ? 'done' : verified ? 'needs_you' : 'pending',
-    facts: answered || hasPlan || hasProfile ? customersFacts(profile, interview, strategy) : null,
+    facts: answered || hasPlan || hasProfile ? customersFacts(profile, interview, strategy, icp) : null,
   };
 
   // 3 — research. Once the answers are in on a verified domain, the strategist
@@ -291,27 +445,28 @@ export function strategySteps(input: StepsInput): StepsModel {
   const brainstorm: Step = {
     key: 'brainstorm', n: 3,
     state: hasPlan && !stale ? 'done' : canBuild ? (stale ? 'needs_you' : 'active') : 'pending',
-    facts: hasProfile || hasPlan
-      ? {
-          kind: 'brainstorm',
-          seeds: searchSeeds(profile, { limit: 8 }),
-          language: lang,
-          phrases: (input.research?.phrases ?? []).slice(0, 36),
-        }
-      : null,
+    facts: hasProfile || hasPlan ? brainstormFacts(profile, icp, candidates, lang) : null,
   };
 
-  const rows = strategy && hasPlan ? keywordRows(strategy, lang) : [];
+  const rows = strategy && hasPlan ? keywordRows(strategy, lang, book) : [];
   const score: Step = {
     key: 'score', n: 4,
     state: hasPlan ? 'done' : 'pending',
-    facts: hasPlan ? { kind: 'score', keywords: rows, scored: rows.some((r) => r.volume != null || r.kd != null) } : null,
+    facts: hasPlan
+      ? {
+          kind: 'score',
+          keywords: rows,
+          scored: rows.some((r) => r.volume != null || r.kd != null),
+          considered: candidates.length,
+          ceiling: DEFAULT_KD_CEILING,
+        }
+      : null,
   };
 
   const cluster: Step = {
     key: 'cluster', n: 5,
     state: hasPlan && (strategy?.pillars?.length ?? 0) > 0 ? 'done' : 'pending',
-    facts: strategy && hasPlan ? { kind: 'cluster', clusters: clusterCards(strategy) } : null,
+    facts: strategy && hasPlan ? clusterFacts(strategy, book) : null,
   };
 
   // 6 — the month itself. Finished only when every slot is live; until then

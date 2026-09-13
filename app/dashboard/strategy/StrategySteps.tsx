@@ -55,9 +55,10 @@ function railSummary(step: Step, t: ReturnType<typeof useT>): string {
       return f.inferred || t('Inferred from your site');
     case 'brainstorm': {
       const seeds = f.seeds.length === 1 ? t('1 starting term') : t('{n} starting terms', { n: f.seeds.length });
-      return f.phrases.length ? `${seeds} · ${t('{n} phrases found', { n: f.phrases.length })}` : seeds;
+      return f.considered ? `${seeds} · ${t('{n} phrases found', { n: f.considered })}` : seeds;
     }
     case 'score':
+      if (f.considered) return t('{kept} kept of {n}', { kept: f.keywords.length, n: f.considered });
       return f.keywords.length === 1 ? t('1 keyword kept') : t('{n} keywords kept', { n: f.keywords.length });
     case 'cluster':
       return f.clusters.length === 1 ? t('1 cluster') : t('{n} clusters', { n: f.clusters.length });

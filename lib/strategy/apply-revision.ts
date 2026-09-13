@@ -117,6 +117,13 @@ export async function applyPlanRevision(opts: {
   if (inserted?.id) {
     await admin.from('posts').update({ strategy_id: inserted.id })
       .eq('strategy_id', strategyRow.id);
+    // The reader the month was planned for doesn't change because the owner
+    // reshuffled slots — carry it forward. Fail-soft: the column is 0042.
+    if (strategyRow.customer_profile) {
+      await admin.from('strategies')
+        .update({ customer_profile: strategyRow.customer_profile })
+        .eq('id', inserted.id);
+    }
   }
 
   await savePlanContext(domainId, outcome.strategy, opts.hostname);
