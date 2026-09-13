@@ -268,6 +268,14 @@ export async function buildStrategy(input: BuildStrategyInput): Promise<Strategy
   // The profile is written in English whatever the blog publishes in, so for a
   // non-English blog the seeds are localized first — otherwise the research is
   // real but aimed at the wrong market. No-ops (and costs nothing) for English.
+  // Everything between here and the strategist's own call — the customer
+  // profile, the DataForSEO fan-out, the ledger writes — is wall clock the
+  // model ladder no longer has. It is subtracted below, the same way
+  // ensureMonthlyStrategy subtracts its own DB work before handing the budget
+  // down: the ladder's guarantee (it never overruns the function ceiling)
+  // only holds if the number it is given is what is actually LEFT.
+  const researchStartedAt = Date.now();
+
   // ── STEP 2: who the customer is ─────────────────────────────────────────
   // Before deciding what to write, decide who for. The site profile describes
   // the BUSINESS in the seller's words; nobody searches in the seller's words.
@@ -282,6 +290,11 @@ export async function buildStrategy(input: BuildStrategyInput): Promise<Strategy
   // product category exists. The profile-derived seeds remain the fallback,
   // not the default.
   const fromIcp = icpSeeds(icp, { limit: 8, brand: profile.business.name });
+  if (!fromIcp.length) {
+    // The degraded path. It is where the industry-label plans come from, and
+    // it used to be taken in silence.
+    console.warn(`[buildStrategy] no customer profile for ${profile.business.name} — seeding research from the site profile instead`);
+  }
   const seeds = await localizeSeeds(
     fromIcp.length ? fromIcp : searchSeeds(profile, { limit: 8 }),
     pubLang.code,
@@ -542,7 +555,10 @@ WHICH LANGUAGE EACH FIELD TAKES
 
 ${langRule}` : ''}`;
 
-  const { text, model } = await strategyLlmCall({ system, user, maxTokens: PLAN_MAX_TOKENS, budgetMs: input.budgetMs });
+  const { text, model } = await strategyLlmCall({
+    system, user, maxTokens: PLAN_MAX_TOKENS,
+    budgetMs: input.budgetMs == null ? undefined : Math.max(0, input.budgetMs - (Date.now() - researchStartedAt)),
+  });
   const parsed = extractJson<Strategy>(text);
 
   const strategy = normalizeStrategy(parsed, { month, source, maxSlots: monthlyPostCount, postsPerWeek });

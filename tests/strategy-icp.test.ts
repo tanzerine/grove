@@ -108,3 +108,57 @@ describe('formatIcpForPrompt', () => {
     expect(out).toContain('their words: blog automation, write faster');
   });
 });
+
+/**
+ * The inference itself. Mocked at the model boundary: what matters here is
+ * that a failure degrades to EMPTY and SAYS SO — the first production build
+ * with this step took the silent fallback and planned from the industry label.
+ */
+vi.mock('../lib/llm', () => ({
+  llmCall: vi.fn(),
+  extractJson: (text: string) => JSON.parse(text),
+}));
+import { vi, afterEach } from 'vitest';
+import { llmCall } from '../lib/llm';
+import { buildCustomerProfile } from '../lib/strategy/icp';
+
+const BIZ = { business: {
+  name: 'Grove', industry: 'AI Marketing Software / B2B SaaS', description: 'x',
+  products_services: ['Autonomous AI blog writing'], target_audience: 'founders', value_props: [], geography: 'global',
+} } as any;
+
+describe('buildCustomerProfile', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('asks the workhorse model, not the fast one, and normalizes what comes back', async () => {
+    vi.mocked(llmCall).mockResolvedValueOnce({
+      text: JSON.stringify({ segments: [{ name: 'solo founder', situation: 'no marketing hire' }], jobs: ['get traffic'], pains: ['blog is empty'], vocabulary: ['automate blog posts'], triggers: [], objections: [] }),
+      usage: {} as any,
+    });
+    const icp = await buildCustomerProfile(BIZ, 'en');
+    expect(icp.segments[0].name).toBe('solo founder');
+    expect(icp.vocabulary).toEqual(['automate blog posts']);
+    // Language command first in the USER prompt, and a real ceiling — not the
+    // fast helper's fixed 30s.
+    const call = vi.mocked(llmCall).mock.calls[0][0];
+    expect(call.timeoutMs).toBeGreaterThanOrEqual(60_000);
+    expect(call.user.indexOf('Grove')).toBeGreaterThan(0);
+  });
+
+  it('degrades a failed call to an empty profile and warns, rather than failing the month', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.mocked(llmCall).mockRejectedValueOnce(new Error('Replicate prediction failed: boom'));
+    const icp = await buildCustomerProfile(BIZ, 'en');
+    expect(icp.vocabulary).toEqual([]);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0][0])).toMatch(/inference failed for Grove.*boom/);
+  });
+
+  it('warns when the profile is too thin to research from', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.mocked(llmCall).mockResolvedValueOnce({ text: JSON.stringify({ vocabulary: ['one'] }), usage: {} as any });
+    const icp = await buildCustomerProfile(BIZ, 'en');
+    expect(icp.vocabulary).toEqual(['one']);
+    expect(String(warn.mock.calls[0][0])).toMatch(/too thin/);
+  });
+});
