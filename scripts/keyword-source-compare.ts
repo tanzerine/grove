@@ -291,19 +291,46 @@ ${'━'.repeat(72)}`);
 
     let dfs: Candidate[] | null = null;
     if (!baselineOnly) {
-      try {
-        const per = await Promise.all(
-          seeds.map((s) => dfsKeywordSuggestions(s, lang, Math.ceil(limit / seeds.length))),
-        );
-        const seen = new Set<string>();
-        dfs = per.flat().filter((c) => {
+      // PER-SEED tolerance, not Promise.all. The first version rejected the
+      // whole language when any one seed threw, which discarded results that
+      // had already been fetched AND PAID FOR — a real run came back "2 tasks,
+      // 26 results, $0.0271" while reporting nothing but the failure. Partial
+      // data is the normal state while an account is being provisioned, and it
+      // is exactly when you most want to see what DID come back.
+      // lib/keywords/dataforseo.ts already works this way; this now matches it.
+      const settled = await Promise.allSettled(
+        seeds.map((s) => dfsKeywordSuggestions(s, lang, Math.ceil(limit / seeds.length))),
+      );
+
+      const seen = new Set<string>();
+      const got: Candidate[] = [];
+      const failures: string[] = [];
+      settled.forEach((r, i) => {
+        if (r.status === 'rejected') {
+          failures.push(`${seeds[i]}: ${String(r.reason?.message ?? r.reason).slice(0, 160)}`);
+          return;
+        }
+        for (const c of r.value) {
           const k = c.keyword.toLowerCase().trim();
-          if (seen.has(k)) return false;
+          if (seen.has(k)) continue;
           seen.add(k);
-          return true;
-        });
-      } catch (e) {
-        console.log(`\n  ⚠ DataForSEO failed: ${(e as Error).message}`);
+          got.push(c);
+        }
+      });
+
+      if (failures.length) {
+        console.log(`\n  ⚠ ${failures.length}/${seeds.length} seeds failed:`);
+        for (const f of failures) console.log(`      ${f}`);
+      }
+      // null still means "nothing came back at all", so the report can keep
+      // saying "no comparison" rather than drawing a chart from zero rows.
+      if (got.length) {
+        dfs = got;
+        if (failures.length) {
+          console.log(`    ${got.length} keywords DID come back from ` +
+            `${seeds.length - failures.length}/${seeds.length} seeds — comparing on those.`);
+        }
+      } else {
         console.log(`    Autocomplete baseline below is still valid.`);
       }
     }
