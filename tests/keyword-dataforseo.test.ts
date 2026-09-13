@@ -181,3 +181,23 @@ describe('credentialShapeWarning', () => {
     expect(credentialShapeWarning(LOGIN, '')).toBeNull();
   });
 });
+
+describe('describeLabsOutcome — the API\'s own words win', () => {
+  it('passes DataForSEO\'s status_message through without adding a contradicting guess', () => {
+    // 40104 arrives as a 403. Our generic advice blames an IP whitelist, which
+    // is wrong and would send someone to the firewall instead of the account
+    // verification page.
+    const msg = describeLabsOutcome({
+      ok: false, reason: 'http',
+      detail: 'HTTP 403 — 40104 Please verify your account before using the API.',
+    });
+    expect(msg).toContain('40104');
+    expect(msg).toContain('verify your account');
+    expect(msg).not.toMatch(/IP whitelist/);
+  });
+
+  it('still offers the generic advice when the body said nothing useful', () => {
+    const msg = describeLabsOutcome({ ok: false, reason: 'http', detail: 'HTTP 502' });
+    expect(msg).toMatch(/IP whitelist|API password/);
+  });
+});

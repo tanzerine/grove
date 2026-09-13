@@ -144,9 +144,13 @@ export function describeLabsOutcome(o: LabsOutcome): string {
         process.env.DATAFORSEO_LOGIN ?? '', process.env.DATAFORSEO_PASSWORD ?? '',
       );
       if (shape) return `DataForSEO returned ${o.detail} — ${shape}`;
-      return `DataForSEO returned ${o.detail} — a 401 means the API password ` +
+      // When their body already named the problem, adding our guess can only
+      // contradict it. 40104 ("verify your account") arrives as a 403, which
+      // our own advice would have blamed on an IP whitelist.
+      if (/\d{5}\s+\S/.test(o.detail)) return `DataForSEO returned ${o.detail}`;
+      return `DataForSEO returned ${o.detail} — a 401 usually means the API password ` +
              '(from the API CREDENTIALS block, not the dashboard sign-in password); ' +
-             'a 403 often means the account\'s IP whitelist excludes this host';
+             'a 403 can mean the account\'s IP whitelist excludes this host';
     }
     case 'task':
       return `DataForSEO accepted the request but the task failed: ${o.detail} — ` +
@@ -229,8 +233,23 @@ async function labsCall(path: string, body: unknown[], timeoutMs: number): Promi
     if (!res.ok) {
       // The body often names the real problem where the status alone does not.
       // Bounded, because an error page can be enormous and this reaches logs.
+      // DataForSEO answers a rejected request with a STRUCTURED body whose
+      // status_message is more precise than anything inferable from the HTTP
+      // status: 403 alone reads as a firewall or an IP whitelist, while 40104
+      // means only that the account has not been verified yet. Prefer their
+      // sentence over ours; fall back to a bounded raw slice when it is not
+      // JSON (an upstream proxy's HTML error page, say).
       let hint = '';
-      try { hint = (await res.text()).slice(0, 200).replace(/\s+/g, ' ').trim(); } catch { /* body already consumed */ }
+      try {
+        const body = await res.text();
+        try {
+          const j = JSON.parse(body);
+          const code = j?.status_code;
+          const msg = typeof j?.status_message === 'string' ? j.status_message.trim() : '';
+          hint = msg ? `${code ?? ''} ${msg}`.trim() : '';
+        } catch { /* not JSON */ }
+        if (!hint) hint = body.slice(0, 200).replace(/\s+/g, ' ').trim();
+      } catch { /* body already consumed */ }
       return { ok: false, reason: 'http', detail: `HTTP ${res.status}${hint ? ` — ${hint}` : ''}` };
     }
     return { ok: true, json: await res.json() };
