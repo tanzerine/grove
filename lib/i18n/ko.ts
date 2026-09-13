@@ -350,27 +350,14 @@ export const KO: Record<string, string> = {
 
   /* ── strategy ────────────────────────────────────────────────────────── */
   'the monthly plan your agent works from': '에이전트가 따라 움직이는 이번 달 계획',
-  'Plan out of date': '계획이 오래되었습니다',
-  'Verify this domain and the strategist can draft it.': '도메인을 인증하면 전략가가 계획을 세웁니다.',
   'North star': '핵심 목표',
   'Open the pipeline': '파이프라인 열기',
   'Edit goals': '목표 수정',
   'Objective & key results': '목표와 핵심 결과',
-  'How grove will execute': 'grove가 실행하는 방식',
-  'The tools the agent runs to ship this plan': '이 계획을 실행하기 위해 에이전트가 사용하는 도구',
   'Connect a domain first.': '먼저 도메인을 연결해 주세요.',
-  'No strategy yet.': '아직 전략이 없습니다.',
   'Planned this month': '이번 달 계획',
   'Content pillars': '콘텐츠 축',
   'Estimated output': '예상 발행량',
-  'Edit intent': '방향 수정',
-  'Answer 5 questions →': '5가지 질문에 답하기 →',
-  'Verify that you own this domain and the strategist will draft this month’s plan.':
-    '도메인 소유를 인증하면 전략가가 이번 달 계획을 세웁니다.',
-  'Your answers are saved — the strategist just hasn’t drafted the plan yet. Build it now, it takes about a minute.':
-    '답변은 저장되어 있습니다. 아직 계획만 세우지 않았어요. 지금 만들면 1분 정도 걸립니다.',
-  'Answer a few questions and the strategist will draft this month’s plan.':
-    '몇 가지 질문에 답하면 전략가가 이번 달 계획을 세웁니다.',
   'Live SERP research': '실시간 검색 결과 조사',
   'Writer': '작가',
   'Manager': '관리자',
@@ -384,6 +371,141 @@ export const KO: Record<string, string> = {
     '자체 수집한 지표로 계획을 평가하고 다음 달을 조정합니다.',
   'Nothing new ships this week — existing posts keep earning.':
     '이번 주에 새로 나가는 글은 없습니다. 기존 글이 계속 일합니다.',
+
+  /* ── strategy: the six-step tracker (StrategySteps / StepPanel) ──────── */
+  'How your plan is built': '계획이 만들어지는 과정',
+  'Six steps from your site to a publishing calendar. Click any step to see what it produced.':
+    '사이트에서 발행 일정까지 여섯 단계. 단계를 누르면 그 단계의 결과가 보입니다.',
+  'Your move': '지금 하실 일',
+  'step {n}': '{n}단계',
+  'Step {n} of 6': '6단계 중 {n}단계',
+  'In progress': '진행 중',
+  'Needs you': '확인 필요',
+  'Up next': '다음 순서',
+  'Running now': '지금 진행 중',
+  'Not started': '시작 전',
+  'Waiting on you|step': '확인이 필요해요',
+  // step names — short (stepper, rail) and full (panel heading)
+  'Your business': '내 비즈니스',
+  'Read your business': '비즈니스 파악',
+  'grove reads your site and notes what you sell, who it is for and what sets it apart.':
+    'grove가 사이트를 읽고 무엇을 파는지, 누구를 위한 것인지, 무엇이 다른지 정리합니다.',
+  'Your customers': '내 고객',
+  'Profile your customers': '고객 프로필 파악',
+  'From your answers and your site, grove sketches the reader every article is written for.':
+    '답변과 사이트를 바탕으로 모든 글이 향할 독자를 그립니다.',
+  'Keyword ideas': '키워드 아이디어',
+  'Brainstorm what they search': '고객이 검색할 말 찾기',
+  'grove lists the phrases those customers would actually type into a search engine.':
+    '그 고객이 검색창에 실제로 입력할 만한 문구를 모읍니다.',
+  'Score keywords': '키워드 평가',
+  'Pick the keywords worth chasing': '노려볼 키워드 고르기',
+  'Each phrase is weighed on how many people search it against how hard it is to rank, and only the best are kept.':
+    '문구마다 검색량과 상위 노출 난이도를 견주어 가장 유망한 것만 남깁니다.',
+  'Clusters': '클러스터',
+  'Build keyword clusters': '키워드 클러스터 만들기',
+  'The keepers are grouped into clusters, so every article backs up the others and the site earns authority on the whole topic.':
+    '남은 키워드를 클러스터로 묶습니다. 글끼리 서로를 받쳐 주어 주제 전체에서 신뢰도를 쌓게 됩니다.',
+  'Write & schedule': '작성과 일정',
+  'Write and schedule the content': '콘텐츠 작성과 발행 일정',
+  'One article per keyword: drafted in your voice, checked by the manager, published on the calendar.':
+    '키워드마다 글 한 편. 브랜드 목소리로 쓰고, 관리자가 검토하고, 일정에 맞춰 발행합니다.',
+  // headline — where things stand
+  'Verify your domain and grove starts reading it.': '도메인을 인증하면 grove가 사이트를 읽기 시작합니다.',
+  'Five quick questions, then grove profiles your customers.': '짧은 질문 다섯 개에 답하면 grove가 고객 프로필을 그립니다.',
+  '{month}’s plan has run its course. {next} hasn’t been researched yet.':
+    '{month} 계획은 끝났습니다. {next} 계획은 아직 조사하지 않았어요.',
+  'grove is researching what your customers search for.': 'grove가 고객이 무엇을 검색하는지 조사하고 있어요.',
+  'Every article planned for {month} is live. Next month’s plan builds itself.':
+    '{month}에 계획한 글이 모두 발행되었습니다. 다음 달 계획은 자동으로 만들어져요.',
+  'Step 6 of 6 — grove is writing and publishing {month}’s articles.':
+    '6단계 중 6단계 — grove가 {month} 글을 쓰고 발행하고 있어요.',
+  'Step {n} of 6 — {title}.': '6단계 중 {n}단계 — {title}.',
+  // your move
+  'Verify your domain': '도메인 인증',
+  'A DNS record or a file upload proves it’s yours. grove reads the site right after.':
+    'DNS 레코드나 파일 업로드로 소유를 증명하면 grove가 바로 사이트를 읽습니다.',
+  'Verify domain': '도메인 인증하기',
+  'Answer 5 questions': '5가지 질문에 답하기',
+  'Who your customers are and what the blog should do for you — about two minutes.':
+    '고객이 누구인지, 블로그가 무엇을 해야 하는지 — 2분 정도 걸립니다.',
+  'Build this month’s plan': '이번 달 계획 만들기',
+  'Your answers are in. The strategist takes about a minute, and retries on its own every hour.':
+    '답변은 들어왔습니다. 전략가가 1분 정도 걸리고, 매시간 알아서 다시 시도합니다.',
+  'Build the plan now →': '지금 계획 만들기 →',
+  'Build this month’s plan →': '이번 달 계획 만들기 →',
+  'Planning your month…': '이번 달 계획을 세우는 중…',
+  'Build {month}’s plan': '{month} 계획 만들기',
+  'The plan below is {month}’s. This usually rebuilds itself within the hour; build it now if you’d rather not wait.':
+    '아래 계획은 {month} 것입니다. 보통 한 시간 안에 알아서 다시 만들어지지만, 기다리기 싫다면 지금 만드세요.',
+  'Review 1 draft': '초안 1편 검토',
+  'Review {n} drafts': '초안 {n}편 검토',
+  'They publish as soon as you approve them.': '승인하는 즉시 발행됩니다.',
+  'Nothing needed from you': '지금 하실 일은 없어요',
+  'grove publishes on schedule. Next article:': 'grove가 일정대로 발행합니다. 다음 글:',
+  'grove publishes on schedule and reports back here.': 'grove가 일정대로 발행하고 결과를 여기에 보고합니다.',
+  'Change the plan in chat': '대화로 계획 수정',
+  // rail summaries
+  'Inferred from your site': '사이트에서 추정',
+  '1 starting term': '출발 용어 1개',
+  '{n} starting terms': '출발 용어 {n}개',
+  '{n} phrases found': '문구 {n}개 발견',
+  '1 keyword kept': '키워드 1개 선정',
+  '{n} keywords kept': '키워드 {n}개 선정',
+  '1 cluster': '클러스터 1개',
+  '{n} clusters': '클러스터 {n}개',
+  '{live} of {total} live': '{total}편 중 {live}편 발행',
+  // panels
+  'Starts after step {n}.': '{n}단계가 끝나면 시작됩니다.',
+  'grove is working on this now.': 'grove가 지금 이 단계를 진행하고 있어요.',
+  'Not started yet.': '아직 시작하지 않았습니다.',
+  'Found': '확인됨',
+  'What you sell': '판매하는 것',
+  'What sets you apart': '차별점',
+  '1 page read': '1페이지 읽음',
+  '{n} pages read': '{n}페이지 읽음',
+  'Who you asked us to write for': '글을 써 달라고 하신 대상',
+  'Who your site speaks to': '사이트가 말을 거는 대상',
+  'What the blog must do': '블로그의 역할',
+  'The number to move': '움직일 지표',
+  'The reader of each cluster': '클러스터별 독자',
+  'Nothing on file yet.': '아직 기록이 없습니다.',
+  'Your answers outrank what the crawl inferred whenever the two disagree.':
+    '둘이 다를 때는 크롤링 추정보다 직접 답하신 내용이 우선합니다.',
+  'Where the research starts': '조사의 출발점',
+  'No head terms yet — they come from what your site sells.': '아직 핵심 용어가 없습니다. 사이트가 파는 것에서 뽑아냅니다.',
+  'grove asks the search engine what people type after each of these, in {lang}, and keeps the suggestions in the order searchers use them. The brand name is left out on purpose: nobody searches for a product they have not heard of.':
+    'grove는 이 용어들 뒤에 사람들이 무엇을 이어서 입력하는지 검색엔진에 {lang}로 물어보고, 검색되는 순서 그대로 제안을 보관합니다. 브랜드명은 일부러 뺍니다. 들어 본 적 없는 제품을 검색하는 사람은 없으니까요.',
+  'English': '영어',
+  'Korean': '한국어',
+  'Spanish': '스페인어',
+  'Chinese': '중국어',
+  'Informational': '정보형',
+  'Commercial': '상업형',
+  'Transactional': '거래형',
+  'Navigational': '탐색형',
+  'The plan has no target keywords yet.': '계획에 아직 타깃 키워드가 없습니다.',
+  'Keyword': '키워드',
+  'Intent': '의도',
+  'Searches / mo': '월 검색량',
+  'KD': 'KD',
+  'Article': '글',
+  'Searches per month and keyword difficulty (KD, 0–100) come from live keyword data. One keyword per article, so two pages never compete for the same query.':
+    '월 검색량과 키워드 난이도(KD, 0–100)는 실시간 키워드 데이터에서 가져옵니다. 글 한 편에 키워드 하나씩이라 두 페이지가 같은 검색어를 두고 경쟁하지 않습니다.',
+  'Ranked by live search demand — the order a search engine suggests them in. One keyword per article, so two pages never compete for the same query.':
+    '실시간 검색 수요, 즉 검색엔진이 제안하는 순서로 정렬했습니다. 글 한 편에 키워드 하나씩이라 두 페이지가 같은 검색어를 두고 경쟁하지 않습니다.',
+  'No clusters yet.': '아직 클러스터가 없습니다.',
+  '1 article': '글 1편',
+  '{n} articles': '글 {n}편',
+  '1 keyword': '키워드 1개',
+  '{n} keywords': '키워드 {n}개',
+  'A cluster is one topic seen from several searches. Articles in it link to each other, which is how a new site earns authority faster than one-off posts can.':
+    '클러스터는 여러 검색어로 바라본 하나의 주제입니다. 안의 글들이 서로 링크되어, 낱개 글보다 훨씬 빨리 새 사이트의 신뢰도를 쌓습니다.',
+  'of {n} articles live': '/ {n}편 발행 완료',
+  'Next article': '다음 글',
+  'Everything planned is live': '계획한 글이 모두 발행되었습니다',
+  'How each article gets made': '글 한 편이 만들어지는 과정',
+  'Watch it run in the pipeline': '파이프라인에서 진행 보기',
 
   /* ── calendar ────────────────────────────────────────────────────────── */
   'Reschedule': '일정 변경',
@@ -876,7 +998,6 @@ export const KO: Record<string, string> = {
   'not set up': '설정되지 않음',
   'now drive 24% of all clicks — up from 4% a quarter ago.': '지금은 전체 클릭의 24%를 차지합니다. 한 분기 전에는 4%였어요.',
   'on /blog': '/blog 에서',
-  'or change your answers first': '또는 답변을 먼저 수정하세요',
   'or type another subdomain — you’ll add one DNS record either way.':
     '또는 다른 서브도메인을 입력하세요. 어느 쪽이든 DNS 레코드 하나만 추가하면 됩니다.',
   'position · clicks': '순위 · 클릭',
@@ -944,8 +1065,6 @@ export const KO: Record<string, string> = {
   'Today · {date}': '오늘 · {date}',
   'Publish “{title}”': '“{title}” 발행',
   'Tracked by Analytics': '분석으로 측정',
-  'You’re looking at your {month} plan. {current} hasn’t been built yet.':
-    '지금 보고 계신 것은 {month} 계획입니다. {current} 계획은 아직 만들어지지 않았어요.',
   'Build {month}’s plan →': '{month} 계획 만들기 →',
   '{posts} posts mapped across {pillars} pillars — approve changes any time in the chat below.':
     '{pillars}개 축에 {posts}편을 배치했습니다. 아래 대화에서 언제든 수정할 수 있어요.',
