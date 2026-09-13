@@ -102,10 +102,118 @@ export function parseLabsResponse(json: any): ScoredKeyword[] | null {
   return items.map(parseLabsItem).filter((k: ScoredKeyword | null): k is ScoredKeyword => !!k);
 }
 
-async function labsCall(path: string, body: unknown[], timeoutMs: number): Promise<any | null> {
+/**
+ * Why a Labs call did or did not produce keywords.
+ *
+ * This type exists because of a failure this module actually shipped. Every
+ * path returned a bare `null`, so "the credentials are not set" and "the API
+ * rejected us" were indistinguishable — and when grove's first live plan fell
+ * back to autocomplete, nothing anywhere could say which it had been. That is
+ * precisely the confusion lib/strategy/seeds.ts spent a paragraph on ("an
+ * empty demand list looked identical to a network failure for months"), and
+ * the fix there was the same as the fix here: make the distinction a value,
+ * not an inference.
+ *
+ * `reason` is what a human needs to act on, and each one has a different
+ * remedy: not_configured is a Vercel env-var scope, http is credentials or an
+ * IP whitelist, task is a malformed request or an out-of-funds account, and
+ * network is the egress path.
+ */
+export type LabsOutcome =
+  | { ok: true; json: any }
+  | { ok: false; reason: 'not_configured' | 'http' | 'task' | 'network'; detail: string };
+
+/**
+ * One log line that names the remedy, not just the symptom.
+ *
+ * Pure, so the message a future operator reads at 2am is unit-tested rather
+ * than composed in an untested catch block.
+ */
+export function describeLabsOutcome(o: LabsOutcome): string {
+  if (o.ok) return 'ok';
+  switch (o.reason) {
+    case 'not_configured':
+      return 'DATAFORSEO_LOGIN/DATAFORSEO_PASSWORD not set in this runtime — ' +
+             'check the vars are scoped to this environment (Production is a separate checkbox) ' +
+             'and that a deploy has happened since they were set';
+    case 'http': {
+      // A 401 has three plausible causes and they are not equally likely; the
+      // double-encoded token is checked first because it is the one that looks
+      // like correct credentials to the person who set it.
+      const shape = credentialShapeWarning(
+        process.env.DATAFORSEO_LOGIN ?? '', process.env.DATAFORSEO_PASSWORD ?? '',
+      );
+      if (shape) return `DataForSEO returned ${o.detail} — ${shape}`;
+      // When their body already named the problem, adding our guess can only
+      // contradict it. 40104 ("verify your account") arrives as a 403, which
+      // our own advice would have blamed on an IP whitelist.
+      if (/\d{5}\s+\S/.test(o.detail)) return `DataForSEO returned ${o.detail}`;
+      return `DataForSEO returned ${o.detail} — a 401 usually means the API password ` +
+             '(from the API CREDENTIALS block, not the dashboard sign-in password); ' +
+             'a 403 can mean the account\'s IP whitelist excludes this host';
+    }
+    case 'task':
+      return `DataForSEO accepted the request but the task failed: ${o.detail} — ` +
+             'usually a malformed field or an account out of funds';
+    case 'network':
+      return `could not reach DataForSEO: ${o.detail} — egress or timeout`;
+  }
+}
+
+/**
+ * Catch the credential mix-up that cost grove its first live run.
+ *
+ * DataForSEO's dashboard shows the raw login and password AND a ready-made
+ * `Authorization: Basic <token>` example, where the token is
+ * base64("login:password"). Pasting that token into the password field looks
+ * entirely plausible — it is long, opaque and sits next to the thing you want.
+ * The client then base64s it a second time together with the login, and the
+ * API answers 40100 "not authorized", which reads as wrong credentials rather
+ * than as double-encoded ones.
+ *
+ * Detected by decoding: if the password is base64 whose plaintext starts with
+ * this very login followed by a colon, it is the token, not the password.
+ * Deliberately narrow — it must match the configured login — so an ordinary
+ * password that happens to be base64-shaped never trips it.
+ *
+ * Pure, and returns null when there is nothing to say.
+ */
+export function credentialShapeWarning(login: string, password: string): string | null {
+  if (!login || !password) return null;
+  if (password.length < 16 || !/^[A-Za-z0-9+/]+={0,2}$/.test(password)) return null;
+  let decoded: string;
+  try {
+    decoded = Buffer.from(password, 'base64').toString('utf8');
+  } catch {
+    return null;
+  }
+  const [maybeLogin, ...rest] = decoded.split(':');
+  if (!rest.length || maybeLogin.toLowerCase() !== login.toLowerCase()) return null;
+  return 'DATAFORSEO_PASSWORD looks like the base64 "Authorization: Basic" TOKEN ' +
+         '(it decodes to your own login + ":" + password), not the password itself. ' +
+         'Use the API password from the API CREDENTIALS block on its own — this client ' +
+         'does the base64 encoding for you, so passing the token double-encodes it.';
+}
+
+/** Collapse a batch into one line, so a 30-seed run logs once rather than 30 times. */
+export function summarizeLabsOutcomes(outcomes: LabsOutcome[]): string {
+  if (!outcomes.length) return 'no calls made';
+  const ok = outcomes.filter((o) => o.ok).length;
+  if (ok === outcomes.length) return `ok (${ok}/${outcomes.length})`;
+  // Report the first failure in full: in practice a batch fails the same way
+  // every time, and one actionable sentence beats thirty truncated ones.
+  const first = outcomes.find((o) => !o.ok)!;
+  return `${ok}/${outcomes.length} succeeded — ${describeLabsOutcome(first)}`;
+}
+
+async function labsCall(path: string, body: unknown[], timeoutMs: number): Promise<LabsOutcome> {
   const login = process.env.DATAFORSEO_LOGIN;
   const password = process.env.DATAFORSEO_PASSWORD;
-  if (!login || !password) return null;
+  if (!login || !password) {
+    const missing = [!login && 'DATAFORSEO_LOGIN', !password && 'DATAFORSEO_PASSWORD']
+      .filter(Boolean).join(' + ');
+    return { ok: false, reason: 'not_configured', detail: `missing ${missing}` };
+  }
 
   // The sandbox echoes fixtures rather than data. Useful for wiring, useless
   // for planning — so it is opt-in and never the default.
@@ -122,11 +230,47 @@ async function labsCall(path: string, body: unknown[], timeoutMs: number): Promi
       body: JSON.stringify(body),
     });
     clearTimeout(t);
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
-    return null;
+    if (!res.ok) {
+      // The body often names the real problem where the status alone does not.
+      // Bounded, because an error page can be enormous and this reaches logs.
+      // DataForSEO answers a rejected request with a STRUCTURED body whose
+      // status_message is more precise than anything inferable from the HTTP
+      // status: 403 alone reads as a firewall or an IP whitelist, while 40104
+      // means only that the account has not been verified yet. Prefer their
+      // sentence over ours; fall back to a bounded raw slice when it is not
+      // JSON (an upstream proxy's HTML error page, say).
+      let hint = '';
+      try {
+        const body = await res.text();
+        try {
+          const j = JSON.parse(body);
+          const code = j?.status_code;
+          const msg = typeof j?.status_message === 'string' ? j.status_message.trim() : '';
+          hint = msg ? `${code ?? ''} ${msg}`.trim() : '';
+        } catch { /* not JSON */ }
+        if (!hint) hint = body.slice(0, 200).replace(/\s+/g, ' ').trim();
+      } catch { /* body already consumed */ }
+      return { ok: false, reason: 'http', detail: `HTTP ${res.status}${hint ? ` — ${hint}` : ''}` };
+    }
+    return { ok: true, json: await res.json() };
+  } catch (e) {
+    return { ok: false, reason: 'network', detail: String((e as Error)?.message ?? e) };
   }
+}
+
+/**
+ * Read the per-task status DataForSEO reports INSIDE a 200 response.
+ *
+ * Separate from the HTTP check because a failed task arrives with HTTP 200,
+ * so `res.ok` alone would report success for a request that returned nothing.
+ */
+function taskOutcome(json: any): LabsOutcome {
+  const task = json?.tasks?.[0];
+  if (!task) return { ok: false, reason: 'task', detail: 'no task in response' };
+  if (typeof task.status_code === 'number' && task.status_code !== 20000) {
+    return { ok: false, reason: 'task', detail: `${task.status_code} ${task.status_message ?? ''}`.trim() };
+  }
+  return { ok: true, json };
 }
 
 /**
@@ -138,7 +282,21 @@ export async function keywordSuggestions(
   lang: LangCode,
   opts: { limit?: number; timeoutMs?: number } = {},
 ): Promise<ScoredKeyword[] | null> {
-  const json = await labsCall('/v3/dataforseo_labs/google/keyword_suggestions/live', [{
+  const { keywords } = await keywordSuggestionsDetailed(seed, lang, opts);
+  return keywords;
+}
+
+/**
+ * The same call, but it also says WHY when it comes back empty. The planner
+ * uses this one so a fallback to autocomplete can be logged with its cause
+ * instead of appearing as an unexplained absence of demand.
+ */
+export async function keywordSuggestionsDetailed(
+  seed: string,
+  lang: LangCode,
+  opts: { limit?: number; timeoutMs?: number } = {},
+): Promise<{ keywords: ScoredKeyword[] | null; outcome: LabsOutcome }> {
+  const call = await labsCall('/v3/dataforseo_labs/google/keyword_suggestions/live', [{
     keyword: seed,
     language_code: lang,
     location_code: LOCATION[lang] ?? LOCATION.en,
@@ -146,7 +304,11 @@ export async function keywordSuggestions(
     include_seed_keyword: true,
     include_serp_info: false,
   }], opts.timeoutMs ?? 20_000);
-  return json ? parseLabsResponse(json) : null;
+  if (!call.ok) return { keywords: null, outcome: call };
+  // A 200 can still carry a failed task, so the task status is the real result.
+  const task = taskOutcome(call.json);
+  if (!task.ok) return { keywords: null, outcome: task };
+  return { keywords: parseLabsResponse(call.json), outcome: task };
 }
 
 /**
@@ -162,12 +324,13 @@ export async function keywordOverview(
 ): Promise<ScoredKeyword[] | null> {
   const list = keywords.map((k) => k.trim()).filter(Boolean).slice(0, 700);
   if (!list.length) return [];
-  const json = await labsCall('/v3/dataforseo_labs/google/keyword_overview/live', [{
+  const call = await labsCall('/v3/dataforseo_labs/google/keyword_overview/live', [{
     keywords: list,
     language_code: lang,
     location_code: LOCATION[lang] ?? LOCATION.en,
   }], opts.timeoutMs ?? 20_000);
-  return json ? parseLabsResponse(json) : null;
+  if (!call.ok) return null;
+  return parseLabsResponse(call.json);
 }
 
 /**
@@ -183,21 +346,27 @@ export async function gatherLabsDemand(
   lang: LangCode,
   opts: { perSeed?: number; concurrency?: number } = {},
 ): Promise<ScoredKeyword[] | null> {
-  if (!dataforseoConfigured() || !seeds.length) return null;
+  if (!seeds.length) return null;
+  if (!dataforseoConfigured()) {
+    console.warn(`[dataforseo] ${describeLabsOutcome({ ok: false, reason: 'not_configured', detail: '' })}`);
+    return null;
+  }
   const concurrency = Math.max(1, Math.min(opts.concurrency ?? 5, 25));
 
   const out = new Map<string, ScoredKeyword>();
+  const outcomes: LabsOutcome[] = [];
   let anySucceeded = false;
 
   for (let i = 0; i < seeds.length; i += concurrency) {
     const batch = seeds.slice(i, i + concurrency);
     const results = await Promise.all(
-      batch.map((s) => keywordSuggestions(s, lang, { limit: opts.perSeed ?? 200 })),
+      batch.map((s) => keywordSuggestionsDetailed(s, lang, { limit: opts.perSeed ?? 200 })),
     );
-    for (const r of results) {
-      if (r == null) continue;
+    for (const { keywords, outcome } of results) {
+      outcomes.push(outcome);
+      if (keywords == null) continue;
       anySucceeded = true;
-      for (const k of r) {
+      for (const k of keywords) {
         const key = k.keyword.toLowerCase();
         const prev = out.get(key);
         // Keep the richer record when the same phrase arrives from two seeds.
@@ -205,6 +374,12 @@ export async function gatherLabsDemand(
       }
     }
   }
+
+  // One line, always — a silent success is as hard to debug as a silent
+  // failure when the question is "did the paid source actually get used".
+  const summary = summarizeLabsOutcomes(outcomes);
+  if (anySucceeded) console.info(`[dataforseo] ${out.size} keywords from ${seeds.length} seeds — ${summary}`);
+  else console.warn(`[dataforseo] no keywords — ${summary}`);
 
   return anySucceeded ? [...out.values()] : null;
 }

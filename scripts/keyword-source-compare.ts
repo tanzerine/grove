@@ -74,8 +74,23 @@ function lengthOf(phrase: string, lang: LangCode): number {
     : phrase.trim().split(/\s+/).filter(Boolean).length;
 }
 
-/** Buckets chosen around the measured Autocomplete ceiling (4 words / ~8 CJK
- *  chars). "long tail" is the bucket that decides this comparison. */
+/**
+ * Buckets around the Autocomplete ceiling seeds.ts measured (4 words / ~8 CJK
+ * chars).
+ *
+ * THIS IS NOT THE DECIDING METRIC, and the first version of this script said it
+ * was. The hypothesis was that Labs would reach a long tail Autocomplete cannot,
+ * because keyword_suggestions expands "within" a seed and Autocomplete only
+ * completes a prefix. Measured on real data, the opposite is true — Autocomplete
+ * returned MORE long-tail phrases in both languages (en 45% vs 22%, ko 18% vs
+ * 0%). Phrase length was the wrong proxy.
+ *
+ * What actually separates the sources is below: how many candidates are WINNABLE
+ * (a real volume against a difficulty this domain can beat), and whether the
+ * source can say so at all. Autocomplete supplies neither number, so every one
+ * of its candidates is unscorable no matter how long the phrase is. Kept here
+ * because the distribution is still worth seeing — just not worth deciding on.
+ */
 function bucketOf(n: number, lang: LangCode): string {
   const cjk = language(lang).script === 'cjk';
   const [mid, long] = cjk ? [8, 14] : [3, 5];
@@ -206,7 +221,7 @@ function report(lang: LangCode, auto: Candidate[], dfs: Candidate[] | null) {
     console.log(`\n${name} — ${t} candidates`);
     console.log(`  head      ${String(d.head).padStart(4)}  ${pct(d.head, t)}`);
     console.log(`  mid       ${String(d.mid).padStart(4)}  ${pct(d.mid, t)}`);
-    console.log(`  long tail ${String(d['long tail']).padStart(4)}  ${pct(d['long tail'], t)}   ← the bucket that decides this`);
+    console.log(`  long tail ${String(d['long tail']).padStart(4)}  ${pct(d['long tail'], t)}`);
   }
 
   if (!dfs) {
@@ -228,7 +243,7 @@ function report(lang: LangCode, auto: Candidate[], dfs: Candidate[] | null) {
   const scored = dfs.filter((c) => c.kd != null && c.volume != null);
   if (scored.length) {
     const winnable = scored.filter((c) => (c.kd ?? 100) <= 30 && (c.volume ?? 0) >= 100);
-    console.log(`\nWinnable (KD ≤ 30 and volume ≥ 100)`);
+    console.log(`\nWinnable (KD ≤ 30 and volume ≥ 100)   ← the number that decides this`);
     console.log(`  ${winnable.length}/${scored.length} scored candidates  ${pct(winnable.length, scored.length)}`);
     const inAuto = winnable.filter((c) => autoSet.has(c.keyword.toLowerCase().trim())).length;
     console.log(`  of those, autocomplete already had  ${inAuto}/${winnable.length}`);
@@ -291,19 +306,46 @@ ${'━'.repeat(72)}`);
 
     let dfs: Candidate[] | null = null;
     if (!baselineOnly) {
-      try {
-        const per = await Promise.all(
-          seeds.map((s) => dfsKeywordSuggestions(s, lang, Math.ceil(limit / seeds.length))),
-        );
-        const seen = new Set<string>();
-        dfs = per.flat().filter((c) => {
+      // PER-SEED tolerance, not Promise.all. The first version rejected the
+      // whole language when any one seed threw, which discarded results that
+      // had already been fetched AND PAID FOR — a real run came back "2 tasks,
+      // 26 results, $0.0271" while reporting nothing but the failure. Partial
+      // data is the normal state while an account is being provisioned, and it
+      // is exactly when you most want to see what DID come back.
+      // lib/keywords/dataforseo.ts already works this way; this now matches it.
+      const settled = await Promise.allSettled(
+        seeds.map((s) => dfsKeywordSuggestions(s, lang, Math.ceil(limit / seeds.length))),
+      );
+
+      const seen = new Set<string>();
+      const got: Candidate[] = [];
+      const failures: string[] = [];
+      settled.forEach((r, i) => {
+        if (r.status === 'rejected') {
+          failures.push(`${seeds[i]}: ${String(r.reason?.message ?? r.reason).slice(0, 160)}`);
+          return;
+        }
+        for (const c of r.value) {
           const k = c.keyword.toLowerCase().trim();
-          if (seen.has(k)) return false;
+          if (seen.has(k)) continue;
           seen.add(k);
-          return true;
-        });
-      } catch (e) {
-        console.log(`\n  ⚠ DataForSEO failed: ${(e as Error).message}`);
+          got.push(c);
+        }
+      });
+
+      if (failures.length) {
+        console.log(`\n  ⚠ ${failures.length}/${seeds.length} seeds failed:`);
+        for (const f of failures) console.log(`      ${f}`);
+      }
+      // null still means "nothing came back at all", so the report can keep
+      // saying "no comparison" rather than drawing a chart from zero rows.
+      if (got.length) {
+        dfs = got;
+        if (failures.length) {
+          console.log(`    ${got.length} keywords DID come back from ` +
+            `${seeds.length - failures.length}/${seeds.length} seeds — comparing on those.`);
+        }
+      } else {
         console.log(`    Autocomplete baseline below is still valid.`);
       }
     }
