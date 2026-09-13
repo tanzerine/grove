@@ -187,6 +187,19 @@ export async function gatherQuestions(
 }
 
 /** Render demand into a compact, prompt-friendly block grouped by intent. */
+/**
+ * @deprecated Superseded by `formatClustersForPrompt` (lib/keywords/cluster.ts)
+ * and no longer called by the planner.
+ *
+ * It is the reason that function exists: this one received keywords carrying a
+ * computed demand score and emitted a bare comma-separated list, so the model
+ * chose on semantic plausibility with no idea which phrase had ten times the
+ * demand of another. Numbers computed and then withheld are worse than numbers
+ * never computed — they make a guess look like a data-driven plan.
+ *
+ * Kept only so the shape is available if a caller ever needs a flat list; do
+ * not reach for it in the planning path.
+ */
 export function formatDemandForPrompt(ideas: KeywordIdea[]): string {
   if (!ideas.length) return '(none captured — plan from the business profile)';
   const byIntent: Record<SearchIntent, string[]> = {

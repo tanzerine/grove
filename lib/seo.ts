@@ -128,6 +128,36 @@ export function servedBlogBaseFor(domain: CanonicalFields | null | undefined): s
   return host ? `https://${host}` : null;
 }
 
+/**
+ * The base every in-blog link hangs off — "Keep reading" cards, the all-articles
+ * link, injected internal links.
+ *
+ * Decided by the DOMAIN ROW, never by the request's Host header, and that is the
+ * point. The three blog routes each read `headers()` to work out whether they
+ * were served on a blog host or on /b/{slug}, and a single `headers()` call in a
+ * layout opts its whole subtree into dynamic rendering. Article pages were
+ * therefore rendered from scratch on every request — `cache-control: private,
+ * no-cache, no-store` and `x-vercel-cache: MISS` on repeat hits, ~800ms TTFB,
+ * every Googlebot fetch an origin render. The `revalidate` this file's callers
+ * assume they get has never applied to them.
+ *
+ * A domain has at most one blog host and the row says which, so the answer was
+ * always derivable without the request. When there is one the links are
+ * absolute and point at it — which also means the unadvertised /b/{slug} copy on
+ * the app origin links onward to the canonical surface instead of deeper into
+ * itself. Without one the base stays relative, so previews and localhost keep
+ * linking to themselves rather than to production.
+ */
+export function blogLinkBase(
+  domain: CanonicalFields | null | undefined,
+  blogSlug: string,
+): string {
+  const served = servedBlogBaseFor(domain);
+  if (served) return served;
+  const root = blogRootDomain();
+  return root ? `https://${blogSlug}.${root}` : `/b/${blogSlug}`;
+}
+
 /** True when the request's Host header is this domain's CNAME'd blog hostname
  *  (page is being served on the customer's own origin → root-relative links). */
 export function isCustomBlogHost(host: string | null | undefined, domain: CanonicalFields | null | undefined): boolean {

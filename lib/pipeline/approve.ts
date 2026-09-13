@@ -13,6 +13,7 @@ import { publishToSocials } from '../social/publish';
 import { runSocialAdapter } from './writer';
 import { captureServer } from '../analytics/capture-server';
 import { languageForDomain } from '../language';
+import { markPublishedForPost } from '../strategy/candidate-store';
 
 export async function approveAndPublish(
   sb: SupabaseClient,
@@ -28,6 +29,14 @@ export async function approveAndPublish(
     .update({ status: 'published', published_at: new Date().toISOString() })
     .eq('id', id);
   if (error) return { ok: false, social_result: null, error: error.message };
+
+  // Close the keyword ledger's loop: the slot's candidate becomes `published`
+  // and gains this post_id, which is the join the backtest runs through. Here
+  // for the same reason the capture below is here — this function exists so the
+  // publish paths cannot drift, and a ledger written in only one of them would
+  // make the backtest silently partial. Fail-soft inside; a publish that
+  // succeeded must never be reported as failed over bookkeeping.
+  await markPublishedForPost(id);
 
   // Captured here rather than in the two calling routes precisely because this
   // function exists to stop the pipeline UI and the assistant from drifting —
