@@ -150,6 +150,7 @@ describe('strategyLlmCall reporting', () => {
     const res = await strategyLlmCall({ system: 's', user: 'u', budgetMs: FUNCTION_CEILING_MS });
 
     expect(res.fellBack).toBe(false);
+    expect(res.fallbackReason).toBeNull();
     expect(models).toHaveLength(1);
   });
 
@@ -163,6 +164,9 @@ describe('strategyLlmCall reporting', () => {
     // instead of looking identical to a real strategy build.
     expect(res.fellBack).toBe(true);
     expect(models).toHaveLength(1);
+    // The two fallback shapes must be tellable apart on the row: this one never
+    // offered the planner any wall clock at all.
+    expect(res.fallbackReason).toMatch(/^skipped: budget 120000ms/);
   });
 
   it('still answers on the workhorse when Opus fails mid-ladder', async () => {
@@ -176,5 +180,12 @@ describe('strategyLlmCall reporting', () => {
     expect(models).toHaveLength(2);
     expect(res.fellBack).toBe(true);
     expect(res.text).toBeTruthy();
+    // ...and this one ran the planner and it threw. The reason carries the
+    // error AND the budget it was offered, because a provider error and a
+    // timeout are otherwise indistinguishable after the fact — which is
+    // exactly why the 2026-09-15 fallback could not be diagnosed.
+    expect(res.fallbackReason).not.toBeNull();
+    expect(res.fallbackReason).toContain('failed after');
+    expect(res.fallbackReason).not.toMatch(/^skipped:/);
   });
 });
