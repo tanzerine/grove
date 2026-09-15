@@ -435,9 +435,20 @@ export const KO: Record<string, string> = {
   'Build the plan now →': '지금 계획 만들기 →',
   'Build this month’s plan →': '이번 달 계획 만들기 →',
   'Planning your month…': '이번 달 계획을 세우는 중…',
-  'Build {month}’s plan': '{month} 계획 만들기',
+  'Rebuild this month’s plan': '이번 달 계획 다시 만들기',
+  'Rebuild the plan now →': '지금 계획 다시 만들기 →',
   'The plan below is {month}’s. This usually rebuilds itself within the hour; build it now if you’d rather not wait.':
     '아래 계획은 {month} 것입니다. 보통 한 시간 안에 알아서 다시 만들어지지만, 기다리기 싫다면 지금 만드세요.',
+  'The plan below was built before grove researched this site’s search demand, so steps 3–5 have nothing behind them. Rebuilding plans it from measured keywords. This happens on its own within a day; build it now if you’d rather not wait.':
+    '아래 계획은 grove가 이 사이트의 검색 수요를 조사하기 전에 만들어져서, 3~5단계에 근거가 없습니다. 다시 만들면 실제로 측정한 키워드에서 계획을 세웁니다. 하루 안에 알아서 처리되지만, 기다리기 싫다면 지금 만드세요.',
+  'The plan below was built before grove profiled your customers, so it has no reader profile behind it. Rebuilding plans it from one. This happens on its own within a day; build it now if you’d rather not wait.':
+    '아래 계획은 grove가 고객을 분석하기 전에 만들어져서, 독자 프로필이 없습니다. 다시 만들면 프로필을 바탕으로 계획을 세웁니다. 하루 안에 알아서 처리되지만, 기다리기 싫다면 지금 만드세요.',
+  'This plan predates grove’s keyword research — a rebuild plans it from measured demand.':
+    '이 계획은 grove의 키워드 조사보다 앞서 만들어졌습니다. 다시 만들면 측정된 수요에서 계획을 세웁니다.',
+  'Check your publication language': '발행 언어를 확인하세요',
+  'This plan isn’t written in the language this site is set to publish in. grove won’t guess which is right — set the language on Brand voice, then rebuild the plan if you change it.':
+    '이 계획은 이 사이트에 설정된 발행 언어로 쓰여 있지 않습니다. grove는 어느 쪽이 맞는지 추측하지 않습니다. 브랜드 보이스에서 언어를 설정하고, 바꿨다면 계획을 다시 만드세요.',
+  'Open Brand voice': '브랜드 보이스 열기',
   'Review 1 draft': '초안 1편 검토',
   'Review {n} drafts': '초안 {n}편 검토',
   'They publish as soon as you approve them.': '승인하는 즉시 발행됩니다.',
@@ -1092,7 +1103,6 @@ export const KO: Record<string, string> = {
   'Today · {date}': '오늘 · {date}',
   'Publish “{title}”': '“{title}” 발행',
   'Tracked by Analytics': '분석으로 측정',
-  'Build {month}’s plan →': '{month} 계획 만들기 →',
   '{posts} posts mapped across {pillars} pillars — approve changes any time in the chat below.':
     '{pillars}개 축에 {posts}편을 배치했습니다. 아래 대화에서 언제든 수정할 수 있어요.',
   '1 run': '1회 실행',

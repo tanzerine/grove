@@ -42,6 +42,18 @@
  * existing active plan for (domain, month), so a tick with nothing to do is a
  * couple of cheap queries.
  *
+ * AND THAT SHORT-CIRCUIT IS ALSO A TRAP, which is what the third pass below is
+ * for. A plan, once written, was frozen until the 1st of the next month: ship a
+ * planner improvement mid-month and it reached only the domains that happened
+ * to have no plan yet. With two verified sites on one account that reads as
+ * "strategy only works on one domain" — www.oveners.com was planned on
+ * 2026-09-06 and trygroveai.com rebuilt on the 13th, the day the keyword ledger
+ * landed, so one strategy page had 775 candidates behind it and the other had
+ * zero, permanently. So the tick now spends leftover budget refreshing a plan
+ * the current planner would build differently, STRICTLY behind every domain
+ * that has no plan at all. lib/strategy/freshness.ts is the whole policy,
+ * including why it cannot loop and why a language mismatch never triggers one.
+ *
  * Guarded by CRON_SECRET.
  */
 import { NextResponse } from 'next/server';
@@ -49,8 +61,10 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import { isCronAuthorized } from '@/lib/cron-auth';
 import { ensureMonthlyStrategy, type EnsureDomain } from '@/lib/strategy/ensure';
 import { planningQueue, planningTargets } from '@/lib/strategy/rollover';
+import { planFreshness, refreshCooledDown } from '@/lib/strategy/freshness';
 import { splitStrategyBudget } from '@/lib/llm';
 import { entitledUserSet } from '@/lib/billing';
+import { languageForDomain } from '@/lib/language';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -65,6 +79,13 @@ type Attempt = {
   hostname: string;
   status: string;
   note?: string;
+};
+
+/** A domain whose LIVE plan is out of date, with the reasons, ready to rebuild. */
+type StaleDomain = EnsureDomain & {
+  created_at?: string | null;
+  strategy_attempted_at?: string | null;
+  reasons: string[];
 };
 
 export async function GET(req: Request) {
@@ -181,13 +202,113 @@ export async function GET(req: Request) {
     }
   }
 
+  // ── third priority: REFRESH a live plan the current planner would build
+  //    differently. Only reached when nothing above needed a plan at all, so a
+  //    domain publishing nothing right now can never wait behind a domain whose
+  //    plan merely predates a pipeline change.
+  let refreshed: Attempt | null = null;
+  let refreshable = 0;
+  if (!outOfBudget && splitStrategyBudget(remainingMs()).primaryMs > 0) {
+    const stale = await staleLivePlans(sb, plannable, new Date());
+    refreshable = stale.length;
+    const target = planningQueue(stale)[0];
+    if (target) {
+      await markAttempt(sb, target.id);
+      try {
+        // replaceActive, because the whole point is that a plan already exists
+        // for this month and is the thing being replaced.
+        const status = await ensureMonthlyStrategy(target as EnsureDomain, {
+          budgetMs: remainingMs(),
+          replaceActive: true,
+        });
+        refreshed = { domain_id: target.id, hostname: target.hostname, status, note: target.reasons.join(',') };
+        if (status === 'created') {
+          await clearError(sb, target.id);
+          refreshable -= 1;
+        }
+        attempts.push(refreshed);
+      } catch (err: any) {
+        const note = String(err?.message ?? err);
+        console.error('[cron/strategy] refresh failed:', target.id, err);
+        await recordError(sb, target.id, note);
+        attempts.push({ domain_id: target.id, hostname: target.hostname, status: 'error', note });
+      }
+    }
+  }
+
   return NextResponse.json({
     ok: attempts.every((a) => a.status !== 'error'),
     month: targets[0].month,
     built: null,
+    refreshed,
+    refreshable,
     attempts,
     pending: pendingAfter,
   });
+}
+
+/**
+ * The domains whose LIVE plan the current planner would build differently.
+ *
+ * Reads only what is already stored — the active plan, whether any
+ * keyword_candidates row points at it, and whether it carries the customer
+ * profile it was built for — and hands the decision to lib/strategy/freshness,
+ * which is pure and holds the reasoning for both halves that matter: why the
+ * epoch is what stops this from looping, and why a language mismatch is
+ * reported but never acted on.
+ *
+ * Best-effort throughout. This is a catch-up pass over plans that already work;
+ * a query that fails here must cost the refresh, never the tick.
+ */
+async function staleLivePlans(
+  sb: ReturnType<typeof supabaseAdmin>,
+  domains: any[],
+  now: Date,
+): Promise<StaleDomain[]> {
+  if (!domains.length) return [];
+  try {
+    const { data: live } = await sb
+      .from('strategies')
+      .select('id, domain_id, month, created_at, pillars, publishing_plan, customer_profile')
+      .in('domain_id', domains.map((d: any) => d.id))
+      .eq('active', true);
+    if (!live?.length) return [];
+
+    // One query for the whole tick: which of these plans has a keyword ledger
+    // behind it. A plan with no row here is one the tracker's steps 3-5 have
+    // nothing to draw.
+    const { data: ledger } = await sb
+      .from('keyword_candidates')
+      .select('strategy_id')
+      .in('strategy_id', live.map((r: any) => r.id))
+      .limit(1000);
+    const backed = new Set((ledger ?? []).map((r: any) => r.strategy_id));
+
+    const byDomain = new Map<string, any>(domains.map((d: any) => [d.id, d]));
+    const out: StaleDomain[] = [];
+    for (const row of live as any[]) {
+      const domain = byDomain.get(row.domain_id);
+      if (!domain) continue;
+      // A stale plan is not an outage: a domain whose rebuild just failed waits
+      // a day rather than spending the platform's best model every hour.
+      if (!refreshCooledDown(domain.strategy_attempted_at, now)) continue;
+
+      const { reasons, autoRebuild } = planFreshness({
+        month: row.month,
+        createdAt: row.created_at,
+        hasKeywordLedger: backed.has(row.id),
+        hasCustomerProfile: !!row.customer_profile,
+        strategy: { pillars: row.pillars ?? [], publishing_plan: row.publishing_plan ?? [] },
+        lang: languageForDomain(domain).code,
+        now,
+      });
+      if (autoRebuild) out.push({ ...(domain as EnsureDomain), reasons, strategy_attempted_at: domain.strategy_attempted_at, created_at: domain.created_at });
+    }
+    return out;
+  } catch (e) {
+    console.error('[cron/strategy] stale-plan scan failed:', e);
+    return [];
+  }
 }
 
 /** Best-effort: an unapplied 0031 must not take the build down with it. */

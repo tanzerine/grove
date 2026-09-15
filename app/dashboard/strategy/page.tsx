@@ -5,7 +5,8 @@ import { getActiveDomain } from '@/lib/active-domain';
 import { summarizeMonth, type MonthlyReport } from '@/lib/strategy/review';
 import type { Strategy, Goal, Pillar, PostSlot, KPI } from '@/lib/strategy/build';
 import { horizons } from '@/lib/strategy/context';
-import { monthKey, planIsStale, startOfMonthUTC } from '@/lib/strategy/rollover';
+import { monthKey, startOfMonthUTC } from '@/lib/strategy/rollover';
+import { planFreshness } from '@/lib/strategy/freshness';
 import { strategyBrief } from '@/lib/strategy/brief';
 import { strategySteps, type StepsModel } from '@/lib/strategy/steps';
 import { parseInterview } from '@/lib/strategy/interview';
@@ -87,14 +88,19 @@ export default async function StrategyPage() {
   // before the table, or a source that could not measure) degrades every
   // panel to the plan's own keywords with no numbers, never to an error.
   let candidates: { keyword: string; source: string; volume: number | null; difficulty: number | null; intent: string | null; status: string }[] = [];
+  // Whether THIS plan has the ledger behind it, which is a different question
+  // from whether the domain has any rows at all: a plan built before the
+  // research landed sits on a domain that has since gathered hundreds.
+  let planHasLedger = false;
   try {
     const { data } = await admin
       .from('keyword_candidates')
-      .select('keyword,source,volume,difficulty,intent,status')
+      .select('keyword,source,volume,difficulty,intent,status,strategy_id')
       .eq('domain_id', domain.id)
       .order('volume', { ascending: false, nullsFirst: false })
       .limit(600);
     candidates = (data ?? []) as typeof candidates;
+    planHasLedger = (data ?? []).some((r: any) => r.strategy_id === (strategy as any).id);
   } catch { /* the ledger is optional */ }
 
   const slotStatusByTopic = new Map<string, SlotStatus>();
@@ -114,6 +120,8 @@ export default async function StrategyPage() {
   // appending "-01T00:00:00Z" to a full date produced "Invalid Date".
   const planMonth = new Date(String(s.month).slice(0, 7) + '-01T00:00:00Z').toLocaleString(undefined, { month: 'long', year: 'numeric' });
 
+  // EVERYTHING OUT OF DATE ABOUT THE PLAN ON SCREEN. Two failures, one answer.
+  //
   // A LIVE PLAN FROM A PAST MONTH. The active plan is read without any month
   // filter, so when this month's build fails the page happily renders LAST
   // month's calendar as if it were current — dates in the past, slots already
@@ -121,9 +129,24 @@ export default async function StrategyPage() {
   // empty state, which a domain with any plan at all never reaches. The owner
   // whose month is actually broken was the one owner with no way to ask for it.
   // On 2026-08-01 that was www.oveners.com for a day and a half.
-  // The tracker carries the flag: step 3 reopens, and "your move" becomes the
+  //
+  // A LIVE PLAN FROM AN OLDER PLANNER is the same shape of problem and was
+  // invisible for longer: the plan is for this month and perfectly valid, but
+  // it predates the keyword ledger or the customer profile, so steps 3-5 of the
+  // tracker have nothing to draw and nothing ever asks it to catch up. With two
+  // sites on one account that reads as "strategy only works on one domain".
+  //
+  // The tracker carries both: step 3 reopens, and "your move" becomes the
   // rebuild — one place for it instead of a banner AND an empty state.
-  const stalePlan = planIsStale(s.month, new Date());
+  const freshness = planFreshness({
+    month: s.month,
+    createdAt: (strategy as any).created_at,
+    hasKeywordLedger: planHasLedger,
+    hasCustomerProfile: !!(strategy as any).customer_profile,
+    strategy: s,
+    lang: languageForDomain({ language: domain.language }).code,
+    now: new Date(),
+  });
 
   // ---------- goals (rings) ----------
   const now = new Date();
@@ -311,7 +334,7 @@ export default async function StrategyPage() {
   const stepsModel: StepsModel = strategySteps({
     profile: domain.site_profile, interview: parseInterview(domain.interview),
     verified: !!domain.verified_at, strategy: s, posts: posts ?? [], candidates,
-    lang: languageForDomain({ language: domain.language }).code, stale: stalePlan, now,
+    lang: languageForDomain({ language: domain.language }).code, staleReasons: freshness.reasons, now,
   });
   const pillarColorById = Object.fromEntries((s.pillars ?? []).map((p, i) => [p.id, PILLAR_COLORS[i % PILLAR_COLORS.length]]));
 

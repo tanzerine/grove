@@ -188,18 +188,23 @@ export default function StrategySteps({ model, domainId, hostname, planMonth, cu
   const sel = steps.find((s) => s.key === selected) ?? cur;
   const colorFor = (id: string) => pillarColors[id] ?? 'var(--gv-dim)';
 
+  const a = model.action;
+
   // One sentence on where things stand — the headline the whole card answers.
   const headline = (() => {
     if (cur.key === 'business' && cur.state === 'needs_you') return t('Verify your domain and grove starts reading it.');
     if (cur.key === 'customers' && cur.state === 'needs_you') return t('Five quick questions, then grove profiles your customers.');
-    if (cur.key === 'brainstorm' && cur.state === 'needs_you') return t('{month}’s plan has run its course. {next} hasn’t been researched yet.', { month: planMonth ?? '', next: currentMonth });
+    if (cur.key === 'brainstorm' && cur.state === 'needs_you') {
+      return a.kind === 'rebuild' && a.reason !== 'month_ended'
+        ? t('This plan predates grove’s keyword research — a rebuild plans it from measured demand.')
+        : t('{month}’s plan has run its course. {next} hasn’t been researched yet.', { month: planMonth ?? '', next: currentMonth });
+    }
     if (cur.key === 'brainstorm') return t('grove is researching what your customers search for.');
     if (cur.key === 'schedule' && cur.state === 'done') return t('Every article planned for {month} is live. Next month’s plan builds itself.', { month: planMonth ?? currentMonth });
     if (cur.key === 'schedule') return t('Step 6 of 6 — grove is writing and publishing {month}’s articles.', { month: planMonth ?? currentMonth });
     return t('Step {n} of 6 — {title}.', { n: cur.n, title: t(STEP_COPY[cur.key].title) });
   })();
 
-  const a = model.action;
   const move: { title: string; sub: React.ReactNode; cta?: React.ReactNode; needsYou: boolean } = (() => {
     const btn: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 7, border: 'none', background: ACCENT, color: 'var(--gv-on-accent)', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '10px 16px', borderRadius: 10, textDecoration: 'none', whiteSpace: 'nowrap', cursor: 'pointer' };
     switch (a.kind) {
@@ -212,9 +217,23 @@ export default function StrategySteps({ model, domainId, hostname, planMonth, cu
       case 'build':
         return { needsYou: true, title: t('Build this month’s plan'), sub: t('Your answers are in. The strategist takes about a minute, and retries on its own every hour.'),
           cta: <BuildPlanNow domainId={domainId} label={t('Build the plan now →')} compact /> };
-      case 'rebuild':
-        return { needsYou: true, title: t('Build {month}’s plan', { month: currentMonth }), sub: t('The plan below is {month}’s. This usually rebuilds itself within the hour; build it now if you’d rather not wait.', { month: planMonth ?? '' }),
-          cta: <BuildPlanNow domainId={domainId} label={t('Build {month}’s plan →', { month: currentMonth })} compact /> };
+      case 'rebuild': {
+        // The reason matters: calling a current-month plan "last month's" is
+        // simply false, and it is the case an owner running two sites actually
+        // hits — one site's plan predates a planner change and nothing ever
+        // asked it to catch up (see lib/strategy/freshness).
+        const sub = a.reason === 'month_ended'
+          ? t('The plan below is {month}’s. This usually rebuilds itself within the hour; build it now if you’d rather not wait.', { month: planMonth ?? '' })
+          : a.reason === 'no_keyword_ledger'
+            ? t('The plan below was built before grove researched this site’s search demand, so steps 3–5 have nothing behind them. Rebuilding plans it from measured keywords. This happens on its own within a day; build it now if you’d rather not wait.')
+            : t('The plan below was built before grove profiled your customers, so it has no reader profile behind it. Rebuilding plans it from one. This happens on its own within a day; build it now if you’d rather not wait.');
+        return { needsYou: true, title: t('Rebuild this month’s plan'), sub,
+          cta: <BuildPlanNow domainId={domainId} label={t('Rebuild the plan now →')} compact /> };
+      }
+      case 'relanguage':
+        return { needsYou: true, title: t('Check your publication language'),
+          sub: t('This plan isn’t written in the language this site is set to publish in. grove won’t guess which is right — set the language on Brand voice, then rebuild the plan if you change it.'),
+          cta: <Link href="/dashboard/voice" className="gv-btn" style={btn}>{t('Open Brand voice')} <Icon name="arrow" size={13} /></Link> };
       case 'review':
         return { needsYou: true, title: a.count === 1 ? t('Review 1 draft') : t('Review {n} drafts', { n: a.count }), sub: t('They publish as soon as you approve them.'),
           cta: <Link href="/dashboard/pipeline" className="gv-btn" style={btn}>{t('Open the pipeline')} <Icon name="arrow" size={13} /></Link> };
