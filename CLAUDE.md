@@ -470,14 +470,25 @@ Other key surfaces:
   `ls supabase/migrations/` tells you what your branch knows, which is a
   different question. A local file whose version is already applied under a
   different name is the failure to look for.
-- **A migration can reach production without anyone running `db:push` here.**
-  0029 was authored and merged in one session and was already live before that
-  session ever pushed — the column comment matched the migration file verbatim,
-  so it was that file that ran, applied by something outside the session (a
-  Supabase GitHub integration configured in the dashboard, or a concurrent
-  session). Treat merging a migration to `main` as potentially shipping it.
-  Write migrations to be safe on arrival, and always verify live schema state
-  rather than assuming your own `db:push` is the gate.
+- **MERGING A MIGRATION TO `main` APPLIES IT. This is now confirmed, not
+  suspected.** 0029 was live before its session ever pushed, and the guess was
+  "a Supabase GitHub integration, or a concurrent session". 0043 settled it:
+  merged at 12:09, and it appeared in `schema_migrations` **under its own
+  repo version `0043`**, correctly keyed, with nobody running `db:push`.
+  So the integration is real, it uses the filename's version, and it is the
+  normal path to production. Write migrations to be safe on arrival, and
+  always verify live schema state rather than assuming your own `db:push` is
+  the gate.
+- **After merging, WAIT AND RE-CHECK before applying anything yourself.** The
+  integration takes a minute or two. 0043 was checked seconds after the merge,
+  read as unapplied (`schema_migrations` still at 0042), and was then applied
+  through the Supabase MCP — which landed a SECOND row under a generated
+  timestamp while the integration's correct `0043` row arrived in the same
+  window. The migration was `if not exists` so the schema was fine and the
+  duplicate row was deleted by hand, but an irreversible migration would not
+  have been fine. The check is `select max(version) from
+  supabase_migrations.schema_migrations` plus the actual column in
+  `information_schema`; re-run both immediately before you apply, not once.
 - `domains.canonical_blog_base` makes the customer's own URLs canonical
   everywhere (rel=canonical, sitemap, RSS, social). It must also be SET per
   domain — the column existing isn't enough.
