@@ -321,6 +321,25 @@ export type StrategyCallResult = {
   model: string;
   /** True when the top tier was skipped or failed and the workhorse answered. */
   fellBack: boolean;
+  /**
+   * WHY the workhorse answered, when it did. Null on a clean top-tier run.
+   *
+   * `planned_by` already made "was the strategy tier used?" a query instead of
+   * a code read. It could not answer the next question, which is the one you
+   * actually need: WHY NOT. That reason went to console.error and nowhere
+   * else, so diagnosing a fallback meant having Vercel log access at the time
+   * it happened — and a fallback plan is not an error, so nothing else on the
+   * row or the domain recorded anything either.
+   *
+   * That gap is not hypothetical. On 2026-09-13 and 2026-09-15 two plans came
+   * back from the workhorse at 2 slots and 1 pillar each, against an Opus
+   * average of 14.5 slots and 3.6 pillars — and the whole failed build
+   * finished in 79s with 204s of budget available, so Opus errored fast rather
+   * than timing out. Which error was unknowable after the fact.
+   *
+   * Persisted to strategies.fallback_reason (0043). Truncated at the write.
+   */
+  fallbackReason: string | null;
 };
 
 export async function strategyLlmCall(opts: {
@@ -338,27 +357,34 @@ export async function strategyLlmCall(opts: {
   // Default to a full Vercel function; every strategy route declares 300s.
   const { primaryMs, fallbackMs } = splitStrategyBudget(opts.budgetMs ?? 300_000);
 
+  // Captured rather than only logged: see StrategyCallResult.fallbackReason.
+  let fallbackReason: string | null = null;
+
   if (primaryMs > 0) {
     try {
       const { text } = await llmCall({ ...opts, model: STRATEGY_MODEL, maxTokens, timeoutMs: primaryMs });
-      return { text, model: STRATEGY_MODEL, fellBack: false };
+      return { text, model: STRATEGY_MODEL, fellBack: false, fallbackReason: null };
     } catch (err) {
       // The loop must never stall on a single provider hiccup: fall back to the
       // workhorse rather than leaving a domain without a plan. The fallback's
       // time was reserved up front, so it is still there to spend.
       console.error('[strategyLlmCall] falling back to main model:', err);
+      // The budget is recorded alongside the error because the two failures
+      // look identical on the row otherwise: a provider error and a timeout
+      // both read as "fell back", and only the time offered tells them apart.
+      fallbackReason = `${STRATEGY_MODEL} failed after ${primaryMs}ms offered: ${String((err as any)?.message ?? err)}`;
     }
   } else {
     // Loud, because an under-budgeted ladder silently disabled the strategy
     // tier for months.
-    console.warn(
-      `[strategyLlmCall] budget ${opts.budgetMs}ms leaves < ${STRATEGY_MIN_BUDGET_MS}ms ` +
-      `for ${STRATEGY_MODEL} — planning on ${MODEL}`,
-    );
+    const why =
+      `budget ${opts.budgetMs}ms leaves < ${STRATEGY_MIN_BUDGET_MS}ms for ${STRATEGY_MODEL}`;
+    console.warn(`[strategyLlmCall] ${why} — planning on ${MODEL}`);
+    fallbackReason = `skipped: ${why}`;
   }
 
   const { text } = await llmCall({ ...opts, maxTokens, timeoutMs: fallbackMs });
-  return { text, model: MODEL, fellBack: true };
+  return { text, model: MODEL, fellBack: true, fallbackReason };
 }
 
 /* ─────────────────── fast LLM call (small model, low latency) ──────────── */

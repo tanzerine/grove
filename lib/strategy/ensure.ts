@@ -258,6 +258,18 @@ export async function ensureMonthlyStrategy(
         .update({ customer_profile: strategy.customer_profile })
         .eq('id', (stored as any).id);
     }
+
+    // Why the strategy tier didn't build this one (strategies.fallback_reason,
+    // 0043) — same shape, same reasoning. Written only when there IS a reason,
+    // so a clean top-tier build costs no extra round trip. Truncated because
+    // a provider can return a very long body and this is a diagnostic, not a
+    // payload.
+    if (strategy.fallback_reason && (stored as any)?.id) {
+      await sb
+        .from('strategies')
+        .update({ fallback_reason: String(strategy.fallback_reason).slice(0, 500) })
+        .eq('id', (stored as any).id);
+    }
   }
 
   // Refresh the plan memo the chat + downstream prompts read — but only for the
@@ -274,6 +286,10 @@ export async function ensureMonthlyStrategy(
       domain_id: domain.id,
       source: strategy.source === 'interview' ? 'interview' : 'inferred',
       planned_by: strategy.planned_by ?? null,
+      // On the event too, so the fallback RATE is a chart and not a table scan:
+      // one plan on the workhorse is a hiccup, a third of them is an outage of
+      // the product's most expensive promise.
+      fallback_reason: strategy.fallback_reason ?? null,
       staged: !!opts.staged,
     });
   }

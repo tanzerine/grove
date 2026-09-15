@@ -112,6 +112,14 @@ export type Strategy = {
    */
   planned_by?: string;
   /**
+   * Why the strategy tier did not produce this plan, when it didn't.
+   *
+   * Persisted to strategies.fallback_reason (0043). `planned_by` says the
+   * workhorse answered; this says why, which is the half that was only ever
+   * written to console.error. Absent on a clean top-tier build.
+   */
+  fallback_reason?: string | null;
+  /**
    * The customer this plan was built for (step 2 of the keyword strategy).
    *
    * Persisted to strategies.customer_profile so the dashboard can show the
@@ -602,7 +610,7 @@ WHICH LANGUAGE EACH FIELD TAKES
 
 ${langRule}` : ''}`;
 
-  const { text, model } = await strategyLlmCall({
+  const { text, model, fallbackReason } = await strategyLlmCall({
     system, user, maxTokens: PLAN_MAX_TOKENS,
     budgetMs: input.budgetMs == null ? undefined : Math.max(0, input.budgetMs - (Date.now() - researchStartedAt)),
   });
@@ -623,6 +631,7 @@ ${langRule}` : ''}`;
   }
 
   strategy.planned_by = model;
+  strategy.fallback_reason = fallbackReason;
   if (icpIsUsable(icp)) strategy.customer_profile = icp;
   return strategy;
 }

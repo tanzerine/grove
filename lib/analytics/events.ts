@@ -171,7 +171,7 @@ export type EventMap = {
   /** `staged` separates a plan built ahead of the month it covers (the
    *  lookahead that closes the month-boundary outage) from one built for the
    *  month already running — a rising staged share is the rollover working. */
-  strategy_built: { domain_id: string; source: 'interview' | 'inferred'; planned_by: string | null; staged?: boolean };
+  strategy_built: { domain_id: string; source: 'interview' | 'inferred'; planned_by: string | null; fallback_reason?: string | null; staged?: boolean };
   /** `skipped` matters: a skipped interview yields a materially weaker
    *  strategy, so a high skip rate is a product problem, not a statistic. */
   strategy_interview_completed: { domain_id: string; skipped: boolean };
