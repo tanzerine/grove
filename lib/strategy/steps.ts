@@ -28,6 +28,7 @@ import { icpSeeds, icpIsUsable, type CustomerProfile } from './icp';
 import { classifyIntent, type SearchIntent } from './keywords';
 import { opportunityScore, DEFAULT_KD_CEILING } from '../keywords/opportunity';
 import type { LangCode } from '../language';
+import { AUTO_REBUILD_REASONS, type StaleReason } from './freshness';
 
 export type StepKey = 'business' | 'customers' | 'brainstorm' | 'score' | 'cluster' | 'schedule';
 export const STEP_KEYS: readonly StepKey[] = ['business', 'customers', 'brainstorm', 'score', 'cluster', 'schedule'] as const;
@@ -159,7 +160,13 @@ export type NextAction =
   | { kind: 'verify' }
   | { kind: 'interview' }
   | { kind: 'build' }
-  | { kind: 'rebuild' }
+  /** `reason` is why, so the copy can say "the month is over" rather than
+   *  guessing — a plan built before the keyword research landed is equally a
+   *  rebuild, and telling the owner it's last month's plan would be false. */
+  | { kind: 'rebuild'; reason: StaleReason }
+  /** The plan and `domains.language` disagree. Deliberately NOT a rebuild:
+   *  which half is wrong is the owner's call (see lib/strategy/freshness). */
+  | { kind: 'relanguage' }
   | { kind: 'review'; count: number }
   | { kind: 'wait'; next: string | null };
 
@@ -196,8 +203,16 @@ export type StepsInput = {
   /** The keyword ledger for this domain (keyword_candidates). */
   candidates?: StepsCandidate[];
   lang: LangCode;
-  /** The active plan is for a month that has ended (see rollover.planIsStale). */
-  stale?: boolean;
+  /**
+   * Everything out of date about the live plan (lib/strategy/freshness).
+   *
+   * Was a bare `stale` boolean meaning only "the month has ended". A plan can
+   * also be current-month and still not be the plan grove would build today —
+   * the one from before the keyword ledger existed is the case that produced
+   * "strategy only works on 1 domain" — and the tracker has to tell the owner
+   * WHICH, because "last month's plan" is simply untrue of the second kind.
+   */
+  staleReasons?: StaleReason[];
   now?: Date;
 };
 
@@ -418,7 +433,12 @@ export function strategySteps(input: StepsInput): StepsModel {
   const answered = interviewAnswered(interview);
   const hasPlan = !!strategy && (strategy.pillars?.length ?? 0) + (strategy.publishing_plan?.length ?? 0) > 0;
   const icp = hasPlan && strategy?.customer_profile && icpIsUsable(strategy.customer_profile) ? strategy.customer_profile : null;
-  const stale = !!input.stale;
+  const staleReasons = input.staleReasons ?? [];
+  // Only the reasons a rebuild would actually fix reopen the research step. A
+  // language mismatch is not a research failure, and rebuilding on it could
+  // translate a working blog — it gets its own action below.
+  const rebuildReason = staleReasons.find((r) => AUTO_REBUILD_REASONS.includes(r)) ?? null;
+  const stale = !!rebuildReason;
 
   // 1 — the crawl. It runs the moment the owner answers the interview on a
   // verified domain, so with no profile the blocker is whichever of those two
@@ -486,7 +506,8 @@ export function strategySteps(input: StepsInput): StepsModel {
   if (!verified) action = { kind: 'verify' };
   else if (!answered && !hasPlan) action = { kind: 'interview' };
   else if (!hasPlan) action = { kind: 'build' };
-  else if (stale) action = { kind: 'rebuild' };
+  else if (rebuildReason) action = { kind: 'rebuild', reason: rebuildReason };
+  else if (staleReasons.includes('language_mismatch')) action = { kind: 'relanguage' };
   else {
     // Drafts waiting on the owner, plan-linked or not — a post written from
     // the queue outside the calendar is just as blocked on them.

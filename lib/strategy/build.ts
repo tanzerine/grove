@@ -28,6 +28,7 @@ import { screenClusters } from '../keywords/relevance';
 import { monthlySlots } from '../plans';
 import type { MonthlyReport } from './review';
 import { language, strategyLanguageRule, type LangCode } from '../language';
+import { planLanguageMatches } from './freshness';
 import type { UiLocale } from '../i18n';
 
 export { assignPublishDates };   // re-exported for back-compat
@@ -480,7 +481,30 @@ OUTPUT: ONE raw JSON object. No markdown. No prose. No code fences.`;
   // article pipeline, where the same instruction at the tail of a system prompt
   // was ignored by all three models.
   const langRule = strategyLanguageRule(pubLang.code, ownerLocale);
-  const user = `${langRule ? `${langRule}\n\n` : ''}MONTH: ${month}
+
+  // A PLAN THAT DRIFTED STAYS DRIFTED, because last month's pillar titles go
+  // into this prompt for continuity and the model reads them as the house
+  // style. www.oveners.com is the case: `language` is 'en', so
+  // strategyLanguageRule returns the EMPTY STRING — nothing in the prompt ever
+  // says "English" — and a plan that came back Korean once seeds the next one
+  // with Korean pillars and no instruction to the contrary. Three months of
+  // English articles became eleven Korean ones that way, with the column
+  // unchanged throughout.
+  //
+  // So when the previous plan is confidently not in the publication language,
+  // say so out loud, English included. This costs nothing in the common case:
+  // planLanguageMatches abstains unless it is certain (see freshness.ts), so a
+  // plan that is merely short, or Latin-script either way, never trips it.
+  const drifted = !!prevStrategy && !planLanguageMatches(prevStrategy, pubLang.code);
+  const driftRule = drifted
+    ? `!! THE PLAN BELOW UNDER "LAST MONTH'S STRATEGY" IS IN THE WRONG LANGUAGE !!
+This blog publishes in ${pubLang.englishName} (${pubLang.nativeName}). Last month's plan
+is not, and it is shown only for continuity of STRATEGY — the topics it covered
+and how they performed. Do not copy its language. Every string a reader will
+see — pillar titles, slot titles, target keywords — must be in ${pubLang.nativeName}.`
+    : '';
+
+  const user = `${[driftRule, langRule].filter(Boolean).join('\n\n')}${driftRule || langRule ? '\n\n' : ''}MONTH: ${month}
 POSTS THIS MONTH (target): ${monthlyPostCount}
 
 BUSINESS

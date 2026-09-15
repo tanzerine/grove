@@ -293,11 +293,39 @@ describe('before there is a plan', () => {
 
 describe('a plan from a month that has ended', () => {
   it('reopens the research step and asks for a rebuild, keeping last month\'s artifacts', () => {
-    const m = strategySteps(input({ stale: true }));
+    const m = strategySteps(input({ staleReasons: ['month_ended'] }));
     expect(m.steps[2].state).toBe('needs_you');
     expect(m.current).toBe('brainstorm');
-    expect(m.action).toEqual({ kind: 'rebuild' });
+    expect(m.action).toEqual({ kind: 'rebuild', reason: 'month_ended' });
     expect(m.steps[4].facts?.kind).toBe('cluster');
+  });
+});
+
+describe('a plan from an older planner', () => {
+  it('asks for a rebuild and says which reason, not "last month\'s plan"', () => {
+    const m = strategySteps(input({ staleReasons: ['no_keyword_ledger'] }));
+    expect(m.steps[2].state).toBe('needs_you');
+    expect(m.action).toEqual({ kind: 'rebuild', reason: 'no_keyword_ledger' });
+  });
+
+  it('takes the first rebuildable reason when several apply', () => {
+    const m = strategySteps(input({ staleReasons: ['month_ended', 'no_customer_profile'] }));
+    expect(m.action).toEqual({ kind: 'rebuild', reason: 'month_ended' });
+  });
+});
+
+describe('a plan whose language disagrees with the site', () => {
+  it('asks the owner which is right instead of reopening research', () => {
+    // Rebuilding on a language mismatch could translate a working blog, so the
+    // tracker sends them to Brand voice and leaves the plan alone.
+    const m = strategySteps(input({ staleReasons: ['language_mismatch'] }));
+    expect(m.action).toEqual({ kind: 'relanguage' });
+    expect(m.steps[2].state).toBe('done');
+  });
+
+  it('still rebuilds when a rebuildable reason sits alongside it', () => {
+    const m = strategySteps(input({ staleReasons: ['language_mismatch', 'month_ended'] }));
+    expect(m.action).toEqual({ kind: 'rebuild', reason: 'month_ended' });
   });
 });
 
