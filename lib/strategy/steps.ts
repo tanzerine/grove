@@ -24,7 +24,7 @@ import type { SiteProfile } from '../pipeline/site-profile';
 import type { InterviewAnswers } from './interview';
 import type { Strategy, PostSlot } from './build';
 import { searchSeeds } from './seeds';
-import { icpSeeds, icpIsUsable, type CustomerProfile } from './icp';
+import { icpSeeds, buyerIntentSeeds, icpIsUsable, type CustomerProfile } from './icp';
 import { classifyIntent, type SearchIntent } from './keywords';
 import { opportunityScore, DEFAULT_KD_CEILING } from '../keywords/opportunity';
 import type { LangCode } from '../language';
@@ -292,10 +292,15 @@ function brainstormFacts(
   lang: LangCode,
 ): BrainstormFacts {
   // The same precedence build.ts uses: the customer's vocabulary when a
-  // profile exists, the site's own products otherwise.
-  const seeds = icpIsUsable(icp)
-    ? icpSeeds(icp, { limit: 8, brand: profile?.business?.name })
-    : searchSeeds(profile, { limit: 8 });
+  // profile exists, the site's own products otherwise — plus the buyer's
+  // seeds (competitor alternatives, workarounds, use cases). What the build
+  // took from Search Console is not re-derived here: it needs the snapshot,
+  // and this panel is meant to stay a pure read of what is already stored.
+  const brand = profile?.business?.name;
+  const seeds = [...new Set([
+    ...(icpIsUsable(icp) ? icpSeeds(icp, { limit: 8, brand }) : searchSeeds(profile, { limit: 8 })),
+    ...buyerIntentSeeds(icp, { lang, brand, limit: 6 }),
+  ])];
   const counts = new Map<string, number>();
   for (const c of candidates) counts.set(c.source, (counts.get(c.source) ?? 0) + 1);
   const bySource = [...counts.entries()].map(([source, n]) => ({ source, n })).sort((a, b) => b.n - a.n);

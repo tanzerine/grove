@@ -28,7 +28,51 @@ export type ScoredKeyword = {
   difficulty: number | null;
   intent: SearchIntent | null;
   source: string;
+  /** What Google itself has shown this domain for. See RevealedDemand. */
+  revealed?: RevealedDemand | null;
 };
+
+/**
+ * Demand the domain has already SEEN, from Search Console: Google showed one
+ * of its pages for this query `impressions` times in a `days`-day window, at
+ * `position` on average.
+ *
+ * This exists because the purchased number is wrong in a specific direction.
+ * Ads volume is bucketed, rounded, single-country and blind to anything new;
+ * measured on oveners.com it put "3d icon generator" at 20/mo while the
+ * domain's own page-2 result was shown 627 times in 28 days — and 17 of the
+ * site's top 20 queries were not in the database at all. A 100/mo floor
+ * applied to that number deleted the site's entire winning cluster. An
+ * impression is a search that happened, so it is a LOWER bound on demand,
+ * and a lower bound the domain has already proven it can reach.
+ */
+export type RevealedDemand = {
+  impressions: number;
+  clicks: number;
+  /** Impression-weighted average position, 1 = top. */
+  position: number;
+  /** The window the impressions were counted over. */
+  days: number;
+};
+
+/** Impressions per 30 days — the same unit as `volume`, so the two compare. */
+export function revealedMonthly(r: RevealedDemand | null | undefined): number | null {
+  if (!r || !(r.days > 0) || !(r.impressions >= 0)) return null;
+  return Math.round((r.impressions * 30) / r.days);
+}
+
+/**
+ * The demand figure the rest of the pipeline should reason about: the larger
+ * of what was bought and what was observed. Impressions can only undercount
+ * (a page-2 result is shown to a fraction of searchers), so when they exceed
+ * the purchased figure the purchased figure is the one that is wrong.
+ */
+export function effectiveVolume(k: Pick<ScoredKeyword, 'volume' | 'revealed'>): number | null {
+  const seen = revealedMonthly(k.revealed);
+  if (k.volume == null) return seen;
+  if (seen == null) return k.volume;
+  return Math.max(k.volume, seen);
+}
 
 /**
  * The hardest keyword a domain can realistically win.
@@ -65,15 +109,46 @@ export function winProbability(difficulty: number | null, ceiling = DEFAULT_KD_C
 }
 
 /**
- * Estimated monthly impressions if we write this. Null volume or null
- * difficulty scores 0 — not because the keyword is bad, but because an
- * unscorable candidate must never outrank a measured one. `selectKeywords`
- * counts them separately so the gap stays visible instead of looking like
- * a pile of worthless keywords.
+ * Win probability from the domain's OWN position, for a query no provider has
+ * a difficulty for. The domain already ranks; the only question is how far
+ * it has to climb. Coarser than winProbability on purpose — four bands, no
+ * curve — because a position is one page's result on one query, not a
+ * measurement of the SERP.
+ */
+export function positionWinProbability(position: number): number {
+  if (!(position > 0)) return 0;
+  if (position <= 10) return 1;
+  if (position <= 20) return 0.7;
+  if (position <= 30) return 0.4;
+  return 0.2;
+}
+
+/**
+ * The probability actually used: difficulty when it is known — it describes
+ * the top 10, which is the prize — and the domain's own position only to
+ * fill the gap. Zero when neither exists: unknown is not a bet we can size.
+ */
+export function rankProbability(kw: ScoredKeyword, ceiling = DEFAULT_KD_CEILING): number {
+  if (kw.difficulty != null) return winProbability(kw.difficulty, ceiling);
+  if (kw.revealed && kw.revealed.position > 0) return positionWinProbability(kw.revealed.position);
+  return 0;
+}
+
+/** True when the keyword carries enough to be scored at all. */
+export function isScorable(kw: ScoredKeyword): boolean {
+  return effectiveVolume(kw) != null && (kw.difficulty != null || !!(kw.revealed && kw.revealed.position > 0));
+}
+
+/**
+ * Estimated monthly impressions if we write this. An unscorable keyword —
+ * no demand figure, or neither a difficulty nor an observed position — scores
+ * 0: not because it is bad, but because an unscorable candidate must never
+ * outrank a measured one. `selectKeywords` counts them separately so the gap
+ * stays visible instead of looking like a pile of worthless keywords.
  */
 export function opportunityScore(kw: ScoredKeyword, ceiling = DEFAULT_KD_CEILING): number {
-  if (kw.volume == null || kw.difficulty == null) return 0;
-  return Math.round(kw.volume * winProbability(kw.difficulty, ceiling));
+  if (!isScorable(kw)) return 0;
+  return Math.round((effectiveVolume(kw) ?? 0) * rankProbability(kw, ceiling));
 }
 
 export type SelectOptions = {
@@ -126,15 +201,19 @@ export function selectKeywords(cands: ScoredKeyword[], opts: SelectOptions = {})
   let unscorable = 0;
 
   for (const c of cands) {
-    if (c.volume == null || c.difficulty == null) {
+    if (!isScorable(c)) {
       unscorable++;
       rejected.push({ keyword: c.keyword, reason: 'unscorable' });
       continue;
     }
-    if (c.difficulty > maxDifficulty) { rejected.push({ keyword: c.keyword, reason: 'too_hard' }); continue; }
-    if (c.volume < minVolume) {
+    if (c.difficulty != null && c.difficulty > maxDifficulty) { rejected.push({ keyword: c.keyword, reason: 'too_hard' }); continue; }
+    // The floor is applied to what was OBSERVED as well as what was bought:
+    // a phrase Ads calls 20/mo that showed this domain 600 times last month
+    // is not small, whatever the database says.
+    const vol = effectiveVolume(c) ?? 0;
+    if (vol < minVolume) {
       rejected.push({ keyword: c.keyword, reason: 'too_small' });
-      if (c.volume > 0) longTail.push(c);
+      if (vol > 0) longTail.push(c);
       continue;
     }
     scorable.push(c);

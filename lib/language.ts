@@ -759,6 +759,26 @@ export function keywordVariants(seed: string, lang: LangCode | Language): string
 }
 
 /**
+ * The two queries a buyer types about a tool they are already looking at:
+ * "is there something else" and "how does it compare". Per language for the
+ * same reason as keywordVariants — "iconikai alternative" is a real query and
+ * "iconikai 대안" is the Korean one; neither works in the other market.
+ * Deliberately two, not five: every seed is a Labs call, and "pricing" /
+ * "review" come back inside the expansion of these anyway.
+ */
+export function competitorVariants(name: string, lang: LangCode | Language): string[] {
+  const l = typeof lang === 'string' ? LANGUAGES[normalizeLang(lang)] : lang;
+  const n = name.toLowerCase().trim();
+  if (!n) return [];
+  switch (l.code) {
+    case 'ko': return [`${n} 대안`, `${n} 비교`];
+    case 'zh': return [`${n} 替代`, `${n} 对比`];
+    case 'es': return [`${n} alternativa`, `${n} vs`];
+    default:   return [`${n} alternative`, `${n} vs`];
+  }
+}
+
+/**
  * Search-intent vocabulary per language. The English patterns match nothing in
  * a Korean query, so every Korean keyword classified as `informational` and
  * the plan lost its commercial/transactional balance entirely.

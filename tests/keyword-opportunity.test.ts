@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   winProbability, opportunityScore, selectKeywords, DEFAULT_KD_CEILING,
+  effectiveVolume, revealedMonthly, positionWinProbability, rankProbability, isScorable,
   type ScoredKeyword,
 } from '../lib/keywords/opportunity';
 
@@ -126,5 +127,69 @@ describe('the long tail', () => {
     expect(s.longTail.map((k) => k.keyword)).toEqual(['publish blog posts automatically']);
     // The rejection ledger is unchanged: the tail is still reported as too_small.
     expect(s.rejected.find((r) => r.keyword === 'publish blog posts automatically')?.reason).toBe('too_small');
+  });
+});
+
+describe('revealed demand — what Google showed the domain, beside what Ads guessed', () => {
+  const seen = (impressions: number, position: number, days = 28) =>
+    ({ impressions, clicks: 0, position, days });
+
+  it('converts a window of impressions to the same unit as volume', () => {
+    expect(revealedMonthly(seen(627, 13.4))).toBe(672);      // 627 × 30 / 28
+    expect(revealedMonthly(seen(90, 40, 90))).toBe(30);
+    expect(revealedMonthly(null)).toBeNull();
+    expect(revealedMonthly(seen(10, 5, 0))).toBeNull();
+  });
+
+  it('effective volume is the larger of bought and observed — impressions only undercount', () => {
+    // The oveners measurement: Ads said 20/mo, Google showed the site 627 times.
+    expect(effectiveVolume({ volume: 20, revealed: seen(627, 13.4) })).toBe(672);
+    expect(effectiveVolume({ volume: 4400, revealed: seen(30, 8) })).toBe(4400);
+    expect(effectiveVolume({ volume: null, revealed: seen(146, 34.2) })).toBe(156);
+    expect(effectiveVolume({ volume: 50, revealed: null })).toBe(50);
+    expect(effectiveVolume({ volume: null, revealed: null })).toBeNull();
+  });
+
+  it('position stands in for difficulty only when difficulty is unknown', () => {
+    expect(positionWinProbability(3)).toBe(1);
+    expect(positionWinProbability(14)).toBe(0.7);
+    expect(positionWinProbability(25)).toBe(0.4);
+    expect(positionWinProbability(60)).toBe(0.2);
+    expect(positionWinProbability(0)).toBe(0);
+    const known = { ...kw('x', 100, 21), revealed: seen(100, 60) };
+    expect(rankProbability(known)).toBe(winProbability(21));           // KD describes the prize
+    const unknown = { ...kw('x', 100, null), revealed: seen(100, 14) };
+    expect(rankProbability(unknown)).toBe(0.7);
+    expect(rankProbability(kw('x', 100, null))).toBe(0);
+  });
+
+  it('a phrase with no number anywhere is unscorable; one with impressions and a position is not', () => {
+    expect(isScorable(kw('x', null, null))).toBe(false);
+    expect(isScorable({ ...kw('x', null, null), revealed: seen(146, 34.2) })).toBe(true);
+    expect(isScorable({ ...kw('x', 20, null), revealed: null })).toBe(false);
+  });
+
+  it('scores a database-unknown phrase on what was observed', () => {
+    // 146 impressions in 28 days at position 34: 156/mo × 0.2 (past page 3).
+    expect(opportunityScore({ ...kw('automatic background removal', null, null), revealed: seen(146, 34.2) })).toBe(31);
+    // The same phrase at position 24: 156/mo × 0.4.
+    expect(opportunityScore({ ...kw('automatic background removal', null, null), revealed: seen(146, 24) })).toBe(62);
+  });
+
+  it('the floor no longer deletes a phrase the site was shown for hundreds of times', () => {
+    // This is the bug: "3d icon generator" at Ads 20/mo fell under the 100
+    // floor and oveners' whole winning cluster was dropped before clustering.
+    const sel = selectKeywords([
+      { ...kw('3d icon generator', 20, 21), revealed: seen(627, 13.4) },
+      kw('pixel 3d icon pack', 4400, 0),
+      kw('messenger 3d icon', 20, 0),
+    ]);
+    expect(sel.chosen.map((k) => k.keyword)).toContain('3d icon generator');
+    expect(sel.rejected).toEqual([{ keyword: 'messenger 3d icon', reason: 'too_small' }]);
+  });
+
+  it('too_hard still reads the difficulty when there is one, whatever the position says', () => {
+    const sel = selectKeywords([{ ...kw('brutal', 5000, 80), revealed: seen(500, 45) }]);
+    expect(sel.rejected).toEqual([{ keyword: 'brutal', reason: 'too_hard' }]);
   });
 });

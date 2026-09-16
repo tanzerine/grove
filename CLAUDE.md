@@ -362,6 +362,41 @@ sees, so it is the one that does NOT resolve its language from the request.
   switcher and stay at one URL, reading the cookie the landing's switcher (or
   Brand voice) wrote, else English.
 
+**Keyword research** (`lib/keywords/`, `lib/strategy/icp.ts`, `build.ts` steps
+2–5) — the one place the numbers were graded against a real outcome is
+oveners.com (2026-09-16, GSC vs the ledger), and three lessons came out of it:
+- **DataForSEO KD is a gate, not a picker.** It is a backlink count over the
+  top 10, read verbatim (`parseLabsItem`), and it is blind to domain authority
+  and SERP shape: `pixel 3d icon pack`, `messenger 3d icon` came back KD 0
+  because the ranking pages are Play Store / Flaticon assets with no page-level
+  links. A blog post does not beat those. Keep the ≤30 ceiling; don't rank by
+  KD alone.
+- **Ads volume undercounts the tail by 10–30x and the database is missing most
+  real queries.** "3d icon generator" was 20/mo in Labs and showed oveners'
+  page-2 result 627 times in 28 days; 17 of the site's top 20 queries weren't
+  in Labs at all. So the 100/mo floor deleted the site's whole winning
+  cluster. `ScoredKeyword.revealed` carries GSC impressions and
+  `effectiveVolume` = max(bought, observed) is what the floor, the score and
+  the cluster total read. Never fabricate volume from impressions; state both.
+- **Search Console is a keyword SOURCE** (`lib/keywords/gsc-seeds.ts`), not
+  only a report paragraph. Top-20 queries become Labs seeds (one per
+  token-containment bucket), position > 20 queries become candidates with
+  their impressions, and a top-10 / no-click / unknown-word query is a
+  competitor name (`iconikai`, 607 impr, 0 clicks) that `buyerIntentSeeds`
+  turns into `{name} alternative` / `{name} vs`. **Top-20 queries are seeds,
+  never targets** — a page of ours owns them (the near-winner rule).
+- The profile's buyer half — `competitors` / `workarounds` / `use_cases` —
+  exists because the informational fields (`vocabulary`, `pains`) cannot
+  produce "illustrator 3d logo" or "iconikai alternative", and those were the
+  site's best commercial impressions. Workarounds/use cases bypass
+  `seedCandidates` on purpose: it splits on "for", and "3d icons for saas
+  landing page" is one query.
+- Labs returns every string in a Google Ads close-variant bucket carrying the
+  bucket's volume ("dog the blog" ×9 at 60,500 each). `collapseCloseVariants`
+  (same content tokens + same volume) folds them before anything is summed.
+  `exact_match: true` on `keyword_suggestions` is what stops a seed's single
+  word matching a Disney show in the first place.
+
 Other key surfaces:
 - `lib/agent-brief.ts` — plain-English weekly brief on the dashboard home.
 - `lib/seo.ts` — **single source for every public blog URL** (`blogHomeUrl`,

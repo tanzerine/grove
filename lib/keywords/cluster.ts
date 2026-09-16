@@ -36,8 +36,9 @@
  */
 import { STOP } from '../related-posts';
 import {
-  opportunityScore, winProbability, DEFAULT_KD_CEILING, type ScoredKeyword,
+  opportunityScore, winProbability, effectiveVolume, DEFAULT_KD_CEILING, type ScoredKeyword,
 } from './opportunity';
+
 
 export type KeywordCluster = {
   /** The phrase the article actually targets — highest opportunity in the set. */
@@ -223,7 +224,10 @@ export function buildClusters(keywords: ScoredKeyword[], opts: ClusterOptions = 
       }
     }
 
-    const totalVolume = [pillar, ...members].reduce((s, k) => s + (k.volume ?? 0), 0);
+    // Effective volume: what was bought or what was observed, whichever is
+    // larger — a revealed phrase with no Ads figure still counts its
+    // impressions toward the prize (see opportunity.ts RevealedDemand).
+    const totalVolume = [pillar, ...members].reduce((s, k) => s + (effectiveVolume(k) ?? 0), 0);
     clusters.push({
       pillar,
       members,
@@ -265,11 +269,19 @@ export function buildClusters(keywords: ScoredKeyword[], opts: ClusterOptions = 
 export function formatClustersForPrompt(clusters: KeywordCluster[]): string {
   if (!clusters.length) return '(no measured demand — plan from the customer profile)';
   const n = (v: number | null) => (v == null ? '?' : v.toLocaleString('en-US'));
+  // What Google already showed the domain for this phrase. Stated beside the
+  // purchased figure rather than folded into it, because the two disagree
+  // by 30x on real data and the planner should see which one it is trusting.
+  const seen = (k: ScoredKeyword) => {
+    const r = k.revealed;
+    if (!r) return '';
+    return ` — Google already shows this site for it: ${n(r.impressions)} impressions in ${r.days}d at position ${r.position}`;
+  };
   return clusters
     .map((c, i) => {
       const head = `C${i + 1}. "${c.pillar.keyword}" — KD ${c.difficulty ?? '?'}, ${n(c.pillar.volume)}/mo` +
         (c.members.length ? `, cluster total ${n(c.totalVolume)}/mo` : '') +
-        (c.pillar.intent ? `, ${c.pillar.intent}` : '');
+        (c.pillar.intent ? `, ${c.pillar.intent}` : '') + seen(c.pillar);
       if (!c.members.length) return head;
       const also = c.members.map((m) => `${m.keyword} (${n(m.volume)})`).join(', ');
       return `${head}\n    also covers: ${also}`;
