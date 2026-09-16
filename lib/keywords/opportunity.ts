@@ -96,6 +96,16 @@ export type Selection = {
   /** How many candidates carried no volume/difficulty at all. A high number
    *  here means the demand SOURCE is the problem, not the selection. */
   unscorable: number;
+  /**
+   * Measured, winnable, and under the volume floor. Never a pillar — but the
+   * cluster module's whole argument is that a page ranks for its VARIANTS, and
+   * a phrase-exact expansion of a seed is mostly variants at 20-90/mo. Cutting
+   * them here, before clustering, is what left grove's own plan with two
+   * clusters on 2026-09-13: the floor removed the tail the clusters were
+   * built to sum. build.ts hands these to buildClusters as members only; a
+   * cluster whose total still misses the floor is dropped there.
+   */
+  longTail: ScoredKeyword[];
 };
 
 /**
@@ -112,6 +122,7 @@ export function selectKeywords(cands: ScoredKeyword[], opts: SelectOptions = {})
 
   const rejected: Selection['rejected'] = [];
   const scorable: ScoredKeyword[] = [];
+  const longTail: ScoredKeyword[] = [];
   let unscorable = 0;
 
   for (const c of cands) {
@@ -121,7 +132,11 @@ export function selectKeywords(cands: ScoredKeyword[], opts: SelectOptions = {})
       continue;
     }
     if (c.difficulty > maxDifficulty) { rejected.push({ keyword: c.keyword, reason: 'too_hard' }); continue; }
-    if (c.volume < minVolume) { rejected.push({ keyword: c.keyword, reason: 'too_small' }); continue; }
+    if (c.volume < minVolume) {
+      rejected.push({ keyword: c.keyword, reason: 'too_small' });
+      if (c.volume > 0) longTail.push(c);
+      continue;
+    }
     scorable.push(c);
   }
 
@@ -135,5 +150,5 @@ export function selectKeywords(cands: ScoredKeyword[], opts: SelectOptions = {})
     })
     .slice(0, limit);
 
-  return { chosen, rejected, unscorable };
+  return { chosen, rejected, unscorable, longTail };
 }

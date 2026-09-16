@@ -195,3 +195,38 @@ describe('formatClustersForPrompt', () => {
     expect(formatClustersForPrompt([])).toContain('no measured demand');
   });
 });
+
+describe('the long tail and the floor', () => {
+  const kw = (keyword: string, volume: number, difficulty: number) => ({ keyword, volume, difficulty, intent: null, source: 'dataforseo' });
+
+  it('lets members-only phrases join a pillar but never lead a cluster of their own', () => {
+    const leads = [kw('publish blog posts', 900, 20)];
+    const tail = [kw('publish blog posts automatically', 40, 12), kw('publish blog posts on wordpress', 60, 15), kw('tortilla recipe', 80, 5)];
+    const out = buildClusters(leads, { membersOnly: tail });
+    expect(out).toHaveLength(1);
+    expect(out[0].pillar.keyword).toBe('publish blog posts');
+    expect(out[0].members.map((m) => m.keyword).sort()).toEqual(['publish blog posts automatically', 'publish blog posts on wordpress']);
+    // 900 + 40 + 60: the tail is what the cluster was built to sum
+    expect(out[0].totalVolume).toBe(1000);
+    // "tortilla recipe" overlaps nothing, and a member-only phrase cannot start a cluster
+    expect(out.some((c) => c.pillar.keyword === 'tortilla recipe')).toBe(false);
+  });
+
+  it('drops a cluster whose whole prize is under the floor, and keeps one the tail lifts over it', () => {
+    // Two topics that share no token, so the tail can only land where it belongs.
+    const leads = [kw('keyword research tools', 200, 10), kw('embed blog no cms', 30, 5)];
+    const tail = [kw('embed blog without cms', 45, 6), kw('embed a blog no cms', 40, 6)];
+    const out = buildClusters(leads, { membersOnly: tail, minTotalVolume: 100 });
+    expect(out.map((c) => [c.pillar.keyword, c.totalVolume])).toEqual([
+      ['keyword research tools', 200],
+      ['embed blog no cms', 115],   // 30 + 45 + 40 — an article's worth once summed
+    ]);
+    const strict = buildClusters(leads, { membersOnly: tail, minTotalVolume: 150 });
+    expect(strict.map((c) => c.pillar.keyword)).toEqual(['keyword research tools']);
+  });
+
+  it('applies no floor by default, so an unmeasured pool still clusters', () => {
+    const out = buildClusters([{ keyword: 'a', volume: null, difficulty: null, intent: null, source: 'autocomplete' }]);
+    expect(out).toHaveLength(1);
+  });
+});

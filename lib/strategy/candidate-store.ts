@@ -224,6 +224,98 @@ export async function markPlanned(
 }
 
 /**
+ * Give a replaced plan's keywords back to the pool.
+ *
+ * `markPlanned` is permanent by design — a keyword in the live plan must not
+ * be proposed twice. But a plan that is REPLACED (the owner re-answered the
+ * interview, the refresh pass rebuilt it, someone deactivated it by hand)
+ * is not live any more, and its keywords stayed `planned` regardless. Each
+ * rebuild then excluded the previous plan's best phrases as "already
+ * planned", and grove's own plan went 10 slots → 9 → 2 across three rebuilds
+ * on 2026-09-13 while the phrases it should have used sat in the ledger,
+ * marked as taken by rows nobody was reading. Published stays published:
+ * that article exists whatever plan it came from.
+ */
+export async function releasePlanned(domainId: string, strategyIds: string[]): Promise<number> {
+  const ids = strategyIds.filter(Boolean);
+  if (!domainId || !ids.length) return 0;
+  try {
+    const sb = supabaseAdmin();
+    const { data, error } = await sb
+      .from('keyword_candidates')
+      .update({ status: 'new', strategy_id: null, slot_id: null, chosen_at: null })
+      .eq('domain_id', domainId)
+      .eq('status', 'planned')
+      .in('strategy_id', ids)
+      .select('id');
+    return error ? 0 : (data?.length ?? 0);
+  } catch {
+    return 0;   // the ledger is not worth the month's plan
+  }
+}
+
+/**
+ * The measured, unclaimed candidates a domain already has on file.
+ *
+ * The ledger was written to be READ at planning time — 0041's planning index
+ * is literally "unused candidates for this domain, easiest first" — and
+ * nothing read it. Each month's pool was only what that month's research
+ * returned, so a phrase measured in July at 3,600/mo and never picked was
+ * gone in August unless the API happened to return it again. This hands the
+ * planner everything the domain has already paid to measure; the relevance
+ * screen and the ledger's rejections then converge it toward a clean pool
+ * rather than re-discovering the same junk monthly. `metrics_at` bounds how
+ * stale a number may be — purchased metrics decay (see 0041).
+ */
+export async function candidatePool(
+  domainId: string,
+  lang: LangCode,
+  opts: { maxAgeDays?: number; limit?: number } = {},
+): Promise<ScoredKeyword[]> {
+  if (!domainId) return [];
+  try {
+    const sb = supabaseAdmin();
+    const since = new Date(Date.now() - (opts.maxAgeDays ?? 120) * 86_400_000).toISOString();
+    const { data } = await sb
+      .from('keyword_candidates')
+      .select('keyword, source, volume, difficulty, intent')
+      .eq('domain_id', domainId)
+      .eq('lang', lang)
+      .eq('status', 'new')
+      .not('volume', 'is', null)
+      .gte('metrics_at', since)
+      .order('volume', { ascending: false })
+      .limit(opts.limit ?? 400);
+    return (data ?? []).map((r: any) => ({
+      keyword: String(r.keyword),
+      source: String(r.source ?? 'dataforseo'),
+      volume: r.volume ?? null,
+      difficulty: r.difficulty ?? null,
+      intent: (r.intent ?? null) as ScoredKeyword['intent'],
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Fresh research first, the ledger for whatever it didn't return. Pure, so
+ * the precedence is testable: this month's metrics win over last month's for
+ * the same phrase, and nothing is listed twice.
+ */
+export function mergePool(fresh: ScoredKeyword[], onFile: ScoredKeyword[]): ScoredKeyword[] {
+  const seen = new Set<string>();
+  const out: ScoredKeyword[] = [];
+  for (const k of [...fresh, ...onFile]) {
+    const key = k.keyword.trim().toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(k);
+  }
+  return out;
+}
+
+/**
  * Record why a screened-out keyword lost — the other half of "what did we
  * pass over". Only rows still `new` are touched: a keyword already planned
  * or published has an outcome, and a fresh rejection must not overwrite it.

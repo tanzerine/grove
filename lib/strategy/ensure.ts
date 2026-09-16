@@ -18,7 +18,7 @@
  */
 import { supabaseAdmin } from '../supabase/admin';
 import { buildStrategy, type Strategy } from './build';
-import { markPlanned } from './candidate-store';
+import { markPlanned, releasePlanned } from './candidate-store';
 import { summarizeMonth } from './review';
 import { parseInterview } from './interview';
 import { getAgentContext, savePlanContext } from './context-store';
@@ -190,8 +190,16 @@ export async function ensureMonthlyStrategy(
   // Only a plan that goes live now displaces the current one. A staged plan
   // must leave it running — the month it covers hasn't started.
   if (!opts.staged) {
+    const { data: displaced } = await sb
+      .from('strategies').select('id')
+      .eq('domain_id', domain.id).eq('active', true);
     await sb.from('strategies').update({ active: false })
       .eq('domain_id', domain.id).eq('active', true);
+    // The displaced plan's keywords go back to the pool — this build has
+    // already selected without them (excludedKeywords ran inside
+    // buildStrategy), so the release only affects NEXT month's research and
+    // the ledger's honesty about what is live. Fail-soft.
+    await releasePlanned(domain.id, (displaced ?? []).map((r: any) => String(r.id)));
   }
 
   const row = {

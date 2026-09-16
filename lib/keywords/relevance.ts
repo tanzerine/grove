@@ -141,7 +141,9 @@ Return JSON only, one verdict per cluster:
 { "verdicts": [ { "c": 1, "relevant": true }, { "c": 2, "relevant": false, "why": "a Disney series, not a business problem" } ] }`;
 
   try {
-    const { text } = await llmCall({ system, user, maxTokens: 1200, timeoutMs: opts.timeoutMs ?? 45_000 });
+    // Eighty verdicts with reasons is ~2k tokens of output; a ceiling under
+    // that truncates the JSON and every cluster past the cut is silently kept.
+    const { text } = await llmCall({ system, user, maxTokens: 3000, timeoutMs: opts.timeoutMs ?? 60_000 });
     const drop = parseVerdicts(extractJson<unknown>(text), clusters.length);
     const out = applyVerdicts(clusters, drop);
     if (out.dropped.length) {

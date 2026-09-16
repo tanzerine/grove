@@ -8,6 +8,7 @@
 import { supabaseAdmin } from '../supabase/admin';
 import { PLAN_CHAT_LIMITS, reviseStrategy } from './plan-chat';
 import { savePlanContext } from './context-store';
+import { markPlanned, releasePlanned } from './candidate-store';
 import { getQuota } from '../quota';
 import type { Strategy } from './build';
 import { languageForDomain } from '../language';
@@ -124,6 +125,11 @@ export async function applyPlanRevision(opts: {
         .update({ customer_profile: strategyRow.customer_profile })
         .eq('id', inserted.id);
     }
+    // The ledger follows the plan: the old row's claims are released and the
+    // revised slots claim theirs, so a slot the owner removed stops excluding
+    // its keyword and a slot they kept stays linked to the row that is live.
+    await releasePlanned(domainId, [strategyRow.id]);
+    await markPlanned(domainId, inserted.id, outcome.strategy.publishing_plan ?? []);
   }
 
   await savePlanContext(domainId, outcome.strategy, opts.hostname);
