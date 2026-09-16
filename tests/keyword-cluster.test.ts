@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { buildClusters, clusterTokens, overlap, formatClustersForPrompt } from '../lib/keywords/cluster';
+import {
+  buildClusters, clusterTokens, overlap, formatClustersForPrompt, collapseCloseVariants, variantKey,
+} from '../lib/keywords/cluster';
 import type { ScoredKeyword } from '../lib/keywords/opportunity';
 
 const kw = (
@@ -228,5 +230,73 @@ describe('the long tail and the floor', () => {
   it('applies no floor by default, so an unmeasured pool still clusters', () => {
     const out = buildClusters([{ keyword: 'a', volume: null, difficulty: null, intent: null, source: 'autocomplete' }]);
     expect(out).toHaveLength(1);
+  });
+});
+
+describe('close variants — one Ads bucket is one keyword', () => {
+  // What trygroveai.com's ledger actually held on 2026-09-13: Labs returned
+  // every string in the bucket, each carrying the bucket's volume.
+  const dogBlog = [
+    'dog with the a blog', 'blog with the dog', 'dog in the blog', 'dog on the blog',
+    'dog of the blog', 'dog and the blog', 'dog with the blog', 'dog the blog', 'blog the dog',
+  ].map((k) => kw(k, 60_500, 6));
+
+  it('keys a bucket on content tokens + volume, never on word order or stopwords', () => {
+    const keys = new Set(dogBlog.map(variantKey));
+    expect(keys.size).toBe(1);
+  });
+
+  it('keeps same words at a different volume apart — those are different buckets', () => {
+    expect(variantKey(kw('content marketing', 110_000, 40)))
+      .not.toBe(variantKey(kw('marketing content', 246_000, 40)));
+  });
+
+  it('never collapses an unmeasured phrase — no volume, no evidence of a bucket', () => {
+    expect(variantKey(kw('dog the blog', null, null))).toBeNull();
+    const out = collapseCloseVariants([kw('dog the blog', null, null), kw('blog the dog', null, null)]);
+    expect(out).toHaveLength(2);
+  });
+
+  it('folds a bucket to its cleanest spelling: fewest words, then shortest', () => {
+    const out = collapseCloseVariants([
+      kw('content marketing content', 110_000, 40),
+      kw('content of marketing', 110_000, 40),
+      kw('content for content marketing', 110_000, 40),
+      kw('content marketing', 110_000, 40),
+    ]);
+    expect(out.map((k) => k.keyword)).toEqual(['content marketing']);
+  });
+
+  it('prefers the spelling that carries a difficulty over one that does not', () => {
+    const out = collapseCloseVariants([kw('content marketing', 110_000, null), kw('marketing of content', 110_000, 40)]);
+    expect(out[0].keyword).toBe('marketing of content');
+  });
+
+  it('keeps first-seen order and leaves distinct phrases alone', () => {
+    const out = collapseCloseVariants([
+      kw('seo strategy', 3_600, 30), kw('blog the dog', 60_500, 6), kw('keyword research', 2_900, 35), kw('dog the blog', 60_500, 6),
+    ]);
+    expect(out.map((k) => k.keyword)).toEqual(['seo strategy', 'blog the dog', 'keyword research']);
+  });
+
+  it('counts the bucket ONCE in the cluster total, not once per spelling', () => {
+    const [c] = buildClusters(dogBlog);
+    expect(c.members).toHaveLength(0);
+    expect(c.totalVolume).toBe(60_500);   // was 544,500 — nine spellings summed
+  });
+
+  it('drops a tail phrase whose bucket a lead already represents', () => {
+    const [c] = buildClusters([kw('content marketing', 110_000, 40)], {
+      membersOnly: [kw('content of marketing', 110_000, 40), kw('content marketing tips', 500, 20)],
+    });
+    expect(c.members.map((m) => m.keyword)).toEqual(['content marketing tips']);
+    expect(c.totalVolume).toBe(110_500);
+  });
+
+  it('still sums genuinely different searches — the reason clustering exists', () => {
+    const [c] = buildClusters([
+      kw('blog automation', 1_000, 20), kw('blog automation tool', 400, 25), kw('automate blog posts', 300, 22),
+    ]);
+    expect(c.totalVolume).toBe(1_700);
   });
 });
