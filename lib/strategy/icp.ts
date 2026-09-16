@@ -28,7 +28,7 @@
 import { llmCall, extractJson } from '../llm';
 import type { SiteProfile } from '../pipeline/site-profile';
 import { seedCandidates, isBrandTerm } from './seeds';
-import { language, languageCommand, type LangCode } from '../language';
+import { language, languageCommand, competitorVariants, type LangCode } from '../language';
 
 export type CustomerSegment = {
   /** "solo founder running a SaaS side project", not "SMB decision-maker". */
@@ -48,10 +48,27 @@ export type CustomerProfile = {
   vocabulary: string[];
   /** What stops them committing — the objections content has to answer. */
   objections: string[];
+  /**
+   * The three below are the BUYER-INTENT half of the profile, added after the
+   * first field measurement (oveners.com, 2026-09-16): the site's best
+   * commercial impressions were competitor names and "make it by hand"
+   * queries, and nothing in vocabulary/pains/jobs produces either. Optional in
+   * the type because profiles stored before they existed lack them.
+   */
+  /** Named products this customer would compare against — "iconikai",
+   *  "icons8 3d", not categories. */
+  competitors?: string[];
+  /** How they get the result TODAY without a product like this, as a search
+   *  phrase: "3d icon in illustrator", "hire a designer on fiverr". */
+  workarounds?: string[];
+  /** Where the output goes, as a search phrase: "3d icons for saas landing
+   *  page", "3d app icon ios". */
+  use_cases?: string[];
 };
 
 const EMPTY: CustomerProfile = {
   segments: [], jobs: [], pains: [], triggers: [], vocabulary: [], objections: [],
+  competitors: [], workarounds: [], use_cases: [],
 };
 
 const strs = (v: unknown, cap: number): string[] =>
@@ -84,6 +101,9 @@ export function normalizeIcp(raw: unknown): CustomerProfile {
     triggers: strs(r.triggers, 6),
     vocabulary: strs(r.vocabulary, 20),
     objections: strs(r.objections, 6),
+    competitors: strs(r.competitors, 6),
+    workarounds: strs(r.workarounds, 6),
+    use_cases: strs(r.use_cases, 6),
   };
 }
 
@@ -126,6 +146,59 @@ export function icpSeeds(
       if (out.length >= limit) return out;
     }
   }
+  return out;
+}
+
+/**
+ * Step 3, the buyer half: seeds for people who are already deciding.
+ *
+ * `icpSeeds` produces the informational pool — the problem in the customer's
+ * words. This produces the phrases typed by someone further along: they are
+ * looking at a competitor ("{name} alternative", "{name} vs"), they are
+ * doing it by hand today (workarounds), or they know where the output goes
+ * (use cases). Each is small in any database and each converts; together
+ * they are where a young domain can actually win.
+ *
+ * `knownCompetitors` come first — names Search Console has ALREADY shown the
+ * domain for are ground truth, the model's list is a guess — and the two are
+ * merged by name so a brand in both spends one pair of seeds.
+ *
+ * Workarounds and use cases are passed through as written, NOT through
+ * `seedCandidates`: that narrower splits on "for"/"with"/"in", and "3d icons
+ * for saas landing page" is one buyer's query, not two topics. Labs
+ * exact-matches the phrase in order, so a longer seed simply returns fewer,
+ * closer results — the four-word ceiling was Autocomplete's.
+ */
+export function buyerIntentSeeds(
+  icp: CustomerProfile | null | undefined,
+  opts: { lang: LangCode; brand?: string | null; knownCompetitors?: string[]; limit?: number } = { lang: 'en' },
+): string[] {
+  const limit = opts.limit ?? 10;
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const push = (raw: string): boolean => {
+    const s = raw.toLowerCase().replace(/\s+/g, ' ').trim();
+    if (!s || s.length < 3 || seen.has(s)) return false;
+    if (s.split(' ').length > 6) return false;
+    if (isBrandTerm(s, opts.brand)) return false;
+    seen.add(s);
+    out.push(s);
+    return out.length >= limit;
+  };
+
+  const names: string[] = [];
+  const nameSeen = new Set<string>();
+  for (const n of [...(opts.knownCompetitors ?? []), ...(icp?.competitors ?? [])]) {
+    const k = (n ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
+    if (!k || nameSeen.has(k) || isBrandTerm(k, opts.brand)) continue;
+    nameSeen.add(k);
+    names.push(k);
+  }
+  for (const n of names.slice(0, 4)) {
+    for (const v of competitorVariants(n, opts.lang)) if (push(v)) return out;
+  }
+  for (const w of icp?.workarounds ?? []) if (push(w)) return out;
+  for (const u of icp?.use_cases ?? []) if (push(u)) return out;
   return out;
 }
 
@@ -176,7 +249,13 @@ Rules:
   box before they know a solution exists: plain, specific, often a complaint.
 - Prefer the concrete over the demographic: "runs a two-person agency and does
   the invoicing at midnight" beats "SMB decision-maker".
-- If the business serves several distinct groups, give at most 4 segments.`;
+- If the business serves several distinct groups, give at most 4 segments.
+- "competitors" are NAMED products this customer would compare against — real
+  product names only, never categories, never the company itself. Leave the
+  list empty rather than invent one.
+- "workarounds" and "use_cases" are SEARCH PHRASES (2-6 words), the way the
+  query would be typed: "3d icon in illustrator", "3d icons for saas landing
+  page" — not sentences.`;
 
   const user = `${languageCommand(lg)}
 
@@ -196,7 +275,10 @@ Return JSON only:
   "pains":      ["what hurts today, in their words"],
   "triggers":   ["the event that makes them start looking"],
   "vocabulary": ["short phrases THEY use for the problem — search-shaped, 2-5 words"],
-  "objections": ["what stops them committing"]
+  "objections": ["what stops them committing"],
+  "competitors": ["named products they would compare against"],
+  "workarounds": ["how they get the result today without this, as a search phrase"],
+  "use_cases":   ["where the output goes, as a search phrase"]
 }`;
 
   try {
@@ -229,5 +311,8 @@ export function formatIcpForPrompt(icp: CustomerProfile | null | undefined): str
   if (icp.triggers.length) lines.push(`starts looking when: ${icp.triggers.slice(0, 4).join(' · ')}`);
   if (icp.objections.length) lines.push(`hesitates because: ${icp.objections.slice(0, 4).join(' · ')}`);
   if (icp.vocabulary.length) lines.push(`their words: ${icp.vocabulary.slice(0, 10).join(', ')}`);
+  if (icp.competitors?.length) lines.push(`compares against: ${icp.competitors.slice(0, 6).join(', ')}`);
+  if (icp.workarounds?.length) lines.push(`does it today by: ${icp.workarounds.slice(0, 4).join(' · ')}`);
+  if (icp.use_cases?.length) lines.push(`needs it for: ${icp.use_cases.slice(0, 4).join(' · ')}`);
   return lines.join('\n');
 }

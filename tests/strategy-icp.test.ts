@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeIcp, icpSeeds, icpIsUsable, formatIcpForPrompt, type CustomerProfile } from '../lib/strategy/icp';
+import { normalizeIcp, icpSeeds, buyerIntentSeeds, icpIsUsable, formatIcpForPrompt, type CustomerProfile } from '../lib/strategy/icp';
 
 const icp = (over: Partial<CustomerProfile> = {}): CustomerProfile => ({
   segments: [], jobs: [], pains: [], triggers: [], vocabulary: [], objections: [], ...over,
@@ -160,5 +160,71 @@ describe('buildCustomerProfile', () => {
     const icp = await buildCustomerProfile(BIZ, 'en');
     expect(icp.vocabulary).toEqual(['one']);
     expect(String(warn.mock.calls[0][0])).toMatch(/too thin/);
+  });
+});
+
+describe('the buyer half of the profile', () => {
+  it('normalizes competitors, workarounds and use cases, capped, and never undefined', () => {
+    const out = normalizeIcp({
+      vocabulary: ['a'],
+      competitors: ['Iconikai', ' icons8 3d ', 42, ''],
+      workarounds: Array.from({ length: 12 }, (_, i) => `w${i}`),
+    });
+    expect(out.competitors).toEqual(['Iconikai', 'icons8 3d']);
+    expect(out.workarounds).toHaveLength(6);
+    expect(out.use_cases).toEqual([]);
+    // A profile stored before these fields existed parses to empty lists too.
+    expect(normalizeIcp({ vocabulary: ['a'] }).competitors).toEqual([]);
+  });
+
+  it('turns each competitor into the two queries a buyer types about it', () => {
+    const out = buyerIntentSeeds(icp({ competitors: ['Iconikai'] }), { lang: 'en' });
+    expect(out).toEqual(['iconikai alternative', 'iconikai vs']);
+    expect(buyerIntentSeeds(icp({ competitors: ['Iconikai'] }), { lang: 'ko' })).toEqual(['iconikai 대안', 'iconikai 비교']);
+  });
+
+  it('Search Console names come first and merge with the model\'s by name', () => {
+    const out = buyerIntentSeeds(
+      icp({ competitors: ['icons8 3d', 'Iconikai'] }),
+      { lang: 'en', knownCompetitors: ['iconikai', 'applaunchflow icon composer'] },
+    );
+    expect(out.slice(0, 6)).toEqual([
+      'iconikai alternative', 'iconikai vs',
+      'applaunchflow icon composer alternative', 'applaunchflow icon composer vs',
+      'icons8 3d alternative', 'icons8 3d vs',
+    ]);
+    expect(out.filter((s) => s.startsWith('iconikai'))).toHaveLength(2);   // not four
+  });
+
+  it('passes workarounds and use cases through whole — "for" is part of the query here', () => {
+    const out = buyerIntentSeeds(icp({
+      workarounds: ['3d icon in illustrator'],
+      use_cases: ['3d icons for saas landing page'],
+    }), { lang: 'en' });
+    expect(out).toEqual(['3d icon in illustrator', '3d icons for saas landing page']);
+  });
+
+  it('never seeds from the business\'s own name, and bounds the total', () => {
+    const out = buyerIntentSeeds(icp({
+      competitors: ['Oven AI', 'iconikai', 'b', 'c', 'd', 'e'],
+      workarounds: ['w1', 'w2', 'w3'],
+      use_cases: ['u1 u2', 'u3 u4'],
+    }), { lang: 'en', brand: 'Oven AI', limit: 9 });
+    expect(out.some((s) => s.includes('oven ai'))).toBe(false);
+    expect(out).toHaveLength(9);
+    // Competitors are capped at four names, so the model cannot spend the
+    // whole budget on a list it may have invented.
+    expect(out.filter((s) => / (alternative|vs)$/.test(s))).toHaveLength(8);
+  });
+
+  it('is empty without a profile', () => {
+    expect(buyerIntentSeeds(null, { lang: 'en' })).toEqual([]);
+    expect(buyerIntentSeeds(icp(), { lang: 'en' })).toEqual([]);
+  });
+
+  it('the planner prompt names who they compare against', () => {
+    const text = formatIcpForPrompt(icp({ vocabulary: ['a', 'b'], pains: ['c'], competitors: ['iconikai'], use_cases: ['3d app icon ios'] }));
+    expect(text).toContain('compares against: iconikai');
+    expect(text).toContain('needs it for: 3d app icon ios');
   });
 });

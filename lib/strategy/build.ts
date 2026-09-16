@@ -19,8 +19,10 @@ import { assignPublishDates, slotsForRemainder } from './schedule';
 import { titleTokens } from '../related-posts';
 import { gatherKeywordDemand } from './keywords';
 import { searchSeeds, isBrandTerm, localizeSeeds } from './seeds';
-import { buildCustomerProfile, icpSeeds, icpIsUsable, formatIcpForPrompt, type CustomerProfile } from './icp';
-import { gatherLabsDemand } from '../keywords/dataforseo';
+import { buildCustomerProfile, icpSeeds, buyerIntentSeeds, icpIsUsable, formatIcpForPrompt, type CustomerProfile } from './icp';
+import { gatherLabsDemand, keywordOverview } from '../keywords/dataforseo';
+import { gscResearchPlan, mergeRevealed, type GscResearchPlan } from '../keywords/gsc-seeds';
+import { latestSnapshot } from '../search-console/sync';
 import { selectKeywords, type ScoredKeyword } from '../keywords/opportunity';
 import { buildClusters, formatClustersForPrompt } from '../keywords/cluster';
 import { recordCandidates, excludedKeywords, markRejected, candidatePool, mergePool } from './candidate-store';
@@ -305,10 +307,55 @@ export async function buildStrategy(input: BuildStrategyInput): Promise<Strategy
     // it used to be taken in silence.
     console.warn(`[buildStrategy] no customer profile for ${profile.business.name} — seeding research from the site profile instead`);
   }
-  const seeds = await localizeSeeds(
+  const problemSeeds = await localizeSeeds(
     fromIcp.length ? fromIcp : searchSeeds(profile, { limit: 8 }),
     pubLang.code,
   );
+
+  // ── STEP 3½: what Google already shows this domain for ──────────────────
+  // The one list of searches known to be real, and the planner never read it
+  // as a keyword source — only as a paragraph in the report. Measured on
+  // oveners.com it held the site's best commercial impressions (competitor
+  // names at position 6 with zero clicks, "make it by hand" queries) and the
+  // database-only pipeline could not see any of them. See lib/keywords/gsc-seeds.
+  // Already in the searcher's language, so never localized. Fail-soft: a
+  // domain without Search Console plans exactly as before.
+  let gsc: GscResearchPlan = { seeds: [], competitors: [], revealed: [], junk: 0 };
+  if (domainId) {
+    try {
+      const snap = await latestSnapshot(domainId);
+      gsc = gscResearchPlan(
+        (snap.queries ?? []).map((r: any) => ({
+          query: String(r.key ?? ''), impressions: Number(r.impressions ?? 0),
+          clicks: Number(r.clicks ?? 0), position: Number(r.position ?? 0),
+        })),
+        {
+          lang: pubLang.code,
+          brand: profile.business.name,
+          vocab: [...problemSeeds, ...(icp?.vocabulary ?? []), ...(profile.business.products_services ?? [])],
+          days: 28,
+        },
+      );
+      if (gsc.seeds.length || gsc.competitors.length || gsc.revealed.length) {
+        console.log(`[buildStrategy] search console for ${profile.business.name}: ${gsc.seeds.length} seeds, ` +
+          `${gsc.competitors.length} competitor queries (${gsc.competitors.join(', ') || '—'}), ` +
+          `${gsc.revealed.length} revealed candidates, ${gsc.junk} junk rows`);
+      }
+    } catch (err) {
+      console.warn(`[buildStrategy] search console read failed for ${profile.business.name}: ${String((err as any)?.message ?? err)}`);
+    }
+  }
+
+  // ── STEP 3¾: the buyer's seeds ──────────────────────────────────────────
+  // Competitor alternatives (Search Console's names first, the profile's
+  // second), workarounds, use cases. These are what someone types when they
+  // are already deciding; the problem seeds above are what they type before.
+  // Order sets what survives the cap: real rankings, then real competitors,
+  // then the customer's problem, then the model's guesses about the buyer.
+  const buyerSeeds = buyerIntentSeeds(icp, {
+    lang: pubLang.code, brand: profile.business.name, knownCompetitors: gsc.competitors, limit: 10,
+  });
+  const seeds = [...new Set([...gsc.seeds, ...buyerSeeds, ...problemSeeds])].slice(0, 24);
 
   // ── STEP 4: measured demand, and the selection it makes possible ────────
   let demandBlock = '(none captured — plan from the customer profile)';
@@ -329,6 +376,19 @@ export async function buildStrategy(input: BuildStrategyInput): Promise<Strategy
       scored = auto.map((a) => ({
         keyword: a.keyword, volume: null, difficulty: null, intent: a.intent, source: 'autocomplete',
       }));
+    }
+
+    // Revealed demand joins the pool with its impressions attached. Sized
+    // through the provider where it can be — keywordOverview was written for
+    // exactly this and had no caller — but a phrase the database has never
+    // heard of keeps its impressions and scores on the domain's own position.
+    // The floor and the score both read the effective figure, so "20/mo" no
+    // longer deletes a phrase that showed this site 600 times last month.
+    if (gsc.revealed.length) {
+      const sized = labs?.length
+        ? await keywordOverview(gsc.revealed.map((k) => k.keyword), pubLang.code)
+        : null;
+      scored = mergeRevealed(scored, gsc.revealed, sized ?? []);
     }
 
     // The brand's own name is not demand. It classifies as `informational`

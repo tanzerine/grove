@@ -300,3 +300,22 @@ describe('close variants — one Ads bucket is one keyword', () => {
     expect(c.totalVolume).toBe(1_700);
   });
 });
+
+describe('revealed demand in clusters', () => {
+  const seen = { impressions: 627, clicks: 9, position: 13.4, days: 28 };
+
+  it('states what Google already showed the site, beside the purchased figure', () => {
+    const [c] = buildClusters([{ ...kw('3d icon generator', 20, 21), revealed: seen }]);
+    const text = formatClustersForPrompt([c]);
+    expect(text).toContain('20/mo');
+    expect(text).toContain('Google already shows this site for it: 627 impressions in 28d at position 13.4');
+  });
+
+  it('counts observed demand toward the cluster total when the database has less or nothing', () => {
+    const [c] = buildClusters([
+      { ...kw('3d icon generator', 20, 21), revealed: seen },
+      { ...kw('3d icon generator online', null, null), revealed: { impressions: 56, clicks: 0, position: 33, days: 28 } },
+    ]);
+    expect(c.totalVolume).toBe(672 + 60);
+  });
+});
