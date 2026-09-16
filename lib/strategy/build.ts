@@ -23,7 +23,7 @@ import { buildCustomerProfile, icpSeeds, icpIsUsable, formatIcpForPrompt, type C
 import { gatherLabsDemand } from '../keywords/dataforseo';
 import { selectKeywords, type ScoredKeyword } from '../keywords/opportunity';
 import { buildClusters, formatClustersForPrompt } from '../keywords/cluster';
-import { recordCandidates, excludedKeywords, markRejected } from './candidate-store';
+import { recordCandidates, excludedKeywords, markRejected, candidatePool, mergePool } from './candidate-store';
 import { screenClusters } from '../keywords/relevance';
 import { monthlySlots } from '../plans';
 import type { MonthlyReport } from './review';
@@ -343,6 +343,12 @@ export async function buildStrategy(input: BuildStrategyInput): Promise<Strategy
     // passing over", which is half of why the table exists.
     if (domainId) await recordCandidates(domainId, scored, { lang: pubLang.code });
 
+    // Everything the domain has already paid to measure joins this month's
+    // research. The ledger was written to be read here and never was: a
+    // 3,600/mo phrase measured in one month and not picked was gone the next
+    // unless the API happened to return it again.
+    if (domainId) scored = mergePool(scored, await candidatePool(domainId, pubLang.code));
+
     // Don't re-propose what is already planned or published — two of our own
     // pages splitting the signal for one query is cannibalisation, and it is
     // invisible without this record. Rejections expire (see shouldExclude), so
@@ -356,15 +362,27 @@ export async function buildStrategy(input: BuildStrategyInput): Promise<Strategy
     // of reach. With Autocomplete-only input every candidate is unscorable, so
     // `chosen` is empty and the raw pool carries through — the planner then
     // sees phrases with "KD ?" rather than fabricated numbers.
-    const selection = selectKeywords(scored, { limit: 60 });
-    const pool = selection.chosen.length ? selection.chosen : scored;
+    //
+    // Wide on purpose: the relevance screen below runs on the clusters this
+    // pool becomes, and a pool cut to the month's size BEFORE screening is a
+    // pool the junk has already crowded — sixty phrases led by "blog the dog"
+    // screen down to two. Select generously, screen, then take the best.
+    const selection = selectKeywords(scored, { limit: 150 });
+    const measured = selection.chosen.length > 0;
+    const pool = measured ? selection.chosen : scored;
 
     // ── STEP 5: clusters ──────────────────────────────────────────────────
     // One cluster is one article. Twice the month's slots so the planner can
     // still balance intent across pillars rather than being handed a
     // pre-decided plan.
+    // The long tail rides along as members only, and the floor moves to the
+    // cluster's total: a 40/mo variant is not an article, but under a 900/mo
+    // pillar it is thirty more readers a month for the same page. Unmeasured
+    // pools get no floor — every total would be zero.
     const built = buildClusters(pool, {
-      maxClusters: Math.max(monthlyPostCount * 2, 12),
+      maxClusters: 80,
+      membersOnly: measured ? selection.longTail : [],
+      minTotalVolume: measured ? 100 : 0,
     });
 
     // ── STEP 4½: are these about the customer's problem at all? ──────────
@@ -382,7 +400,10 @@ export async function buildStrategy(input: BuildStrategyInput): Promise<Strategy
         'off_topic',
       );
     }
-    const clusters = screened.kept;
+    // Twice the month's slots so the planner can still balance intent across
+    // pillars rather than being handed a pre-decided plan. buildClusters
+    // sorted by score, so this keeps the best of what survived.
+    const clusters = screened.kept.slice(0, Math.max(monthlyPostCount * 2, 12));
     clusterCount = clusters.length;
     demandBlock = formatClustersForPrompt(clusters);
 

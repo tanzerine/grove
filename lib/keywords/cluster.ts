@@ -90,6 +90,18 @@ export type ClusterOptions = {
    *  cluster was built to win. */
   maxMembers?: number;
   ceiling?: number;
+  /**
+   * Drop clusters whose summed volume is under this. This is where the volume
+   * floor belongs — on the article's whole prize, not on each phrase before
+   * the phrases have been added up (see Selection.longTail).
+   */
+  minTotalVolume?: number;
+  /**
+   * Phrases that may join a cluster but never lead one — the long tail.
+   * A lone 40/mo variant is not an article; the same variant under a 900/mo
+   * pillar is thirty more readers a month for the same page.
+   */
+  membersOnly?: ScoredKeyword[];
 };
 
 /**
@@ -110,7 +122,15 @@ export function buildClusters(keywords: ScoredKeyword[], opts: ClusterOptions = 
   // Sort by opportunity so the pillar of each cluster is its best keyword.
   // Unscorable candidates (score 0) sort last and become their own single-
   // keyword clusters rather than silently attaching to something measured.
-  const pool = [...keywords].sort((a, b) => opportunityScore(b, ceiling) - opportunityScore(a, ceiling));
+  // Members-only phrases sort after every pillar candidate whatever their
+  // score, so they can only ever be picked up as members; the ones nothing
+  // claims are dropped at the end rather than becoming one-phrase clusters.
+  const leadCount = keywords.length;
+  const pool = [
+    ...[...keywords].sort((a, b) => opportunityScore(b, ceiling) - opportunityScore(a, ceiling)),
+    ...(opts.membersOnly ?? []),
+  ];
+  const canLead = (i: number) => i < leadCount;
   const tokenCache = new Map<string, Set<string>>();
   const tok = (k: string) => {
     let t = tokenCache.get(k);
@@ -123,6 +143,7 @@ export function buildClusters(keywords: ScoredKeyword[], opts: ClusterOptions = 
 
   for (let i = 0; i < pool.length; i++) {
     if (taken.has(i)) continue;
+    if (!canLead(i)) break;   // only unclaimed tail is left — nothing may lead it
     taken.add(i);
     const pillar = pool[i];
     const pTok = tok(pillar.keyword);
@@ -146,7 +167,9 @@ export function buildClusters(keywords: ScoredKeyword[], opts: ClusterOptions = 
     });
   }
 
+  const floor = opts.minTotalVolume ?? 0;
   return clusters
+    .filter((c) => c.totalVolume >= floor)
     .sort((a, b) => {
       const d = b.score - a.score;
       if (d !== 0) return d;

@@ -111,3 +111,20 @@ describe('selectKeywords', () => {
     expect(selectKeywords([kw('x', 100, 5)]).chosen).toHaveLength(1);
   });
 });
+
+describe('the long tail', () => {
+  it('keeps measured, winnable phrases under the floor for clustering instead of discarding them', () => {
+    const cands = [
+      { keyword: 'publish blog posts', volume: 900, difficulty: 20, intent: null, source: 'dataforseo' },
+      { keyword: 'publish blog posts automatically', volume: 40, difficulty: 12, intent: null, source: 'dataforseo' },
+      { keyword: 'publish blog posts on a schedule', volume: 70, difficulty: 60, intent: null, source: 'dataforseo' },   // too hard — not tail
+      { keyword: 'publish blog posts free', volume: 0, difficulty: 10, intent: null, source: 'dataforseo' },            // zero demand — not tail
+      { keyword: 'how to publish', volume: null, difficulty: null, intent: null, source: 'autocomplete' },
+    ];
+    const s = selectKeywords(cands, { minVolume: 100 });
+    expect(s.chosen.map((k) => k.keyword)).toEqual(['publish blog posts']);
+    expect(s.longTail.map((k) => k.keyword)).toEqual(['publish blog posts automatically']);
+    // The rejection ledger is unchanged: the tail is still reported as too_small.
+    expect(s.rejected.find((r) => r.keyword === 'publish blog posts automatically')?.reason).toBe('too_small');
+  });
+});

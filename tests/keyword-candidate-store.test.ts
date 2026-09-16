@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { candidateRow, diffCandidates, shouldExclude, candidateMatch } from '../lib/strategy/candidate-store';
+import { candidateRow, diffCandidates, shouldExclude, candidateMatch, mergePool } from '../lib/strategy/candidate-store';
 import type { ScoredKeyword } from '../lib/keywords/opportunity';
 
 const kw = (
@@ -127,5 +127,20 @@ describe('candidateMatch', () => {
   it('treats an empty string as missing, not as a match', () => {
     expect(candidateMatch({ domain_id: '', slot_id: 'slot-1', strategy_id: 's' })).toBeNull();
     expect(candidateMatch({ domain_id: 'd', slot_id: '', strategy_id: 's' })).toBeNull();
+  });
+});
+
+describe('mergePool', () => {
+  const k = (keyword: string, volume: number) => ({ keyword, volume, difficulty: 10, intent: null, source: 'dataforseo' });
+  it('takes this month\'s metrics over the ledger\'s for the same phrase, and lists nothing twice', () => {
+    const out = mergePool([k('Content Marketing Agency', 3600), k('ai seo agent', 500)], [k('content marketing agency', 3100), k('topical authority', 320), k('ai seo agent', 480)]);
+    expect(out.map((c) => [c.keyword, c.volume])).toEqual([
+      ['Content Marketing Agency', 3600],
+      ['ai seo agent', 500],
+      ['topical authority', 320],
+    ]);
+  });
+  it('is the ledger alone when research returned nothing', () => {
+    expect(mergePool([], [k('topical authority', 320)]).map((c) => c.keyword)).toEqual(['topical authority']);
   });
 });
