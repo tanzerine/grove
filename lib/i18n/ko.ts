@@ -664,7 +664,6 @@ export const KO: Record<string, string> = {
   'Customization attrs': '커스터마이징 속성',
 
   /* ── content API (MCP) ───────────────────────────────────────────────── */
-  'Step 3 · Let it work': '3단계 · 작동시키기',
   'What your agent can do': '에이전트가 할 수 있는 일',
   'Needs write-back.': '쓰기 권한이 필요합니다.',
   'Advanced · test it by hand': '고급 · 직접 테스트하기',
@@ -853,8 +852,6 @@ export const KO: Record<string, string> = {
     'DNS 레코드가 아직 보이지 않습니다. 최대 한 시간이 걸릴 수 있어요. 잠시 후 다시 시도해 주세요.',
 
   /* ── content API keys ────────────────────────────────────────────────── */
-  'Step 1 · Create a key': '1단계 · 키 만들기',
-  'Step 2 · Connect your agent': '2단계 · 에이전트 연결하기',
   'One key per agent': '에이전트마다 키 하나',
   'What is it for?': '어디에 쓰나요?',
   'All my sites': '내 모든 사이트',
@@ -1321,32 +1318,12 @@ export const KO: Record<string, string> = {
   'Optional — for developers': '선택 사항 — 개발자용',
   'Verified. Now — is {host}’s blog in a repo?': '확인됐습니다. 혹시 {host}의 블로그가 저장소 안에 있나요?',
   'Is your blog in a repo?': '블로그가 저장소 안에 있나요?',
-  'If you already have a content layer — MDX in a repo, a CMS, your own pipeline — grove can hand finished articles straight to your coding agent over MCP, into the blog you already run. No embed script, no second blog beside the first. It’s one command, and it’s easiest now, while that repo is open.':
-    '이미 콘텐츠 레이어가 있다면 — 저장소의 MDX, CMS, 직접 만든 파이프라인 — grove가 완성된 글을 MCP로 코딩 에이전트에 바로 넘겨 지금 운영 중인 블로그에 넣어 줍니다. 임베드 스크립트도, 그 옆에 생기는 두 번째 블로그도 없어요. 명령어 하나면 되고, 저장소를 열어 둔 지금이 가장 쉽습니다.',
-  '1 · Make a key': '1 · 키 만들기',
-  'Read + write, every site on your account. Shown once, then stored only as a hash — grove can’t show it to you again.':
-    '계정의 모든 사이트에 대한 읽기·쓰기 권한입니다. 한 번만 표시되고 이후에는 해시로만 저장되므로 grove도 다시 보여 줄 수 없어요.',
-  'Create my key': '키 만들기',
-  'Could not create the key — you can do this any time from Content API.':
-    '키를 만들지 못했어요. 콘텐츠 API에서 언제든 다시 시도할 수 있습니다.',
-  'Could not reach grove — you can do this any time from Content API.':
-    'grove에 연결하지 못했어요. 콘텐츠 API에서 언제든 다시 시도할 수 있습니다.',
-  '2 · Point your agent at grove': '2 · 에이전트를 grove에 연결하기',
-  'Run it in the repository that holds your blog. Then ask it to {ask}.':
-    '블로그가 있는 저장소에서 실행하세요. 그런 다음 {ask}라고 요청하면 됩니다.',
-  'Run it in the repository that holds your blog — the key below is a placeholder until you make one. Then ask it to {ask}.':
-    '블로그가 있는 저장소에서 실행하세요. 아래 키는 실제 키를 만들기 전까지는 예시입니다. 그런 다음 {ask}라고 요청하면 됩니다.',
   'import the new grove articles': 'grove의 새 글을 가져와 줘',
   'The agent gets the rest from grove itself — ask it for the {tool}, which covers the analytics beacon your pages need to keep and where grove should point its canonical URLs once yours are live.':
     '나머지는 에이전트가 grove에서 직접 받아 갑니다. {tool}을 요청하면 페이지에 남겨 둬야 할 분석 비콘과, 직접 만든 URL이 살아난 뒤 grove가 canonical을 어디로 가리켜야 하는지까지 안내해요.',
-  'Done — open my dashboard →': '완료 — 대시보드 열기 →',
   'No repo? That’s fine — {embed} is one snippet and needs no code.':
     '저장소가 없어도 괜찮아요. {embed}는 스니펫 하나면 되고 코드가 필요 없습니다.',
   'the embed': '임베드',
-  'Manage this key any time from {link} — revoke it, scope one to a single site, and see what your layer has actually taken.':
-    '이 키는 {link}에서 언제든 관리할 수 있어요. 폐기하거나, 사이트 하나로 범위를 좁히거나, 콘텐츠 레이어가 실제로 가져간 내역을 확인할 수 있습니다.',
-  'You can set this up any time from {link} — it’s the same key, plus per-site scoping and what your layer has actually taken.':
-    '{link}에서 언제든 설정할 수 있어요. 같은 키에 사이트별 범위 설정과 콘텐츠 레이어가 실제로 가져간 내역이 더해집니다.',
 
   /* ── onboarding · intent (the strategist's interview) ────────────────────
      The question text and the OPTIONS both live in lib/strategy/interview.ts.
@@ -1662,4 +1639,49 @@ export const KO: Record<string, string> = {
   // Fallback link inside the landing's blog widget — the crawlable route to
   // grove's own articles before embed.js replaces the container.
   'Read the blog': '블로그 보기',
+  // MCP connect: browser-approved OAuth by default, keys only for headless agents.
+  'Step 1 · Connect your agent':
+    '1단계 · 에이전트 연결하기',
+  'Paste one link, approve it in your browser':
+    '링크 하나 붙여넣고, 브라우저에서 승인하기',
+  'No key to make. Add grove to your agent with this link. The first time it connects, grove opens in your browser — click Allow and you’re done.':
+    '키를 만들 필요가 없어요. 이 링크로 에이전트에 grove를 추가하세요. 처음 연결될 때 브라우저에서 grove가 열리고, 허용을 누르면 끝입니다.',
+  'Claude Desktop or claude.ai: Settings → Connectors → Add custom connector, and paste the link.':
+    'Claude Desktop 또는 claude.ai: 설정 → 커넥터 → 사용자 지정 커넥터 추가에서 링크를 붙여넣으세요.',
+  'Claude Code — then run /mcp and choose Authenticate':
+    'Claude Code — 그다음 /mcp를 실행하고 Authenticate를 선택하세요',
+  'Cursor and other clients — mcp.json':
+    'Cursor 및 기타 클라이언트 — mcp.json',
+  'Then ask it to “import the new grove articles”.':
+    '그런 다음 “새 grove 글을 가져와 줘”라고 요청하세요.',
+  'Headless · create a key':
+    '헤드리스 · 키 만들기',
+  'Headless · connect with the key':
+    '헤드리스 · 키로 연결하기',
+  'Step 2 · Let it work':
+    '2단계 · 작동시키기',
+  'Advanced · no browser':
+    '고급 · 브라우저 없이',
+  'Use an API key instead':
+    '대신 API 키 사용하기',
+  'For CI jobs and scripts that can’t open a browser to approve the connection.':
+    '연결을 승인할 브라우저를 열 수 없는 CI 작업이나 스크립트용입니다.',
+  'Run it in the repository that holds your blog, then run /mcp inside Claude Code and choose Authenticate.':
+    '블로그가 있는 저장소에서 실행한 뒤, Claude Code 안에서 /mcp를 실행하고 Authenticate를 선택하세요.',
+  'Add it to your mcp.json. Your client shows a sign-in prompt the first time it connects.':
+    'mcp.json에 추가하세요. 처음 연결할 때 클라이언트가 로그인 안내를 보여 줍니다.',
+  'Settings → Connectors → Add custom connector, and paste the link.':
+    '설정 → 커넥터 → 사용자 지정 커넥터 추가에서 링크를 붙여넣으세요.',
+  'If you already have a content layer — MDX in a repo, a CMS, your own pipeline — grove can hand finished articles straight to your coding agent over MCP, into the blog you already run. No embed script, no second blog beside the first. It’s one link, and it’s easiest now, while that repo is open.':
+    '이미 콘텐츠 레이어가 있다면 — 저장소의 MDX, CMS, 직접 만든 파이프라인 — grove가 완성된 글을 MCP로 코딩 에이전트에 바로 넘겨 지금 운영 중인 블로그에 넣어 줍니다. 임베드 스크립트도, 그 옆에 생기는 두 번째 블로그도 없어요. 링크 하나면 되고, 저장소를 열어 둔 지금이 가장 쉽습니다.',
+  '1 · Add grove to your agent':
+    '1 · 에이전트에 grove 추가하기',
+  '2 · Approve it in your browser':
+    '2 · 브라우저에서 승인하기',
+  'The first time it connects, grove opens in your browser. Click Allow — there’s no key to copy. Then ask it to {ask}.':
+    '처음 연결될 때 브라우저에서 grove가 열립니다. 허용을 누르세요 — 복사할 키는 없어요. 그런 다음 {ask}라고 요청하면 됩니다.',
+  'Continue to my dashboard →':
+    '대시보드로 이동 →',
+  'Approved agents show up in {link}, where you can disconnect one and see what your layer has actually taken.':
+    '승인한 에이전트는 {link}에 표시되며, 거기서 연결을 끊거나 레이어가 실제로 가져간 글을 확인할 수 있습니다.',
 };

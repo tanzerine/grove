@@ -10,7 +10,7 @@
 import { describe, it, expect } from 'vitest';
 import { createHash, randomBytes } from 'crypto';
 import {
-  authorizeRedirect, checkAuthorize, looksLikeAccessToken, mintOpaque, normalizeResource,
+  authorizeRedirect, checkAuthorize, consentOriginAllowed, looksLikeAccessToken, mintOpaque, normalizeResource,
   parseScopes, redirectUriAllowed, redirectUriValid, toKeyScopes, verifyPkce, ACCESS_PREFIX,
 } from '@/lib/mcp/oauth';
 
@@ -87,6 +87,33 @@ describe('redirectUriAllowed', () => {
 
   it('does not let a remote https port float', () => {
     expect(redirectUriAllowed(registered, 'https://app.example.com:9999/cb')).toBe(false);
+  });
+});
+
+describe('consentOriginAllowed', () => {
+  // Production serves the consent page on www (the apex 307s there), so the
+  // browser's Origin is the www twin. Refusing it broke every real approval.
+  it('accepts appBase and its www twin, both directions', () => {
+    expect(consentOriginAllowed('https://trygroveai.com', ISSUER)).toBe(true);
+    expect(consentOriginAllowed('https://www.trygroveai.com', ISSUER)).toBe(true);
+    expect(consentOriginAllowed('https://trygroveai.com', 'https://www.trygroveai.com')).toBe(true);
+    expect(consentOriginAllowed('https://trygroveai.com/', ISSUER)).toBe(true);
+  });
+
+  it('refuses every other origin — the forged-consent defence', () => {
+    expect(consentOriginAllowed(null, ISSUER)).toBe(false);
+    expect(consentOriginAllowed('', ISSUER)).toBe(false);
+    expect(consentOriginAllowed('null', ISSUER)).toBe(false);
+    expect(consentOriginAllowed('https://blog.acme.com', ISSUER)).toBe(false);
+    expect(consentOriginAllowed('https://evil-trygroveai.com', ISSUER)).toBe(false);
+    expect(consentOriginAllowed('https://trygroveai.com.evil.com', ISSUER)).toBe(false);
+    expect(consentOriginAllowed('https://app.trygroveai.com', ISSUER)).toBe(false);
+  });
+
+  it('refuses a scheme or port change', () => {
+    expect(consentOriginAllowed('http://trygroveai.com', ISSUER)).toBe(false);
+    expect(consentOriginAllowed('https://trygroveai.com:8443', ISSUER)).toBe(false);
+    expect(consentOriginAllowed('http://localhost:3000', 'http://localhost:3000')).toBe(true);
   });
 });
 

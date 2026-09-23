@@ -12,9 +12,9 @@
  * back to it.
  *
  * It is an OFFER, not a step: skipping is one click, it never blocks the
- * dashboard, and /dashboard/mcp remains the full surface (multiple keys,
- * per-site scoping, delivery state). This page mints one key with the sane
- * defaults and hands over one command.
+ * dashboard, and /dashboard/mcp remains the full surface (connected agents,
+ * headless keys, delivery state). This page hands over one link; the agent's
+ * browser approval does the rest.
  */
 import { redirect } from 'next/navigation';
 import { supabaseServer } from '@/lib/supabase/server';

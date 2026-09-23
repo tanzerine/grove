@@ -3,6 +3,11 @@
  * Create, show and revoke MCP keys — and, the moment a key exists, hand over
  * the exact command that connects an agent to it.
  *
+ * KEYS ARE THE HEADLESS FALLBACK. The default connection is browser-approved
+ * OAuth (ConnectCard, step 1 on this page) and needs no key at all; this
+ * component sits inside a collapsed section for the agent that has no browser
+ * to open — a CI job, a cron, a script.
+ *
  * The secret is returned by the API exactly once. That is the whole reason this
  * component holds it in state and pushes it into the snippets below: if the
  * customer has to go and find it later, they can't, and the only recovery is
@@ -13,7 +18,7 @@ import Icon from '../gv-icons';
 import CopySnippet from '../embed/CopySnippet';
 import { useT } from '../i18n';
 import { captureClient } from '@/lib/analytics/capture-client';
-import { KEY_PLACEHOLDER, installCommand, mcpJson } from '@/lib/mcp/install';
+import { KEY_PLACEHOLDER, keyInstallCommand, keyMcpJson } from '@/lib/mcp/install';
 // Shared with GrantList so the two credential lists cannot render time differently.
 import { ago } from '@/lib/mcp/grants';
 
@@ -59,8 +64,8 @@ export default function KeyManager({ initialKeys, sites, endpoint }: {
   // Both snippets come from lib/mcp/install so this page and the first-run
   // offer at /onboarding/mcp can't hand out two different commands.
   const token = secret ?? KEY_PLACEHOLDER;
-  const cli = installCommand(endpoint, token);
-  const json = mcpJson(endpoint, token);
+  const cli = keyInstallCommand(endpoint, token);
+  const json = keyMcpJson(endpoint, token);
 
   async function create() {
     setBusy(true); setError(null);
@@ -100,7 +105,7 @@ export default function KeyManager({ initialKeys, sites, endpoint }: {
     <>
       {/* ── create ─────────────────────────────────────────────── */}
       <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '22px 24px' }}>
-        <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 4 }}>{t('Step 1 · Create a key')}</div>
+        <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 4 }}>{t('Headless · create a key')}</div>
         <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.01em', marginBottom: 6 }}>{t('One key per agent')}</div>
         <p style={{ fontSize: 13, color: 'var(--gv-dim)', lineHeight: 1.55, margin: '0 0 16px', maxWidth: 620 }}>
           {t('Shown once, then stored only as a hash — grove can’t show it to you again. Revoke and make a new one if it goes missing.')}
@@ -142,7 +147,7 @@ export default function KeyManager({ initialKeys, sites, endpoint }: {
 
       {/* ── connect ────────────────────────────────────────────── */}
       <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '22px 24px' }}>
-        <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 4 }}>{t('Step 2 · Connect your agent')}</div>
+        <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 4 }}>{t('Headless · connect with the key')}</div>
         <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.01em', marginBottom: 6 }}>{t('Point it at grove')}</div>
         <p style={{ fontSize: 13, color: 'var(--gv-dim)', lineHeight: 1.55, margin: '0 0 16px', maxWidth: 620 }}>
           {t('Run this in the repository that holds your blog')}{secret ? '' : ' — the key below is a placeholder until you create one'}.
@@ -199,7 +204,7 @@ export default function KeyManager({ initialKeys, sites, endpoint }: {
   );
 }
 
-function Snippet({ label, body }: { label: string; body: string }) {
+export function Snippet({ label, body }: { label: string; body: string }) {
   return (
     <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>

@@ -120,8 +120,13 @@ describe('the MCP offer renders in Korean', () => {
 
   it('translates the eyebrow, the pitch and the step headings', () => {
     expect(ko).toContain(KO['Optional — for developers']);
-    expect(ko).toContain(KO['1 · Make a key']);
-    expect(ko).toContain(KO['Create my key']);
+    expect(ko).toContain(KO['1 · Add grove to your agent']);
+    expect(ko).toContain(KO['2 · Approve it in your browser']);
+  });
+
+  it('hands over a keyless command — the browser approval replaces the key', () => {
+    expect(ko).toContain('claude mcp add --transport http grove https://grove.test/api/mcp');
+    expect(ko).not.toContain('gv_mcp_');
   });
 
   it('keeps the customer’s hostname inside the translated headline', () => {
