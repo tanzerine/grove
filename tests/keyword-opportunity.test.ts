@@ -107,9 +107,9 @@ describe('selectKeywords', () => {
 
   it('defaults are the cautious young-domain numbers', () => {
     expect(DEFAULT_KD_CEILING).toBe(30);
-    // volume floor 100 by default
-    expect(selectKeywords([kw('x', 99, 5)]).chosen).toHaveLength(0);
-    expect(selectKeywords([kw('x', 100, 5)]).chosen).toHaveLength(1);
+    // volume floor 50 by default (lib/keywords/demand-floor.ts)
+    expect(selectKeywords([kw('x', 49, 5)]).chosen).toHaveLength(0);
+    expect(selectKeywords([kw('x', 50, 5)]).chosen).toHaveLength(1);
   });
 });
 
