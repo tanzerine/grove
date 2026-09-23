@@ -5,7 +5,7 @@
  * decides what to call, so a tool whose schema and description have drifted
  * apart doesn't fail loudly — it just gets used wrongly, on someone else's
  * codebase, where nobody here can see it. These checks keep the catalogue
- * self-consistent and keep the two state-changing tools behind write scope.
+ * self-consistent and keep the state-changing tools behind write scope.
  */
 import { describe, it, expect } from 'vitest';
 import { TOOLS, TOOL_NAMES, toolByName, toolListPayload } from '@/lib/mcp/tools';
@@ -49,9 +49,12 @@ describe('catalogue', () => {
     }
   });
 
-  it('keeps exactly the two state-changing tools behind write scope', () => {
+  it('keeps exactly the three state-changing tools behind write scope', () => {
     const writes = TOOLS.filter((t) => t.scope === 'write').map((t) => t.name).sort();
-    expect(writes).toEqual(['record_delivery', 'set_canonical_base']);
+    // create_draft is the only one that adds content, and it can only add a
+    // draft in review — see createDraft in lib/mcp/handlers.ts. A tool that
+    // publishes, edits or deletes does not belong in this list.
+    expect(writes).toEqual(['create_draft', 'record_delivery', 'set_canonical_base']);
     // Everything else must be annotated read-only, which is what a client uses
     // to decide whether a call needs the human's approval.
     for (const t of TOOLS.filter((x) => x.scope === 'read')) {
@@ -59,7 +62,8 @@ describe('catalogue', () => {
     }
     for (const t of TOOLS.filter((x) => x.scope === 'write')) {
       expect(t.annotations?.readOnlyHint, t.name).toBe(false);
-      // Both are upserts — a retried batch must not read as destructive.
+      // All are safe to retry (upserts, or create_draft's title dedupe) — a
+      // retried batch must not read as destructive.
       expect(t.annotations?.idempotentHint, t.name).toBe(true);
     }
   });

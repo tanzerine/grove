@@ -441,6 +441,17 @@ Other key surfaces:
     by hand through `resolveSite()` — a posts query without a resolved
     `domain_id` is a cross-tenant read. `mcp_keys` has RLS with **no policy**
     (service-role only, same reasoning as `beta_coupons`).
+  - `create_draft` is the one tool that ADDS content, and only as a draft in
+    `review` — the same queue a pipeline draft waits in, published only by the
+    owner. Idempotent on (site, title); refuses a title that already exists as
+    a published/scheduled article. Frontmatter and a leading H1 are stripped
+    (`lib/mcp/draft.ts`) and the title becomes the H1. **Never add a publish,
+    edit or delete tool** — `tests/mcp-tools.test.ts` pins the write list.
+  - Connecting is keyless by default: the 401 names grove's OAuth server, so
+    a client registers, opens the consent screen and keeps the token itself
+    (#295). Keys are the headless fallback. `consentOriginAllowed` accepts the
+    www twin of `appBase()` — production served on www once and every Allow
+    click 403'd.
   - `pull_new` is the incremental sync and `mcp_deliveries` is its ledger: the
     agent records where each article went live, so the next pull returns only
     what's genuinely new and the dashboard can show what actually shipped.

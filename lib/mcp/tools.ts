@@ -143,6 +143,25 @@ export const TOOLS: ToolDef[] = [
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
   {
+    name: 'create_draft',
+    title: 'Save a draft for review',
+    description:
+      'Save an article you wrote as a DRAFT on one of the sites, for the owner to review and publish from the grove dashboard. It is never published by this call, and nothing reaches the live blog or the sync until the owner approves it. Pass the full markdown body; YAML frontmatter and a leading H1 are fine — they are stripped and the title becomes the H1. Calling it again with the same title on the same site returns the existing draft instead of making a second one. Returns the draft id and the dashboard link to review it.',
+    scope: 'write',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        site,
+        title: { type: 'string', description: 'The headline. Becomes the H1 and, on publish, the slug.' },
+        body_md: { type: 'string', description: 'The article as markdown. Frontmatter is allowed and will be stripped.' },
+        description: { type: 'string', description: 'Meta description, up to ~160 characters. Optional; taken from frontmatter when omitted.' },
+      },
+      required: ['title', 'body_md'],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  },
+  {
     name: 'set_canonical_base',
     title: 'Point canonicals at this site',
     description:
