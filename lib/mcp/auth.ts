@@ -141,15 +141,25 @@ async function authenticateOAuth(token: string): Promise<AuthResult> {
     return { ok: false, reason: 'unavailable' };
   }
 
-  if (!data) return { ok: false, reason: 'unknown' };
-  if (data.revoked_at) return { ok: false, reason: 'inactive' };
-  if (new Date(data.expires_at).getTime() <= Date.now()) return { ok: false, reason: 'inactive' };
+  // Why a token was refused, in the server log only — the caller still gets
+  // one undifferentiated answer. Added after Claude's connector got a 401 on
+  // every freshly minted token with nothing in the logs to say which check
+  // failed. Never logs the secret: the prefix and length are enough to tell a
+  // truncated or wrong-type credential from a real one.
+  const refuse = (reason: AuthFailure, why: string): AuthResult => {
+    console.warn(`[mcp-auth] oauth token refused: ${why} (len=${token.length})`);
+    return { ok: false, reason };
+  };
+
+  if (!data) return refuse('unknown', 'no row for this token hash');
+  if (data.revoked_at) return refuse('inactive', `revoked at ${data.revoked_at}`);
+  if (new Date(data.expires_at).getTime() <= Date.now()) return refuse('inactive', `expired at ${data.expires_at}`);
 
   // RFC 8707 audience binding, and the reason a token minted against a preview
   // deployment cannot be replayed against production. The 401 message already
   // says "or belong to another environment", which is exactly this case.
   if (normalizeResource(data.resource ?? '') !== normalizeResource(mcpResourceUri(appBase()))) {
-    return { ok: false, reason: 'inactive' };
+    return refuse('inactive', `audience ${data.resource} is not ${mcpResourceUri(appBase())}`);
   }
 
   return {
