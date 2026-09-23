@@ -16,6 +16,7 @@
 import { supabaseAdmin } from '../supabase/admin';
 import type { ScoredKeyword } from '../keywords/opportunity';
 import type { LangCode } from '../language';
+import { assess } from '../keywords/difficulty';
 
 /** A keyword already spoken for. Re-proposing these is churn, not planning. */
 export type Exclusion = { keyword: string; status: string };
@@ -59,7 +60,10 @@ export function candidateRow(
       : 'autocomplete',
     seed,
     volume: kw.volume,
-    difficulty: kw.difficulty,
+    // The PROVIDER's KD, not grove's difficulty: grove's is recomputed from
+    // fresh authority data every build (see withSerpAuthority), and a stored
+    // copy of it would be indistinguishable from the raw KD older rows hold.
+    difficulty: kw.providerKd !== undefined ? kw.providerKd : kw.difficulty,
     intent: kw.intent,
     demand_score: null,
     metrics_at: measured ? now() : null,
@@ -286,11 +290,16 @@ export async function candidatePool(
       .gte('metrics_at', since)
       .order('volume', { ascending: false })
       .limit(opts.limit ?? 400);
-    return (data ?? []).map((r: any) => ({
+    // `difficulty` on file is the provider's raw KD. Read back as that, and
+    // assessed as kd_only until withSerpAuthority re-measures it — so a stored
+    // KD 0 is "unknown", never "easy". `serp` is left undefined on purpose:
+    // it is what marks the row as not yet re-measured this run.
+    return (data ?? []).map((r: any) => assess({
       keyword: String(r.keyword),
       source: String(r.source ?? 'dataforseo'),
       volume: r.volume ?? null,
       difficulty: r.difficulty ?? null,
+      providerKd: r.difficulty ?? null,
       intent: (r.intent ?? null) as ScoredKeyword['intent'],
     }));
   } catch {

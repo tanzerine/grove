@@ -173,7 +173,7 @@ describe('formatClustersForPrompt', () => {
     const out = formatClustersForPrompt([c]);
 
     expect(out).toContain('blog automation tool');
-    expect(out).toContain('KD 22');
+    expect(out).toContain('difficulty 22/100');
     expect(out).toContain('880/mo');
     expect(out).toContain('cluster total 1,280/mo');   // the prize, not the head
     expect(out).toContain('also covers');
@@ -189,7 +189,7 @@ describe('formatClustersForPrompt', () => {
   it('renders unknown metrics as ? rather than inventing a zero', () => {
     const [c] = buildClusters([kw('unmeasured', null, null)]);
     const out = formatClustersForPrompt([c]);
-    expect(out).toContain('KD ?');
+    expect(out).toContain('difficulty ?/100');
     expect(out).toContain('?/mo');
   });
 

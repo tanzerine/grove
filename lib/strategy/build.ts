@@ -20,11 +20,13 @@ import { titleTokens } from '../related-posts';
 import { gatherKeywordDemand } from './keywords';
 import { searchSeeds, isBrandTerm, localizeSeeds } from './seeds';
 import { buildCustomerProfile, icpSeeds, buyerIntentSeeds, icpIsUsable, formatIcpForPrompt, type CustomerProfile } from './icp';
-import { gatherLabsDemand, keywordOverview } from '../keywords/dataforseo';
+import { gatherLabsDemand, keywordOverview, withSerpAuthority, serpSnapshot } from '../keywords/dataforseo';
 import { gscResearchPlan, mergeRevealed, type GscResearchPlan } from '../keywords/gsc-seeds';
 import { latestSnapshot } from '../search-console/sync';
-import { selectKeywords, type ScoredKeyword } from '../keywords/opportunity';
-import { buildClusters, formatClustersForPrompt } from '../keywords/cluster';
+import { selectKeywords, effectiveVolume, type ScoredKeyword } from '../keywords/opportunity';
+import { buildClusters, formatClustersForPrompt, type KeywordCluster } from '../keywords/cluster';
+import { slotVerdict, withSlotVerdict } from '../keywords/difficulty';
+import { demandFloor, demandFacts, gateSlots, type DemandFact } from '../keywords/demand-floor';
 import { recordCandidates, excludedKeywords, markRejected, candidatePool, mergePool } from './candidate-store';
 import { screenClusters } from '../keywords/relevance';
 import { monthlySlots } from '../plans';
@@ -360,6 +362,11 @@ export async function buildStrategy(input: BuildStrategyInput): Promise<Strategy
   // ── STEP 4: measured demand, and the selection it makes possible ────────
   let demandBlock = '(none captured — plan from the customer profile)';
   let clusterCount = 0;
+  // What the slot gate after the planner call checks against. Stays empty —
+  // and the gate stays off — unless demand was actually MEASURED: without
+  // volume there is no floor to hold anyone to.
+  let gatePool: ScoredKeyword[] = [];
+  let gateClusters: KeywordCluster[] = [];
   try {
     // DataForSEO Labs carries volume AND difficulty; Autocomplete carries
     // neither and is a head-term service besides (four-word ceiling, measured
@@ -418,6 +425,13 @@ export async function buildStrategy(input: BuildStrategyInput): Promise<Strategy
       if (excluded.size) scored = scored.filter((k) => !excluded.has(k.keyword.toLowerCase()));
     }
 
+    // Grove's difficulty needs the top 10's domain authority, which fresh
+    // Labs rows carry and ledger rows do not (the ledger stores only the
+    // provider's KD). One batched call re-measures them, so a KD-0 trap
+    // measured last month cannot re-enter this month on its old number.
+    // See lib/keywords/difficulty.ts.
+    if (labs?.length) scored = await withSerpAuthority(scored, pubLang.code);
+
     // Arithmetic, not vibes: rank by expected impressions and cut what is out
     // of reach. With Autocomplete-only input every candidate is unscorable, so
     // `chosen` is empty and the raw pool carries through — the planner then
@@ -431,6 +445,12 @@ export async function buildStrategy(input: BuildStrategyInput): Promise<Strategy
     const measured = selection.chosen.length > 0;
     const pool = measured ? selection.chosen : scored;
 
+    // Dead space goes to the ledger with its reason, so the owner can see why
+    // a big number was passed over and next month doesn't re-propose it
+    // before the rejection expires.
+    const dead = selection.rejected.filter((r) => r.reason === 'dead_space').map((r) => r.keyword);
+    if (domainId && dead.length) await markRejected(domainId, dead, 'dead_space');
+
     // ── STEP 5: clusters ──────────────────────────────────────────────────
     // One cluster is one article. Twice the month's slots so the planner can
     // still balance intent across pillars rather than being handed a
@@ -439,11 +459,16 @@ export async function buildStrategy(input: BuildStrategyInput): Promise<Strategy
     // cluster's total: a 40/mo variant is not an article, but under a 900/mo
     // pillar it is thirty more readers a month for the same page. Unmeasured
     // pools get no floor — every total would be zero.
+    // The floor is the article's: its whole cluster total, with the buyer-
+    // query exception (lib/keywords/demand-floor.ts). Applied here rather
+    // than as buildClusters' minTotalVolume because the exception reads the
+    // pillar, and before the 80-cluster cut so a sub-floor cluster can't
+    // take a place a real one needed.
     const built = buildClusters(pool, {
-      maxClusters: 80,
       membersOnly: measured ? selection.longTail : [],
-      minTotalVolume: measured ? 100 : 0,
-    });
+    })
+      .filter((c) => !measured || demandFloor(c.totalVolume, c.pillar.keyword) != null)
+      .slice(0, 80);
 
     // ── STEP 4½: are these about the customer's problem at all? ──────────
     // Everything above is arithmetic on volume and difficulty, and arithmetic
@@ -463,8 +488,45 @@ export async function buildStrategy(input: BuildStrategyInput): Promise<Strategy
     // Twice the month's slots so the planner can still balance intent across
     // pillars rather than being handed a pre-decided plan. buildClusters
     // sorted by score, so this keeps the best of what survived.
-    const clusters = screened.kept.slice(0, Math.max(monthlyPostCount * 2, 12));
+    let finalists = screened.kept;
+
+    // ── STEP 4¾: who holds each seat, for the finalists ───────────────────
+    // The averaged authority above can't see a SERP's SHAPE: three household
+    // names on top and seven small sites below average out to "moderate",
+    // and that SERP pays nothing to anyone under the top three. Labs keeps a
+    // slot-by-slot snapshot with each result's domain rank; the few pillars
+    // that might become articles are checked against it (well under a cent).
+    if (measured && labs?.length && finalists.length) {
+      const want = Math.min(finalists.length, Math.max(monthlyPostCount * 2, 12) + 6, 24);
+      const head = finalists.slice(0, want);
+      const snaps: (Awaited<ReturnType<typeof serpSnapshot>>)[] = [];
+      for (let i = 0; i < head.length; i += 8) {
+        snaps.push(...await Promise.all(head.slice(i, i + 8).map((c) => serpSnapshot(c.pillar.keyword, pubLang.code))));
+      }
+      const deadPillars: string[] = [];
+      const deadLog: string[] = [];
+      finalists = finalists.filter((c, i) => {
+        const snap = i < snaps.length ? snaps[i] : null;
+        if (!snap) return true;
+        const v = slotVerdict(snap);
+        if (!v.deadSpace) return true;
+        if (c.pillar.assessment) c.pillar.assessment = withSlotVerdict(c.pillar.assessment, v);
+        deadPillars.push(c.pillar.keyword);
+        deadLog.push(`"${c.pillar.keyword}" (${v.reason})`);
+        return false;
+      });
+      if (deadPillars.length) {
+        console.log(`[buildStrategy] dead space for ${profile.business.name}: ${deadLog.join('; ')}`);
+        if (domainId) await markRejected(domainId, deadPillars, 'dead_space');
+      }
+    }
+
+    const clusters = finalists.slice(0, Math.max(monthlyPostCount * 2, 12));
     clusterCount = clusters.length;
+    if (measured) {
+      gatePool = scored;
+      gateClusters = clusters;
+    }
     demandBlock = formatClustersForPrompt(clusters);
 
     if (!scored.length) {
@@ -699,6 +761,19 @@ ${langRule}` : ''}`;
 
   const strategy = normalizeStrategy(parsed, { month, source, maxSlots: monthlyPostCount, postsPerWeek });
 
+  // ── The floor, on the plan itself ───────────────────────────────────────
+  // The prompt says "target a cluster pillar"; until this gate nothing
+  // checked, and 58% of slots came back with a keyword the model invented —
+  // no volume by construction, which is how grove published 51 articles into
+  // 570 impressions. Every slot is held to the same floor as the clusters.
+  if (gateClusters.length && strategy.publishing_plan.length) {
+    try {
+      strategy.publishing_plan = await gatePlan(strategy.publishing_plan, gatePool, gateClusters, pubLang.code);
+    } catch (err) {
+      console.warn(`[buildStrategy] slot gate failed, plan kept as the model wrote it: ${String((err as any)?.message ?? err)}`);
+    }
+  }
+
   // A plan with no calendar is not a plan — it is a row that makes the month
   // read as COVERED while publishing nothing, which is worse than no row at
   // all because the hourly self-heal then skips the domain forever. Only
@@ -769,6 +844,38 @@ export function normalizeStrategy(
   parsed.publishing_plan = assignPublishDates(parsed.publishing_plan, month, postsPerWeek);
 
   return parsed;
+}
+
+/**
+ * Measure whatever the planner targeted outside the pool, then gate every
+ * slot on the demand floor. The measurement is one keyword_overview call for
+ * the invented keywords only — so an invented phrase that turns out to have
+ * real demand is kept on its merits, and one Labs has never heard of fails
+ * as `unmeasured` (the buyer-query exception aside).
+ */
+async function gatePlan(
+  slots: PostSlot[],
+  pool: ScoredKeyword[],
+  clusters: KeywordCluster[],
+  lang: LangCode,
+): Promise<PostSlot[]> {
+  const facts = demandFacts(pool, clusters, effectiveVolume);
+  const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+  const invented = slots
+    .map((s) => (s.target_keyword ?? '').trim())
+    .filter((k) => k && !facts.has(norm(k)));
+  if (invented.length) {
+    const sized = (await keywordOverview(invented, lang)) ?? [];
+    for (const k of sized) {
+      facts.set(norm(k.keyword), {
+        keyword: k.keyword, total: effectiveVolume(k), deadSpace: !!k.assessment?.deadSpace, members: [],
+      });
+    }
+  }
+  const spare: DemandFact[] = clusters.map((c) => facts.get(norm(c.pillar.keyword))!).filter(Boolean);
+  const { slots: gated, changes } = gateSlots(slots, facts, spare);
+  if (changes.length) console.log(`[buildStrategy] slot gate: ${changes.join('; ')}`);
+  return gated;
 }
 
 /**

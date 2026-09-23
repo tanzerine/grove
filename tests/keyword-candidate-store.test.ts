@@ -144,3 +144,18 @@ describe('mergePool', () => {
     expect(mergePool([], [k('topical authority', 320)]).map((c) => c.keyword)).toEqual(['topical authority']);
   });
 });
+
+describe('candidateRow — the ledger stores the PROVIDER KD', () => {
+  it('writes providerKd, not grove difficulty, so a re-read is never mistaken for a fresh assessment', () => {
+    const row = candidateRow('d1', {
+      keyword: 'illustrator 3d logo', volume: 30, difficulty: 100, providerKd: 0,
+      intent: null, source: 'dataforseo',
+    }, 'en', null, () => 'T');
+    expect(row.difficulty).toBe(0);
+  });
+
+  it('falls back to difficulty for sources that never had a provider KD', () => {
+    const row = candidateRow('d1', { keyword: 'x', volume: 10, difficulty: 12, intent: null, source: 'manual' }, 'en', null, () => 'T');
+    expect(row.difficulty).toBe(12);
+  });
+});
