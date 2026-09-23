@@ -36,7 +36,7 @@
 import type { SearchIntent } from '../strategy/keywords';
 import type { ScoredKeyword } from './opportunity';
 import type { LangCode } from '../language';
-import { assess, parseSerpAuthority, parseHistoricalSerp, type SlotSnapshot } from './difficulty';
+import { parseSerpAuthority, parseHistoricalSerp, type SlotSnapshot } from './serp-evidence';
 
 const BASE = 'https://api.dataforseo.com';
 const SANDBOX = 'https://sandbox.dataforseo.com';
@@ -73,24 +73,22 @@ export function parseLabsItem(item: any): ScoredKeyword | null {
     intentRaw === 'informational' || intentRaw === 'commercial' ||
     intentRaw === 'transactional' || intentRaw === 'navigational' ? intentRaw : null;
 
-  // Out-of-range means a changed scale or the wrong field; treat it as
-  // unknown rather than screening against a number we do not understand.
-  const providerKd =
-    typeof rawKd === 'number' && Number.isFinite(rawKd) && rawKd >= 0 && rawKd <= 100
-      ? Math.round(rawKd)
-      : null;
-
-  // `difficulty` is grove's, built from the provider's KD AND the top 10's
-  // domain authority that arrives beside it — see lib/keywords/difficulty.ts.
-  return assess({
+  return {
     keyword,
     volume: typeof rawVolume === 'number' && Number.isFinite(rawVolume) ? rawVolume : null,
-    difficulty: providerKd,
-    providerKd,
+    // Out-of-range means a changed scale or the wrong field; treat it as
+    // unknown rather than screening against a number we do not understand.
+    difficulty:
+      typeof rawKd === 'number' && Number.isFinite(rawKd) && rawKd >= 0 && rawKd <= 100
+        ? Math.round(rawKd)
+        : null,
+    // Carried, not read: who holds the top 10, for re-grading difficulty
+    // hypotheses against outcomes. The first one (#294) failed — see
+    // lib/keywords/serp-evidence.ts before building selection on it.
     serp: parseSerpAuthority(item),
     intent,
     source: 'dataforseo',
-  });
+  };
 }
 
 /**
@@ -309,8 +307,8 @@ export async function keywordSuggestionsDetailed(
     location_code: LOCATION[lang] ?? LOCATION.en,
     limit: opts.limit ?? 200,
     include_seed_keyword: true,
-    // Free, and it carries the SERP element types — whether the page is
-    // built for articles at all (see NON_ARTICLE_FEATURES in difficulty.ts).
+    // Free, and it carries the SERP element types that ride along on
+    // ScoredKeyword.serp for calibration (lib/keywords/serp-evidence.ts).
     include_serp_info: true,
     // The phrase in order, not any of its words. Without this, seeds like
     // "publish blog posts" came back as "dog with the blog cast" (33,100/mo)
@@ -401,51 +399,10 @@ export async function gatherLabsDemand(
 }
 
 /**
- * Re-measure every keyword in the pool that has never had its SERP authority
- * read in THIS run — in practice, the ledger's rows, which store only the
- * provider's KD. Without this, last month's "pixel 3d icon pack, KD 0" comes
- * back through `candidatePool` with nothing to contradict it, and the trap
- * this module's difficulty exists to close reopens through the side door.
- *
- * One keyword_overview call (≤700 keywords, ~$0.05). Fail-soft: on any
- * failure the pool is returned as it was, and those rows keep a kd_only
- * assessment — under which a low KD reads as unknown, not easy.
- */
-export async function withSerpAuthority(pool: ScoredKeyword[], lang: LangCode): Promise<ScoredKeyword[]> {
-  const stale = pool.filter((k) => k.serp === undefined && k.volume != null).map((k) => k.keyword);
-  if (!stale.length || !dataforseoConfigured()) return pool;
-  const sized = await keywordOverview(stale, lang);
-  if (!sized?.length) return pool;
-  return mergeAuthority(pool, sized);
-}
-
-/**
- * Lay fresh measurements over a pool, keeping what only the pool knew (its
- * source and Search Console's revealed demand). Pure. A pool keyword the
- * overview did not return is marked `serp: null` — asked, and the provider
- * had nothing — so it is never asked again in the same run.
- */
-export function mergeAuthority(pool: ScoredKeyword[], sized: ScoredKeyword[]): ScoredKeyword[] {
-  const by = new Map(sized.map((k) => [k.keyword.trim().toLowerCase(), k]));
-  return pool.map((k) => {
-    if (k.serp !== undefined) return k;
-    const fresh = by.get(k.keyword.trim().toLowerCase());
-    if (!fresh) return { ...k, serp: null };
-    return {
-      ...fresh,
-      keyword: k.keyword,
-      source: k.source,
-      volume: fresh.volume ?? k.volume,
-      intent: fresh.intent ?? k.intent,
-      revealed: k.revealed ?? null,
-    };
-  });
-}
-
-/**
  * The newest top-10 snapshot Labs holds for a keyword, with each slot's
  * domain and page rank. Null when Labs has none recent enough, or on any
- * failure — callers treat null as "no slot-level evidence", never as "open".
+ * failure. Used by scripts/difficulty-calibration.ts; nothing in the
+ * planner reads it (see lib/keywords/serp-evidence.ts for why).
  *
  * Labs historical_serps bills per snapshot returned (~$0.0001 each, measured
  * 2026-09-23), so checking a month's finalists costs well under a cent.

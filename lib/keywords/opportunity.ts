@@ -18,7 +18,7 @@
  * the pillars' `intent_mix`, which is where that judgement already lives.
  */
 import type { SearchIntent } from '../strategy/keywords';
-import type { Difficulty, SerpAuthority } from './difficulty';
+import type { SerpAuthority } from './serp-evidence';
 import { demandFloor, MIN_MONTHLY_DEMAND } from './demand-floor';
 
 export type ScoredKeyword = {
@@ -26,18 +26,12 @@ export type ScoredKeyword = {
   /** Monthly searches. Null when the source could not say — Autocomplete never
    *  can, and that null is a measurement of the data gap, not a defect. */
   volume: number | null;
-  /** 0-100: how hard the top 10 is. Null = unknown, same as above.
-   *  For a DataForSEO keyword this is GROVE's difficulty, not the provider's
-   *  KD — see lib/keywords/difficulty.ts for why KD alone reads Adobe's SERP
-   *  as free. The provider's figure is kept in `providerKd`. */
+  /** 0-100, KD-style: how hard the top 10 is. Null = unknown, same as above. */
   difficulty: number | null;
-  /** DataForSEO's own KD, as sent. Undefined when the source never has one. */
-  providerKd?: number | null;
-  /** The top 10's averaged authority, as sent. Undefined = never asked;
-   *  null = asked, and the provider had none. */
+  /** Who holds the top 10, averaged, as DataForSEO sent it. Carried for
+   *  calibration only — selection does NOT read it; the one hypothesis built
+   *  on it predicted rankings the wrong way (lib/keywords/serp-evidence.ts). */
   serp?: SerpAuthority | null;
-  /** How `difficulty` was reached, and whether the SERP is dead space. */
-  assessment?: Difficulty;
   intent: SearchIntent | null;
   source: string;
   /** What Google itself has shown this domain for. See RevealedDemand. */
@@ -179,7 +173,7 @@ export type Selection = {
   chosen: ScoredKeyword[];
   /** Why each rejected keyword lost, keyed by keyword — this is what makes the
    *  plan explainable to the owner and re-screenable later. */
-  rejected: { keyword: string; reason: 'too_hard' | 'too_small' | 'unscorable' | 'dead_space' }[];
+  rejected: { keyword: string; reason: 'too_hard' | 'too_small' | 'unscorable' }[];
   /** How many candidates carried no volume/difficulty at all. A high number
    *  here means the demand SOURCE is the problem, not the selection. */
   unscorable: number;
@@ -218,10 +212,6 @@ export function selectKeywords(cands: ScoredKeyword[], opts: SelectOptions = {})
       rejected.push({ keyword: c.keyword, reason: 'unscorable' });
       continue;
     }
-    // Dead space before difficulty: a household-name SERP is not a harder
-    // version of an open one, it is one where ranking earns nothing, and it
-    // must not come back as a member under some other pillar either.
-    if (c.assessment?.deadSpace) { rejected.push({ keyword: c.keyword, reason: 'dead_space' }); continue; }
     if (c.difficulty != null && c.difficulty > maxDifficulty) { rejected.push({ keyword: c.keyword, reason: 'too_hard' }); continue; }
     // The floor is applied to what was OBSERVED as well as what was bought:
     // a phrase Ads calls 20/mo that showed this domain 600 times last month

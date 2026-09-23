@@ -3,7 +3,6 @@ import {
   demandFloor, isBuyerQuery, judgeSlot, gateSlots, demandFacts, MIN_MONTHLY_DEMAND, type DemandFact,
 } from '../lib/keywords/demand-floor';
 import { effectiveVolume, selectKeywords, type ScoredKeyword } from '../lib/keywords/opportunity';
-import { groveDifficulty } from '../lib/keywords/difficulty';
 
 describe('demandFloor', () => {
   it('is 50 a month', () => {
@@ -34,7 +33,7 @@ describe('isBuyerQuery', () => {
 });
 
 const fact = (keyword: string, total: number | null, over: Partial<DemandFact> = {}): DemandFact =>
-  ({ keyword, total, deadSpace: false, members: [], ...over });
+  ({ keyword, total, members: [], ...over });
 
 describe('judgeSlot', () => {
   it('keeps a measured slot over the floor', () => {
@@ -48,11 +47,6 @@ describe('judgeSlot', () => {
 
   it('keeps an unmeasured buyer query — the database is known to miss them', () => {
     expect(judgeSlot({ topic: 't', target_keyword: 'iconikai alternative' }, undefined).verdict).toBe('keep');
-  });
-
-  it('replaces a slot aimed at dead space whatever its volume', () => {
-    expect(judgeSlot({ topic: 't', target_keyword: 'a' }, fact('a', 5000, { deadSpace: true })))
-      .toEqual({ verdict: 'replace', reason: 'dead_space' });
   });
 
   it('replaces a measured slot under the floor', () => {
@@ -106,9 +100,9 @@ describe('gateSlots', () => {
     expect(changes.at(-1)).toMatch(/kept all 1 original/);
   });
 
-  it('never backfills from a dead or sub-floor cluster', () => {
+  it('never backfills from a sub-floor cluster', () => {
     const slots: Slot[] = [{ id: 's1', topic: 'a', target_keyword: 'x' }, { id: 's2', topic: 'b', target_keyword: '3d icon generator' }];
-    const bad = [fact('giant', 9000, { deadSpace: true }), fact('small', 30)];
+    const bad = [fact('small', 30), fact('smaller', 12)];
     const { slots: out } = gateSlots(slots, facts, bad);
     expect(out.map((s) => s.id)).toEqual(['s2']);
   });
@@ -124,39 +118,15 @@ describe('demandFacts', () => {
     expect(f.get('3d icon generator')).toMatchObject({ total: 1250, members: ['ai 3d icon generator'] });
     expect(f.get('3d icon maker')?.total).toBe(20);
   });
-
-  it('carries the dead-space verdict', () => {
-    const dead = k('illustrator 3d logo', 30, { assessment: groveDifficulty(0, { domainRank: 842, pageRank: 13, referringDomains: 0.6, features: [] }) });
-    expect(demandFacts([dead], [], effectiveVolume).get('illustrator 3d logo')?.deadSpace).toBe(true);
-  });
 });
 
-describe('selectKeywords with grove difficulty', () => {
-  const k = (keyword: string, volume: number, providerKd: number, domainRank: number): ScoredKeyword => {
-    const a = groveDifficulty(providerKd, { domainRank, pageRank: 10, referringDomains: 1, features: [] });
-    return { keyword, volume, difficulty: a.score, providerKd, intent: null, source: 'dataforseo', assessment: a };
-  };
+describe('selectKeywords with the floor', () => {
+  const k = (keyword: string, volume: number, difficulty: number): ScoredKeyword =>
+    ({ keyword, volume, difficulty, intent: null, source: 'dataforseo' });
 
-  it('rejects the KD-0 traps and keeps the winnable one', () => {
-    const s = selectKeywords([
-      k('pixel 3d icon pack', 4400, 0, 599.2),
-      k('3d icon ios', 170, 0, 689.8),
-      k('3d icon generator', 900, 21, 426.5),
-    ]);
-    expect(s.chosen.map((c) => c.keyword)).toEqual(['3d icon generator']);
-    expect(s.rejected).toEqual(expect.arrayContaining([
-      { keyword: 'pixel 3d icon pack', reason: 'too_hard' },
-      { keyword: '3d icon ios', reason: 'dead_space' },
-    ]));
-  });
-
-  it('dead space is not kept as long tail either', () => {
-    const s = selectKeywords([k('illustrator 3d logo', 30, 0, 841.8)]);
-    expect(s.longTail).toHaveLength(0);
-  });
-
-  it('a buyer query under 50 may lead', () => {
-    const s = selectKeywords([k('iconikai alternative', 20, 5, 300)]);
+  it('a buyer query under 50 may lead; an informational one may not', () => {
+    const s = selectKeywords([k('iconikai alternative', 20, 5), k('how to make 3d icons', 20, 5)]);
     expect(s.chosen.map((c) => c.keyword)).toEqual(['iconikai alternative']);
+    expect(s.longTail.map((c) => c.keyword)).toEqual(['how to make 3d icons']);
   });
 });

@@ -19,3 +19,5 @@ supabase/.branches/
 jev-backtest-predictions.json
 
 serp-hostility-raw.json
+
+difficulty-calibration-raw.json
