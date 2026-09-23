@@ -23,6 +23,30 @@
  *   npx vite-node scripts/difficulty-calibration.ts                # fetch + grade (~$0.06)
  *   npx vite-node scripts/difficulty-calibration.ts --cached       # re-grade the saved fetch
  *   … --domain <uuid> --slots                                      # + per-slot SERPs for top-10 rows
+ *   … --source posts --serp                                        # page-type test (below)
+ *
+ * ── --source posts: the ARTICLE outcome ────────────────────────────────────
+ * The default reads the whole property (gsc_metrics), where the domain's own
+ * homepage competes too — and oveners' homepage is itself a tool page, so it
+ * wins tool SERPs for reasons that say nothing about what an article can do.
+ * `posts` reads gsc_page_queries (grove's post pages only) and takes, per
+ * query, the best position any grove article reached. That is the outcome
+ * a keyword planner for ARTICLES has to predict.
+ *
+ * ── --serp: tool SERP vs tutorial SERP (hypothesis 2, 2026-09-23) ─────────
+ * Written after hypothesis 1 (domain authority) failed, from what its rows
+ * suggested: oveners' articles rank on "how to X in Photoshop" SERPs held by
+ * tutorials, and sink on "auto background remover" SERPs held by tool
+ * homepages. Stated before fetching a single SERP, so the classifier could
+ * not be tuned to the answer:
+ *   H2: the larger the share of the top 10 that is TOOL pages, the worse a
+ *       grove article ranks; the larger the ARTICLE/tutorial share, the better.
+ *   primary outcome: grove article reached the top 20 (the outcome hypothesis
+ *   1 was judged on), AUC with bootstrap CI, KD on the same rows as baseline.
+ * The domain's own hosts are EXCLUDED from the composition — an article of
+ * ours sitting in the top 10 would otherwise count as "an article SERP"
+ * exactly when we rank, which is the outcome leaking into the predictor.
+ * Live SERP API, ~$0.002/query, cached in difficulty-calibration-serps.json.
  */
 import './_env';
 import { createClient } from '@supabase/supabase-js';
@@ -45,7 +69,10 @@ function hypothesisDifficulty(kd: number | null, domainRank: number, features: s
 const arg = (k: string) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : undefined; };
 const DOMAIN = arg('--domain') ?? '610bdc4b-9569-44ea-adf3-f98d71165ea3';   // oveners.com
 const BRAND = /oven|오븐|ovener/i;
-const CACHE = 'difficulty-calibration-raw.json';
+const SOURCE = arg('--source') === 'posts' ? 'posts' : 'property';
+const OWN_HOST = (arg('--host') ?? 'oveners.com').toLowerCase();
+const CACHE = SOURCE === 'posts' ? 'difficulty-calibration-posts-raw.json' : 'difficulty-calibration-raw.json';
+const SERP_CACHE = 'difficulty-calibration-serps.json';
 
 type Row = {
   query: string; lang: 'en' | 'ko'; impressions: number; clicks: number; position: number;
@@ -53,12 +80,105 @@ type Row = {
   snap?: SlotSnapshot | null;
 };
 
+// ── page type ─────────────────────────────────────────────────────────────
+// Rules written before any SERP was fetched, then revised ONCE after a
+// label audit (--audit-all) of the first 38 SERPs, which showed ~25% misfiles
+// (figma plugins as forum, "How to … in Photoshop" as tool, listicles as
+// other). Each revision was checked only against the page's own URL and
+// title — never against how it moved the outcome; the 38-row partial result
+// was inconclusive and was not the target. Frozen after that: change a rule
+// only with a label audit, and say so here. Order matters: a platform verdict
+// (app store, video, forum, asset marketplace) beats a URL path, a path beats
+// a title. Anything unrecognised is 'other' — NOT 'article', which is the
+// defaulting mistake that made scripts/serp-hostility-backtest.ts count
+// remove.bg's homepage as editorial.
+
+export type PageKind = 'tool' | 'article' | 'video' | 'forum' | 'asset' | 'app_store' | 'other';
+
+const ARTICLE_PATH = /\/[a-z-]*blog[a-z-]*\/|\/(learning-center|learn|tutorials?|how-to|howto|guides?|articles?|news|resources|help|support|docs?|documentation|knowledge|knowledge-base|kb|academy|insights|our-insights|opinions?|posts?|magazine|stories|library|wiki|compare|comparisons?)(\/|$|-)/i;
+const ARTICLE_HOST = /(^|\.)(medium\.com|gitconnected\.com|androidpolice\.com|substack\.com|dev\.to|wikipedia\.org|wikihow\.com|hubspot\.com|zapier\.com|makeuseof\.com|howtogeek\.com|lifewire\.com|techradar\.com|pcmag\.com|zdnet\.com|tomsguide\.com|creativebloq\.com)$|^(helpx|help|support|docs|learn|blog|community)\./i;
+const TOOL_PATH = /\/(tools?|ai-tools|apps?|create|generate|editor|generator|online|features?|products?|plugin|plugins|extensions?|playground|models|g)(\/|$|-)|(generator|maker|creator|remover|converter|editor|remove-background|background-remover|remove-bg)(\/|$|-|\.)/i;
+const TOOL_TITLE = /\b(generator|maker|creator|remover|converter|editor|online|free|free tool|try (it )?free|sign up|no sign-?up|app)\b/i;
+const ARTICLE_TITLE = /^how to\b|\bhow to\b|\bguide\b|\btutorial\b|step[- ]by[- ]step|\bvs\.?\b|\b(top|best) \d+|\d+ (best|top|ways|tips)|\bwhat is\b|\bexplained\b|\btips\b|\breview\b|\bcompared\b|\bcomparison\b|\breport\b|\bsurvey\b|\bstate of\b|\btrends\b|\bexamples\b|\bnews\b/i;
+/** A title that is unambiguously an article, whatever its URL says — a
+ *  "/remove-background-photoshop/" path titled "How to Remove Background in
+ *  Photoshop: 7 Easy Methods" is a tutorial. */
+const STRONG_ARTICLE_TITLE = /^how to\b|^\d+ (best|top|ways|easy)|^(the )?(top|best) \d+|step[- ]by[- ]step|\btutorial\b|\b\d+ best\b|\bhere are the \d+|\b\d+ go-to\b|\branked\b|\bi tested\b|\b(best|top)\b[^|]*\b20\d\d\b/i;
+
+export function pageKind(url: string, title: string): PageKind {
+  let u: URL;
+  try { u = new URL(url); } catch { return 'other'; }
+  const host = u.hostname.toLowerCase().replace(/^www\./, '');
+  const path = u.pathname.toLowerCase();
+  if (/^(play\.google\.com|apps\.apple\.com|chromewebstore\.google\.com|apps\.microsoft\.com)$/.test(host) ||
+      (host === 'chrome.google.com' && path.startsWith('/webstore'))) return 'app_store';
+  if (/(^|\.)(youtube\.com|youtu\.be|tiktok\.com|vimeo\.com|dailymotion\.com)$/.test(host)) return 'video';
+  // Plugin / GPT listings are products, and figma's live under /community/,
+  // which the forum rule below would otherwise claim.
+  if ((host === 'figma.com' && path.startsWith('/community/plugin')) || host === 'chatgpt.com') return 'tool';
+  if (/(^|\.)(reddit\.com|quora\.com|stackoverflow\.com|stackexchange\.com|superuser\.com)$/.test(host) ||
+      /^(community|forum|forums|discuss|discourse)\./.test(host) || /\/(community|forums?|discussions?|threads?|t)\//.test(path) ||
+      /^(x\.com|twitter\.com|linkedin\.com|instagram\.com|threads\.net)$/.test(host) ||
+      (host === 'facebook.com' && !path.startsWith('/business/help'))) return 'forum';   // community + social
+  if (/\/templates?\//.test(path) || /(^|\.)(magnific\.com|awwwards\.com|saaspo\.com|landing\.love)$/.test(host)) return 'asset';
+  if (/(^|\.)(flaticon|freepik|iconscout|shutterstock|istockphoto|gettyimages|vecteezy|thenounproject|envato|creativemarket|dribbble|behance|pinterest|etsy|craftwork|ui8|icons8|iconfinder)\.[a-z.]+$/.test(host)) return 'asset';
+  if (ARTICLE_PATH.test(path) || ARTICLE_HOST.test(host) || STRONG_ARTICLE_TITLE.test(title)) return 'article';
+  if (TOOL_PATH.test(path)) return 'tool';
+  if (ARTICLE_TITLE.test(title)) return 'article';
+  const depth = path.split('/').filter(Boolean).length;
+  if (depth <= 2 && TOOL_TITLE.test(title)) return 'tool';
+  if (depth === 0) return 'tool';   // a bare homepage ranking for a non-brand query is a product page
+  return 'other';
+}
+
+type SerpSlotLite = { rank: number; url: string; host: string; title: string };
+
+async function fetchSerp(keyword: string, lang: 'en' | 'ko'): Promise<SerpSlotLite[] | null> {
+  const auth = Buffer.from(`${process.env.DATAFORSEO_LOGIN}:${process.env.DATAFORSEO_PASSWORD}`).toString('base64');
+  try {
+    const res = await fetch('https://api.dataforseo.com/v3/serp/google/organic/live/advanced', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Basic ${auth}` },
+      body: JSON.stringify([{ keyword, location_code: lang === 'ko' ? 2410 : 2840, language_code: lang, depth: 10 }]),
+    });
+    const json: any = await res.json();
+    const task = json?.tasks?.[0];
+    if (task?.status_code !== 20000) { console.error(`  SERP ${task?.status_code} ${task?.status_message} "${keyword}"`); return null; }
+    return (task?.result?.[0]?.items ?? [])
+      .filter((it: any) => it?.type === 'organic' && it?.url)
+      .map((it: any) => ({
+        rank: Number(it.rank_group ?? 0), url: String(it.url),
+        host: String(it.domain ?? '').toLowerCase().replace(/^www\./, ''), title: String(it.title ?? ''),
+      }))
+      .slice(0, 10);
+  } catch (e) {
+    console.error(`  SERP error "${keyword}": ${(e as Error).message}`);
+    return null;
+  }
+}
+
+const isOwn = (host: string) => host === OWN_HOST || host.endsWith(`.${OWN_HOST}`);
+
+function composition(slots: SerpSlotLite[]): { tool: number; article: number; n: number; kinds: string } {
+  const others = slots.filter((s) => !isOwn(s.host));
+  const kinds = others.map((s) => pageKind(s.url, s.title));
+  const n = kinds.length;
+  const letter: Record<PageKind, string> = { tool: 'T', article: 'A', video: 'V', forum: 'F', asset: 'S', app_store: 'P', other: '·' };
+  return {
+    tool: n ? kinds.filter((k) => k === 'tool').length / n : 0,
+    article: n ? kinds.filter((k) => k === 'article').length / n : 0,
+    n,
+    kinds: kinds.map((k) => letter[k]).join(''),
+  };
+}
+
 /** Search operators, pasted prompts, URLs — not queries anyone would target. */
 const junk = (q: string) =>
   q.length > 80 || /context:|site:|["%+]|https?:|\bquestion:/i.test(q) || q.split(/\s+/).length > 12;
 
 async function loadQueries(): Promise<Omit<Row, 'kd' | 'domainRank' | 'features' | 'volume'>[]> {
   const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
+  if (SOURCE === 'posts') return loadPostQueries(db);
   const rows: any[] = [];
   // PostgREST truncates at 1,000 rows silently; page explicitly.
   for (let from = 0; ; from += 1000) {
@@ -83,6 +203,46 @@ async function loadQueries(): Promise<Omit<Row, 'kd' | 'domainRank' | 'features'
     .map(([q, a]) => ({
       query: q, lang: /[가-힣]/.test(q) ? 'ko' as const : 'en' as const,
       impressions: a.i, clicks: a.c, position: a.pw / a.i,
+    }));
+}
+
+/**
+ * Per query, the best position any grove ARTICLE reached (impression-
+ * weighted within each page, then the best page), with impressions and
+ * clicks summed across grove's pages.
+ */
+async function loadPostQueries(db: any): Promise<Omit<Row, 'kd' | 'domainRank' | 'features' | 'volume'>[]> {
+  const rows: any[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await db.from('gsc_page_queries')
+      .select('page, query, impressions, clicks, position')
+      .eq('domain_id', DOMAIN).not('post_id', 'is', null).range(from, from + 999);
+    if (error) throw new Error(error.message);
+    rows.push(...(data ?? []));
+    if (!data || data.length < 1000) break;
+  }
+  const byPage = new Map<string, { q: string; i: number; c: number; pw: number }>();
+  for (const r of rows) {
+    const q = String(r.query ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+    if (!q) continue;
+    const key = `${q}\u0000${r.page}`;
+    const a = byPage.get(key) ?? { q, i: 0, c: 0, pw: 0 };
+    const i = Number(r.impressions ?? 0);
+    a.i += i; a.c += Number(r.clicks ?? 0); a.pw += Number(r.position ?? 0) * i;
+    byPage.set(key, a);
+  }
+  const byQuery = new Map<string, { i: number; c: number; best: number }>();
+  for (const a of byPage.values()) {
+    if (!a.i) continue;
+    const b = byQuery.get(a.q) ?? { i: 0, c: 0, best: Infinity };
+    b.i += a.i; b.c += a.c; b.best = Math.min(b.best, a.pw / a.i);
+    byQuery.set(a.q, b);
+  }
+  return [...byQuery.entries()]
+    .filter(([q, a]) => a.i >= 5 && !BRAND.test(q) && !junk(q))
+    .map(([q, a]) => ({
+      query: q, lang: /[가-힣]/.test(q) ? 'ko' as const : 'en' as const,
+      impressions: a.i, clicks: a.c, position: a.best,
     }));
 }
 
@@ -219,11 +379,92 @@ async function main() {
     }
   }
 
+  if (process.argv.includes('--serp')) await serpReport(rows);
+
   console.log('\n── every measured row, easiest first (#294 hypothesis)');
   for (const r of [...m].sort((a, b) => gd(a) - gd(b))) {
     console.log(`  gd ${String(gd(r)).padStart(3)}  kd ${String(r.kd ?? '—').padStart(3)}  dr ${String(Math.round(r.domainRank!)).padStart(4)}  ` +
       `pos ${r.position.toFixed(1).padStart(5)}  ${String(r.clicks).padStart(3)}/${String(r.impressions).padEnd(5)} ${r.query}` +
       (r.snap ? `  [slots: ${slotVerdict(r.snap, 'oveners.com').deadSpace ? 'DEAD' : 'open'}]` : ''));
+  }
+}
+
+async function serpReport(rows: Row[]) {
+  const cache: Record<string, SerpSlotLite[] | null> = existsSync(SERP_CACHE) ? JSON.parse(readFileSync(SERP_CACHE, 'utf8')) : {};
+  // A null is a FAILED fetch (402 when the account runs dry, a timeout), not
+  // "this query has no SERP" — retry it rather than grading around a hole.
+  const todo = rows.filter((r) => cache[r.query] == null);
+  if (todo.length && process.argv.includes('--no-fetch')) {
+    console.log(`\n${todo.length} queries have no cached SERP; --no-fetch, so they are left out`);
+  } else if (todo.length) {
+    console.log(`\nfetching ${todo.length} live SERPs (~$${(todo.length * 0.002).toFixed(2)}) …`);
+    for (let i = 0; i < todo.length; i += 10) {
+      const b = todo.slice(i, i + 10);
+      const got = await Promise.all(b.map((r) => fetchSerp(r.query, r.lang)));
+      b.forEach((r, j) => { cache[r.query] = got[j]; });
+      writeFileSync(SERP_CACHE, JSON.stringify(cache));
+    }
+  }
+  const rs = rows
+    .map((r) => ({ r, s: cache[r.query] }))
+    .filter((x): x is { r: Row; s: SerpSlotLite[] } => !!x.s && x.s.length > 0)
+    .map(({ r, s }) => ({ r, c: composition(s), s }));
+
+  console.log(`\n══ H2: tool SERP vs tutorial SERP — ${SOURCE} outcome, ${rs.length} queries with a SERP ══`);
+  const all: PageKind[] = rs.flatMap(({ s }) => s.filter((x) => !isOwn(x.host)).map((x) => pageKind(x.url, x.title)));
+  const tally = new Map<string, number>(); for (const k of all) tally.set(k, (tally.get(k) ?? 0) + 1);
+  console.log('  slot kinds: ' + [...tally.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${n} (${((n / all.length) * 100).toFixed(0)}%)`).join(', '));
+
+  const tests: [string, (r: Row) => boolean][] = [
+    ['reached the top 20 (PRIMARY)', (r) => r.position <= 20],
+    ['reached the top 10', (r) => r.position <= 10],
+    ['earned ≥1 click', (r) => r.clicks > 0],
+  ];
+  for (const [label, test] of tests) {
+    console.log(`\n── AUC "${label}" (>0.5 = the predictor points the right way)`);
+    const lines: [string, { s: number; pos: boolean }[]][] = [
+      ['tool share (higher = harder)', rs.map((x) => ({ s: x.c.tool, pos: test(x.r) }))],
+      ['article share (higher = easier)', rs.map((x) => ({ s: -x.c.article, pos: test(x.r) }))],
+    ];
+    const withKd = rs.filter((x) => x.r.kd != null);
+    lines.push([`  same ${withKd.length} rows that have KD: tool share`, withKd.map((x) => ({ s: x.c.tool, pos: test(x.r) }))]);
+    lines.push([`  same ${withKd.length} rows that have KD: KD`, withKd.map((x) => ({ s: x.r.kd!, pos: test(x.r) }))]);
+    for (const [name, data] of lines) {
+      const a = auc(data), ci = aucCI(data);
+      console.log(`  ${name.padEnd(42)} AUC ${f2(a?.auc)}  90% CI [${f2(ci?.[0])}, ${f2(ci?.[1])}]  (${a?.p ?? 0} yes / ${a?.n ?? 0} no)`);
+    }
+  }
+  console.log(`\n  Spearman(tool share, position)    ρ = ${f2(spearman(rs.map((x) => x.c.tool), rs.map((x) => x.r.position)))}  (+ = right direction)`);
+  console.log(`  Spearman(article share, position) ρ = ${f2(spearman(rs.map((x) => x.c.article), rs.map((x) => x.r.position)))}  (− = right direction)`);
+
+  console.log('\n── by tool share of the top 10');
+  console.log('  band       n   median pos  top20%  top10%  impr   clicks');
+  for (const [name, lo, hi] of [['0-10%', 0, 0.1], ['10-30%', 0.1, 0.3], ['30-50%', 0.3, 0.5], ['≥50%', 0.5, 1.01]] as [string, number, number][]) {
+    const b = rs.filter((x) => x.c.tool >= lo && x.c.tool < hi);
+    if (!b.length) { console.log(`  ${name.padEnd(8)} ${'0'.padStart(3)}`); continue; }
+    const pct = (f: (r: Row) => boolean) => `${((b.filter((x) => f(x.r)).length / b.length) * 100).toFixed(0).padStart(3)}%`;
+    console.log(`  ${name.padEnd(8)} ${String(b.length).padStart(3)}   ${median(b.map((x) => x.r.position)).toFixed(1).padStart(6)}     ${pct((r) => r.position <= 20)}    ${pct((r) => r.position <= 10)}  ` +
+      `${String(b.reduce((s, x) => s + x.r.impressions, 0)).padStart(5)}  ${String(b.reduce((s, x) => s + x.r.clicks, 0)).padStart(5)}`);
+  }
+
+  // The classifier is the weakest link, so it is shown, not trusted: every
+  // row with its slot string (T tool, A article, V video, F forum, S asset,
+  // P app store, · other), and a sample of each kind's verdicts to audit.
+  console.log('\n── rows by position (T tool · A article · V video · F forum · S asset · P app store · · other)');
+  for (const x of [...rs].sort((a, b) => a.r.position - b.r.position)) {
+    console.log(`  pos ${x.r.position.toFixed(1).padStart(5)}  tool ${(x.c.tool * 100).toFixed(0).padStart(3)}%  ${x.c.kinds.padEnd(10)}  ${String(x.r.clicks).padStart(2)}/${String(x.r.impressions).padEnd(4)} kd ${String(x.r.kd ?? '—').padStart(3)}  ${x.r.query}`);
+  }
+  if (process.argv.includes('--audit') || process.argv.includes('--audit-all')) {
+    console.log(`\n── classifier audit: ${process.argv.includes('--audit-all') ? 'every slot' : '12 random slots per kind'}`);
+    const bykind = new Map<PageKind, SerpSlotLite[]>();
+    for (const { s } of rs) for (const x of s) if (!isOwn(x.host)) {
+      const k = pageKind(x.url, x.title); bykind.set(k, [...(bykind.get(k) ?? []), x]);
+    }
+    for (const [k, list] of bykind) {
+      console.log(`  [${k}]`);
+      const n = process.argv.includes('--audit-all') ? list.length : 12;
+      for (const x of [...list].sort(() => Math.random() - 0.5).slice(0, n)) console.log(`     ${x.url.slice(0, 90).padEnd(90)}  ${x.title.slice(0, 60)}`);
+    }
   }
 }
 

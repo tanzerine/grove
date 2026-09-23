@@ -21,3 +21,5 @@ jev-backtest-predictions.json
 serp-hostility-raw.json
 
 difficulty-calibration-raw.json
+difficulty-calibration-serps.json
+difficulty-calibration-posts-raw.json
