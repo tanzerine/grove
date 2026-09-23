@@ -85,6 +85,15 @@ export async function POST(req: Request) {
   });
 
   const auth = await authenticate(secret);
+  if (!auth.ok && auth.reason !== 'missing') {
+    // Shape of what arrived, never the value: scheme, first four characters,
+    // length. See the note on `refuse` in lib/mcp/auth.ts.
+    const header = req.headers.get('authorization') ?? '';
+    console.warn(
+      `[mcp-auth] 401 ${auth.reason}: scheme=${header.split(' ')[0] || '(none)'} ` +
+      `prefix=${(secret ?? '').slice(0, 4)} len=${(secret ?? '').length} x-api-key=${req.headers.has('x-api-key')}`,
+    );
+  }
 
   if (!auth.ok && auth.reason === 'unavailable') {
     // Grove's problem, not the key's. 503 + a retryable JSON-RPC error, so the
