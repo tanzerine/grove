@@ -37,13 +37,15 @@ const POSTS: Row[] = [
 ];
 
 let deliveries: Row[] = [];
+/** Posts created during a test (create_draft), kept apart so fixtures stay fixed. */
+let insertedPosts: Row[] = [];
 let events: Row[] = [];
 /** Every table a query touched, so a test can assert nothing unscoped ran. */
 let queries: { table: string; ops: any[][] }[] = [];
 
 const TABLES: Record<string, () => Row[]> = {
   domains: () => DOMAINS,
-  posts: () => POSTS,
+  posts: () => POSTS.concat(insertedPosts),
   mcp_deliveries: () => deliveries,
   post_events: () => events,
 };
@@ -77,6 +79,11 @@ function runQuery(table: string, ops: any[][]): any {
     if (kind === 'upsert' || kind === 'insert') {
       if (table === 'mcp_deliveries') {
         deliveries = deliveries.filter((d) => d.post_id !== payload.post_id).concat([{ ...payload }]);
+      }
+      if (table === 'posts') {
+        const row = { id: `new${insertedPosts.length + 1}`, ...payload };
+        insertedPosts.push(row);
+        return { data: row, error: null };
       }
       return { data: payload, error: null };
     }
@@ -143,6 +150,7 @@ const json = (r: any) => r.structuredContent as any;
 
 beforeEach(() => {
   deliveries = [];
+  insertedPosts = [];
   events = [];
   queries = [];
 });
@@ -488,5 +496,60 @@ describe('dispatch', () => {
     const r = await call('list_posts', { site: 'acme.com', limit: 'lots' });
     expect(r.isError).toBe(true);
     expect(r.content[0].text).toContain('limit');
+  });
+});
+
+// ── create_draft ───────────────────────────────────────────────────────────
+
+describe('create_draft', () => {
+  const body = 'A real paragraph of the article. '.repeat(10);
+
+  it('saves the article in review — never published or scheduled', async () => {
+    const r = json(await call('create_draft', { site: 'acme.com', title: 'Why links matter less', body_md: body }));
+    expect(r.draft.status).toBe('review');
+    expect(r.review_url).toMatch(/\/dashboard\/posts\/new1$/);
+    const row = insertedPosts[0];
+    expect(row.status).toBe('review');
+    expect(row.domain_id).toBe('d1');
+    expect(row.body_md.startsWith('# Why links matter less')).toBe(true);
+    expect(row).not.toHaveProperty('published_at');
+    expect(row).not.toHaveProperty('scheduled_at');
+  });
+
+  it('writes only to a site the key resolves to', async () => {
+    const r = await call('create_draft', { site: 'rival.com', title: 'Planted', body_md: body });
+    expect(r.isError).toBe(true);
+    expect(insertedPosts).toHaveLength(0);
+    // …and a pinned key cannot aim at its sibling site.
+    const pinned = await call('create_draft', { site: 'other.com', title: 'Planted', body_md: body }, PINNED_D1);
+    expect(pinned.isError).toBe(true);
+    expect(insertedPosts).toHaveLength(0);
+  });
+
+  it('needs write access', async () => {
+    const r = await call('create_draft', { site: 'acme.com', title: 'Nope', body_md: body }, READ_ONLY);
+    expect(r.isError).toBe(true);
+    expect(insertedPosts).toHaveLength(0);
+  });
+
+  it('is idempotent on title: a retry returns the same draft', async () => {
+    await call('create_draft', { site: 'acme.com', title: 'Retry me', body_md: body });
+    const again = json(await call('create_draft', { site: 'acme.com', title: 'Retry me', body_md: body }));
+    expect(again.duplicate).toBe(true);
+    expect(again.draft.grove_id).toBe('new1');
+    expect(insertedPosts).toHaveLength(1);
+  });
+
+  it('refuses to shadow a published article with the same title', async () => {
+    const r = await call('create_draft', { site: 'acme.com', title: 'First post', body_md: body });
+    expect(r.isError).toBe(true);
+    expect(r.content[0].text).toContain('published');
+    expect(insertedPosts).toHaveLength(0);
+  });
+
+  it('rejects a placeholder body', async () => {
+    const r = await call('create_draft', { site: 'acme.com', title: 'Too short', body_md: 'TODO' });
+    expect(r.isError).toBe(true);
+    expect(insertedPosts).toHaveLength(0);
   });
 });

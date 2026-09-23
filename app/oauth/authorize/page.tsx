@@ -94,8 +94,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
           <Row on label="Read your published articles" note="Titles, bodies, covers and where each one is published." />
           <Row
             on={writes}
-            label="Record where they went live"
-            note="Which articles your site has taken, and pointing grove's canonical URLs at your own."
+            label="Save drafts and record where articles went live"
+            note="Drafts it writes wait in your review queue — it cannot publish them. Plus which articles your site has taken, and pointing grove's canonical URLs at your own."
           />
           <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 14 }}>
             <div style={{ fontSize: 13, color: 'var(--gv-soft)', fontWeight: 600, marginBottom: 3 }}>
@@ -137,7 +137,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
         </div>
 
         <p style={{ fontSize: 12.5, color: 'var(--gv-fainter)', lineHeight: 1.6, marginTop: 14 }}>
-          It cannot publish, delete or edit an article, change your plan, or see your billing. You can disconnect
+          It cannot publish, delete or edit an article, change your plan, or see your billing. Drafts it saves go live only when you publish them. You can disconnect
           it at any time from <span style={{ fontFamily: MONO }}>Content API</span>.
         </p>
 

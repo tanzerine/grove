@@ -24,6 +24,7 @@ import { hasScope } from './keys';
 import { toolByName } from './tools';
 import type { McpContext } from './auth';
 import { languageForDomain, contentLength } from '../language';
+import { normalizeDraft } from './draft';
 
 const DOMAIN_COLUMNS =
   'id,hostname,blog_slug,canonical_blog_base,custom_blog_hostname,site_profile,cta_url,verified_at,language';
@@ -200,6 +201,15 @@ const recordDeliveryArgs = z.object({
 
 const canonicalArgs = z.object({ ...siteArg, base: z.string() });
 
+const draftArgs = z.object({
+  ...siteArg,
+  title: z.string().trim().min(3).max(160),
+  // A real article, not a placeholder: anything shorter is an agent that
+  // called the tool before it had written anything.
+  body_md: z.string().min(200).max(200_000),
+  description: z.string().max(500).optional(),
+});
+
 const analyticsArgs = z.object({ ...siteArg, slug: z.string().optional(), days: z.number().int().min(1).max(365).optional() });
 
 // ── dispatch ───────────────────────────────────────────────────────────────
@@ -222,6 +232,7 @@ export async function callTool(name: string, rawArgs: unknown, ctx: McpContext):
     case 'get_post': return getPost(sb, ctx, args);
     case 'pull_new': return pullNew(sb, ctx, args);
     case 'record_delivery': return recordDelivery(sb, ctx, args);
+    case 'create_draft': return createDraft(sb, ctx, args);
     case 'set_canonical_base': return setCanonicalBase(sb, ctx, args);
     case 'post_analytics': return postAnalytics(sb, ctx, args);
     case 'integration_guide': return guide(sb, ctx, args);
@@ -549,6 +560,81 @@ async function recordDelivery(sb: Sb, ctx: McpContext, args: Record<string, unkn
   return toolJson({
     recorded: { grove_id: post.id, slug: post.slug, url, layer: a.layer ?? null },
     ...(hint ? { hint } : {}),
+  });
+}
+
+/**
+ * An agent's article, saved as a draft in `review` — the same state a finished
+ * pipeline draft waits in, so it appears in the owner's review queue and goes
+ * through the same publish button. Never `published`, never `scheduled`: the
+ * owner approving it is the product, and a write tool that could publish would
+ * turn every connected agent into an unreviewed author on the live blog.
+ *
+ * Idempotent on (site, title): agents retry after timeouts, and a retry that
+ * stacked a second identical draft in the queue would read as grove being
+ * broken. A title that already exists as a PUBLISHED or scheduled article is
+ * refused rather than duplicated — that is a different article with the same
+ * headline, and the owner should decide, not the agent.
+ */
+async function createDraft(sb: Sb, ctx: McpContext, args: Record<string, unknown>): Promise<ToolResult> {
+  const parsed = draftArgs.safeParse(args);
+  if (!parsed.success) return toolError(`Bad arguments: ${parsed.error.issues.map((i) => `${i.path.join('.')} ${i.message}`).join('; ')}`);
+  const a = parsed.data;
+
+  const site = await resolveSite(sb, ctx, a.site);
+  if ('error' in site) return toolError(site.error);
+  const domain = site.domain;
+
+  const draft = normalizeDraft({ title: a.title, body_md: a.body_md, description: a.description ?? null });
+  const reviewUrl = (id: string) => `${appBase()}/dashboard/posts/${id}`;
+
+  const { data: existing } = await sb
+    .from('posts')
+    .select('id,status,slug')
+    .eq('domain_id', domain.id)
+    .eq('title', draft.title)
+    .limit(1)
+    .maybeSingle();
+  if (existing) {
+    if (existing.status === 'review') {
+      return toolJson({
+        draft: { grove_id: existing.id, site: domain.hostname, title: draft.title, status: 'review' },
+        duplicate: true,
+        review_url: reviewUrl(existing.id),
+        note: 'A draft with this title already exists on this site, so no second one was made. Edit it in the dashboard.',
+      });
+    }
+    return toolError(
+      `"${draft.title}" already exists on ${domain.hostname} as a ${existing.status} article${existing.slug ? ` (/${existing.slug})` : ''}. Use a different title, or ask the owner to edit that one.`,
+    );
+  }
+
+  const { data: row, error } = await sb
+    .from('posts')
+    .insert({
+      domain_id: domain.id,
+      status: 'review',
+      topic: draft.title,
+      title: draft.title,
+      body_md: draft.body_md,
+      meta_description: draft.description,
+    })
+    .select('id')
+    .single();
+  if (error || !row) return toolError(`Could not save the draft: ${error?.message ?? 'no row returned'}`);
+
+  const lang = languageForDomain(domain as any);
+  return toolJson({
+    draft: {
+      grove_id: row.id,
+      site: domain.hostname,
+      title: draft.title,
+      status: 'review',
+      length: `${contentLength(draft.body_md, lang)} ${lang.length.unitLabel}`,
+      description: draft.description,
+    },
+    review_url: reviewUrl(row.id),
+    next_step: `Not published. Tell the owner it is waiting in their review queue: ${reviewUrl(row.id)}. It goes live only when they publish it.`,
   });
 }
 
