@@ -240,11 +240,8 @@ export function mergeRevealed(
     intent: provider?.intent ?? rev.intent,
     source: 'gsc',
     revealed: rev.revealed ?? null,
-    // The raw inputs travel with the difficulty they produced, so the dead-
-    // space verdict and the ledger's provider KD survive the merge.
+    // Calibration evidence travels with the keyword it describes.
     ...(provider && provider.serp !== undefined ? { serp: provider.serp } : {}),
-    ...(provider && provider.providerKd !== undefined ? { providerKd: provider.providerKd } : {}),
-    ...(provider?.assessment ? { assessment: provider.assessment } : {}),
   });
 
   const out: ScoredKeyword[] = [];

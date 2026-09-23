@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   parseLabsItem, parseLabsResponse, dataforseoConfigured,
-  describeLabsOutcome, summarizeLabsOutcomes, credentialShapeWarning, mergeAuthority,
+  describeLabsOutcome, summarizeLabsOutcomes, credentialShapeWarning,
 } from '../lib/keywords/dataforseo';
 
 // Shaped from the documented Labs response. The parsing is tested rather than
@@ -21,7 +21,6 @@ describe('parseLabsItem', () => {
       keyword: 'blog automation tool',
       volume: 880,
       difficulty: 22,
-      providerKd: 22,
       serp: null,
       intent: 'commercial',
       source: 'dataforseo',
@@ -205,7 +204,6 @@ describe('describeLabsOutcome — the API\'s own words win', () => {
 });
 
 // Recorded from the live API, 2026-09-23 (keyword_overview, include_serp_info).
-// The KD-0 trap as it actually arrives: no page links, giant domains.
 const trap = item({
   keyword: 'illustrator 3d logo',
   keyword_info: { search_volume: 30 },
@@ -217,59 +215,16 @@ const trap = item({
   serp_info: { serp_item_types: ['images', 'people_also_ask', 'organic', 'related_searches'] },
 });
 
-describe('parseLabsItem — grove difficulty from the raw fields', () => {
-  it('reads the top 10\'s domain authority that KD ignores', () => {
+describe('parseLabsItem — SERP authority is carried, not acted on', () => {
+  it('keeps the top 10\'s authority on the keyword for calibration', () => {
     const k = parseLabsItem(trap)!;
-    expect(k.providerKd).toBe(0);
-    expect(k.serp?.domainRank).toBeCloseTo(841.8);
-    expect(k.difficulty).toBe(100);
-    expect(k.assessment?.deadSpace).toBe(true);
+    expect(k.serp).toMatchObject({ domainRank: 841.8, referringDomains: 0.6 });
+    expect(k.serp?.features).toContain('images');
   });
 
-  it('keeps the provider KD when the SERP is held by small sites', () => {
-    const k = parseLabsItem(item({
-      keyword: '3d icon generator',
-      keyword_properties: { keyword_difficulty: 21 },
-      avg_backlinks_info: { referring_main_domains: 10.4, rank: 118.4, main_domain_rank: 426.5 },
-      serp_info: { serp_item_types: ['organic', 'video', 'related_searches', 'images'] },
-    }))!;
-    expect(k.difficulty).toBe(21);
-    expect(k.assessment?.deadSpace).toBe(false);
-  });
-
-  it('distrusts a low KD that arrives with no authority data', () => {
-    const k = parseLabsItem(item({ keyword_properties: { keyword_difficulty: 0 } }))!;
-    expect(k.providerKd).toBe(0);
-    expect(k.difficulty).toBeNull();
-    expect(k.assessment?.basis).toBe('kd_only');
-  });
-});
-
-
-describe('mergeAuthority — re-measuring the ledger', () => {
-  const ledgerRow = { keyword: 'pixel 3d icon pack', volume: 4400, difficulty: null, providerKd: 0, intent: null, source: 'dataforseo' } as const;
-
-  it('replaces a stored KD 0 with the fresh assessment, keeping source and revealed demand', () => {
-    const fresh = parseLabsItem(item({
-      keyword: 'pixel 3d icon pack',
-      keyword_properties: { keyword_difficulty: 0 },
-      avg_backlinks_info: { referring_main_domains: 0.1, rank: 7.8, main_domain_rank: 599.2 },
-    }))!;
-    const rev = { impressions: 12, clicks: 0, position: 40, days: 28 };
-    const [out] = mergeAuthority([{ ...ledgerRow, source: 'gsc', revealed: rev }], [fresh]);
-    expect(out.source).toBe('gsc');
-    expect(out.revealed).toEqual(rev);
-    expect(out.difficulty).toBeGreaterThan(45);
-    expect(out.serp?.domainRank).toBeCloseTo(599.2);
-  });
-
-  it('marks a keyword the overview did not return as asked, so it is not asked twice', () => {
-    const [out] = mergeAuthority([{ ...ledgerRow }], []);
-    expect(out.serp).toBeNull();
-  });
-
-  it('leaves a keyword already measured this run alone', () => {
-    const measured = { ...ledgerRow, serp: null };
-    expect(mergeAuthority([measured], [])[0]).toBe(measured);
+  it('difficulty stays the provider KD — domain rank predicted rankings the wrong way on oveners', () => {
+    // See lib/keywords/serp-evidence.ts: AUC 0.31 for "reached the top 20"
+    // against KD's 0.61, on 67 measured queries.
+    expect(parseLabsItem(trap)!.difficulty).toBe(0);
   });
 });

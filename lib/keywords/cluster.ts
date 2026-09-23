@@ -279,10 +279,7 @@ export function formatClustersForPrompt(clusters: KeywordCluster[]): string {
   };
   return clusters
     .map((c, i) => {
-      // "difficulty", not "KD": the number is grove's (links AND the domains
-      // holding the SERP), and calling it KD invites the model to read it on
-      // a provider's scale it no longer follows.
-      const head = `C${i + 1}. "${c.pillar.keyword}" — difficulty ${c.difficulty ?? '?'}/100, ${n(c.pillar.volume)}/mo` +
+      const head = `C${i + 1}. "${c.pillar.keyword}" — KD ${c.difficulty ?? '?'}, ${n(c.pillar.volume)}/mo` +
         (c.members.length ? `, cluster total ${n(c.totalVolume)}/mo` : '') +
         (c.pillar.intent ? `, ${c.pillar.intent}` : '') + seen(c.pillar);
       if (!c.members.length) return head;

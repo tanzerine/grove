@@ -75,13 +75,11 @@ export function demandFloor(total: number | null, lead: string, min = MIN_MONTHL
 
 // ── the plan gate ─────────────────────────────────────────────────────────
 
-/** What the gate knows about a keyword: the article's reachable demand and
- *  whether the SERP is one worth entering. */
+/** What the gate knows about a keyword: the article's reachable demand. */
 export type DemandFact = {
   keyword: string;
   /** Cluster total when the keyword is a pillar, else its own effective volume. */
   total: number | null;
-  deadSpace: boolean;
   /** The cluster's other phrases, when the keyword leads one. */
   members: string[];
 };
@@ -90,7 +88,7 @@ export type GateSlot = { target_keyword?: string; topic: string; secondary_keywo
 
 export type SlotDecision =
   | { verdict: 'keep'; pass: FloorPass }
-  | { verdict: 'replace'; reason: 'too_small' | 'unmeasured' | 'dead_space' };
+  | { verdict: 'replace'; reason: 'too_small' | 'unmeasured' };
 
 /** Pure. Exported so the verdict for one slot is assertable on its own. */
 export function judgeSlot(slot: GateSlot, fact: DemandFact | undefined, min = MIN_MONTHLY_DEMAND): SlotDecision {
@@ -101,7 +99,6 @@ export function judgeSlot(slot: GateSlot, fact: DemandFact | undefined, min = MI
     if (kw && isBuyerQuery(kw)) return { verdict: 'keep', pass: 'buyer_intent' };
     return { verdict: 'replace', reason: 'unmeasured' };
   }
-  if (fact.deadSpace) return { verdict: 'replace', reason: 'dead_space' };
   const pass = demandFloor(fact.total, kw, min);
   return pass ? { verdict: 'keep', pass } : { verdict: 'replace', reason: 'too_small' };
 }
@@ -136,7 +133,7 @@ export function gateSlots<T extends GateSlot>(
 ): GateResult<T> {
   const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
   const used = new Set(slots.map((s) => norm(s.target_keyword ?? '')).filter(Boolean));
-  const queue = spare.filter((c) => !c.deadSpace && demandFloor(c.total, c.keyword, min) && !used.has(norm(c.keyword)));
+  const queue = spare.filter((c) => demandFloor(c.total, c.keyword, min) && !used.has(norm(c.keyword)));
 
   const out: T[] = [];
   const changes: string[] = [];
@@ -177,14 +174,13 @@ export function demandFacts(
   const facts = new Map<string, DemandFact>();
   for (const k of pool) {
     facts.set(norm(k.keyword), {
-      keyword: k.keyword, total: volumeOf(k), deadSpace: !!k.assessment?.deadSpace, members: [],
+      keyword: k.keyword, total: volumeOf(k), members: [],
     });
   }
   for (const c of clusters) {
     facts.set(norm(c.pillar.keyword), {
       keyword: c.pillar.keyword,
       total: c.totalVolume,
-      deadSpace: !!c.pillar.assessment?.deadSpace,
       members: c.members.map((m) => m.keyword),
     });
   }
