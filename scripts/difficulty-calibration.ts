@@ -143,7 +143,14 @@ async function fetchSerp(keyword: string, lang: 'en' | 'ko'): Promise<SerpSlotLi
     });
     const json: any = await res.json();
     const task = json?.tasks?.[0];
-    if (task?.status_code !== 20000) { console.error(`  SERP ${task?.status_code} ${task?.status_message} "${keyword}"`); return null; }
+    if (task?.status_code !== 20000) {
+      // A 402 (account out of funds) arrives with the status at the TOP level
+      // and no task at all, so reading only the task printed "undefined".
+      const code = task?.status_code ?? json?.status_code ?? res.status;
+      const msg = task?.status_message ?? json?.status_message ?? '';
+      console.error(`  SERP ${code} ${msg} "${keyword}"`);
+      return null;
+    }
     return (task?.result?.[0]?.items ?? [])
       .filter((it: any) => it?.type === 'organic' && it?.url)
       .map((it: any) => ({
@@ -398,12 +405,20 @@ async function serpReport(rows: Row[]) {
     console.log(`\n${todo.length} queries have no cached SERP; --no-fetch, so they are left out`);
   } else if (todo.length) {
     console.log(`\nfetching ${todo.length} live SERPs (~$${(todo.length * 0.002).toFixed(2)}) …`);
-    for (let i = 0; i < todo.length; i += 10) {
-      const b = todo.slice(i, i + 10);
-      const got = await Promise.all(b.map((r) => fetchSerp(r.query, r.lang)));
-      b.forEach((r, j) => { cache[r.query] = got[j]; });
-      writeFileSync(SERP_CACHE, JSON.stringify(cache));
+    // Probe one first: an unfunded account fails every call identically, and
+    // 109 copies of "Payment Required" bury the one line that matters.
+    const [head, ...rest] = todo;
+    cache[head.query] = await fetchSerp(head.query, head.lang);
+    if (cache[head.query] == null) {
+      console.error('  first SERP call failed — not attempting the rest (check the DataForSEO balance)');
+    } else {
+      for (let i = 0; i < rest.length; i += 10) {
+        const b = rest.slice(i, i + 10);
+        const got = await Promise.all(b.map((r) => fetchSerp(r.query, r.lang)));
+        b.forEach((r, j) => { cache[r.query] = got[j]; });
+      }
     }
+    writeFileSync(SERP_CACHE, JSON.stringify(cache));
   }
   const rs = rows
     .map((r) => ({ r, s: cache[r.query] }))
