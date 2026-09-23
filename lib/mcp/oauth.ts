@@ -160,6 +160,37 @@ export function redirectUriAllowed(registered: string[], requested: string): boo
   });
 }
 
+/* ── consent origin ────────────────────────────────────────────────────── */
+
+/**
+ * Was the consent form posted from grove's own origin?
+ *
+ * appBase() and the host that actually serves the consent page can differ by a
+ * `www.`: production 307s trygroveai.com → www.trygroveai.com at Vercel's edge,
+ * so a browser sent to the advertised apex renders the screen on www and posts
+ * back with `Origin: https://www.trygroveai.com`. An exact match against
+ * appBase() refused every real approval in production — the flow reached
+ * "Allow" and 403'd, which to the customer is "OAuth doesn't work, paste a key".
+ *
+ * The www/apex twin is the same property, so it is accepted. Every other host
+ * is still refused, a customer's `custom_blog_hostname` included — that is the
+ * forged-consent defence, and loosening it past the twin would reopen it.
+ */
+export function consentOriginAllowed(origin: string | null | undefined, base: string): boolean {
+  if (!origin) return false;
+  let o: URL;
+  let b: URL;
+  try {
+    o = new URL(origin);
+    b = new URL(base);
+  } catch {
+    return false;
+  }
+  if (o.protocol !== b.protocol || o.port !== b.port) return false;
+  const bare = (h: string) => h.toLowerCase().replace(/^www\./, '');
+  return bare(o.hostname) === bare(b.hostname);
+}
+
 /* ── scopes ────────────────────────────────────────────────────────────── */
 
 /**

@@ -53,7 +53,7 @@ const ALLOWED = [
   // format the snippet below is in, so they have to match what the customer
   // sees in that tool's own UI — a translated "Claude Desktop" would be
   // looking for an app that doesn't exist under that name.
-  /^(?:Claude Code|Cursor \/ Claude Desktop)$/,
+  /^(?:Claude Code|Cursor|Claude Desktop|Cursor \/ Claude Desktop)$/,
 ];
 
 function tsxFiles(dir: string, out: string[] = []): string[] {

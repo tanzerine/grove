@@ -4,8 +4,9 @@
  * The Embed page answers "show grove's blog inside my page". This one answers
  * the question customers with a real blog already ask instead: "I have a
  * content layer — put the articles in it." The product surface for that is an
- * MCP server their coding agent connects to, so the page is mostly: make a key,
- * paste one command, watch articles land.
+ * MCP server their coding agent connects to, so the page is mostly: paste one
+ * link, approve it in the browser, watch articles land. Keys are folded away
+ * below for agents with no browser.
  */
 import { supabaseServer } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
@@ -15,6 +16,7 @@ import { TOOLS } from '@/lib/mcp/tools';
 import { DashHeader } from '../gv-chrome';
 import Icon from '../gv-icons';
 import KeyManager, { type KeyRow } from './KeyManager';
+import ConnectCard from './ConnectCard';
 import GrantList from './GrantList';
 import { summarizeGrants, toView } from '@/lib/mcp/grants';
 import { getT, getUiLocale } from '@/lib/i18n/server';
@@ -106,16 +108,12 @@ export default async function Page() {
         <div style={{ display: 'grid', gridTemplateColumns: '1.7fr 1fr', gap: 16, alignItems: 'start' }}>
           {/* LEFT */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
-            <KeyManager
-              initialKeys={keys}
-              sites={sites.map((s) => ({ id: s.id, hostname: s.hostname }))}
-              endpoint={endpoint}
-            />
+            <ConnectCard endpoint={endpoint} />
 
             <GrantList initial={grants} />
 
             <div className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18, padding: '22px 24px' }}>
-              <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 4 }}>{t('Step 3 · Let it work')}</div>
+              <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)', marginBottom: 4 }}>{t('Step 2 · Let it work')}</div>
               <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.01em', marginBottom: 14 }}>{t('What your agent can do')}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {TOOLS.map((tool) => (
@@ -133,6 +131,25 @@ export default async function Page() {
                 ))}
               </div>
             </div>
+
+            {/* Open by default only for someone who already runs on keys, so
+                their list isn't hidden from them; everyone else never needs it. */}
+            <details open={keys.some((k) => k.state === 'active')} className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18 }}>
+              <summary style={{ padding: '18px 22px', cursor: 'pointer', listStyle: 'none' }}>
+                <span style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>{t('Advanced · no browser')}</span>
+                <span style={{ display: 'block', fontSize: 16, fontWeight: 700, marginTop: 6 }}>{t('Use an API key instead')}</span>
+                <span style={{ display: 'block', fontSize: 12.5, color: 'var(--gv-dim)', marginTop: 4, lineHeight: 1.5 }}>
+                  {t('For CI jobs and scripts that can’t open a browser to approve the connection.')}
+                </span>
+              </summary>
+              <div style={{ padding: '0 16px 16px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <KeyManager
+                  initialKeys={keys}
+                  sites={sites.map((s) => ({ id: s.id, hostname: s.hostname }))}
+                  endpoint={endpoint}
+                />
+              </div>
+            </details>
 
             <details className="gv-card" style={{ background: 'var(--gv-card)', border: '1px solid var(--gv-line)', borderRadius: 18 }}>
               <summary style={{ padding: '18px 22px', cursor: 'pointer', listStyle: 'none' }}>

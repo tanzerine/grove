@@ -7,7 +7,8 @@
  * that attacker's client a token for the customer's content, which is the
  * classic way an OAuth consent screen is abused.
  *
- *  1. The Origin header must be grove's own. A cross-site form POST always
+ *  1. The Origin header must be grove's own (appBase() or its www twin — the
+ *     host production actually serves). A cross-site form POST always
  *     carries an Origin, so a request from anywhere else is refused outright.
  *  2. The session cookie must be present, and Supabase sets it SameSite=Lax —
  *     which a browser does not send on a cross-site POST at all. So the forged
@@ -24,7 +25,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import { appBase } from '@/lib/seo';
 import { mcpResourceUri } from '@/lib/mcp/oauth-metadata';
 import {
-  CODE_TTL_MS, authorizeRedirect, checkAuthorize, mintOpaque, scopeString, type AuthorizeParams,
+  CODE_TTL_MS, authorizeRedirect, checkAuthorize, consentOriginAllowed, mintOpaque, scopeString, type AuthorizeParams,
 } from '@/lib/mcp/oauth';
 import { enforceRateLimit, LIMITS } from '@/lib/ratelimit';
 
@@ -37,7 +38,8 @@ export async function POST(req: Request) {
   const origin = req.headers.get('origin');
   // A same-origin form POST from a modern browser sends Origin too, so a
   // missing one is only ever a non-browser caller — which has no business here.
-  if (!origin || origin.replace(/\/+$/, '') !== appBase()) {
+  // The www twin of appBase() counts as ours: see consentOriginAllowed.
+  if (!consentOriginAllowed(origin, appBase())) {
     return NextResponse.json({ error: 'invalid_request', error_description: 'Cross-origin consent is refused.' }, { status: 403 });
   }
 

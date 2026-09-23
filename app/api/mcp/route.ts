@@ -102,7 +102,9 @@ export async function POST(req: Request) {
     // pasting a key. See lib/mcp/oauth-metadata.ts.
     const message =
       auth.reason === 'missing'
-        ? 'Missing credentials. Send Authorization: Bearer <grove MCP key>.'
+        // Read by a human when a client surfaces it. Lead with the path that
+        // needs no key; a client that speaks OAuth is already on its way there.
+        ? 'Sign in to grove to connect: your MCP client opens a browser to approve it. No browser? Send Authorization: Bearer <grove MCP key>.'
         : auth.reason === 'malformed'
           ? 'That does not look like a grove MCP key (they start with gv_mcp_).'
           : 'This key is not valid. It may have been revoked, expired, or belong to another environment.';
