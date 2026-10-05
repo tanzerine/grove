@@ -217,9 +217,13 @@ export function articleRows(
 export function summarize(pages: MetricRow[], queries: MetricRow[], pageQueries: PageQueryRow[] = []): Visibility {
   const impressions = pages.reduce((a, p) => a + p.impressions, 0);
   const clicks = pages.reduce((a, p) => a + p.clicks, 0);
+  // Wider than any reader shows (the dashboard takes 5, the planner digest 12)
+  // because the digest drops brand searches BEFORE it cuts to 12. Cut here at
+  // 12 and a young site whose top rows are all typos of its own name hands the
+  // planner nothing else.
   const topQueries = [...queries]
     .sort((a, b) => b.impressions - a.impressions)
-    .slice(0, 12)
+    .slice(0, 40)
     .map((q) => ({
       query: q.key,
       impressions: q.impressions,
