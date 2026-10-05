@@ -25,6 +25,7 @@
  *     and need a credential that outlives any session.
  */
 import { NextResponse } from 'next/server';
+import { captureMcpToolCall, flushMcpAnalyticsAfterResponse } from '@/lib/mcp/analytics';
 import { authenticate, touchKey, type McpContext } from '@/lib/mcp/auth';
 import { callTool } from '@/lib/mcp/handlers';
 import { bearerToken } from '@/lib/mcp/keys';
@@ -185,7 +186,7 @@ export async function POST(req: Request) {
   let calledTool: string | null = null;
   for (const msg of parsed.messages) {
     if (msg.method === 'tools/call') calledTool = String((msg.params as any)?.name ?? '') || calledTool;
-    const res = await handle(msg, ctx);
+    const res = await handle(msg, ctx, req);
     // A notification gets no reply, ever — answering one makes every client log
     // an unsolicited response to `notifications/initialized` on connect.
     if (res && !isNotification(msg)) responses.push(res);
@@ -194,6 +195,7 @@ export async function POST(req: Request) {
   // Usage trail after the work, not before: a rate-limited or malformed call
   // shouldn't move "last used".
   await touchKey(ctx, calledTool);
+  if (calledTool) flushMcpAnalyticsAfterResponse();
 
   if (!responses.length) {
     // Everything in the payload was a notification. 202 with no body is what
@@ -207,7 +209,7 @@ export async function POST(req: Request) {
   });
 }
 
-async function handle(msg: RpcRequest, ctx: McpContext): Promise<RpcResponse | null> {
+async function handle(msg: RpcRequest, ctx: McpContext, req: Request): Promise<RpcResponse | null> {
   const id = msg.id ?? null;
 
   switch (msg.method) {
@@ -230,10 +232,23 @@ async function handle(msg: RpcRequest, ctx: McpContext): Promise<RpcResponse | n
     case 'tools/call': {
       const name = String((msg.params as any)?.name ?? '');
       if (!name) return rpcError(id, RPC.INVALID_PARAMS, 'tools/call needs a "name"');
+      const started = Date.now();
+      const track = (isError: boolean, error?: unknown) => captureMcpToolCall({
+        userId: ctx.userId,
+        toolName: name,
+        durationMs: Date.now() - started,
+        isError,
+        error,
+        protocolVersion: req.headers.get('mcp-protocol-version') ?? undefined,
+        userAgent: req.headers.get('user-agent'),
+        vendorClient: req.headers.get('x-anthropic-client'),
+      });
       try {
         const result = await callTool(name, (msg.params as any)?.arguments, ctx);
+        track(Boolean(result.isError), result.isError ? result : undefined);
         return rpcResult(id, result);
       } catch (e: any) {
+        track(true, e);
         // An exception inside a tool is still a tool failure, not a transport
         // failure: report it as a result so the model can read it and adjust.
         return rpcResult(id, {

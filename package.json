@@ -13,6 +13,7 @@
     "db:push": "supabase db push"
   },
   "dependencies": {
+    "@posthog/mcp": "^0.21.4",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.48.0",
     "@tiptap/extension-image": "^2.27.2",
