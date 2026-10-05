@@ -137,6 +137,56 @@ export function isBrandTerm(phrase: string, brand: string | null | undefined): b
   return sq.includes(squash(b)) && sq.length <= squash(b).length + 6;
 }
 
+/**
+ * Is this SEARCH QUERY someone looking for the business by name? Wider than
+ * isBrandTerm, which screens research seeds: a query also counts when it
+ * names the site's host label ("trygroveai") or misspells the brand in a
+ * short query ("groce ai", "grobe ai"). Search Console reports typos of a
+ * brand as separate queries, and on trygroveai.com they were a quarter of the
+ * brand impressions the planner was reading as topic demand.
+ *
+ * The typo branch is bounded twice: the brand's core word must be at least
+ * five letters (an edit away from "oven" is half the dictionary), and the
+ * query at most three words — navigational searches are short, and a long
+ * query that happens to contain "drove" is about something else.
+ */
+export function isBrandQuery(query: string, brands: (string | null | undefined)[]): boolean {
+  const names = brands.map((b) => (b ?? '').trim()).filter((b) => b.length >= 3);
+  if (names.some((b) => isBrandTerm(query, b))) return true;
+
+  const words = (s: string) => s.toLowerCase().split(/[\s\-_.]+/).filter(Boolean);
+  const tokens = words(query);
+  if (!tokens.length || tokens.length > 3) return false;
+  return names.some((b) => {
+    const core = words(b).sort((x, y) => y.length - x.length)[0] ?? '';
+    if (core.length < 5) return false;
+    return tokens.some((t) => t.length >= 4 && withinOneEdit(t, core));
+  });
+}
+
+/** Levenshtein distance <= 1, without building the matrix. */
+function withinOneEdit(a: string, b: string): boolean {
+  if (a === b) return true;
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0;
+  let j = 0;
+  let edits = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) { i++; j++; continue; }
+    if (++edits > 1) return false;
+    if (a.length > b.length) i++;
+    else if (b.length > a.length) j++;
+    else { i++; j++; }
+  }
+  return edits + (a.length - i) + (b.length - j) <= 1;
+}
+
+/** "www.trygroveai.com" → "trygroveai": the label people type as a name. */
+export function hostLabel(hostname: string | null | undefined): string {
+  const parts = (hostname ?? '').toLowerCase().replace(/^www\./, '').split('.');
+  return parts.length >= 2 ? parts[parts.length - 2] : parts[0] ?? '';
+}
+
 /*
  * Deliberately conservative: a phrase that contains the brand AS A WORD is
  * treated as a brand term even when it plainly isn't one ("olive grove

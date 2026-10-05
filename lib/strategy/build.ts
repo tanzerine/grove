@@ -18,7 +18,8 @@ import { interviewSummary, type InterviewAnswers } from './interview';
 import { assignPublishDates, slotsForRemainder } from './schedule';
 import { titleTokens } from '../related-posts';
 import { gatherKeywordDemand } from './keywords';
-import { searchSeeds, isBrandTerm, localizeSeeds } from './seeds';
+import { searchSeeds, isBrandTerm, isBrandQuery, hostLabel, localizeSeeds } from './seeds';
+import { formatBetsForPrompt, type Bet } from './bets';
 import { buildCustomerProfile, icpSeeds, buyerIntentSeeds, icpIsUsable, formatIcpForPrompt, type CustomerProfile } from './icp';
 import { gatherLabsDemand, keywordOverview } from '../keywords/dataforseo';
 import { gscResearchPlan, mergeRevealed, type GscResearchPlan } from '../keywords/gsc-seeds';
@@ -159,6 +160,13 @@ export type BuildStrategyInput = {
   prevReport?: MonthlyReport | null;
   progressMd?: string | null;       // rolling weekly log (agent_context.progress_md)
   alreadyCovered?: string[];        // topic_memory keywords — don't re-propose these
+  /** The domain's hostname. Its label ("trygroveai") is a brand name too when
+   *  splitting brand searches out of the report. */
+  hostname?: string;
+  /** Every past slot's target keyword, graded against Search Console (see
+   *  lib/strategy/bets.ts). Omit and the planner gets no ledger block. */
+  bets?: Bet[];
+  betsAsOf?: string | null;
   /**
    * Wall clock left in THIS invocation for planning — the whole model ladder
    * plus write-back headroom, not a single call's cap. strategyLlmCall splits
@@ -197,14 +205,24 @@ export type BuildStrategyInput = {
  * Exported for tests: the near-winner section is a behavioural guard (it decides
  * whether the planner competes with our own page-2 URLs), so its wording has to
  * be assertable rather than reviewed by eye.
+ *
+ * `brands` (the business name, the host label) splits search queries into
+ * people looking for the site and people looking for a subject. Only the
+ * second is demand. Before the split, every query Search Console reported was
+ * labelled "proven demand — cover these", and on a young site that list IS the
+ * brand: trygroveai.com's August plan targeted "grove ai", "groveai" and
+ * "groce ai", and September's gave the brand a five-post cluster, while the
+ * TOPIC RULE further down the same prompt said one slot at most. The data
+ * block won both times.
  */
-export function digestReport(r: MonthlyReport): string {
+export function digestReport(r: MonthlyReport, brands: string[] = []): string {
+  const isBrand = (q: string) => isBrandQuery(q, brands);
   const row = (p: any) =>
     `"${(p.title || p.post_id || '').slice(0, 60)}" — ${p.views} views, ${p.median_dwell_sec}s dwell, ${(p.scroll_100_rate * 100).toFixed(0)}% read-through, ${p.conversions} conv`;
   const intents = Object.entries(r.per_intent || {})
     .map(([k, v]: [string, any]) => `${k}: ${v.views} views / ${v.conversions} conv`)
     .join(' · ') || '(no intent data)';
-  const queries = (r.top_queries || []).slice(0, 12)
+  const queries = (r.top_queries || []).filter((q) => !isBrand(q.query)).slice(0, 12)
     .map((q) => `"${q.query}" (${q.sessions})`).join(', ') || '(none captured)';
 
   const lines = [
@@ -227,8 +245,10 @@ export function digestReport(r: MonthlyReport): string {
     const taken = new Set(
       sc.nearWinners.flatMap((w) => (w.queries ?? []).map((q) => q.query.toLowerCase())),
     );
+    const brandQueries = sc.topQueries.filter((q) => isBrand(q.query));
+    const brandImpr = brandQueries.reduce((a, q) => a + q.impressions, 0);
     const scQueries = sc.topQueries
-      .filter((q) => !taken.has(q.query.toLowerCase()))
+      .filter((q) => !taken.has(q.query.toLowerCase()) && !isBrand(q.query))
       .slice(0, 12)
       .map((q) => `"${q.query}" (${q.impressions} impr, pos ${q.position})`).join(', ');
     const winners = sc.nearWinners.slice(0, 8)
@@ -241,7 +261,12 @@ export function digestReport(r: MonthlyReport): string {
       }).join('\n');
     lines.push(
       `SEARCH CONSOLE (real Google data): ${sc.impressions} impressions, ${sc.clicks} clicks, avg position ${sc.avgPosition}, appearing for ${sc.queryCount} queries.`,
-      `GSC QUERIES YOU ALREADY RANK FOR (cover/strengthen these — proven demand at real positions): ${scQueries || '(none)'}`,
+      ...(brandQueries.length
+        ? [`BRAND SEARCHES — ${brandImpr} of those impressions are people typing this business's own name (or a typo of it): ${brandQueries.slice(0, 8).map((q) => `"${q.query}" (${q.impressions} impr)`).join(', ')}. They already know the business and the homepage answers them. This is NOT demand for any topic: plan no slot for these queries, do not target the business name, and do not count these impressions as interest in what the site writes about.`]
+        : []),
+      `GSC QUERIES YOU ALREADY RANK FOR (cover/strengthen these — proven demand at real positions): ${scQueries || (brandQueries.length
+        ? '(none — every query this site appeared for was its own name, so there is no proven topic demand yet; plan from MEASURED DEMAND)'
+        : '(none)')}`,
       `NEAR-WINNERS — our OWN pages already ranking at positions 8-20. They are the closest thing this domain has to a top-10 result, and they must not be competed with: a new article aimed at a query one of them already owns splits the signal between two of our own URLs and neither one gets there. Every query marked "owns" below is TAKEN — do not plan a slot for it, and do not plan a "sharper" or "expanded" retread of these pages.\n` +
       `What legitimately helps one of these: a slot that answers the NEXT question a reader has after reading it, targets a DIFFERENT query, and links back to it. That strengthens the near-winner instead of replacing it.\n` +
       `${winners || '  (none yet)'}`,
@@ -600,6 +625,8 @@ OUTPUT: ONE raw JSON object. No markdown. No prose. No code fences.`;
   // planLanguageMatches abstains unless it is certain (see freshness.ts), so a
   // plan that is merely short, or Latin-script either way, never trips it.
   const drifted = !!prevStrategy && !planLanguageMatches(prevStrategy, pubLang.code);
+  const brands = [profile.business.name, hostLabel(input.hostname)].filter(Boolean);
+  const betsBlock = formatBetsForPrompt(input.bets ?? [], { asOf: input.betsAsOf });
   const driftRule = drifted
     ? `!! THE PLAN BELOW UNDER "LAST MONTH'S STRATEGY" IS IN THE WRONG LANGUAGE !!
 This blog publishes in ${pubLang.englishName} (${pubLang.nativeName}). Last month's plan
@@ -622,11 +649,13 @@ Value props: ${profile.business.value_props.join('; ') || 'unknown'}
 OWNER INTERVIEW (highest authority — overrides inferred values when present):
 ${interviewSummary(interview ?? null)}
 
-LAST MONTH'S STRATEGY (for continuity / contrast):
+${betsBlock ? `${betsBlock}
+
+` : ''}LAST MONTH'S STRATEGY (for continuity / contrast):
 ${prevStrategy ? JSON.stringify({ goals: prevStrategy.goals, kpis: prevStrategy.kpis, pillars: prevStrategy.pillars.map((p) => p.title) }) : '(none — first month)'}
 
 LAST MONTH'S REPORT (real numbers from analytics):
-${prevReport ? digestReport(prevReport) : '(none — first month)'}
+${prevReport ? digestReport(prevReport, brands) : '(none — first month)'}
 
 PROGRESS LOG (weekly entries, newest last — the season so far):
 ${progressMd?.trim() ? progressMd.trim().slice(-4000) : '(no weekly history yet)'}

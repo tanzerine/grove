@@ -19,6 +19,8 @@
 import { supabaseAdmin } from '../supabase/admin';
 import { buildStrategy, type Strategy } from './build';
 import { markPlanned, releasePlanned } from './candidate-store';
+import { loadBets } from './bets';
+import { hostLabel } from './seeds';
 import { summarizeMonth } from './review';
 import { parseInterview } from './interview';
 import { getAgentContext, savePlanContext } from './context-store';
@@ -161,6 +163,13 @@ export async function ensureMonthlyStrategy(
   // The rolling weekly log — how the season actually went, week by week.
   const ctx = await getAgentContext(domain.id);
 
+  // The bet ledger — what Google did with every keyword earlier plans aimed at.
+  // Fail-soft: an empty ledger just omits the block.
+  const { bets, asOf: betsAsOf } = await loadBets(
+    domain.id,
+    [profile.business.name, hostLabel(domain.hostname)].filter(Boolean),
+  );
+
   // Cap the calendar at what the owner's plan actually includes — planning past
   // it just manufactures slots the drain will refuse as over-quota.
   const monthlyQuota = domain.user_id ? (await getQuota(domain.user_id)).limit : null;
@@ -176,6 +185,9 @@ export async function ensureMonthlyStrategy(
     prevReport: report,
     progressMd: ctx.progress_md,
     alreadyCovered,
+    hostname: domain.hostname,
+    bets,
+    betsAsOf,
     // Publication language for the parts that become articles. The owner's UI
     // language is resolved by the CALLER where a request context exists; the
     // cron has none, so a plan built there falls back to the publication
