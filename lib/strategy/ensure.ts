@@ -20,6 +20,7 @@ import { supabaseAdmin } from '../supabase/admin';
 import { buildStrategy, type Strategy } from './build';
 import { markPlanned, releasePlanned } from './candidate-store';
 import { loadBets } from './bets';
+import { loadPipelineHealth } from './diagnosis';
 import { hostLabel } from './seeds';
 import { summarizeMonth } from './review';
 import { parseInterview } from './interview';
@@ -165,10 +166,11 @@ export async function ensureMonthlyStrategy(
 
   // The bet ledger — what Google did with every keyword earlier plans aimed at.
   // Fail-soft: an empty ledger just omits the block.
-  const { bets, asOf: betsAsOf } = await loadBets(
-    domain.id,
-    [profile.business.name, hostLabel(domain.hostname)].filter(Boolean),
-  );
+  const [{ bets, asOf: betsAsOf }, pipeline] = await Promise.all([
+    loadBets(domain.id, [profile.business.name, hostLabel(domain.hostname)].filter(Boolean)),
+    // Publishing health for the diagnosis. Fail-soft: null reads as unknown.
+    loadPipelineHealth(domain.id),
+  ]);
 
   // Cap the calendar at what the owner's plan actually includes — planning past
   // it just manufactures slots the drain will refuse as over-quota.
@@ -188,6 +190,7 @@ export async function ensureMonthlyStrategy(
     hostname: domain.hostname,
     bets,
     betsAsOf,
+    pipeline,
     // Publication language for the parts that become articles. The owner's UI
     // language is resolved by the CALLER where a request context exists; the
     // cron has none, so a plan built there falls back to the publication
@@ -276,6 +279,17 @@ export async function ensureMonthlyStrategy(
       await sb
         .from('strategies')
         .update({ customer_profile: strategy.customer_profile })
+        .eq('id', (stored as any).id);
+    }
+
+    // The diagnosis this plan answers (strategies.diagnosis, 0044) — read back
+    // by next month's build to check whether its metric moved. Same shape and
+    // reasoning as customer_profile: a column that hasn't landed yet costs the
+    // follow-up, never the plan. Fail-soft.
+    if (strategy.diagnosis && (stored as any)?.id) {
+      await sb
+        .from('strategies')
+        .update({ diagnosis: strategy.diagnosis })
         .eq('id', (stored as any).id);
     }
 

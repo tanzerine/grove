@@ -20,6 +20,11 @@ import { titleTokens } from '../related-posts';
 import { gatherKeywordDemand } from './keywords';
 import { searchSeeds, isBrandTerm, isBrandQuery, hostLabel, localizeSeeds } from './seeds';
 import { formatBetsForPrompt, type Bet } from './bets';
+import {
+  diagnose, followUp, formatDiagnosisForPrompt, searchHealth, storedDiagnosis,
+  type PipelineHealth, type StoredDiagnosis,
+} from './diagnosis';
+import { needsWidening, widenSeeds, unmeasuredCandidates, recordMetrics, WIDEN_MIN_REMAINING_MS, WIDEN_SEED_LIMIT } from './widen';
 import { buildCustomerProfile, icpSeeds, buyerIntentSeeds, icpIsUsable, formatIcpForPrompt, type CustomerProfile } from './icp';
 import { gatherLabsDemand, keywordOverview } from '../keywords/dataforseo';
 import { gscResearchPlan, mergeRevealed, type GscResearchPlan } from '../keywords/gsc-seeds';
@@ -123,6 +128,9 @@ export type Strategy = {
    * written to console.error. Absent on a clean top-tier build.
    */
   fallback_reason?: string | null;
+  /** The diagnosis this plan was built to answer (strategies.diagnosis, 0044).
+   *  Next month's build reads it back and checks whether its metric moved. */
+  diagnosis?: StoredDiagnosis | null;
   /**
    * The customer this plan was built for (step 2 of the keyword strategy).
    *
@@ -167,6 +175,8 @@ export type BuildStrategyInput = {
    *  lib/strategy/bets.ts). Omit and the planner gets no ledger block. */
   bets?: Bet[];
   betsAsOf?: string | null;
+  /** Publishing health for the diagnosis (lib/strategy/diagnosis.ts). */
+  pipeline?: PipelineHealth | null;
   /**
    * Wall clock left in THIS invocation for planning — the whole model ladder
    * plus write-back headroom, not a single call's cap. strategyLlmCall splits
@@ -381,7 +391,12 @@ export async function buildStrategy(input: BuildStrategyInput): Promise<Strategy
   const buyerSeeds = buyerIntentSeeds(icp, {
     lang: pubLang.code, brand: profile.business.name, knownCompetitors: gsc.competitors, limit: 10,
   });
-  const seeds = [...new Set([...gsc.seeds, ...buyerSeeds, ...problemSeeds])].slice(0, 24);
+  const allSeeds = [...new Set([...gsc.seeds, ...buyerSeeds, ...problemSeeds])];
+  const seeds = allSeeds.slice(0, 24);
+  const brands = [profile.business.name, hostLabel(input.hostname)].filter(Boolean);
+  // Wall clock left for this build, for steps that are optional.
+  const timeLeft = () => input.budgetMs == null ? Infinity : input.budgetMs - (Date.now() - researchStartedAt);
+  let winnable: { clusters: number; widened: boolean } | null = null;
 
   // ── STEP 4: measured demand, and the selection it makes possible ────────
   let demandBlock = '(none captured — plan from the customer profile)';
@@ -444,10 +459,10 @@ export async function buildStrategy(input: BuildStrategyInput): Promise<Strategy
     // pages splitting the signal for one query is cannibalisation, and it is
     // invisible without this record. Rejections expire (see shouldExclude), so
     // a keyword out of reach today comes back when the domain has grown into it.
-    if (domainId) {
-      const excluded = new Set((await excludedKeywords(domainId)).map((k) => k.toLowerCase()));
-      if (excluded.size) scored = scored.filter((k) => !excluded.has(k.keyword.toLowerCase()));
-    }
+    const excluded = domainId
+      ? new Set((await excludedKeywords(domainId)).map((k) => k.toLowerCase()))
+      : new Set<string>();
+    if (excluded.size) scored = scored.filter((k) => !excluded.has(k.keyword.toLowerCase()));
 
     // Arithmetic, not vibes: rank by expected impressions and cut what is out
     // of reach. With Autocomplete-only input every candidate is unscorable, so
@@ -458,9 +473,10 @@ export async function buildStrategy(input: BuildStrategyInput): Promise<Strategy
     // pool becomes, and a pool cut to the month's size BEFORE screening is a
     // pool the junk has already crowded — sixty phrases led by "blog the dog"
     // screen down to two. Select generously, screen, then take the best.
-    const selection = selectKeywords(scored, { limit: 150 });
-    const measured = selection.chosen.length > 0;
-    const pool = measured ? selection.chosen : scored;
+    const clusterize = (from: ScoredKeyword[]) => {
+      const selection = selectKeywords(from, { limit: 150 });
+      const measured = selection.chosen.length > 0;
+      const pool = measured ? selection.chosen : from;
 
     // ── STEP 5: clusters ──────────────────────────────────────────────────
     // One cluster is one article. Twice the month's slots so the planner can
@@ -475,11 +491,14 @@ export async function buildStrategy(input: BuildStrategyInput): Promise<Strategy
     // than as buildClusters' minTotalVolume because the exception reads the
     // pillar, and before the 80-cluster cut so a sub-floor cluster can't
     // take a place a real one needed.
-    const built = buildClusters(pool, {
-      membersOnly: measured ? selection.longTail : [],
-    })
-      .filter((c) => !measured || demandFloor(c.totalVolume, c.pillar.keyword) != null)
-      .slice(0, 80);
+      const built = buildClusters(pool, {
+        membersOnly: measured ? selection.longTail : [],
+      })
+        .filter((c) => !measured || demandFloor(c.totalVolume, c.pillar.keyword) != null)
+        .slice(0, 80);
+      return { selection, measured, built };
+    };
+    let { selection, measured, built } = clusterize(scored);
 
     // ── STEP 4½: are these about the customer's problem at all? ──────────
     // Everything above is arithmetic on volume and difficulty, and arithmetic
@@ -499,7 +518,67 @@ export async function buildStrategy(input: BuildStrategyInput): Promise<Strategy
     // Twice the month's slots so the planner can still balance intent across
     // pillars rather than being handed a pre-decided plan. buildClusters
     // sorted by score, so this keeps the best of what survived.
-    const clusters = screened.kept.slice(0, Math.max(monthlyPostCount * 2, 12));
+    let kept = screened.kept;
+
+    // ── STEP 4¾: widen when thin ──────────────────────────────────────────
+    // Fewer winnable clusters than slots used to mean "plan fewer", full stop.
+    // One more round first: size what the ledger found but never measured,
+    // and research the seeds the first round's cap cut. See lib/strategy/widen.
+    let widened = false;
+    if (measured && needsWidening(kept.length, monthlyPostCount)) {
+      if (timeLeft() < WIDEN_MIN_REMAINING_MS) {
+        console.warn(`[buildStrategy] ${kept.length} winnable clusters for ${monthlyPostCount} slots, ` +
+          `but only ${Math.round(timeLeft() / 1000)}s left — not widening research`);
+      } else {
+        const extraSeeds = widenSeeds([
+          ...allSeeds.slice(24),
+          ...buyerIntentSeeds(icp, {
+            lang: pubLang.code, brand: profile.business.name, knownCompetitors: gsc.competitors, limit: 25,
+          }),
+          ...await localizeSeeds(icpSeeds(icp, { limit: 20, brand: profile.business.name }), pubLang.code),
+        ], seeds, brands, WIDEN_SEED_LIMIT);
+        const toSize = domainId ? await unmeasuredCandidates(domainId, pubLang.code, brands) : [];
+        const [sized, labs2] = await Promise.all([
+          toSize.length ? keywordOverview(toSize, pubLang.code) : Promise.resolve(null),
+          extraSeeds.length ? gatherLabsDemand(extraSeeds, pubLang.code, { perSeed: 150 }) : Promise.resolve(null),
+        ]);
+        if (domainId && sized?.length) await recordMetrics(domainId, sized);
+        if (domainId && labs2?.length) await recordCandidates(domainId, labs2, { lang: pubLang.code });
+        const more = [...(sized ?? []), ...(labs2 ?? [])]
+          .filter((k) => !isBrandQuery(k.keyword, brands) && !excluded.has(k.keyword.toLowerCase()));
+        widened = true;
+        console.log(`[buildStrategy] widening for ${profile.business.name}: sized ${sized?.length ?? 0} of ${toSize.length} unmeasured, ` +
+          `${labs2?.length ?? 0} phrases from ${extraSeeds.length} new seeds (${extraSeeds.join(', ') || '—'})`);
+
+        if (more.length) {
+          scored = mergePool(scored, more);
+          ({ selection, measured, built } = clusterize(scored));
+          // Screen only what the first pass never saw; its verdicts stand.
+          const key = (c: KeywordCluster) => c.pillar.keyword.toLowerCase();
+          const keptBefore = new Set(kept.map(key));
+          const droppedBefore = new Set(screened.dropped.map((d) => key(d.cluster)));
+          const fresh = built.filter((c) => !keptBefore.has(key(c)) && !droppedBefore.has(key(c)));
+          const screened2 = await screenClusters(fresh, { business: profile.business, icp });
+          if (domainId && screened2.dropped.length) {
+            await markRejected(
+              domainId,
+              screened2.dropped.flatMap((d) => [d.cluster.pillar.keyword, ...d.cluster.members.map((m) => m.keyword)]),
+              'off_topic',
+            );
+          }
+          const keptNow = new Set([...keptBefore, ...screened2.kept.map(key)]);
+          // buildClusters' order is score order, so the merged list stays ranked.
+          // A first-pass cluster whose pillar no longer leads a cluster keeps its
+          // first-pass shape rather than vanishing.
+          const rebuilt = built.filter((c) => keptNow.has(key(c)));
+          const rebuiltKeys = new Set(rebuilt.map(key));
+          kept = [...rebuilt, ...kept.filter((c) => !rebuiltKeys.has(key(c)))];
+        }
+      }
+    }
+    if (measured) winnable = { clusters: kept.length, widened };
+
+    const clusters = kept.slice(0, Math.max(monthlyPostCount * 2, 12));
     clusterCount = clusters.length;
     if (measured) {
       gatePool = scored;
@@ -524,6 +603,22 @@ export async function buildStrategy(input: BuildStrategyInput): Promise<Strategy
         `planning without keyword difficulty. See the [dataforseo] line above for why.`);
     }
   } catch { /* demand is best-effort signal */ }
+
+  // ── STEP 6: diagnosis ───────────────────────────────────────────────────
+  // Between measuring and planning: name the one reason, from numbers, and
+  // hold this plan to answering it. Last month's is checked against the
+  // metric it was stored with. See lib/strategy/diagnosis.ts.
+  const diagSignals = {
+    pipeline: input.pipeline ?? null,
+    search: searchHealth(prevReport?.search_console, brands),
+    bets: input.bets ?? [],
+    pool: winnable ? { winnableClusters: winnable.clusters, slots: monthlyPostCount, widened: winnable.widened } : null,
+  };
+  const diagnosis = diagnose(diagSignals);
+  const diagnosisBlock = formatDiagnosisForPrompt(
+    diagnosis,
+    followUp((prevStrategy as any)?.diagnosis as StoredDiagnosis | null | undefined, diagnosis, diagSignals),
+  );
 
   const source: Strategy['source'] = interview
     ? prevStrategy ? 'mixed' : 'interview'
@@ -625,7 +720,6 @@ OUTPUT: ONE raw JSON object. No markdown. No prose. No code fences.`;
   // planLanguageMatches abstains unless it is certain (see freshness.ts), so a
   // plan that is merely short, or Latin-script either way, never trips it.
   const drifted = !!prevStrategy && !planLanguageMatches(prevStrategy, pubLang.code);
-  const brands = [profile.business.name, hostLabel(input.hostname)].filter(Boolean);
   const betsBlock = formatBetsForPrompt(input.bets ?? [], { asOf: input.betsAsOf });
   const driftRule = drifted
     ? `!! THE PLAN BELOW UNDER "LAST MONTH'S STRATEGY" IS IN THE WRONG LANGUAGE !!
@@ -648,6 +742,8 @@ Value props: ${profile.business.value_props.join('; ') || 'unknown'}
 
 OWNER INTERVIEW (highest authority — overrides inferred values when present):
 ${interviewSummary(interview ?? null)}
+
+${diagnosisBlock}
 
 ${betsBlock ? `${betsBlock}
 
@@ -742,6 +838,7 @@ ${langRule}` : ''}`;
   const parsed = extractJson<Strategy>(text);
 
   const strategy = normalizeStrategy(parsed, { month, source, maxSlots: monthlyPostCount, postsPerWeek });
+  strategy.diagnosis = storedDiagnosis(diagnosis);
 
   // ── The floor, on the plan itself ───────────────────────────────────────
   // The prompt says "target a cluster pillar"; until this gate nothing
