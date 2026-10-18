@@ -441,6 +441,7 @@ export const KO: Record<string, string> = {
     '아래 계획은 {month} 것입니다. 보통 한 시간 안에 알아서 다시 만들어지지만, 기다리기 싫다면 지금 만드세요.',
   'The plan below was built before grove researched this site’s search demand, so steps 3–5 have nothing behind them. Rebuilding plans it from measured keywords. This happens on its own within a day; build it now if you’d rather not wait.':
     '아래 계획은 grove가 이 사이트의 검색 수요를 조사하기 전에 만들어져서, 3~5단계에 근거가 없습니다. 다시 만들면 실제로 측정한 키워드에서 계획을 세웁니다. 하루 안에 알아서 처리되지만, 기다리기 싫다면 지금 만드세요.',
+  'The plan below was built before grove diagnosed what is holding this site back, and it planned fewer posts than your cadence when demand looked thin. Rebuilding diagnoses first and researches wider to fill the month. This happens on its own within a day; build it now if you’d rather not wait.': '아래 플랜은 grove가 이 사이트의 성장을 막는 원인을 진단하기 전에 만들어졌고, 수요가 적어 보이면 발행 주기보다 적은 글만 계획했어요. 다시 만들면 먼저 진단하고 더 넓게 조사해 이번 달을 채웁니다. 하루 안에 자동으로 진행되며, 기다리기 싫다면 지금 만들 수 있어요.',
   'The plan below was built before grove profiled your customers, so it has no reader profile behind it. Rebuilding plans it from one. This happens on its own within a day; build it now if you’d rather not wait.':
     '아래 계획은 grove가 고객을 분석하기 전에 만들어져서, 독자 프로필이 없습니다. 다시 만들면 프로필을 바탕으로 계획을 세웁니다. 하루 안에 알아서 처리되지만, 기다리기 싫다면 지금 만드세요.',
   'This plan predates grove’s keyword research — a rebuild plans it from measured demand.':

@@ -143,6 +143,7 @@ export default async function StrategyPage() {
     createdAt: (strategy as any).created_at,
     hasKeywordLedger: planHasLedger,
     hasCustomerProfile: !!(strategy as any).customer_profile,
+    hasDiagnosis: !!(strategy as any).diagnosis,
     strategy: s,
     lang: languageForDomain({ language: domain.language }).code,
     now: new Date(),

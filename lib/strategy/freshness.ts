@@ -39,16 +39,21 @@ import { planIsStale } from './rollover';
 import type { Strategy } from './build';
 
 /**
- * When the current planning pipeline landed: migrations 0041
- * (keyword_candidates) and 0042 (strategies.customer_profile), both merged
- * 2026-09-13. A plan written before this was built by a planner that could not
- * have produced either artifact.
+ * When the current planning pipeline landed: #301 (2026-10-05), which added
+ * the stored diagnosis (0044, strategies.diagnosis) and the second research
+ * round when the winnable pool is thinner than the cadence. It was 2026-09-13
+ * (0041 keyword_candidates + 0042 customer_profile) until then. Moved because
+ * every October plan was built on 2026-09-24 by the old planner and two of
+ * them came back with 1 and 3 slots against 4/week and 2/week — the cluster
+ * rule planning FEWER slots when the pool is thin, which is exactly what the
+ * widening round exists to fix. A plan written before this could not have
+ * produced a diagnosis or widened.
  *
  * MOVE THIS when a planner change is worth rebuilding live plans for, and only
  * then. It is a release marker, not a clock: raising it asks every domain whose
  * plan predates the new date to spend one strategy-tier call, once.
  */
-export const PLAN_PIPELINE_EPOCH = '2026-09-13T00:00:00.000Z';
+export const PLAN_PIPELINE_EPOCH = '2026-10-05T07:49:43.000Z';
 
 /**
  * How long after an attempt a domain may be picked for a REFRESH.
@@ -65,12 +70,15 @@ export const REFRESH_COOLDOWN_HOURS = 24;
  * month_ended        — the live plan covers a month that is over (rollover.planIsStale).
  * no_keyword_ledger  — nothing on keyword_candidates points at this plan (pre-0041).
  * no_customer_profile— the plan records no ICP it was built for (pre-0042).
+ * no_diagnosis       — the plan stores no diagnosis, so it was planned without
+ *                      the #301 diagnosis or the thin-pool widening (pre-0044).
  * language_mismatch  — the plan is confidently not in the domain's publication language.
  */
 export type StaleReason =
   | 'month_ended'
   | 'no_keyword_ledger'
   | 'no_customer_profile'
+  | 'no_diagnosis'
   | 'language_mismatch';
 
 /**
@@ -100,6 +108,7 @@ export const AUTO_REBUILD_REASONS: readonly StaleReason[] = [
   'month_ended',
   'no_keyword_ledger',
   'no_customer_profile',
+  'no_diagnosis',
 ] as const;
 
 export type PlanFreshness = {
@@ -120,6 +129,9 @@ export type FreshnessInput = {
   hasKeywordLedger: boolean;
   /** strategies.customer_profile holds a profile. */
   hasCustomerProfile: boolean;
+  /** strategies.diagnosis holds a diagnosis (0044). Omitted = not judged, so a
+   *  caller that never read the column can't trigger a rebuild by accident. */
+  hasDiagnosis?: boolean;
   /** The plan itself — its reader-facing text is the language evidence. */
   strategy: Pick<Strategy, 'pillars' | 'publishing_plan'> | null | undefined;
   /** domains.language: what this blog is configured to publish in. */
@@ -184,6 +196,7 @@ export function planFreshness(input: FreshnessInput): PlanFreshness {
   if (planPredatesPipeline(input.createdAt, epoch)) {
     if (!input.hasKeywordLedger) reasons.push('no_keyword_ledger');
     if (!input.hasCustomerProfile) reasons.push('no_customer_profile');
+    if (input.hasDiagnosis === false) reasons.push('no_diagnosis');
   }
 
   if (!planLanguageMatches(input.strategy, input.lang)) reasons.push('language_mismatch');

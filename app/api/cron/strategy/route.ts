@@ -269,7 +269,7 @@ async function staleLivePlans(
   try {
     const { data: live } = await sb
       .from('strategies')
-      .select('id, domain_id, month, created_at, pillars, publishing_plan, customer_profile')
+      .select('id, domain_id, month, created_at, pillars, publishing_plan, customer_profile, diagnosis')
       .in('domain_id', domains.map((d: any) => d.id))
       .eq('active', true);
     if (!live?.length) return [];
@@ -298,6 +298,7 @@ async function staleLivePlans(
         createdAt: row.created_at,
         hasKeywordLedger: backed.has(row.id),
         hasCustomerProfile: !!row.customer_profile,
+        hasDiagnosis: !!row.diagnosis,
         strategy: { pillars: row.pillars ?? [], publishing_plan: row.publishing_plan ?? [] },
         lang: languageForDomain(domain).code,
         now,

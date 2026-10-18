@@ -226,7 +226,9 @@ export default function StrategySteps({ model, domainId, hostname, planMonth, cu
           ? t('The plan below is {month}’s. This usually rebuilds itself within the hour; build it now if you’d rather not wait.', { month: planMonth ?? '' })
           : a.reason === 'no_keyword_ledger'
             ? t('The plan below was built before grove researched this site’s search demand, so steps 3–5 have nothing behind them. Rebuilding plans it from measured keywords. This happens on its own within a day; build it now if you’d rather not wait.')
-            : t('The plan below was built before grove profiled your customers, so it has no reader profile behind it. Rebuilding plans it from one. This happens on its own within a day; build it now if you’d rather not wait.');
+            : a.reason === 'no_diagnosis'
+              ? t('The plan below was built before grove diagnosed what is holding this site back, and it planned fewer posts than your cadence when demand looked thin. Rebuilding diagnoses first and researches wider to fill the month. This happens on its own within a day; build it now if you’d rather not wait.')
+              : t('The plan below was built before grove profiled your customers, so it has no reader profile behind it. Rebuilding plans it from one. This happens on its own within a day; build it now if you’d rather not wait.');
         return { needsYou: true, title: t('Rebuild this month’s plan'), sub,
           cta: <BuildPlanNow domainId={domainId} label={t('Rebuild the plan now →')} compact /> };
       }
