@@ -41,13 +41,13 @@ const koPlan = {
 };
 
 const base: FreshnessInput = {
-  month: '2026-09-01',
-  createdAt: '2026-09-20T10:00:00.000Z',   // after the epoch
+  month: '2026-10-01',
+  createdAt: '2026-10-10T10:00:00.000Z',   // after the epoch
   hasKeywordLedger: true,
   hasCustomerProfile: true,
   strategy: enPlan,
   lang: 'en',
-  now: at(2026, 9, 25),
+  now: at(2026, 10, 25),
 };
 
 describe('planReaderText — only the half that becomes articles', () => {
@@ -97,7 +97,7 @@ describe('planPredatesPipeline — the epoch is what stops the rebuild loop', ()
   });
 
   it('is false for a plan written after it', () => {
-    expect(planPredatesPipeline('2026-09-13T12:13:01.829Z')).toBe(false);
+    expect(planPredatesPipeline('2026-10-05T12:00:00.000Z')).toBe(false);
   });
 
   it('never rebuilds on an unknown or unparseable age', () => {
@@ -148,12 +148,17 @@ describe('planFreshness', () => {
   });
 
   it('cannot loop: a rebuild writes a row dated now, which is past the epoch', () => {
+    const now = new Date();
     const rebuilt = planFreshness({
       ...base,
-      createdAt: new Date().toISOString(),
+      // The rebuild is for the month it runs in — a fixed month here made this
+      // test fail on its own once the calendar passed it (month_ended).
+      month: `${now.toISOString().slice(0, 7)}-01`,
+      createdAt: now.toISOString(),
       hasKeywordLedger: false,      // the rebuild failed to find anything
       hasCustomerProfile: false,
-      now: new Date(),
+      hasDiagnosis: false,
+      now,
     });
     expect(rebuilt.autoRebuild).toBe(false);
   });
@@ -178,8 +183,24 @@ describe('planFreshness', () => {
     expect(AUTO_REBUILD_REASONS).not.toContain('language_mismatch');
   });
 
-  it('pins the epoch to the day the keyword ledger and customer profile landed', () => {
-    expect(PLAN_PIPELINE_EPOCH).toBe('2026-09-13T00:00:00.000Z');
+  it('pins the epoch to the day the diagnosis and thin-pool widening landed (#301)', () => {
+    expect(PLAN_PIPELINE_EPOCH).toBe('2026-10-05T07:49:43.000Z');
+  });
+
+  it('flags a pre-#301 plan with no diagnosis — the thin October plans', () => {
+    // trygroveai.com, 2026-09-24: ledger and profile present, 1 slot at 4/week.
+    const f = planFreshness({ ...base, createdAt: '2026-09-24T01:47:46.843Z', hasDiagnosis: false });
+    expect(f.reasons).toEqual(['no_diagnosis']);
+    expect(f.autoRebuild).toBe(true);
+  });
+
+  it('never flags a missing diagnosis on a plan built after #301', () => {
+    expect(planFreshness({ ...base, hasDiagnosis: false }).reasons).toEqual([]);
+  });
+
+  it('does not judge the diagnosis when the caller never read the column', () => {
+    const f = planFreshness({ ...base, createdAt: '2026-09-24T01:47:46.843Z' });
+    expect(f.reasons).not.toContain('no_diagnosis');
   });
 });
 
