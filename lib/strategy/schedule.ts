@@ -89,6 +89,36 @@ export function nextPublishSlot(perWeek: number | null | undefined): string {
   return d.toISOString();
 }
 
+/**
+ * When an autopilot draft goes live.
+ *
+ * A planned date still ahead of us is kept — that is the calendar the owner
+ * sees. Anything else (an ad-hoc post, or a draft released from an old review
+ * backlog whose planned date is months gone) is queued one cadence interval
+ * after the LATER of now and the domain's last scheduled post. Without that
+ * anchor a released backlog of thirteen drafts would all carry a July date
+ * and go live in the same tick.
+ */
+export function autopilotPublishAt(opts: {
+  plannedAt: string | null | undefined;
+  lastScheduledAt: string | null | undefined;
+  perWeek: number | null | undefined;
+  now?: Date;
+}): string {
+  const nowMs = (opts.now ?? new Date()).getTime();
+  const planned = opts.plannedAt ? Date.parse(opts.plannedAt) : NaN;
+  if (Number.isFinite(planned) && planned > nowMs) return new Date(planned).toISOString();
+
+  const per = Number(opts.perWeek);
+  const safe = Number.isFinite(per) && per > 0 ? per : 4;
+  const intervalMs = Math.max(1, Math.floor((7 * 24) / safe)) * 3600_000;
+  const last = opts.lastScheduledAt ? Date.parse(opts.lastScheduledAt) : NaN;
+  const base = Number.isFinite(last) && last > nowMs ? last : nowMs;
+  const d = new Date(base + intervalMs);
+  d.setUTCMinutes(0, 0, 0);
+  return d.toISOString();
+}
+
 export function assignPublishDates<T extends { publish_date?: string }>(
   slots: T[], month: string, _postsPerWeek: number, now: Date = new Date(),
 ): T[] {

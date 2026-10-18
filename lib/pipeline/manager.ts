@@ -93,6 +93,59 @@ export function holdForReview(
   );
 }
 
+/**
+ * Where a finished draft goes. With autopilot ON there is no `review`: the
+ * owner chose "don't make me check", so a draft the gate would have held gets
+ * ONE repair rewrite aimed at exactly what tripped it (generate.ts), and is
+ * then scheduled either way. The only thing that does not ship is a draft
+ * still in the wrong language after that — it is the wrong article, not a
+ * weaker one, and publishing English onto a Korean blog is worse than
+ * publishing nothing. It fails instead, and the slot's topic is lost rather
+ * than parked in a queue the owner opted out of reading.
+ *
+ * With autopilot OFF every draft waits for the owner, as before.
+ */
+export type DraftRoute = 'scheduled' | 'review' | 'failed';
+
+export function routeDraft(opts: {
+  autoPublish: boolean;
+  wrongLanguage: boolean;
+}): DraftRoute {
+  if (!opts.autoPublish) return 'review';
+  return opts.wrongLanguage ? 'failed' : 'scheduled';
+}
+
+/**
+ * The repair brief for an autopilot draft the gate would have held: the
+ * manager's actionable issues plus every BLOCKING validator flag, which the
+ * manager never sees (fabricated stats, missing H1, a link to a competitor,
+ * the wrong language). Empty when there is nothing concrete to fix — e.g. the
+ * manager crashed and the validator is clean — so the caller can skip a
+ * rewrite that would only be a reroll.
+ */
+export function composeRepairInstructions(
+  ev: Evaluation | null | undefined,
+  blocking: string[],
+): string {
+  const parts: string[] = [];
+  if (ev) {
+    const managerNotes = ev.issues.filter((i) => i.severity !== 'note');
+    if (managerNotes.length || ev.rewrite_brief || ev.reject_reason) {
+      parts.push(composeRewriteInstructions(ev));
+      if (ev.reject_reason) parts.push(`EDITOR'S MAIN OBJECTION: ${ev.reject_reason}`);
+    }
+  }
+  if (blocking.length) {
+    parts.push(
+      `PUBLISH BLOCKERS (each one must be gone in the rewrite):\n` +
+      blocking.map((b) => `- ${b}`).join('\n') +
+      `\nA number you cannot trace to the research or cite inline: remove it or state it without a figure. ` +
+      `A link to a competitor: remove it.`,
+    );
+  }
+  return parts.join('\n\n').trim();
+}
+
 /** Clamp an owner-supplied publish floor to a sane 0-100 int, falling back to
  *  the default when it's missing or garbage (e.g. a pre-0025 DB row). */
 export function resolvePublishFloor(raw: unknown): number {

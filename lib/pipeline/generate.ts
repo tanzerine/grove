@@ -11,12 +11,12 @@ import { refineTopic } from './topic-refiner';
 import { repoKbPrompt, type RepoKnowledge } from './repo-knowledge';
 import { appendLog, resetLog } from './log';
 import { runMetered, summarize, describeCost } from '../cost-meter';
-import { evaluateDraft, composeRewriteInstructions, holdForReview, resolvePublishFloor } from './manager';
+import { evaluateDraft, composeRewriteInstructions, composeRepairInstructions, holdForReview, resolvePublishFloor, routeDraft, type Evaluation } from './manager';
 import { toManagerDraft } from './draft-adapter';
 import { postSlug } from '../slug';
 import { languageForDomain, contentLength, isWrongLanguage } from '../language';
 import { captureServer } from '../analytics/capture-server';
-import { nextPublishSlot } from '../strategy/schedule';
+import { autopilotPublishAt } from '../strategy/schedule';
 import type { Strategy, PostSlot } from '../strategy/build';
 
 export type ResumeState = { reuseResearch: boolean; reuseDraft: boolean };
@@ -366,7 +366,7 @@ async function generatePostInner(postId: string, opts: GenerateOptions = {}) {
   const { strategy, slot } = await loadActiveStrategy(
     domain.id, brief, { strategyId: (post as any).strategy_id, slotId: (post as any).slot_id },
   );
-  let evaluation;
+  let evaluation: Evaluation | null = null;
   try {
     await appendLog(postId, 'manager', 'start', reuseDraft ? 'evaluating existing draft' : `attempt 1`);
     // withRetry like every other model call — a transient provider blip (E004
@@ -409,53 +409,109 @@ async function generatePostInner(postId: string, opts: GenerateOptions = {}) {
   }
 
   // 5. PERSIST
-  // The manager NEVER discards a finished draft. A reject or any serious flag
-  // routes the post to human REVIEW (with the manager's concerns attached),
-  // not to 'failed'. 'failed' is reserved for real pipeline errors. This keeps
-  // the owner in control instead of silently throwing away good work — e.g. a
-  // draft scoring 85 should never be deleted just because round 2 couldn't
-  // squeeze in one more rewrite.
-  const title = writer.meta_title || brief.title || topic.slice(0, 60);
+  // Without autopilot, every draft — gated or not — waits in REVIEW with the
+  // manager's concerns attached, and the owner decides. With autopilot there is
+  // no review: a gated draft is repaired once and shipped (routeDraft). The
+  // manager still never deletes good work; the one draft that does not ship is
+  // one still in the wrong language after its repair.
   // Everything the writer was allowed to know — numeric claims in the draft
   // must trace back to this corpus or carry an inline citation (fact grounding).
   const researchText = [...context.primary, ...context.competitor, ...context.pain]
     .map((s) => `${s.title} ${s.snippet}`).join('\n');
-  const validation = validatePost(writer.blog_post, {
-    lang: lang.code,
-    title,
-    intent: brief.marketing_intent,
-    serpSubtopics: context.serp.subtopics,
-    researchText,
-  });
-  if (evaluation) {
-    (validation as any).manager = {
-      action: evaluation.action,
-      overall: evaluation.scores?.overall ?? null,
-      reject_reason: evaluation.reject_reason ?? null,
-      issues: (evaluation.issues ?? []).filter((i) => i.severity !== 'note').map((i) => `${i.rule}: ${i.note}`),
-    };
+  const titleOf = () => writer.meta_title || brief.title || topic.slice(0, 60);
+  const validate = () => {
+    const v = validatePost(writer.blog_post, {
+      lang: lang.code,
+      title: titleOf(),
+      intent: brief.marketing_intent,
+      serpSubtopics: context.serp.subtopics,
+      researchText,
+    });
+    if (evaluation) {
+      (v as any).manager = {
+        action: evaluation.action,
+        overall: evaluation.scores?.overall ?? null,
+        reject_reason: evaluation.reject_reason ?? null,
+        issues: (evaluation.issues ?? []).filter((i) => i.severity !== 'note').map((i) => `${i.rule}: ${i.note}`),
+      };
+    }
+    return v;
+  };
+  const publishFloor = resolvePublishFloor((domain as any).auto_publish_floor);
+  let validation = validate();
+  // Autopilot ships unless something is actually WRONG (see holdForReview) —
+  // fatal signals only, not "could be better." The score bar is per-domain
+  // (owner-adjustable slider), defaulting to AUTO_PUBLISH_FLOOR.
+  let fatalConcern = holdForReview(evaluation, blockingIssues(validation).length, publishFloor);
+
+  // AUTOPILOT REPAIR. With autopilot on there is no review queue to park a
+  // gated draft in — the owner opted out of reading one. So the agent fixes
+  // what tripped the gate itself: one rewrite aimed at exactly those issues,
+  // re-scored and re-validated, then routeDraft ships it. A live rewrite
+  // (keepLive) stays published whatever happens and is never repaired here.
+  if (domain.auto_publish && !keepLive && fatalConcern) {
+    const repair = composeRepairInstructions(evaluation, blockingIssues(validation));
+    if (repair) {
+      try {
+        await appendLog(postId, 'writer', 'start', 'autopilot repair — fixing what the gate flagged');
+        writer = await runWriter({
+          brief, profile, context, kb, hostname: domain.hostname, lang: lang.code,
+          enforceLanguage: enforceLanguage || isWrongLanguage(writer.blog_post, lang),
+          managerNotes: repair,
+          previousDraft: writer.blog_post,
+        });
+        await appendLog(postId, 'writer', 'done',
+          `${contentLength(writer.blog_post, lang)} ${lang.length.unitLabel} (autopilot repair)`);
+        await sb.from('posts').update({
+          body_md: writer.blog_post,
+          meta_title: writer.meta_title,
+          meta_description: writer.meta_description,
+        }).eq('id', postId);
+        try {
+          evaluation = await withRetry(() => evaluateDraft({
+            attempt: 2, brief, strategy, slot, draft: toManagerDraft(writer), lang: lang.code,
+          }), 'manager');
+          await persistEvaluation(postId, strategy?.id ?? null, 2, evaluation);
+          await appendLog(postId, 'manager', 'done',
+            `after repair ${evaluation.action} · overall ${evaluation.scores.overall}`);
+        } catch (e) {
+          await appendLog(postId, 'manager', 'fail', String((e as any)?.message ?? e));
+        }
+        validation = validate();
+        fatalConcern = holdForReview(evaluation, blockingIssues(validation).length, publishFloor);
+      } catch (e) {
+        // A failed repair keeps the draft we already have — it still ships.
+        await appendLog(postId, 'writer', 'fail', `autopilot repair failed: ${String((e as any)?.message ?? e)}`);
+      }
+    }
   }
+
+  const title = titleOf();
   // CJK/emoji-only titles produce no ASCII — fall back to the writer's ASCII
   // slug hint (asked for in CJK languages, so the URL still carries keywords)
   // and then to post-{id8}, so the article never publishes at the blog-home
   // URL with an empty slug.
   const slug = postSlug(title, postId, writer.slug_hint);
 
-  // Autopilot ships unless something is actually WRONG (see holdForReview) —
-  // fatal signals only, not "could be better." The score bar is per-domain
-  // (owner-adjustable slider), defaulting to AUTO_PUBLISH_FLOOR.
-  const fatalConcern = holdForReview(
-    evaluation,
-    blockingIssues(validation).length,
-    resolvePublishFloor((domain as any).auto_publish_floor),
-  );
+  const nextStatus = routeDraft({
+    autoPublish: !!domain.auto_publish,
+    wrongLanguage: blockingIssues(validation).some((i) => i.startsWith('WRONG_LANGUAGE')),
+  });
 
-  // Preserve a planned date if one was carried through from the strategy slot;
-  // otherwise fall back to the rolling auto-publish cadence.
+  // Preserve a planned date that is still ahead; otherwise queue behind the
+  // domain's last scheduled post at its cadence, so a released backlog is
+  // spread out instead of going live in one tick.
   const plannedAt: string | null = (post as any).scheduled_at ?? null;
-  const canAutoPublish = domain.auto_publish && !fatalConcern;
-  const nextStatus: 'review' | 'scheduled' = canAutoPublish ? 'scheduled' : 'review';
-  const scheduled_at = plannedAt ?? (canAutoPublish ? nextPublishSlot(domain.posts_per_week) : null);
+  let scheduled_at: string | null = plannedAt;
+  if (nextStatus === 'scheduled') {
+    const { data: last } = await sb
+      .from('posts').select('scheduled_at')
+      .eq('domain_id', domain.id).eq('status', 'scheduled').neq('id', postId)
+      .order('scheduled_at', { ascending: false }).limit(1).maybeSingle();
+    scheduled_at = autopilotPublishAt({
+      plannedAt, lastScheduledAt: (last as any)?.scheduled_at ?? null, perWeek: domain.posts_per_week,
+    });
+  }
 
   // Rewriting a live article swaps the words in place: it stays published, at
   // the same URL. A new title would otherwise mint a new slug and move a page
@@ -476,7 +532,7 @@ async function generatePostInner(postId: string, opts: GenerateOptions = {}) {
     await sb.from('topic_memory').insert({ domain_id: domain.id, keyword: topic });
     await appendLog(postId, 'persist', 'done',
       `→ ${keepLive ? 'published (rewritten in place)' : nextStatus}` +
-      `${!keepLive && fatalConcern ? ' (gated — needs your review)' : ''} · ` +
+      `${keepLive || !fatalConcern ? '' : nextStatus === 'review' ? ' (gated — needs your review)' : nextStatus === 'failed' ? ' (still the wrong language after a repair — not publishing)' : ' (shipped after an autopilot repair; flags remain)'} · ` +
       (validation.passed ? 'validator clean' : `${validation.issues.length} validator flags`));
   } catch (e) { await failAt(postId, 'persist', e, keepLive); return; }
 
@@ -551,7 +607,7 @@ async function slotTargetKeyword(
   return kw || undefined;
 }
 
-// nextPublishSlot lives in lib/strategy/schedule.ts (pure, unit-tested) — it
+// autopilotPublishAt lives in lib/strategy/schedule.ts (pure, unit-tested) — it
 // must tolerate legacy posts_per_week values (0/null) without throwing here.
 
 async function persistEvaluation(

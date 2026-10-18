@@ -106,7 +106,7 @@ describe('a component that reads its copy through a helper function', () => {
 
   it('translates the heading and the plain-language hint', () => {
     expect(ko).toContain(KO['Publishing']);
-    expect(ko).toContain(KO['Skips weak drafts; publishes the rest (recommended)']);
+    expect(ko).toContain(KO['Rewrites weak drafts, publishes the rest (recommended)']);
     expect(ko).toContain(KO['Posts publish automatically on schedule']);
   });
 });

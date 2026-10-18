@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeScores, missingAxes, holdForReview, resolvePublishFloor, AUTO_PUBLISH_FLOOR, QUALITY_FLOOR, type Evaluation } from '../lib/pipeline/manager';
+import { computeScores, missingAxes, holdForReview, resolvePublishFloor, routeDraft, composeRepairInstructions, AUTO_PUBLISH_FLOOR, QUALITY_FLOOR, type Evaluation } from '../lib/pipeline/manager';
 
 const evalWith = (over: Partial<Evaluation> & { overall?: number }): Evaluation => ({
   action: 'approve',
@@ -124,5 +124,56 @@ describe('resolvePublishFloor', () => {
     expect(resolvePublishFloor(null)).toBe(AUTO_PUBLISH_FLOOR);
     expect(resolvePublishFloor(undefined)).toBe(AUTO_PUBLISH_FLOOR);
     expect(resolvePublishFloor('nope')).toBe(AUTO_PUBLISH_FLOOR);
+  });
+});
+
+describe('routeDraft (autopilot has no review state)', () => {
+  it('autopilot ships every draft, gated or not', () => {
+    expect(routeDraft({ autoPublish: true, wrongLanguage: false })).toBe('scheduled');
+  });
+
+  it('autopilot never parks a draft in review', () => {
+    for (const wrongLanguage of [true, false]) {
+      expect(routeDraft({ autoPublish: true, wrongLanguage })).not.toBe('review');
+    }
+  });
+
+  it('a draft still in the wrong language after its repair does not ship', () => {
+    expect(routeDraft({ autoPublish: true, wrongLanguage: true })).toBe('failed');
+  });
+
+  it('without autopilot every draft waits for the owner', () => {
+    expect(routeDraft({ autoPublish: false, wrongLanguage: false })).toBe('review');
+    expect(routeDraft({ autoPublish: false, wrongLanguage: true })).toBe('review');
+  });
+});
+
+describe('composeRepairInstructions', () => {
+  it('carries the manager notes AND the validator blockers the manager never saw', () => {
+    const ev = evalWith({
+      action: 'rewrite', overall: 40,
+      issues: [
+        { rule: 'no_competitor_links', severity: 'block', note: 'links to machined.ai' },
+        { rule: 'tone', severity: 'note', note: 'could be punchier' },
+      ],
+    });
+    const out = composeRepairInstructions(ev, ['UNSUPPORTED_CLAIM: "73% of founders"']);
+    expect(out).toContain('no_competitor_links');
+    expect(out).toContain('UNSUPPORTED_CLAIM');
+    expect(out).not.toContain('could be punchier'); // notes are not repair work
+  });
+
+  it('includes a reject reason so an off-brief draft is pulled back on brief', () => {
+    const out = composeRepairInstructions(evalWith({ action: 'reject', reject_reason: 'contradicts the brief' }), []);
+    expect(out).toContain('contradicts the brief');
+  });
+
+  it('works from validator blockers alone when the manager crashed', () => {
+    expect(composeRepairInstructions(null, ['MISSING_H1'])).toContain('MISSING_H1');
+  });
+
+  it('is empty when there is nothing concrete to fix — no reroll for its own sake', () => {
+    expect(composeRepairInstructions(null, [])).toBe('');
+    expect(composeRepairInstructions(evalWith({ overall: 30 }), [])).toBe('');
   });
 });

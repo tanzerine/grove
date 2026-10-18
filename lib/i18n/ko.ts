@@ -72,13 +72,13 @@ export const KO: Record<string, string> = {
   'Auto': '자동',
   'Manual': '수동',
   'Minimum quality score to auto-publish': '자동 발행에 필요한 최소 품질 점수',
-  'Publishes almost everything — only broken drafts are held': '거의 모든 글을 발행합니다. 문제가 있는 초안만 보류돼요.',
-  'Only solid drafts auto-publish — more go to review': '완성도 높은 글만 자동 발행하고, 나머지는 검토로 넘어갑니다.',
-  'Only excellent drafts auto-publish — most go to review': '아주 뛰어난 글만 자동 발행하고, 대부분은 검토로 넘어갑니다.',
+  'Publishes almost everything as written': '거의 모든 초안을 그대로 발행합니다.',
+  'Drafts below a solid score get rewritten before they publish': '완성도가 충분하지 않은 초안은 다시 써서 발행합니다.',
+  'Anything short of excellent gets rewritten before it publishes': '아주 뛰어나지 않은 초안은 모두 다시 써서 발행합니다.',
   'Posts publish automatically on schedule': '예약된 일정에 맞춰 자동으로 발행됩니다',
   'Posts go to the review queue for approval': '발행 전에 검토 대기열로 들어갑니다',
-  'Skips weak drafts; publishes the rest (recommended)': '완성도가 낮은 초안만 걸러내고 나머지는 발행합니다 (권장)',
-  'Fatal issues (bad facts, thin or broken content) always go to review.': '치명적인 문제(사실 오류, 빈약하거나 깨진 글)는 항상 검토로 넘어갑니다.',
+  'Rewrites weak drafts, publishes the rest (recommended)': '완성도가 낮은 초안은 다시 쓰고 나머지는 발행합니다 (권장)',
+  'Fatal issues (unsourced numbers, competitor links, broken structure) are always rewritten first — nothing waits for your review.': '치명적인 문제(출처 없는 수치, 경쟁사 링크, 깨진 구조)는 항상 먼저 다시 씁니다. 검토를 기다리는 글은 없어요.',
 
   /* ── search ──────────────────────────────────────────────────────────── */
   'Search your articles…': '내 글 검색…',
