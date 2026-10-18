@@ -57,8 +57,15 @@ Four-layer agent loop (see `ARCHITECTURE.md` for detail):
   `posts.generation_log` for the live UI timeline.
 - **Manager** (`lib/pipeline/manager.ts`) — LLM evaluator, scores 0–100 across
   strategic_fit / marketing / craft / safety, action = approve|rewrite|reject.
-  Never deletes a finished draft; concerns route to human `review`. Persists to
-  `post_evaluations`.
+  Never deletes a finished draft. Persists to `post_evaluations`.
+  **Autopilot has no `review` state** (`routeDraft`): a draft the gate would
+  hold gets ONE repair rewrite aimed at the manager's issues + the validator's
+  blocking flags (`composeRepairInstructions`), then ships either way; only a
+  draft still in the wrong language fails. Without autopilot every draft waits
+  in `review`. Old autopilot review backlogs are released by the scheduler
+  (step 3b) from leftover drain time, no quota, spread at the domain's cadence
+  (`autopilotPublishAt`). MCP `create_draft` posts (no saved research) are
+  never released — they stay the owner's to publish.
 - **Analytics** (`lib/analytics/`) — first-party event stream (`post_events`),
   no third-party JS. `lib/strategy/review.ts` aggregates it into the monthly report.
 

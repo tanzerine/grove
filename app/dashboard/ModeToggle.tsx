@@ -10,10 +10,10 @@ const ACCENT_INK = 'var(--gv-accent-ink)';
 
 // What a given publish bar means, in plain language.
 function floorHint(v: number, t: T): string {
-  if (v <= 20) return t('Publishes almost everything — only broken drafts are held');
-  if (v <= 45) return t('Skips weak drafts; publishes the rest (recommended)');
-  if (v <= 70) return t('Only solid drafts auto-publish — more go to review');
-  return t('Only excellent drafts auto-publish — most go to review');
+  if (v <= 20) return t('Publishes almost everything as written');
+  if (v <= 45) return t('Rewrites weak drafts, publishes the rest (recommended)');
+  if (v <= 70) return t('Drafts below a solid score get rewritten before they publish');
+  return t('Anything short of excellent gets rewritten before it publishes');
 }
 
 export default function ModeToggle({
@@ -124,7 +124,7 @@ export default function ModeToggle({
             <span style={{ fontSize: 9, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--gv-fainter)' }}>{t('min score')}</span>
           </span>
           <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--gv-faint)', textAlign: 'right', maxWidth: 300 }}>
-            {floorHint(floor, t)}. {t('Fatal issues (bad facts, thin or broken content) always go to review.')}
+            {floorHint(floor, t)}. {t('Fatal issues (unsourced numbers, competitor links, broken structure) are always rewritten first — nothing waits for your review.')}
           </span>
         </div>
       )}

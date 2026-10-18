@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assignPublishDates, nextPublishSlot, publishableDays, slotsForRemainder } from '../lib/strategy/schedule';
+import { assignPublishDates, autopilotPublishAt, nextPublishSlot, publishableDays, slotsForRemainder } from '../lib/strategy/schedule';
 
 const slots = (n: number): { id: string; publish_date?: string }[] =>
   Array.from({ length: n }, (_, i) => ({ id: `s${i}` }));
@@ -126,5 +126,35 @@ describe('assignPublishDates — mid-month', () => {
   it('spreads the remaining weekdays instead of stacking them on one day', () => {
     const out = assignPublishDates(slots(5), '2026-07', 3, new Date('2026-07-26T06:00:00Z'));
     expect(new Set(out.map((s) => s.publish_date!.slice(0, 10))).size).toBe(5);
+  });
+});
+
+describe('autopilotPublishAt', () => {
+  const now = new Date('2026-10-18T05:30:00Z');
+
+  it('keeps a planned date that is still ahead', () => {
+    expect(autopilotPublishAt({ plannedAt: '2026-10-21T09:00:00.000Z', lastScheduledAt: null, perWeek: 2, now }))
+      .toBe('2026-10-21T09:00:00.000Z');
+  });
+
+  it('a planned date in the past is not reused — it would publish on the next tick', () => {
+    const at = autopilotPublishAt({ plannedAt: '2026-07-03T09:00:00.000Z', lastScheduledAt: null, perWeek: 7, now });
+    expect(at).toBe('2026-10-19T05:00:00.000Z'); // now + 24h, top of the hour
+  });
+
+  it('queues behind the last scheduled post, so a released backlog is spread out', () => {
+    const at = autopilotPublishAt({ plannedAt: null, lastScheduledAt: '2026-10-25T09:00:00.000Z', perWeek: 7, now });
+    expect(at).toBe('2026-10-26T09:00:00.000Z');
+  });
+
+  it('a last-scheduled date already in the past anchors on now instead', () => {
+    const at = autopilotPublishAt({ plannedAt: null, lastScheduledAt: '2026-10-01T09:00:00.000Z', perWeek: 7, now });
+    expect(at).toBe('2026-10-19T05:00:00.000Z');
+  });
+
+  it('tolerates legacy cadence values', () => {
+    for (const v of [0, null, undefined, NaN, -3]) {
+      expect(() => autopilotPublishAt({ plannedAt: null, lastScheduledAt: null, perWeek: v as any, now })).not.toThrow();
+    }
   });
 });

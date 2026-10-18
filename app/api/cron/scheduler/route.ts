@@ -3,7 +3,8 @@
  *   1. publish any 'scheduled' posts whose time has come (+ social fanout)
  *   2. reclaim generations the platform killed mid-flight
  *   3. self-heal the monthly strategy, materialize due plan slots
- *   4. drain the 'queued' bucket by generating drafts
+ *   4. drain the 'queued' bucket by generating drafts, then release any
+ *      autopilot domain's old review backlog with the time left over
  *   5. refresh Search Console snapshots
  *
  * A freshly generated draft gets its cover in step 4, right after it's written,
@@ -517,6 +518,57 @@ export async function GET(req: Request) {
     }
   }
 
+  // 3b) RELEASE autopilot review backlogs. Autopilot has no review state any
+  //     more (lib/pipeline/manager routeDraft), but drafts gated before that —
+  //     or before the owner switched autopilot on — still sit in `review`
+  //     with nobody meaning to read them. Each one is re-run from its saved
+  //     draft: re-scored, repaired once if the gate still objects, then
+  //     scheduled at the domain's cadence (spread out, not dumped in one tick).
+  //
+  //     Only PIPELINE drafts qualify — the ones with saved research. An MCP
+  //     create_draft has none, and it is the owner's to publish by contract
+  //     (lib/mcp); re-running it here would research and redraft the agent's
+  //     article from scratch.
+  //
+  //     Uses leftover drain time only, so new articles always come first, and
+  //     takes no quota: the article was paid for when it was first generated.
+  let released = 0;
+  const autopilotIds = new Set<string>();
+  if (entitledDomains.length) {
+    const { data: ap } = await sb
+      .from('domains').select('id')
+      .in('id', entitledDomains.map((d: any) => d.id))
+      .eq('auto_publish', true);
+    for (const d of ap ?? []) autopilotIds.add((d as any).id);
+  }
+  if (autopilotIds.size) {
+    const { data: backlog } = await sb
+      .from('posts')
+      .select('id')
+      .in('domain_id', [...autopilotIds])
+      .eq('status', 'review')
+      .not('research->brief', 'is', null)
+      .order('created_at', { ascending: true })
+      .limit(MAX_POSTS_PER_TICK);
+    for (const b of backlog ?? []) {
+      if (!hasRoomFor(elapsed(), drainBudgetMs, estimateMs)) break;
+      const { data: claimed } = await sb
+        .from('posts')
+        .update({ status: 'writing', generation_log: seedLog() })
+        .eq('id', (b as any).id)
+        .eq('status', 'review')
+        .select('id')
+        .maybeSingle();
+      if (!claimed) continue;
+      try {
+        await generatePost((b as any).id);
+        released++;
+      } catch (e: any) {
+        await sb.from('posts').update({ status: 'failed', validation: { error: String(e?.message ?? e) } }).eq('id', (b as any).id);
+      }
+    }
+  }
+
   // NOTE: the cover BACKFILL still lives in its own cron (/api/cron/images) —
   // it was being starved here by the generation drain. What runs above is only
   // the just-generated post's own cover, when the tick has room; the cron
@@ -550,6 +602,7 @@ export async function GET(req: Request) {
     activated,
     materialized,
     generated,
+    released,
     covers_inline: coversInline,
     deferred,
     over_quota: overQuota,
