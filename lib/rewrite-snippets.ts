@@ -16,6 +16,7 @@
  * Pair with canonical_blog_base = `https://{host}{path}` — the proxy makes the
  * URLs resolve, that column makes grove EMIT them.
  */
+import { hostedBlogPath } from '@/lib/seo';
 
 export type RewriteTarget = {
   key: 'vercel' | 'next' | 'netlify' | 'cloudflare';
@@ -54,7 +55,7 @@ export function rewriteSnippets(opts: RewriteOpts): RewriteTarget[] {
   const base = opts.groveBase.replace(/\/$/, '');
   const slug = opts.blogSlug;
   const p = normalizeMountPath(opts.path);
-  const origin = `${base}/b/${slug}`;
+  const origin = `${base}${hostedBlogPath(slug)}`;
   const host = (opts.hostname ?? 'example.com').replace(/^www\./, '');
 
   const vercel = {

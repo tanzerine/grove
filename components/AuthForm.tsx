@@ -6,6 +6,7 @@ import GroveMark from '@/components/GroveMark';
 import { afterSignIn, afterCreate } from '@/lib/auth/flow';
 import { captureClient } from '@/lib/analytics/capture-client';
 import { useT } from '@/components/LocaleProvider';
+import { FIRST_TOUCH_COOKIE, attributionMetadata, decodeFirstTouch, readCookie } from '@/lib/attribution';
 
 /**
  * One auth surface — no separate sign-up. The user enters an email + password
@@ -91,10 +92,17 @@ export default function AuthForm() {
     // Pointing at /auth/callback also means confirming SIGNS THEM IN and drops
     // them straight into onboarding, instead of asking them to come back and
     // type the password again.
+    // `data` lands in user_metadata at creation: the first-touch record the
+    // middleware stamped on this visitor's first page load (lib/attribution).
+    // Written here rather than at /auth/callback because an email signup may
+    // never come back through the callback with the same browser.
     const signUp = await sb.auth.signUp({
       email,
       password: pw,
-      options: { emailRedirectTo: callbackUrl() },
+      options: {
+        emailRedirectTo: callbackUrl(),
+        data: attributionMetadata(decodeFirstTouch(readCookie(document.cookie, FIRST_TOUCH_COOKIE))),
+      },
     });
     const d2 = afterCreate({ hasSession: !!signUp.data.session, error: signUp.error });
     setBusy(null);

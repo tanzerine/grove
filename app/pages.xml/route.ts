@@ -30,9 +30,9 @@ export async function GET() {
 
   const xml = buildUrlsetXml([
     ...landings,
-    // The blog index. Articles live in the per-blog sitemaps, which are
-    // siblings of this file inside the root sitemap index.
-    { url: `${base}/blog`, lastModified: now, changeFrequency: 'daily', priority: 0.8 },
+    // No /blog entry: the blog hub is the first <url> of /blog/sitemap.xml (a
+    // sibling of this file in the root index), with a real lastmod. Listing it
+    // here too only duplicated it.
     { url: `${base}/privacy`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${base}/terms`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
   ]);

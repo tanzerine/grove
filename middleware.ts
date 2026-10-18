@@ -1,6 +1,9 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
-import { subdomainSlugFromHost, normalizeBlogHostname, appBase, blogRootDomain } from '@/lib/seo';
+import { subdomainSlugFromHost, normalizeBlogHostname, appBase, blogRootDomain, ownBlogRoute, isBot } from '@/lib/seo';
+import {
+  FIRST_TOUCH_COOKIE, FIRST_TOUCH_MAX_AGE, encodeFirstTouch, firstTouchFrom, shouldStampFirstTouch,
+} from '@/lib/attribution';
 
 const PROTECTED = ['/dashboard', '/onboarding'];
 
@@ -40,8 +43,7 @@ async function customBlogSlug(rawHost: string | null): Promise<string | null> {
 
   // the app's own host is never a customer blog host — bail before any I/O so
   // normal traffic pays nothing for this feature
-  let appHost = '';
-  try { appHost = new URL(appBase()).hostname.toLowerCase(); } catch { /* keep '' */ }
+  const appHost = appHostname();
   if (host === appHost || host === `www.${appHost}` || appHost === `www.${host}`) return null;
   const root = blogRootDomain();
   if (root && (host === root || host.endsWith(`.${root}`))) return null;
@@ -71,7 +73,84 @@ async function customBlogSlug(rawHost: string | null): Promise<string | null> {
   return slug;
 }
 
+/** The app's own hostname (apex), lowercased; '' when appBase() is unparseable. */
+function appHostname(): string {
+  try { return new URL(appBase()).hostname.toLowerCase(); } catch { return ''; }
+}
+
+/**
+ * www.trygroveai.com → trygroveai.com, permanently (308).
+ *
+ * www served a byte-identical duplicate of every page with a 200, while every
+ * canonical, sitemap and OAuth document names the apex. Pages only:
+ *   - /api/* is exempt — MCP clients POST JSON-RPC there and webhooks may be
+ *     registered against www; a redirect on a POST is a coin flip per client,
+ *     and an API response has no SEO to consolidate.
+ *   - /.well-known/* is exempt — OAuth discovery (rewritten onto /api/oauth/*)
+ *     must answer on whichever host the client already started on; this is
+ *     the same probe a redirect broke once before (Claude's connector check
+ *     saw a 3xx where it needed the 401 challenge).
+ *   - only GET/HEAD — a POST from a www page (consent's Allow, a server action)
+ *     completes where it is; consentOriginAllowed already accepts the twin.
+ */
+function wwwToApex(req: NextRequest): NextResponse | null {
+  const host = (req.headers.get('host') ?? '').toLowerCase().split(':')[0];
+  const apex = appHostname();
+  if (!apex || apex.startsWith('www.') || host !== `www.${apex}`) return null;
+  if (req.method !== 'GET' && req.method !== 'HEAD') return null;
+  const p = req.nextUrl.pathname;
+  if (p.startsWith('/api/') || p.startsWith('/.well-known/')) return null;
+  const url = req.nextUrl.clone();
+  url.host = apex;
+  url.protocol = 'https:';
+  url.port = '';
+  return NextResponse.redirect(url, 308);
+}
+
+/**
+ * First-touch attribution: on a visitor's first page load, record where they
+ * came from in a first-party cookie (lib/attribution). AuthForm and
+ * /auth/callback copy it onto the account at signup. Never throws — a cookie
+ * is not worth a 500.
+ */
+function stampFirstTouch(req: NextRequest, res: NextResponse): NextResponse {
+  try {
+    const stamp = shouldStampFirstTouch({
+      method: req.method,
+      pathname: req.nextUrl.pathname,
+      hasCookie: req.cookies.has(FIRST_TOUCH_COOKIE),
+      isBot: isBot(req.headers.get('user-agent')),
+      isPrefetch:
+        req.headers.has('rsc') ||
+        req.headers.has('next-router-prefetch') ||
+        req.headers.get('purpose') === 'prefetch' ||
+        req.headers.get('sec-purpose')?.includes('prefetch') === true,
+    });
+    if (!stamp) return res;
+    const ft = firstTouchFrom({
+      url: req.nextUrl.href,
+      referrer: req.headers.get('referer'),
+      appHost: appHostname(),
+    });
+    if (!ft) return res;
+    res.cookies.set(FIRST_TOUCH_COOKIE, encodeFirstTouch(ft), {
+      path: '/',
+      maxAge: FIRST_TOUCH_MAX_AGE,
+      sameSite: 'lax',
+      secure: req.nextUrl.protocol === 'https:',
+      // Not httpOnly: AuthForm reads it in the browser to pass it to signUp().
+    });
+  } catch {
+    /* attribution is best-effort */
+  }
+  return res;
+}
+
 export async function middleware(req: NextRequest) {
+  // ── 0. www → apex ─────────────────────────────────────────────────────────
+  const canonicalHost = wwwToApex(req);
+  if (canonicalHost) return canonicalHost;
+
   // ── 1. Blog hosts ─────────────────────────────────────────────────────────
   // {slug}.{GROVE_BLOG_ROOT_DOMAIN} first (pure string check, no I/O), then
   // customer CNAME'd hostnames (cached DB lookup). No-op on the app's host.
@@ -80,6 +159,19 @@ export async function middleware(req: NextRequest) {
 
   const custom = await customBlogSlug(req.headers.get('host'));
   if (custom) return rewriteBlogHost(req, custom);
+
+  // ── 1b. grove's own blog at /blog ─────────────────────────────────────────
+  // /blog/* is served by the same /b/{slug}/* routes as every hosted blog, and
+  // the old /b/{own-slug}/* URLs 301 here (see lib/seo ownBlogRoute). Public
+  // pages, so no session work — same as the blog hosts above.
+  const own = ownBlogRoute(req.nextUrl.pathname);
+  if (own) {
+    const url = req.nextUrl.clone();
+    url.pathname = own.pathname;
+    return own.action === 'redirect'
+      ? NextResponse.redirect(url, 301)
+      : stampFirstTouch(req, NextResponse.rewrite(url));
+  }
 
   // ── 2. App auth — refresh the session on EVERY route ─────────────────────
   // Supabase rotates the access/refresh token pair on expiry, and the rotated
@@ -126,7 +218,7 @@ export async function middleware(req: NextRequest) {
     url.searchParams.set('next', path);
     return NextResponse.redirect(url);
   }
-  return res;
+  return stampFirstTouch(req, res);
 }
 
 export const config = {

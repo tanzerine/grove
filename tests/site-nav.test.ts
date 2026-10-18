@@ -36,7 +36,6 @@ describe('one definition', () => {
 
   it.each([
     ['components/Landing.tsx'],
-    ['app/blog/page.tsx'],
   ])('%s renders SiteNav instead of its own copy', (path) => {
     const src = read(path);
     expect(src).toMatch(/<SiteNav\b/);

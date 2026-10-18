@@ -5,8 +5,9 @@
  * Every surface that mounts `public/embed.js` against grove's own domain needs
  * the same two things: the article base the cards link at, and a
  * server-rendered list of those links to sit inside the embed container until
- * the script replaces it. `/blog` needs all of them; the landing's "Our blog
- * runs on Grove" widget needs the newest few.
+ * the script replaces it. Today that is the landing's "Our blog runs on Grove"
+ * widget (newest few, both languages). `/blog` itself is no longer an embed:
+ * it is the hosted blog, served there by middleware (lib/seo ownBlogRoute).
  *
  * WHY THE SERVER-RENDERED LIST EXISTS. embed.js mounts by assigning
  * `root.innerHTML`, so the container shipped empty and the HTML a crawler
@@ -21,7 +22,7 @@
  * drift into pointing at different URLs for the same posts.
  */
 import { resolveBlogDomain } from '@/lib/blog-domain';
-import { blogHomeUrl, blogPostUrl, canonicalBaseFor } from '@/lib/seo';
+import { blogHomeUrl, canonicalBaseFor } from '@/lib/seo';
 import { archiveEntries, type ArchiveEntry } from '@/lib/blog-archive';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
@@ -32,7 +33,7 @@ export type GroveBlogLinks = {
 };
 
 /**
- * `limit` caps the list (the landing widget wants 3; /blog wants everything).
+ * `limit` caps the list (the landing widget wants 3).
  *
  * Fail-safe by contract: a missing service key or an unreachable DB returns
  * empty rather than throwing. These are public marketing surfaces, and a
@@ -68,34 +69,5 @@ export async function groveBlogLinks(
     };
   } catch {
     return { base: null, entries: [] };
-  }
-}
-
-/**
- * The crawlable URL of ONE of grove's own articles, by slug — or null when no
- * published post has it.
- *
- * Exists for `/blog/[slug]`, a URL grove never served. The embed widget on the
- * landing linked every card there for months (fixed in #277), so the shape is
- * in shared links and possibly Google's index; a permanent redirect onto the
- * real article is what turns those dead links back into readers. Unknown slugs
- * get null so the route can 404 honestly rather than soft-404 onto /blog.
- */
-export async function groveBlogPostUrl(host: string, slug: string): Promise<string | null> {
-  try {
-    const sb = supabaseAdmin();
-    const domain = await resolveBlogDomain(sb, host);
-    if (!domain?.blog_slug) return null;
-    const { data } = await sb
-      .from('posts')
-      .select('slug')
-      .eq('domain_id', domain.id)
-      .eq('slug', slug)
-      .eq('status', 'published')
-      .maybeSingle();
-    if (!data) return null;
-    return blogPostUrl(domain.blog_slug, data.slug, canonicalBaseFor(domain));
-  } catch {
-    return null;
   }
 }

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { supabaseServer } from '@/lib/supabase/server';
 import { captureServer } from '@/lib/analytics/capture-server';
+import { FIRST_TOUCH_COOKIE, attributionMetadata, decodeFirstTouch } from '@/lib/attribution';
 
 /**
  * Exchanges the ?code= from Supabase (email confirmation OR Google OAuth)
@@ -32,6 +33,16 @@ export async function GET(req: Request) {
       jar.delete('grove_ref');
     }
 
+    // First-touch attribution for a Google signup (email signups write it in
+    // AuthForm's signUp call). Only on a brand-new account and never over an
+    // existing value — a returning user signing in from a new campaign link
+    // must not be re-credited to it.
+    const isNewAccount = !!user && Date.now() - Date.parse(user.created_at) < 60_000;
+    if (user && isNewAccount && !user.user_metadata?.first_touch) {
+      const meta = attributionMetadata(decodeFirstTouch(jar.get(FIRST_TOUCH_COOKIE)?.value));
+      if (meta.first_touch) await sb.auth.updateUser({ data: meta });
+    }
+
     // Google is the one path AuthForm cannot instrument — the browser leaves
     // for Google before any result exists, so the session first becomes real
     // here.
@@ -39,8 +50,7 @@ export async function GET(req: Request) {
       // No "is this a new user?" flag exists on the session, so infer it from
       // the account's age. A first OAuth round-trip takes seconds; anything
       // older than a minute is someone signing back in.
-      const isNew = Date.now() - Date.parse(user.created_at) < 60_000;
-      if (isNew) {
+      if (isNewAccount) {
         await captureServer(user.id, 'signed_up', {
           method: 'google',
           confirmation_required: false, // OAuth arrives pre-verified

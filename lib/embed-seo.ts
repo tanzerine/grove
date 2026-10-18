@@ -14,14 +14,14 @@
  * embed API to hand `blog_base` to embed.js, so the badge a customer reads and
  * the links their visitors click can't disagree.
  */
-import { canonicalBaseFor, servedBlogBaseFor, blogPostUrl, type CanonicalFields } from '@/lib/seo';
+import { canonicalBaseFor, servedBlogBaseFor, blogPostUrl, hostedBlogPath, type CanonicalFields } from '@/lib/seo';
 
 export type EmbedSeoState =
   /** Customer renders articles themselves; canonical_blog_base points at them. */
   | 'self-served'
   /** Grove serves the whole blog on the customer's CNAME'd subdomain. */
   | 'subdomain'
-  /** The domain IS the app origin (grove's own row) — /b/{slug} is already
+  /** The domain IS the app origin (grove's own row) — its hosted blog (/blog) is already
    *  on its own domain, so there is nothing to connect. */
   | 'app-origin'
   /** Neither: articles exist only on grove's domain + the hash reader. */
@@ -85,7 +85,7 @@ export function embedSeoStatus(
     };
   }
 
-  const mirror = domain?.blog_slug ? `${hostedBase}/b/${domain.blog_slug}` : hostedBase;
+  const mirror = domain?.blog_slug ? `${hostedBase}${hostedBlogPath(domain.blog_slug)}` : hostedBase;
 
   // Grove's own domain row is a customer like any other, except for one thing:
   // the "grove-hosted mirror" is ON ITS OWN DOMAIN. The hash-only warning below
