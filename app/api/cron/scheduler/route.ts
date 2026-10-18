@@ -530,9 +530,11 @@ export async function GET(req: Request) {
   //     (lib/mcp); re-running it here would research and redraft the agent's
   //     article from scratch.
   //
-  //     Uses leftover drain time only, so new articles always come first, and
-  //     takes no quota: the article was paid for when it was first generated.
+  //     New articles always come first: it runs after the drain, on leftover
+  //     time, except that a tick which drafted nothing always releases one.
+  //     Takes no quota: the article was paid for when it was first generated.
   let released = 0;
+  let releaseAttempts = 0;
   const autopilotIds = new Set<string>();
   if (entitledDomains.length) {
     const { data: ap } = await sb
@@ -551,7 +553,13 @@ export async function GET(req: Request) {
       .order('created_at', { ascending: true })
       .limit(MAX_POSTS_PER_TICK);
     for (const b of backlog ?? []) {
-      if (!hasRoomFor(elapsed(), drainBudgetMs, estimateMs)) break;
+      // Same exemption as the drain's first candidate: a tick that drafted
+      // nothing new always releases one. Gated on the estimate alone, an idle
+      // tick could still decline — the estimate is a full generation's p80
+      // (and on the Search Console tick the budget is smaller), while a
+      // release is a re-score plus at most one repair, cheaper than that.
+      const firstGo = generated === 0 && releaseAttempts === 0;
+      if (!firstGo && !hasRoomFor(elapsed(), drainBudgetMs, estimateMs)) break;
       const { data: claimed } = await sb
         .from('posts')
         .update({ status: 'writing', generation_log: seedLog() })
@@ -560,6 +568,9 @@ export async function GET(req: Request) {
         .select('id')
         .maybeSingle();
       if (!claimed) continue;
+      // Counted on the claim, not on success, so a release that throws still
+      // spends the exemption rather than handing it to the next draft.
+      releaseAttempts++;
       try {
         await generatePost((b as any).id);
         released++;
