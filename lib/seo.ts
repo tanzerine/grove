@@ -18,8 +18,9 @@ export function appBase(): string {
  *   2. domains.custom_blog_hostname — a customer-owned hostname CNAME'd at
  *      grove (blog.customer.com); GROVE serves everything there, so equity
  *      lands on the customer's domain with zero code on their site.
- *   3. GROVE_BLOG_ROOT_DOMAIN — {slug}.{root} subdomain (middleware rewrite).
- *   4. /b/{slug} on the app origin.
+ *   3. grove's OWN blog — /blog on the app origin (see OWN_BLOG_SLUG).
+ *   4. GROVE_BLOG_ROOT_DOMAIN — {slug}.{root} subdomain (middleware rewrite).
+ *   5. /b/{slug} on the app origin.
  * EVERY absolute blog URL — canonical, OG, JSON-LD, sitemap, RSS, robots,
  * social copy, webhooks — must come from these builders so the shapes can
  * never diverge again. Callers that have the domain row pass its
@@ -49,12 +50,56 @@ export function normalizeCanonicalBase(v: string | null | undefined): string | n
   }
 }
 
+/* ─────────────── grove's own blog lives at /blog ───────────────
+ * Every hosted blog's grove-served home is /b/{slug} — a customer-template path
+ * nobody types and nothing outside grove links to. That is fine for a customer,
+ * whose canonical is their own domain, and wrong for grove itself: the
+ * trygroveai.com row's articles sat at /b/trygroveai-com-o6hf/{post} while
+ * /blog was a second, embed-mounted hub Google reported as "URL is unknown".
+ *
+ * So exactly one row — grove's own — has its hosted path at /blog. Middleware
+ * rewrites /blog/* onto the same /b/{slug}/* routes every customer uses (one
+ * renderer, never a fork) and 301s the old /b/ URLs here; everything that
+ * builds a URL goes through hostedBlogPath, so canonicals, sitemap, RSS,
+ * JSON-LD and social URLs move with it and the domain row needs no
+ * canonical_blog_base. Keyed by the blog_slug, which never changes, rather
+ * than looked up by hostname: middleware runs on every request and must stay
+ * free of I/O for traffic that isn't a blog. */
+export const OWN_BLOG_SLUG = 'trygroveai-com-o6hf';
+export const OWN_BLOG_PATH = '/blog';
+
+/** Path of a blog's grove-served copy on the app origin, no trailing slash. */
+export function hostedBlogPath(blogSlug: string): string {
+  return blogSlug === OWN_BLOG_SLUG ? OWN_BLOG_PATH : `/b/${blogSlug}`;
+}
+
+/**
+ * What middleware does with a path on the APP host (never on a blog host —
+ * those have their own rewrite). Pure, so the URL move is unit-tested.
+ *   /blog, /blog/*          → rewrite onto /b/{OWN_BLOG_SLUG}/*
+ *   /b/{OWN_BLOG_SLUG}, …/* → 301 to /blog/* (hub, posts, sitemap, rss, og)
+ * Everything else, other customers' /b/{slug} mirrors included, is untouched.
+ */
+export function ownBlogRoute(pathname: string): { action: 'rewrite' | 'redirect'; pathname: string } | null {
+  const internal = `/b/${OWN_BLOG_SLUG}`;
+  if (pathname === OWN_BLOG_PATH || pathname.startsWith(`${OWN_BLOG_PATH}/`)) {
+    const rest = pathname.slice(OWN_BLOG_PATH.length).replace(/^\/+$/, '');
+    return { action: 'rewrite', pathname: `${internal}${rest}` };
+  }
+  if (pathname === internal || pathname.startsWith(`${internal}/`)) {
+    const rest = pathname.slice(internal.length).replace(/^\/+$/, '');
+    return { action: 'redirect', pathname: `${OWN_BLOG_PATH}${rest}` };
+  }
+  return null;
+}
+
 /** Absolute URL of a blog's home (no trailing slash). */
 export function blogHomeUrl(blogSlug: string, canonicalBase?: string | null): string {
   const base = normalizeCanonicalBase(canonicalBase);
   if (base) return base;
+  if (blogSlug === OWN_BLOG_SLUG) return `${appBase()}${OWN_BLOG_PATH}`;
   const root = blogRootDomain();
-  return root ? `https://${blogSlug}.${root}` : `${appBase()}/b/${blogSlug}`;
+  return root ? `https://${blogSlug}.${root}` : `${appBase()}${hostedBlogPath(blogSlug)}`;
 }
 
 /** Absolute URL of one article. */
@@ -154,8 +199,9 @@ export function blogLinkBase(
 ): string {
   const served = servedBlogBaseFor(domain);
   if (served) return served;
+  if (blogSlug === OWN_BLOG_SLUG) return OWN_BLOG_PATH;
   const root = blogRootDomain();
-  return root ? `https://${blogSlug}.${root}` : `/b/${blogSlug}`;
+  return root ? `https://${blogSlug}.${root}` : hostedBlogPath(blogSlug);
 }
 
 /** True when the request's Host header is this domain's CNAME'd blog hostname

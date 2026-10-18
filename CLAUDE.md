@@ -472,14 +472,32 @@ Other key surfaces:
     **outside code fences**: markdown renderers tolerate them, the MDX compiler
     doesn't, and an import that breaks the customer's build is worse than no
     import at all.
-- **grove eats its own dogfood**: `/blog` (`app/blog/page.tsx`) and the landing's
-  "Our blog runs on grove" section mount that same embed via
-  `components/GroveEmbed.tsx`, against grove's own `trygroveai.com` domain row.
+- **grove's own blog is at `/blog/<slug>`** (2026-10-18), not
+  `/b/trygroveai-com-o6hf/<slug>`. `lib/seo` `OWN_BLOG_SLUG` gives that one row
+  the hosted path `/blog` (`hostedBlogPath`), so every builder — canonical,
+  sitemap, RSS, JSON-LD, OG, in-blog links — emits it with
+  `canonical_blog_base` still NULL. Middleware (`ownBlogRoute`) rewrites
+  `/blog/*` onto the same `app/b/[slug]/*` routes every customer uses and 301s
+  the old `/b/<own-slug>/*` URLs; other customers' `/b/<slug>` are untouched.
+  `/blog` is therefore the hosted hub, not an embed page — there is no
+  `app/blog/` any more, and a file added there would be shadowed by the rewrite.
+- **grove eats its own dogfood**: the landing's "Our blog runs on grove"
+  section mounts the customer embed via `components/GroveEmbed.tsx`, against
+  grove's own `trygroveai.com` domain row.
   Deliberately no bespoke CSS there — a rendering bug is a bug in embed.js, so
   fix it upstream. NOTE: load embed.js with `next/script` (`afterInteractive`),
   never a bare `<script async>` — the bare tag can beat hydration and React
-  then deletes the mounted DOM. The cards point at the grove-hosted articles
+  then deletes the mounted DOM. The cards point at `/blog/<slug>`
   (`data-article-base`) so they stay crawlable.
+- **www → apex is a 308 in middleware** (`wwwToApex`), pages only: `/api/*`,
+  `/.well-known/*` and non-GET requests are exempt so MCP POSTs and OAuth
+  discovery never see a redirect (see the #295 consent history).
+- **Signup attribution**: middleware stamps a first-touch cookie `gv_ft`
+  (referrer, utm_*, landing path; `lib/attribution.ts`) on a visitor's first
+  page load; `AuthForm` passes it to `signUp({ options: { data } })` and
+  `/auth/callback` writes it for brand-new Google accounts. It lands in
+  `user_metadata.first_touch` — measured, beside the self-reported
+  `referral_source`.
 - `app/dashboard/QualityCharts.tsx` — ScoreRing / RubricBars / QualityColumns;
   `bandColor()` is the single source for score-band colors (≥70 moss, ≥40 amber, else red).
 

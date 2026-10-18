@@ -27,7 +27,10 @@ const root = process.cwd();
 const read = (p: string) => readFileSync(join(root, p), 'utf8');
 
 /** Files that mount the embed and therefore owe a crawlable fallback. */
-const EMBED_SURFACES = ['app/blog/page.tsx', 'components/Landing.tsx'];
+// `/blog` used to be one of these. It is now the hosted blog itself, served
+// there by middleware (lib/seo ownBlogRoute), so its links come from the hub
+// suite below — the same index every customer gets.
+const EMBED_SURFACES = ['components/Landing.tsx'];
 
 describe('the embed always ships a server-rendered fallback', () => {
   it.each(EMBED_SURFACES)('%s passes children to GroveEmbed', (file) => {
@@ -44,13 +47,6 @@ describe('the embed always ships a server-rendered fallback', () => {
         `article links as children (see lib/grove-blog).`,
     ).toBe(false);
     expect(src).toMatch(/<GroveEmbed\b[\s\S]*?>[\s\S]*?<\/GroveEmbed>/);
-  });
-
-  it('/blog renders links for every published article', () => {
-    const src = read('app/blog/page.tsx');
-    expect(src).toContain('groveBlogLinks');
-    // The list is rendered, not merely fetched.
-    expect(src).toMatch(/entries\.map\(/);
   });
 
   it('the landing widget renders its links too', () => {

@@ -64,7 +64,8 @@ describe('embedSeoStatus', () => {
     expect(s.state).toBe('app-origin');
     expect(s.crawlable).toBe(true);
     expect(s.label).toBe('Indexable');
-    expect(s.articleBase).toBe(`${HOSTED}/b/trygroveai-com-o6hf`);
+    // grove's own blog is served at /blog, not /b/{slug} (lib/seo OWN_BLOG_SLUG)
+    expect(s.articleBase).toBe(`${HOSTED}/blog`);
     expect(s.fix).toBeNull();
     expect(s.detail).not.toContain('credit goes to grove');
   });

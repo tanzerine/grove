@@ -8,6 +8,7 @@ import EmbedTabs from './EmbedTabs';
 import RewriteSnippets from './RewriteSnippets';
 import { resolveBranding } from '@/lib/blog-theme';
 import { embedSeoStatus } from '@/lib/embed-seo';
+import { hostedBlogPath } from '@/lib/seo';
 import { DashHeader } from '../gv-chrome';
 import Icon from '../gv-icons';
 import { getT } from '@/lib/i18n/server';
@@ -136,14 +137,14 @@ export default async function Page() {
                     JSON-LD, sitemap, RSS, llms.txt, social shares, embed links) flips to{' '}
                     <span className="mono">{'{base}/{slug}'}</span>, so search equity compounds on{' '}
                     <span className="mono">{domain.hostname}</span>. The hosted copy at{' '}
-                    <span className="mono">{groveBase}/b/{domain.blog_slug}</span> stays up as a non-canonical mirror.
+                    <span className="mono">{groveBase}{hostedBlogPath(domain.blog_slug)}</span> stays up as a non-canonical mirror.
                     This wins over step 1&rsquo;s subdomain if both are set.
                   </p>
                   <CanonicalBaseForm domainId={domain.id} initial={domain.canonical_blog_base ?? null} hostname={domain.hostname} />
                   <p style={{ fontSize: 12.5, color: 'var(--gv-dim)', margin: '14px 0 0', lineHeight: 1.6 }}>
                     {t('Then add one line to')} <span className="mono">https://{apex}/robots.txt</span> so
                     Google accepts the cross-hosted sitemap for your URLs:{' '}
-                    <span className="mono">Sitemap: {groveBase}/b/{domain.blog_slug}/sitemap.xml</span>
+                    <span className="mono">Sitemap: {groveBase}{hostedBlogPath(domain.blog_slug)}/sitemap.xml</span>
                   </p>
                   <RewriteSnippets groveBase={groveBase} blogSlug={domain.blog_slug} hostname={apex} />
                 </div>
