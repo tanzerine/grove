@@ -139,8 +139,10 @@ export function composeRepairInstructions(
     parts.push(
       `PUBLISH BLOCKERS (each one must be gone in the rewrite):\n` +
       blocking.map((b) => `- ${b}`).join('\n') +
-      `\nA number you cannot trace to the research or cite inline: remove it or state it without a figure. ` +
-      `A link to a competitor: remove it.`,
+      `\nA number you cannot trace to the research or cite inline: remove it or state it without a figure.` +
+      // Only when that is what was flagged: in a comparison, links to the
+      // rivals' own pages are how a claim about them stays checkable.
+      (blocking.some((b) => b.startsWith('REFERRAL_AWAY')) ? ` A link to a competitor: remove it.` : ''),
     );
   }
   return parts.join('\n\n').trim();
@@ -250,7 +252,7 @@ just rate the axes accurately, don't compute an overall yourself.
 OUTPUT: ONE raw JSON object, no preamble, no markdown.
 
 RUBRIC
-${rubricPromptBlock()}`;
+${rubricPromptBlock(brief?.format)}`;
 
   // In the USER prompt, first, and not the system prompt: with it in the system
   // prompt this model read a correct Korean CTA as a defect and ordered the

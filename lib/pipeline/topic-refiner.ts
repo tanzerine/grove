@@ -26,6 +26,7 @@
  *   - "[Group] we love: [N] [people/things] [doing X]" — curation
  */
 import { llmCall, extractJson } from '../llm';
+import { isComparisonKeyword } from './comparison';
 import type { SiteProfile } from './site-profile';
 import type { ResearchContext } from './research-context';
 import type { RepoKnowledge } from './repo-knowledge';
@@ -47,7 +48,7 @@ export type MarketingIntent = 'editorial' | 'contextual' | 'conversion';
 export type RefinedBrief = {
   title: string;                       // strong, opinionated, ≤ 60 chars when possible
   angle: string;                       // one-sentence POV / thesis
-  format: 'experiment' | 'guide' | 'opinion' | 'launch' | 'curation' | 'roadmap' | 'behind-the-scenes' | 'list' | 'tutorial' | 'deep-dive';
+  format: 'experiment' | 'guide' | 'opinion' | 'launch' | 'curation' | 'roadmap' | 'behind-the-scenes' | 'list' | 'tutorial' | 'deep-dive' | 'comparison';
   marketing_intent: MarketingIntent;   // funnel position — drives writer's marketing rules
   hook: string;                        // proposed first-person opening line
   promise: string;                     // what concrete value the reader walks away with
@@ -261,6 +262,17 @@ Pick ONE strong angle. Output:
   // downgrade to the closest generic format if the model picked one anyway.
   if (!hasRepoKb && (parsed.format === 'tutorial' || parsed.format === 'deep-dive')) {
     parsed.format = 'guide';
+  }
+
+  // Comparison mode is decided by the KEYWORD, never by the model: it is the
+  // one format allowed to name competitors (lib/pipeline/comparison.ts), so a
+  // refiner that could pick it could switch the competitor ban off for any
+  // article. A comparison is a buyer question, so it also earns the CTA.
+  if (isComparisonKeyword(targetKeyword)) {
+    parsed.format = 'comparison';
+    parsed.marketing_intent = 'conversion';
+  } else if (parsed.format === 'comparison') {
+    parsed.format = 'list';
   }
 
   // sanity: marketing_intent must be one of three known values

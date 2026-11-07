@@ -426,6 +426,8 @@ async function generatePostInner(postId: string, opts: GenerateOptions = {}) {
       intent: brief.marketing_intent,
       serpSubtopics: context.serp.subtopics,
       researchText,
+      format: brief.format,
+      businessName: profile.business?.name,
     });
     if (evaluation) {
       (v as any).manager = {

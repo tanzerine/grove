@@ -39,6 +39,9 @@ export type ArticleRec = {
   proof?: Proof;
   /** One sentence: why the reader of this search is a buyer. */
   why: string;
+  /** A sample draft Grove wrote for this article, served at
+   *  /r/<report>/a/<slug>. The markdown lives in lib/reports/articles/. */
+  draft?: { slug: string; file: string; description: string };
 };
 
 export type Retarget = {
@@ -55,6 +58,8 @@ export type CurrentRank = { keyword: string; volume: number; position: number; p
 export type ProspectReport = {
   slug: string;
   domain: string;
+  /** The business as it names itself — used for the drafts' disclosure line. */
+  business: string;
   /** ISO date the research was pulled. */
   researchedOn: string;
   /** Who it's from, as the prospect knows them. */
@@ -73,6 +78,18 @@ export const REPORTS: ProspectReport[] = [krevaya];
 
 export function getReport(slug: string): ProspectReport | null {
   return REPORTS.find((r) => r.slug === slug) ?? null;
+}
+
+/** Every (report, article) pair that has a sample draft — the static params
+ *  of /r/[slug]/a/[article]. */
+export function draftParams(): { slug: string; article: string }[] {
+  return REPORTS.flatMap((r) => r.articles.flatMap((a) => (a.draft ? [{ slug: r.slug, article: a.draft.slug }] : [])));
+}
+
+export function getDraft(slug: string, article: string): { report: ProspectReport; rec: ArticleRec } | null {
+  const report = getReport(slug);
+  const rec = report?.articles.find((a) => a.draft?.slug === article);
+  return report && rec ? { report, rec } : null;
 }
 
 /** Keywords that place in the top 50 — what "ranks" means to a reader. */

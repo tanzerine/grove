@@ -571,6 +571,13 @@ a { color: inherit; text-decoration: none; }
 /* Derived from --ink, not grove's paper literal — a fixed warm white banded
    every other row of every table with light on a dark captured site. */
 .prose table tr:nth-child(even) td { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+/* A 4-column comparison table is wider than a phone. Without this it pushed
+   the whole article sideways (measured: 469px of content in a 390px view);
+   as a block it scrolls inside its own box and the page stays put. */
+@media (max-width: 720px) {
+  .prose table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; font-size: 14px; }
+  .prose table th, .prose table td { padding: 10px 12px; min-width: 110px; }
+}
 
 /* ─────────────── public article: right-rail TOC + CTA banner ─────────────── */
 /* ── hosted blog nav (app/b/[slug]/layout.tsx) ──────────────────────────────

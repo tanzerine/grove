@@ -23,6 +23,7 @@ const FORMAT_GENRES: Record<string, string> = {
   list: 'listicle',
   tutorial: 'tutorial',
   'deep-dive': 'deep-dive',
+  comparison: 'roundup',
 };
 
 const GENRE_LABELS: Record<LangCode, Record<string, string>> = {

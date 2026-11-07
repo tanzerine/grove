@@ -6,6 +6,7 @@
  * Keep it tight. Every rule must be checkable from the draft + brief +
  * strategy alone, without external lookups.
  */
+import { COMPARISON_RUBRIC_RULE } from './comparison';
 
 export type RubricRule = {
   id: string;
@@ -145,8 +146,11 @@ export const MANAGER_RUBRIC: RubricRule[] = [
 ];
 
 /** Format the rubric for LLM consumption. Stable order, terse. */
-export function rubricPromptBlock(): string {
-  return MANAGER_RUBRIC.map(
-    (r) => `[${r.id}] (${r.scope}, ${r.severity}) — ${r.rule}`,
-  ).join('\n');
+export function rubricPromptBlock(format?: string | null): string {
+  return MANAGER_RUBRIC.map((r) => {
+    // A comparison names rivals by design (lib/pipeline/comparison.ts); the
+    // same rule id now grades the conditions that came with that permission.
+    const rule = r.id === 'no_referral_away' && format === 'comparison' ? COMPARISON_RUBRIC_RULE : r.rule;
+    return `[${r.id}] (${r.scope}, ${r.severity}) — ${rule}`;
+  }).join('\n');
 }
