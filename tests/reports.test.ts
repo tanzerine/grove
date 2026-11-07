@@ -7,6 +7,7 @@ import {
 const base: ProspectReport = {
   slug: 'acme-abc123',
   domain: 'acme.com',
+  business: 'Acme',
   researchedOn: '2026-11-06',
   preparedBy: 'Tae',
   currentRanks: [

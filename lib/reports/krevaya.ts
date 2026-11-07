@@ -8,6 +8,7 @@ import type { ProspectReport } from './index';
 export const krevaya: ProspectReport = {
   slug: 'krevaya-958450',
   domain: 'krevaya.com',
+  business: 'Krevaya',
   researchedOn: '2026-11-06',
   preparedBy: 'Tae, founder of Grove',
   currentRanks: [
@@ -27,17 +28,32 @@ export const krevaya: ProspectReport = {
       also: [{ keyword: 'bufferapp alternatives', volume: 390, kd: 11 }],
       proof: { site: 'Blotato', position: 2, pageType: 'a list of alternatives' },
       why: 'Someone searching this is already leaving a scheduler. Your /vs/buffer/ page is one-on-one; the list format is what ranks.',
+      draft: {
+        slug: 'buffer-alternatives',
+        file: 'krevaya-buffer-alternatives.md',
+        description: 'Six Buffer alternatives compared on pricing model, free plan, approvals and automation, with prices checked November 2026.',
+      },
     },
     {
       title: 'The best Hootsuite alternatives for small teams',
       target: { keyword: 'hootsuite alternative', volume: 720, kd: 20 },
       also: [{ keyword: 'free hootsuite alternative', volume: 210, kd: 16 }],
       why: 'Same template as the Buffer list, aimed at the bigger, pricier incumbent.',
+      draft: {
+        slug: 'hootsuite-alternatives',
+        file: 'krevaya-hootsuite-alternatives.md',
+        description: 'What Hootsuite costs a three-person team, and five alternatives that charge by plan instead of by seat.',
+      },
     },
     {
       title: 'The best tools to schedule social media posts',
       target: { keyword: 'best tools to schedule social media posts', volume: 720, kd: 14 },
       why: 'Advertisers pay about $34 a click for this search, the highest buyer value we found.',
+      draft: {
+        slug: 'best-scheduling-tools',
+        file: 'krevaya-best-scheduling-tools.md',
+        description: 'Eight social media schedulers compared on price model, approvals and the catch, with a five-minute way to choose.',
+      },
     },
     {
       title: 'LinkedIn MCP server: post to LinkedIn from Claude Code',

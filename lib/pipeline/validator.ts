@@ -1,4 +1,5 @@
 import { BANNED_PHRASES, RECYCLED_STATS, phraseBoundaryRe } from './quality-rules';
+import { COMPARISON_OVER_CITED, hasDisclosure, hasComparisonTable } from './comparison';
 import { extractFaq } from '../faq';
 import { extractTakeaways } from '../takeaways';
 import { coverageGap } from './serp';
@@ -30,6 +31,9 @@ export const BLOCKING_RULES = [
   'RECYCLED_STAT',       // known-bogus stat the model loves to repeat
   'MISSING_H1',          // structurally broken draft
   'REFERRAL_AWAY',       // sends the reader to a competitor
+  // A comparison names rivals on purpose (lib/pipeline/comparison.ts); the
+  // price of that permission is saying the brand makes one of them.
+  'COMPARISON_NO_DISCLOSURE',
   // An article in the wrong language is not a quality note, it is the wrong
   // article. grove published its first Korean-configured post in English with
   // a passing manager score; nothing else in this list would have caught it,
@@ -61,19 +65,28 @@ export type ValidateOpts = {
    *  When given, numeric claims must be cited inline or appear here —
    *  otherwise they're flagged UNSUPPORTED_CLAIM (blocking). */
   researchText?: string;
+  /** The brief's format. 'comparison' lifts the tool-naming ban and adds the
+   *  comparison checks (disclosure, table, wider citation band). */
+  format?: string;
+  /** Needed to check a comparison's disclosure ("We make Krevaya"). */
+  businessName?: string;
 };
 
 /** Phrases that send the reader to a competitor, alternative tool, or third party.
  *  Name-agnostic on purpose: catches the *behavior* (referring away) regardless of
  *  which competitor surfaced in research. This is what shipped on oveners.com:
  *  "tools like 3D AI Studio", "platforms like Venngage", "partner with agencies". */
-const REFERRAL_AWAY = [
+const REFERRAL_AWAY_AGENCY = [
   /\bpartner with (?:an? )?(?:agenc|studio|freelanc|vendor)/i,
   /\bagencies offering\b/i,
+  /\b(?:hire|outsource to) (?:a|an)\b/i,
+];
+/** Naming or pointing at another tool. Lifted in comparison mode only, where
+ *  naming rivals is the point of the article; agencies stay banned there too. */
+const REFERRAL_AWAY_TOOLS = [
   /\b(?:tools|platforms|apps|services|alternatives) like \w+/i,
   /\byou (?:can|could) also (?:use|try)\b/i,
   /\balternatively,? (?:you can |you could )?(?:use|try)\b/i,
-  /\b(?:hire|outsource to) (?:a|an)\b/i,
 ];
 
 function firstH1(post: string): string | null {
@@ -117,7 +130,10 @@ export function validatePost(post: string, opts: ValidateOpts = {}): Validation 
   const citations = (post.match(/\[[^\]]+\]\(https?:\/\/[^\)]+\)/g) || []).length;
   // 2-4 citations is the sweet spot — selective evidence, not link-stuffed
   if (citations < 2) issues.push(`LOW_CITATIONS: ${citations} markdown links (target 2–4)`);
-  if (citations > 5) issues.push(`OVER_CITED: ${citations} markdown links (target 2–4 — fewer, more selective)`);
+  const isComparison = opts.format === 'comparison';
+  if (isComparison) {
+    if (citations > COMPARISON_OVER_CITED) issues.push(`OVER_CITED: ${citations} markdown links (comparison ceiling ${COMPARISON_OVER_CITED})`);
+  } else if (citations > 5) issues.push(`OVER_CITED: ${citations} markdown links (target 2–4 — fewer, more selective)`);
 
   for (const s of RECYCLED_STATS) if (lower.includes(s.toLowerCase())) issues.push(`RECYCLED_STAT: '${s}'`);
 
@@ -169,9 +185,17 @@ export function validatePost(post: string, opts: ValidateOpts = {}): Validation 
   }
 
   // ── referral-away: never send the reader to a competitor or agency ──────
-  for (const re of REFERRAL_AWAY) {
+  for (const re of isComparison ? REFERRAL_AWAY_AGENCY : [...REFERRAL_AWAY_AGENCY, ...REFERRAL_AWAY_TOOLS]) {
     const m = post.match(re);
     if (m) { issues.push(`REFERRAL_AWAY: '${m[0]}' (don't recommend competitors / third parties)`); break; }
+  }
+
+  // ── comparison mode: the conditions that came with naming rivals ─────────
+  if (isComparison) {
+    if (opts.businessName && !hasDisclosure(post, opts.businessName))
+      issues.push(`COMPARISON_NO_DISCLOSURE: say early that ${opts.businessName} makes one of the products on this list`);
+    if (!hasComparisonTable(post))
+      issues.push('COMPARISON_NO_TABLE: a comparison needs one table (product, who it is for, starting price, the catch)');
   }
 
   // ── intent ↔ brand-link consistency ─────────────────────────────────────

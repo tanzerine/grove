@@ -56,6 +56,8 @@ const CSS = `
 .gv-rep .rp-art .rp-kw { font-family: 'DM Mono', ui-monospace, monospace; font-size: 12.5px; color: #d9ff8f; margin-top: 6px; }
 .gv-rep .rp-art .rp-why { font-size: 14px; line-height: 1.55; color: #9a9d97; margin-top: 8px; }
 .gv-rep .rp-art .rp-pf { font-size: 12.5px; color: #84887f; margin-top: 8px; }
+.gv-rep .rp-read { display: inline-flex; margin-top: 12px; font-size: 13.5px; font-weight: 600; color: #12160a; background: #a2ff01; border-radius: 8px; padding: 7px 12px; text-decoration: none; }
+.gv-rep .rp-read:hover { filter: brightness(1.06); }
 .gv-rep .rp-num { text-align: right; white-space: nowrap; }
 .gv-rep .rp-num .rp-big { font-size: 20px; font-weight: 600; color: #f4f4f2; letter-spacing: -0.02em; }
 .gv-rep .rp-num .rp-sm { font-size: 12px; color: #84887f; margin-top: 4px; }
@@ -104,6 +106,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
   const top50 = rankingTop50(r);
   const searches = articleSearches(r);
   const winnable = winnableCount(r);
+  const drafted = r.articles.filter((a) => a.draft).length;
 
   return (
     <div className="gv-rep">
@@ -162,7 +165,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
 
         <section>
           <h2>Write these first</h2>
-          <p className="rp-sub">Ordered by how close the reader is to buying. Difficulty is 0 to 100; under 30 is realistic for a new domain.</p>
+          <p className="rp-sub">Ordered by how close the reader is to buying. Difficulty is 0 to 100; under 30 is realistic for a new domain. {drafted > 0 && ` Grove has already drafted ${drafted === 1 ? 'one' : `the first ${['', 'one', 'two', 'three', 'four', 'five', 'six'].at(drafted) ?? drafted}`}, so you can judge the writing, not a promise.`}</p>
           <div className="rp-arts">
             {r.articles.map((a, i) => (
               <div className="rp-art" key={a.target.keyword}>
@@ -172,6 +175,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
                   <div className="rp-kw">{a.target.keyword}{a.also?.length ? ` + ${a.also.map((k) => k.keyword).join(', ')}` : ''}</div>
                   <div className="rp-why">{a.why}</div>
                   {a.proof && <div className="rp-pf">{proofLine(a.proof)}</div>}
+                  {a.draft && <a className="rp-read" href={`/r/${r.slug}/a/${a.draft.slug}`}>Read the draft Grove wrote &rarr;</a>}
                 </div>
                 <div className="rp-num">
                   <div className="rp-big">{n(a.target.volume)}</div>

@@ -4,6 +4,9 @@
  * format, and first-person opener. The writer's job is to execute on it.
  */
 import { llmCall, extractJson } from '../llm';
+import {
+  COMPARISON_CITATION_CAP, COMPARISON_FORMAT_LINE, COMPARISON_SOURCES_LABEL, comparisonWriterRules,
+} from './comparison';
 import { deriveMetaDescription, capTitle } from '../meta';
 import { qualityRulesPrompt } from './quality-rules';
 import {
@@ -102,6 +105,7 @@ export async function runWriter(opts: {
   const { business, voice } = profile;
   const homeUrl = hostname ? `https://${hostname.replace(/^https?:\/\//, '').replace(/\/$/, '')}` : '';
   const sources = flatSources(context);
+  const isComparison = brief.format === 'comparison';
 
   const fmt = (arr: typeof context.primary, offset: number) =>
     arr.map((s, i) => `[${offset + i + 1}] ${s.title}\n    ${s.url}\n    ${s.snippet}`).join('\n\n');
@@ -110,7 +114,9 @@ export async function runWriter(opts: {
     '### Primary sources (use for facts, definitions, evidence)',
     context.primary.length ? fmt(context.primary, 0) : '(none)',
     '',
-    '### Competitor / alternative angles (POSITIONING INTEL ONLY — never name, link, cite, or recommend these in the article)',
+    isComparison
+      ? COMPARISON_SOURCES_LABEL
+      : '### Competitor / alternative angles (POSITIONING INTEL ONLY — never name, link, cite, or recommend these in the article)',
     context.competitor.length ? fmt(context.competitor, context.primary.length) : '(none)',
     '',
     '### Audience pain points (ground the article in real problems)',
@@ -189,6 +195,7 @@ EXECUTION RULES (in priority order)
                         works underneath, why it's designed that way, when to reach
                         for it (and when not). Ground every capability claim in the
                         CUSTOMER KNOWLEDGE BASE; no invented internals.
+${COMPARISON_FORMAT_LINE}
 
 ${marketingRulesFor(brief.marketing_intent, business, homeUrl)}
 
@@ -253,7 +260,7 @@ LENGTH (non-negotiable)
   A draft under ${lg.length.floor} is flagged as thin.
   Don't pad — go deeper: more concrete detail per section, not more sections.
 
-NEVER SEND THE READER ELSEWHERE
+${isComparison ? comparisonWriterRules(business.name) : `NEVER SEND THE READER ELSEWHERE
 - This is ${business.name}'s OWN blog. Never name, link, recommend, or compare
   by name any competing product, tool, platform, studio, or agency — not even
   to look balanced. The "Competitor / alternative angles" sources are for
@@ -262,7 +269,7 @@ NEVER SEND THE READER ELSEWHERE
   use…", "alternatively, try…", "partner with an agency", "hire a studio".
 - You may name the product CATEGORY generically ("AI icon generators"); never
   a specific rival brand.
-
+`}
 H1
 - The article's one and only H1 (# ) must be the brief's Title VERBATIM.
   Do not rewrite it, shorten it, or invent a different headline.
@@ -340,7 +347,7 @@ Deliver the article now. Open with the hook line verbatim${lg.code === 'en' ? ''
   // force the H1 to the canonical title verbatim (prompt rule #1, now guaranteed)
   body = forceCanonicalH1(body, title);
   // cap citations: 4 max, extras demoted to plain text
-  body = capCitations(body, 4);
+  body = capCitations(body, isComparison ? COMPARISON_CITATION_CAP : 4);
   // marketing safety net — funnel-aware: editorial=no-op, contextual=inline link,
   // conversion=inline link + closing CTA paragraph.
   body = ensureHomepageCta(body, {
