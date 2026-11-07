@@ -23,3 +23,6 @@ serp-hostility-raw.json
 difficulty-calibration-raw.json
 difficulty-calibration-serps.json
 difficulty-calibration-posts-raw.json
+
+# prospect research raw output (scripts/prospect-research.mjs)
+scripts/out/
