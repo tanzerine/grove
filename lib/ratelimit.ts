@@ -43,6 +43,10 @@ export const LIMITS = {
   // (pull, write, record, repeat) — and none of them costs an LLM token on
   // grove's side. It exists to stop a runaway loop, not to pace a real sync.
   mcp: { limit: 600, windowSec: 3600 },
+  // A prospect answering a meeting link (/meet/<token>). Public and
+  // unauthenticated, keyed by IP; every answer emails the owner, so it's capped
+  // like feedback. Someone changing their mind three times is still well under.
+  meet: { limit: 12, windowSec: 3600 },
 } as const;
 
 export type RateResult = { ok: boolean; retryAfterSec?: number };
