@@ -154,6 +154,21 @@ DM that offers them a beta code. `/dashboard/admin/outreach`.
   The 403 message differs depending on whether we were authenticated, because
   "get credentials" is the wrong advice for someone who already has them.
 
+**Meeting links** (0046, `lib/meetings.ts`) — grove's own Calendly, for the
+end of the outreach funnel. The owner makes a link on `/dashboard/admin/meetings`
+(offered times, usually a daily window over N days), the prospect opens
+`/meet/<org>-<token>`, picks a time or suggests up to three, and the owner
+confirms; confirming emails the prospect calendar links (`/api/meet/<slug>/ics`).
+- The token (last 24 chars of the slug) is the whole credential, like `/r/<slug>`:
+  noindex, never in a sitemap, `meetings` is service-role only. The public POST
+  trusts nothing — `validateResponse` checks a pick against the stored slots —
+  and only an admin session can confirm.
+- **Times are instants; zones are labels.** Stored as ISO UTC. A datetime-local
+  value is read in the zone the page currently shows (`zonedWallTimeToIso`),
+  never via `new Date(value)`, which would use the browser's zone even after the
+  reader picked another one.
+- `publicView` strips `prospect_email`: anyone holding a forwarded link sees the page.
+
 **Publication language** (0037) — `domains.language` (`en | ko | es | zh`,
 default `en`) is the single input, and `lib/language.ts` is the single source
 for every consequence: the writer/refiner/manager prompt fragments, the research
